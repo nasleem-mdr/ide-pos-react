@@ -1,0 +1,28 @@
+/* Struktur layout utama */
+.app-layout {
+    display: grid;
+    /* Kolom pertama untuk Sidebar (260px), kolom kedua untuk sisa layar (1fr) */
+    grid-template-columns: 260px 1fr;
+    min-height: 100vh;
+    transition: grid-template-columns 0.3s ease; /* Membuat efek transisi melebar yang halus */
+  }
+  
+  /* Ketika class 'sidebar-collapsed' aktif pada induk */
+  .app-layout.sidebar-collapsed {
+    /* Ubah lebar kolom pertama menjadi ukuran minimal sidebar (70px) */
+    grid-template-columns: 70px 1fr;
+  }
+  
+  /* Area utama bagian kanan */
+  .main-wrapper {
+    display: flex;
+    flex-direction: column;
+    min-width: 0; /* Mencegah konten meluber keluar layar */
+  }
+  
+  .content {
+    flex: 1;
+    padding: 20px;
+    background-color: #f5f5f5; /* Sesuaikan dengan warna tema Anda */
+  }
+  

@@ -1,0 +1,619 @@
+import { useState, useEffect } from "react";
+import '../css/Login.css';
+
+// ─── API Helpers ──────────────────────────────────────────────────────────────
+// Di dalam function IDempiereAuth()
+
+
+// Step 1: POST /api/v1/auth/tokens — hanya userName & password
+async function apiLogin(username, password) {
+  const res = await fetch(`api/v1/auth/tokens`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({ userName: username, password }),
+  });
+  const text = await res.text();
+  console.log("[POST /auth/tokens]", res.status, text);
+  if (!res.ok) {
+    const err = safeJson(text);
+    throw new Error(err.detail || err.message || `Login gagal (${res.status})`);
+  }
+  return safeJson(text);
+}
+
+// Step 2a: GET /api/v1/auth/roles?client=X
+async function apiGetRoles(token, clientId) {
+  const res = await fetch(`api/v1/auth/roles?client=${clientId}`, {
+    headers: { Accept: "application/json", Authorization: `Bearer ${token}` },
+  });
+  const text = await res.text();
+  console.log("[GET /auth/roles]", res.status, text);
+  if (!res.ok) {
+    const err = safeJson(text);
+    throw new Error(err.detail || err.message || `Gagal ambil roles (${res.status})`);
+  }
+  return safeJson(text);
+}
+
+// Step 2b: GET /api/v1/auth/organizations?client=X&role=Y
+async function apiGetOrganizations(token, clientId, roleId) {
+  const res = await fetch(`api/v1/auth/organizations?client=${clientId}&role=${roleId}`, {
+    headers: { Accept: "application/json", Authorization: `Bearer ${token}` },
+  });
+  const text = await res.text();
+  console.log("[GET /auth/organizations]", res.status, text);
+  if (!res.ok) {
+    const err = safeJson(text);
+    throw new Error(err.detail || err.message || `Gagal ambil organisasi (${res.status})`);
+  }
+  return safeJson(text);
+}
+
+// Step 2c: GET /api/v1/auth/warehouses?client=X&role=Y&organization=Z
+async function apiGetWarehouses(token, clientId, roleId, orgId) {
+  const res = await fetch(`api/v1/auth/warehouses?client=${clientId}&role=${roleId}&organization=${orgId}`, {
+    headers: { Accept: "application/json", Authorization: `Bearer ${token}` },
+  });
+  const text = await res.text();
+  console.log("[GET /auth/warehouses]", res.status, text);
+  if (!res.ok) {
+    const err = safeJson(text);
+    throw new Error(err.detail || err.message || `Gagal ambil warehouse (${res.status})`);
+  }
+  return safeJson(text);
+}
+
+// // Step 3: PUT /api/v1/auth/tokens — finalize session
+// async function apiSetSession(token, clientId, roleId, orgId, warehouseId, language) {
+//   const payload = { clientId, roleId, organizationId: orgId, warehouseId, language };
+//   console.log("[PUT /auth/tokens] payload:", payload);
+//   const res = await fetch(`api/v1/auth/tokens`, {
+//     method: "PUT",
+//     headers: {
+//       "Content-Type": "application/json",
+//       Accept: "application/json",
+//       Authorization: `Bearer ${token}`,
+//     },
+//     body: JSON.stringify(payload),
+//   });
+//   const text = await res.text();
+//   console.log("[PUT /auth/tokens]", res.status, text);
+//   if (!res.ok) {
+//     const err = safeJson(text);
+//     throw new Error(err.detail || err.message || `Sesi gagal diperbarui (${res.status})`);
+//   }
+//   return safeJson(text);
+// }
+// Step 3: PUT /api/v1/auth/tokens — finalize session
+async function apiSetSession(token, clientId, roleId, orgId, warehouseId, language) {
+    const payload = { 
+      clientId: parseInt(clientId, 10), 
+      roleId: parseInt(roleId, 10), 
+      organizationId: parseInt(orgId, 10), 
+      warehouseId: parseInt(warehouseId, 10), 
+      language 
+    };
+  
+    console.log("[PUT /auth/tokens] payload:", payload);
+    
+    const res = await fetch(`api/v1/auth/tokens`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        Authorization: `Bearer ${token}`, // Menggunakan token sementara dari Step 1/2
+      },
+      body: JSON.stringify(payload),
+    });
+  
+    const text = await res.text();
+    console.log("[PUT /auth/tokens]", res.status, text);
+  
+    if (!res.ok) {
+      const err = safeJson(text);
+      throw new Error(err.detail || err.message || `Sesi gagal diperbarui (${res.status})`);
+    }
+  
+    const data = safeJson(text);
+  
+    // --- PERBAIKAN DI SINI ---
+    // Sangat penting: Update localStorage dengan token FINAL dari respons PUT
+    if (data.token) {
+      localStorage.setItem('token', data.token);
+      const userId = data.userId || (data.userContext && data.userContext.userId);
+          if (userId) {
+            localStorage.setItem('AD_User_ID', userId);
+          } else {
+            console.warn("AD_User_ID tidak ditemukan di respon API.");
+          }
+      console.log("Token final berhasil disimpan ke localStorage");
+    }
+    // -------------------------
+  
+    return data;
+  }
+  
+
+// Safely parse JSON
+function safeJson(text) {
+  try { return JSON.parse(text); } catch { return {}; }
+}
+
+// Normalise list — IDempiere bisa return array langsung atau object { roles: [...] }
+function normaliseList(data, key) {
+  if (Array.isArray(data)) return data;
+  if (data && Array.isArray(data[key])) return data[key];
+  if (data && typeof data === "object") {
+    const found = Object.values(data).find(Array.isArray);
+    if (found) return found;
+  }
+  return [];
+}
+
+// ─── Icons ────────────────────────────────────────────────────────────────────
+function EyeIcon({ show }) {
+  return show ? (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94"/>
+      <path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19"/>
+      <line x1="1" y1="1" x2="23" y2="23"/>
+    </svg>
+  ) : (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+      <circle cx="12" cy="12" r="3"/>
+    </svg>
+  );
+}
+function CheckIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="20 6 9 17 4 12"/>
+    </svg>
+  );
+}
+function ArrowIcon({ left }) {
+  return left ? (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>
+    </svg>
+  ) : (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+    </svg>
+  );
+}
+function AlertIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10"/>
+      <line x1="12" y1="8" x2="12" y2="12"/>
+      <line x1="12" y1="16" x2="12.01" y2="16"/>
+    </svg>
+  );
+}
+function InfoIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10"/>
+      <line x1="12" y1="16" x2="12" y2="12"/>
+      <line x1="12" y1="8" x2="12.01" y2="8"/>
+    </svg>
+  );
+}
+
+// ─── Main Component ───────────────────────────────────────────────────────────
+export default function IDempiereAuth({ onLoginSuccess }) {
+  const [step, setStep] = useState(1);
+  const [showPass, setShowPass] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [sessionData, setSessionData] = useState(null); // Tambahkan baris ini
+  // Step 1
+  const [form1, setForm1] = useState({ username: "", password: "" });
+
+  // Auth data
+  const [token, setToken] = useState("");
+  const [clients, setClients] = useState([]);
+  const [roles, setRoles] = useState([]);
+  const [orgs, setOrgs] = useState([]);
+  const [warehouses, setWarehouses] = useState([]);
+  const [language, setLanguage] = useState("en_US");
+
+  // Step 2 selections
+  const [selectedClientId, setSelectedClientId] = useState("");
+  const [selectedRoleId, setSelectedRoleId] = useState("");
+  const [selectedOrgId, setSelectedOrgId] = useState("");
+  const [selectedWarehouseId, setSelectedWarehouseId] = useState("");
+
+
+  const updateForm1 = (k) => (e) => setForm1((p) => ({ ...p, [k]: e.target.value }));
+
+  // Auto-select client jika hanya 1 (roles/orgs ditangani inline di handler)
+  useEffect(() => {
+    if (clients.length === 1) handleClientChange(String(clients[0].id));
+  }, [clients]);
+
+  // ── Step 1: Login ─────────────────────────────────────────────────────────
+  async function handleStep1(e) {
+    e.preventDefault();
+    if (!form1.username || !form1.password) {
+      setError("Username dan password wajib diisi.");
+      return;
+    }
+    setError("");
+    setLoading(true);
+    try {
+      // POST — hanya userName & password, tidak ada parameter lain
+      const data = await apiLogin(form1.username, form1.password);
+      setToken(data.token);
+      setClients(normaliseList(data.clients || data, "clients"));
+      setStep(2);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // ── Client dipilih → GET roles ────────────────────────────────────────────
+  async function handleClientChange(clientId) {
+    setSelectedClientId(clientId);
+    setSelectedRoleId("");
+    setSelectedOrgId("");
+    setSelectedWarehouseId("");
+    setRoles([]);
+    setOrgs([]);
+    setWarehouses([]);
+    if (!clientId) return;
+    setLoading(true);
+    setError("");
+    try {
+      const data = await apiGetRoles(token, clientId);
+      const roleList = normaliseList(data, "roles");
+      setRoles(roleList);
+      // Auto-select langsung di sini jika hanya 1 role, sambil pass clientId yg benar
+      if (roleList.length === 1) {
+        await handleRoleChange(String(roleList[0].id), clientId);
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // ── Role dipilih → GET organizations ─────────────────────────────────────
+  async function handleRoleChange(roleId, clientIdOverride) {
+    const clientId = clientIdOverride || selectedClientId;
+    setSelectedRoleId(roleId);
+    setSelectedOrgId("");
+    setSelectedWarehouseId("");
+    setOrgs([]);
+    setWarehouses([]);
+    if (!roleId || !clientId) return;
+    setLoading(true);
+    setError("");
+    try {
+      const data = await apiGetOrganizations(token, clientId, roleId);
+      const orgList = normaliseList(data, "organizations");
+      setOrgs(orgList);
+      // Auto-select langsung jika hanya 1 org
+      if (orgList.length === 1) {
+        await handleOrgChange(String(orgList[0].id), clientId, roleId);
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // ── Org dipilih → GET warehouses ──────────────────────────────────────────
+  async function handleOrgChange(orgId, clientIdOverride, roleIdOverride) {
+    const clientId = clientIdOverride || selectedClientId;
+    const roleId   = roleIdOverride   || selectedRoleId;
+    setSelectedOrgId(orgId);
+    setSelectedWarehouseId("");
+    setWarehouses([]);
+    if (!orgId || !clientId || !roleId) return;
+    setLoading(true);
+    setError("");
+    try {
+      const data = await apiGetWarehouses(token, clientId, roleId, orgId);
+      setWarehouses(normaliseList(data, "warehouses"));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // ── Step 2: Finalize → PUT /auth/tokens ───────────────────────────────────
+  async function handleStep2(e) {
+    e.preventDefault();
+    if (!selectedClientId || !selectedRoleId || !selectedOrgId) {
+      setError("Client, Role, dan Organisasi wajib dipilih.");
+      return;
+    }
+    setError("");
+    setLoading(true);
+    try {
+      const data = await apiSetSession(
+        token,
+        parseInt(selectedClientId, 10),
+        parseInt(selectedRoleId, 10),
+        parseInt(selectedOrgId, 10),
+        selectedWarehouseId ? parseInt(selectedWarehouseId, 10) : 0,
+        language,
+      );
+      // Panggil onLoginSuccess dengan session info lengkap
+      onLoginSuccess({
+        token: data.token,
+        username: form1.username,
+        clientId: parseInt(selectedClientId, 10),
+        clientName: clients.find((c) => String(c.id) === selectedClientId)?.name || selectedClientId,
+        roleId: parseInt(selectedRoleId, 10),
+        roleName: roles.find((r) => String(r.id) === selectedRoleId)?.name || selectedRoleId,
+        orgId: parseInt(selectedOrgId, 10),
+        orgName: orgs.find((o) => String(o.id) === selectedOrgId)?.name || selectedOrgId,
+        language,
+      });
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // ── Reset ─────────────────────────────────────────────────────────────────
+  function handleBack() {
+    setStep(1);
+    setError("");
+    setToken("");
+    setClients([]);
+    setRoles([]);
+    setOrgs([]);
+    setWarehouses([]);
+    setSelectedClientId("");
+    setSelectedRoleId("");
+    setSelectedOrgId("");
+    setSelectedWarehouseId("");
+    setSessionData(null);
+  }
+
+  const stepConfig = [
+    { num: 1, label: "Kredensial", desc: "Username & password" },
+    { num: 2, label: "Sesi Kerja", desc: "Client, role & organisasi" },
+    { num: 3, label: "Berhasil", desc: "Sesi aktif & siap digunakan" },
+  ];
+
+
+
+  // ── Render ────────────────────────────────────────────────────────────────
+  return (
+    <>
+      <div className="auth-root">
+        {/* LEFT PANEL */}
+        <div className="auth-left">
+          <div className="brand">
+            <div className="brand-icon">iD</div>
+            <div>
+              <div className="brand-name">iDempiere</div>
+              <div className="brand-sub">ERP Platform</div>
+            </div>
+          </div>
+
+          <div className="steps-nav">
+            {stepConfig.map((s) => {
+              const isDone = step > s.num;
+              const isActive = step === s.num;
+              return (
+                <div key={s.num} className="step-item">
+                  <div className={`step-dot ${isDone ? "done" : isActive ? "active" : ""}`}>
+                    {isDone ? <CheckIcon /> : s.num}
+                  </div>
+                  <div className="step-info">
+                    <div className={`step-label ${isDone ? "done" : isActive ? "active" : ""}`}>{s.label}</div>
+                    <div className={`step-desc ${isActive ? "active" : ""}`}>{s.desc}</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="auth-footer">
+            <div className="footer-text">
+              Autentikasi terenkripsi via REST API IDempiere v10+.<br />
+              Sesi token berlaku sesuai konfigurasi server.
+            </div>
+          </div>
+        </div>
+
+        {/* RIGHT PANEL */}
+        <div className="auth-right">
+
+          {/* ── Step 1 ── */}
+          {step === 1 && (
+            <div className="card slide-enter">
+              <div className="card-title">Masuk ke <em>iDempiere</em></div>
+              <div className="card-sub">Masukkan kredensial akun Anda untuk melanjutkan.</div>
+
+              {error && <div className="error-box"><AlertIcon />{error}</div>}
+
+              <form onSubmit={handleStep1} noValidate>
+                <div className="field">
+                  <label className="field-label">Username</label>
+                  <input
+                    className="field-input"
+                    type="text"
+                    placeholder="contoh: SuperUser"
+                    value={form1.username}
+                    onChange={updateForm1("username")}
+                    autoComplete="username"
+                    autoFocus
+                  />
+                </div>
+
+                <div className="field">
+                  <label className="field-label">Password</label>
+                  <div className="input-wrapper">
+                    <input
+                      className="field-input"
+                      type={showPass ? "text" : "password"}
+                      placeholder="••••••••"
+                      value={form1.password}
+                      onChange={updateForm1("password")}
+                      autoComplete="current-password"
+                      style={{ paddingRight: 44 }}
+                    />
+                    <span
+                      className="input-icon"
+                      onClick={() => setShowPass((p) => !p)}
+                      title={showPass ? "Sembunyikan" : "Tampilkan"}
+                    >
+                      <EyeIcon show={showPass} />
+                    </span>
+                  </div>
+                </div>
+
+                <button className="btn-primary" type="submit" disabled={loading}>
+                  {loading
+                    ? <><div className="spinner" />Memverifikasi...</>
+                    : <>Lanjutkan <ArrowIcon /></>}
+                </button>
+              </form>
+            </div>
+          )}
+
+          {/* ── Step 2 ── */}
+          {step === 2 && (
+            <div className="card slide-enter">
+              <div className="card-title">Pilih <em>Sesi Kerja</em></div>
+              <div className="card-sub">Tentukan konteks akses untuk sesi ini.</div>
+
+              <div className="info-box">
+                <InfoIcon />
+                <span>Masuk sebagai <strong>{form1.username}</strong> — pilih lingkungan kerja Anda.</span>
+              </div>
+
+              {error && <div className="error-box"><AlertIcon />{error}</div>}
+
+              <form onSubmit={handleStep2} noValidate>
+
+                {/* CLIENT */}
+                <div className="field">
+                  <label className="field-label">Client</label>
+                  <select
+                    className="field-input"
+                    value={selectedClientId}
+                    onChange={(e) => handleClientChange(e.target.value)}
+                    disabled={loading}
+                  >
+                    <option value="">— Pilih Client —</option>
+                    {clients.map((c) => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* ROLE */}
+                <div className="field">
+                  <label className="field-label">Role</label>
+                  <select
+                    className="field-input"
+                    value={selectedRoleId}
+                    onChange={(e) => handleRoleChange(e.target.value)}
+                    disabled={!selectedClientId || loading}
+                  >
+                    <option value="">
+                      {!selectedClientId ? "— Pilih Client dulu —" : "— Pilih Role —"}
+                    </option>
+                    {roles.map((r) => (
+                      <option key={r.id} value={r.id}>{r.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* ORGANISASI */}
+                <div className="field">
+                  <label className="field-label">Organisasi</label>
+                  <select
+                    className="field-input"
+                    value={selectedOrgId}
+                    onChange={(e) => handleOrgChange(e.target.value)}
+                    disabled={!selectedRoleId || loading}
+                  >
+                    <option value="">
+                      {!selectedRoleId ? "— Pilih Role dulu —" : "— Pilih Organisasi —"}
+                    </option>
+                    {orgs.map((o) => (
+                      <option key={o.id} value={o.id}>{o.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* WAREHOUSE */}
+                <div className="field">
+                  <label className="field-label">
+                    Warehouse{" "}
+                    <span style={{ color: "#484f58", fontWeight: 300, textTransform: "none", letterSpacing: 0 }}>
+                      (opsional)
+                    </span>
+                  </label>
+                  <select
+                    className="field-input"
+                    value={selectedWarehouseId}
+                    onChange={(e) => setSelectedWarehouseId(e.target.value)}
+                    disabled={!selectedOrgId || loading}
+                  >
+                    <option value="">— Tidak ada / Semua —</option>
+                    {warehouses.map((w) => (
+                      <option key={w.id} value={w.id}>{w.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* BAHASA */}
+                <div className="field">
+                  <label className="field-label">Bahasa Antarmuka</label>
+                  <select
+                    className="field-input"
+                    value={language}
+                    onChange={(e) => setLanguage(e.target.value)}
+                    disabled={loading}
+                  >
+                    <option value="en_US">English (US)</option>
+                    <option value="id_ID">Bahasa Indonesia</option>
+                    <option value="de_DE">Deutsch</option>
+                    <option value="fr_FR">Français</option>
+                    <option value="es_ES">Español</option>
+                    <option value="zh_CN">中文 (简体)</option>
+                    <option value="ja_JP">日本語</option>
+                  </select>
+                </div>
+
+                <div className="btn-row">
+                  <button type="button" className="btn-secondary" onClick={handleBack} disabled={loading}>
+                    <ArrowIcon left /> Kembali
+                  </button>
+                  <button
+                    className="btn-primary"
+                    type="submit"
+                    disabled={loading || !selectedClientId || !selectedRoleId || !selectedOrgId}
+                  >
+                    {loading
+                      ? <><div className="spinner" />Memproses...</>
+                      : <>Masuk <ArrowIcon /></>}
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
+
+
+        </div>
+      </div>
+    </>
+  );
+}
