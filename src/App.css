@@ -37,10 +37,13 @@
   }
 }
 
-/* Konten Utama */
 .content {
+  flex: 1;
   padding: 20px;
-  flex: 1; /* Mengisi sisa ruang ke bawah */
+  overflow: hidden;
+  min-height: 0;    /* ← ini kuncinya */
+  display: flex;
+  flex-direction: column;
 }
 
 /* Perbaikan untuk tampilan tabel agar tidak pecah */

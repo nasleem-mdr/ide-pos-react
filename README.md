@@ -1,3 +1,8 @@
+# Point of Sales application
+Ini adalah aplikasi Poin of Sales yang dibangun dengan REACT dan terhubung ke IDempiere REST API,
+Aplikasi ini masih sangat sederhana, silahkan dikembangkan, terutama untuk pembayaran mix (cash, qris dll)
+Aplikasi ini free dengan resiko ditanggung anda sendiri (masih banyak ekspose console.log untuk pengetesan, kalau untuk production silahan dihapus)
+
 # Getting Started with Create React App
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
@@ -5,6 +10,9 @@ This project was bootstrapped with [Create React App](https://github.com/faceboo
 ## Available Scripts
 
 In the project directory, you can run:
+
+### `npm install`
+Edit Package.json -->proxy to your real IDempiere Rest API
 
 ### `npm start`
 

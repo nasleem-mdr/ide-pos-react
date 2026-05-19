@@ -16,6 +16,11 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }) {
   return (
     <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''}`}>
       <div className="sidebar-header">
+      <div className="sidebar-brand">
+          <div className="brand-icon">iD</div>
+          {!isCollapsed && <span>iDempiere <em>POS</em></span>}
+        </div>
+
         <button 
           className="hamburger-btn" 
           onClick={() => setIsCollapsed(!isCollapsed)}
@@ -24,10 +29,6 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }) {
           ☰
         </button>
         
-        <div className="sidebar-brand">
-          <div className="brand-icon">iD</div>
-          {!isCollapsed && <span>iDempiere <em>POS</em></span>}
-        </div>
       </div>
 
       <nav className="sidebar-nav">

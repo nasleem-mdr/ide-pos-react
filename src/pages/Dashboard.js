@@ -1,4 +1,6 @@
-import Header from '../components/Header';
+//import Header from '../components/Header';
+import { Link, useLocation } from 'react-router-dom';
+import { HomeIcon, PartnerIcon, BoxIcon, ShoppingCartIcon, CashierIcon, WelcomeIcon } from '../components/Icons';
 import '../css/Dashboard.css';
 
 /**
@@ -8,19 +10,21 @@ import '../css/Dashboard.css';
  *   onLogout: () => void
  */
 export default function Dashboard({ session, onLogout }) {
+  const menuItems = [
+      { path: '/dashboard', label: 'Dashboard', icon: <HomeIcon /> },
+      { path: '/business-partner', label: 'Business Partner', icon: <PartnerIcon /> },
+      { path: '/product', label: 'Products', icon: <BoxIcon /> },
+      { path: '/sales-order', label: 'Sales Order', icon: <ShoppingCartIcon /> },
+    ];
   return (
     <div className="dashboard-root">
       
       <main className="dashboard-main">
         <div className="dashboard-welcome">
           <div className="welcome-icon">
-            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-              strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-              <polyline points="9 22 9 12 15 12 15 22"/>
-            </svg>
+            <WelcomeIcon />
           </div>
-          <h1 className="welcome-title">Selamat Datang di Aplikasi POS <em>iDempiere</em></h1>
+          <h1 className="welcome-title">Selamat Datang di Aplikasi Point Of Sales <em>iDempiere</em></h1>
           <p className="welcome-sub">
             Anda masuk sebagai <strong>{session.username}</strong> pada organisasi{" "}
             <strong>{session.orgName}</strong>.
@@ -28,10 +32,14 @@ export default function Dashboard({ session, onLogout }) {
 
           <div className="welcome-cards">
             <div className="welcome-card">
-              <div className="welcome-card-icon">🏢</div>
-              <div className="welcome-card-label">Client</div>
-              <div className="welcome-card-value">{session.clientName}</div>
-            </div>
+            <div className="welcome-card-icon"></div>
+              <Link to="/sales-order" className="welcome-card-link"> 
+                <CashierIcon />  
+                <div className="welcome-card-label">Menu</div>
+                <div className="welcome-card-value">Sales Order</div>
+              </Link>
+
+            </div>    
             <div className="welcome-card">
               <div className="welcome-card-icon">🛡️</div>
               <div className="welcome-card-label">Role</div>
@@ -43,7 +51,9 @@ export default function Dashboard({ session, onLogout }) {
               <div className="welcome-card-value">{session.orgName}</div>
             </div>
             <div className="welcome-card">
-              <div className="welcome-card-icon">🌐</div>
+              <div className="welcome-card-icon">
+                <CashierIcon />
+              </div>
               <div className="welcome-card-label">Bahasa</div>
               <div className="welcome-card-value">{session.language}</div>
             </div>
