@@ -13,12 +13,13 @@ import '../css/CartItem.css';
  *   onPriceChange   (id, value) => void
  *   onUOMChange     (id, uomOption) => void
  */
-const CartItem = ({ item, onRemove, onQtyChange, onPriceChange, onUOMChange }) => {
+
+  const CartItem = ({ item, onRemove, onQtyChange, onPriceChange, onUOMChange }) => {
   const hasUOMOptions = item.uomOptions && item.uomOptions.length > 1;
 
   return (
-    <div className="cart-item">
-      {/* Product name */}
+    <div className={`cart-item${hasUOMOptions ? ' has-uom' : ''}`}>
+      {/* Product name — kolom ini yang flex mengisi sisa */}
       <div className="ci-product" title={item.Name}>
         {item.Name}
         {!hasUOMOptions && item.selectedUOM?.name && (
@@ -26,7 +27,7 @@ const CartItem = ({ item, onRemove, onQtyChange, onPriceChange, onUOMChange }) =
         )}
       </div>
 
-      {/* UOM combobox — hanya muncul jika ada konversi */}
+      {/* UOM — hanya render jika ada opsi */}
       {hasUOMOptions && (
         <div className="ci-uom">
           <UOMSelect
@@ -36,7 +37,6 @@ const CartItem = ({ item, onRemove, onQtyChange, onPriceChange, onUOMChange }) =
           />
         </div>
       )}
-
       {/* Qty stepper */}
       <div className="ci-qty">
         <button

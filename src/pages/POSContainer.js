@@ -127,9 +127,14 @@ const DIALOG_CLOSED = {
                         triggerAlert("M_PriceList_ID tidak ditemukan pada konfigurasi terminal.");
                     }
 
-                    const bpId = terminalConfig.C_BPartner_ID?.id ?? terminalConfig.C_BPartner_ID;
+                    // const bpId = terminalConfig.C_BPartner_ID?.id ?? terminalConfig.C_BPartner_ID;
+                    // if (bpId) {
+                    //     const bpName = terminalConfig.C_BPartner_ID?.identifier || terminalConfig.C_BPartner_ID?.Name || `BPartner #${bpId}`;
+                    //     setSelectedBPartner({ id: bpId, name: bpName });
+                    // }
+                    const bpId = terminalConfig.C_BPartnerCashTrx_ID?.id ?? terminalConfig.C_BPartnerCashTrx_ID;
                     if (bpId) {
-                        const bpName = terminalConfig.C_BPartner_ID?.identifier || terminalConfig.C_BPartner_ID?.Name || `BPartner #${bpId}`;
+                        const bpName = terminalConfig.C_BPartnerCashTrx_ID?.identifier || terminalConfig.C_BPartnerCashTrx_ID?.Name || `BPartner #${bpId}`;
                         setSelectedBPartner({ id: bpId, name: bpName });
                     }
 
@@ -214,12 +219,12 @@ const DIALOG_CLOSED = {
         try {
             setLoading(true);
             setVersionMissing(false);
-
+    
             const config           = terminalConfig || posConfig;
             const rawPriceId       = priceListId || config?.M_PriceList_ID;
             const finalPriceListId = typeof rawPriceId === 'object' ? rawPriceId?.id : rawPriceId;
             if (!finalPriceListId) { console.error("PriceList ID tidak ditemukan"); return; }
-
+    
             const versionRes    = await customFetch(
                 `/models/m_pricelist_version?$filter=M_PriceList_ID eq ${finalPriceListId} and IsActive eq true&$orderby=ValidFrom desc&$top=1`
             );
@@ -230,11 +235,11 @@ const DIALOG_CLOSED = {
                 setProducts([]);
                 return;
             }
-
+    
             const versionId = activeVersion.id || activeVersion.M_PriceList_Version_ID?.id || activeVersion.M_PriceList_Version_ID;
             setCurrentVersionId(versionId);
             setVersionMissing(false);
-
+    
             const priceData       = await customFetch(
                 `/models/m_productprice?$filter=M_PriceList_Version_ID eq ${versionId}&$select=M_Product_ID,PriceStd`
             );
@@ -244,39 +249,47 @@ const DIALOG_CLOSED = {
                 const pid = p.M_Product_ID?.id ?? p.M_Product_ID ?? p.id;
                 if (pid != null) priceMap.set(pid, p.PriceStd);
             });
-
+    
             let productFilter = "IsSold eq true and IsActive eq true";
             if (query) {
                 const safeQuery = query.toUpperCase().replace(/'/g, "''");
                 productFilter += ` and (contains(toupper(Name),'${safeQuery}') or contains(toupper(Value),'${safeQuery}'))`;
             }
-
+    
+            // TAMBAHAN: Menambahkan M_Product_Category_ID ke dalam $select
             const productData    = await customFetch(
-                `/models/m_product?$select=M_Product_ID,Name,Value,C_UOM_ID&$filter=${productFilter}&$top=50`
+                `/models/m_product?$select=M_Product_ID,Name,Value,C_UOM_ID,M_Product_Category_ID&$filter=${productFilter}&$top=50`
             );
             const productRecords = Array.isArray(productData.records) ? productData.records : (productData.records ? [productData.records] : []);
-
+    
             const finalProducts = productRecords.map(p => {
                 const pId   = p.M_Product_ID?.id ?? p.M_Product_ID ?? p.id;
                 const price = priceMap.get(pId);
                 if (price === undefined) return null;
-
+    
                 const defaultUOM = {
                     id:           p.C_UOM_ID?.id ?? p.C_UOM_ID,
                     name:         p.C_UOM_ID?.Name || p.C_UOM_ID?.identifier || 'EA',
                     multiplyRate: 1,
                 };
-
+    
+                // TAMBAHAN: Mapping data M_Product_Category_ID
+                const category = {
+                    id:   p.M_Product_Category_ID?.id ?? p.M_Product_Category_ID,
+                    name: p.M_Product_Category_ID?.Name || p.M_Product_Category_ID?.identifier || 'N/A'
+                };
+    
                 return {
-                    M_Product_ID: pId,
-                    Name:         p.Name,
-                    Value:        p.Value,
-                    PriceActual:  price ?? 0,
-                    basePrice:    price ?? 0,
+                    M_Product_ID:     pId,
+                    Name:             p.Name,
+                    Value:            p.Value,
+                    PriceActual:      price ?? 0,
+                    basePrice:        price ?? 0,
                     defaultUOM,
+                    ProductCategory:  category // TAMBAHAN: Properti baru untuk digunakan di ProductCard
                 };
             }).filter(Boolean);
-
+    
             console.log("✅ finalProducts length:", finalProducts.length);
             setProducts(finalProducts);
         } catch (err) {
@@ -286,6 +299,7 @@ const DIALOG_CLOSED = {
             setLoading(false);
         }
     };
+    
 
     // ─── 3. Fetch UOM options untuk satu produk ───────────────────────────────
     const fetchUOMOptions = async (product) => {
@@ -889,7 +903,7 @@ const DIALOG_CLOSED = {
             </div>
 
             {/* Main Layout */}
-            <div style={{ display: 'flex', gap: '0', height: 'calc(100vh - 180px)', minHeight: '500px' }}>
+            <div style={{ display: 'flex', gap: '0px', flex: '1', overflow: 'hidden' }}>
 
                 {/* Kiri: Search + Product Grid */}
                 <div style={{ flex: 2, display: 'flex', flexDirection: 'column', paddingRight: '20px', overflow: 'hidden' }}>
@@ -926,10 +940,21 @@ const DIALOG_CLOSED = {
                     </div>
                 </div>
 
-                {/* Kanan: Cart */}
-                <div style={{ flex: 1, borderLeft: '1px solid #ddd', paddingLeft: '20px', display: 'flex', flexDirection: 'column', minWidth: '280px' }}>
-                    <h3 style={{ margin: '0 0 10px 0' }}>🛒 Cart</h3>
-                    <div style={{ flex: 1, overflowY: 'auto', paddingRight: '4px' }}>
+                {/* CONTAINER UTAMA CART */}
+                <div style={{ 
+                    flex: 1, 
+                    borderLeft: '1px solid #ddd', 
+                    paddingLeft: '20px', 
+                    display: 'flex', 
+                    flexDirection: 'column', 
+                    minWidth: '280px',
+                    overflow: 'hidden',
+                    minHeight: 0    // Mencegah container utama ikut memanjang ke bawah
+                }}>
+                    <h3 style={{ margin: '0 0 10px 0', flexShrink: 0 }}>🛒 Cart</h3>
+                    
+                    {/* WRAPPER CART ITEM (HANYA BAGIAN INI YANG SCROLL) */}
+                    <div style={{ flex: 1, overflowY: 'auto', paddingRight: '4px', minHeight: 0 }}>
                         {cart.length === 0 && <p style={{ color: '#999' }}>Keranjang kosong</p>}
                         {cart.map((item, index) => (
                             <CartItem
@@ -942,6 +967,8 @@ const DIALOG_CLOSED = {
                             />
                         ))}
                     </div>
+                    
+                    {/* SECTION PEMBAYARAN (FIXED DI BAWAH) */}
                     {cart.length > 0 && (
                         <div style={{ borderTop: '1px solid #ddd', paddingTop: '12px', marginTop: '8px', flexShrink: 0 }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px', fontSize: '15px', fontWeight: 'bold' }}>

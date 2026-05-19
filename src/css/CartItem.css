@@ -14,7 +14,10 @@
   transition: border-color 0.2s, box-shadow 0.2s;
   font-family: 'DM Mono', monospace;
 }
-
+/* Dengan UOM: Product(1fr) | UOM | Qty | Price | Delete */
+.cart-item.has-uom {
+  grid-template-columns: 1fr auto auto auto auto;
+}
 .cart-item:hover {
   border-color: rgba(0, 209, 178, 0.3); /* teal aksen */
   box-shadow: 0 0 0 1px rgba(0, 209, 178, 0.08);

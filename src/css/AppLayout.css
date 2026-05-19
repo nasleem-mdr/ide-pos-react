@@ -1,11 +1,9 @@
 /* Struktur layout utama */
 .app-layout {
-    display: grid;
-    /* Kolom pertama untuk Sidebar (260px), kolom kedua untuk sisa layar (1fr) */
-    grid-template-columns: 260px 1fr;
-    min-height: 100vh;
-    transition: grid-template-columns 0.3s ease; /* Membuat efek transisi melebar yang halus */
-  }
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+}
   
   /* Ketika class 'sidebar-collapsed' aktif pada induk */
   .app-layout.sidebar-collapsed {
@@ -17,12 +15,16 @@
   .main-wrapper {
     display: flex;
     flex-direction: column;
-    min-width: 0; /* Mencegah konten meluber keluar layar */
+    flex: 1;
+    overflow: hidden;
+    min-height: 0;
   }
-  
+
   .content {
     flex: 1;
-    padding: 20px;
-    background-color: #f5f5f5; /* Sesuaikan dengan warna tema Anda */
+    flex: 1;
+    overflow: hidden;
+    min-height: 0;    /* ← ini kuncinya */
+    display: flex;
+    flex-direction: column;
   }
-  

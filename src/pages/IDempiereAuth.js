@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
+import { ArrowIcon, EyeIcon, CheckIcon, AlertIcon, InfoIcon } from '../components/Icons';
 import '../css/Login.css';
 
-// ─── API Helpers ──────────────────────────────────────────────────────────────
-// Di dalam function IDempiereAuth()
+
+// function IDempiereAuth() dengan Normal Login (Username/Password->Pilih Client/Org/Role)
 
 
 // Step 1: POST /api/v1/auth/tokens — hanya userName & password
@@ -21,7 +22,7 @@ async function apiLogin(username, password) {
   return safeJson(text);
 }
 
-// Step 2a: GET /api/v1/auth/roles?client=X
+// Step 2a: GET /api/v1/auth/roles?client=X --> mendapatkan clientID
 async function apiGetRoles(token, clientId) {
   const res = await fetch(`api/v1/auth/roles?client=${clientId}`, {
     headers: { Accept: "application/json", Authorization: `Bearer ${token}` },
@@ -35,7 +36,7 @@ async function apiGetRoles(token, clientId) {
   return safeJson(text);
 }
 
-// Step 2b: GET /api/v1/auth/organizations?client=X&role=Y
+// Step 2b: GET /api/v1/auth/organizations?client=X&role=Y --> mendapatkan roleId
 async function apiGetOrganizations(token, clientId, roleId) {
   const res = await fetch(`api/v1/auth/organizations?client=${clientId}&role=${roleId}`, {
     headers: { Accept: "application/json", Authorization: `Bearer ${token}` },
@@ -49,7 +50,7 @@ async function apiGetOrganizations(token, clientId, roleId) {
   return safeJson(text);
 }
 
-// Step 2c: GET /api/v1/auth/warehouses?client=X&role=Y&organization=Z
+// Step 2c: GET /api/v1/auth/warehouses?client=X&role=Y&organization=Z --> mendapatkan Organization
 async function apiGetWarehouses(token, clientId, roleId, orgId) {
   const res = await fetch(`api/v1/auth/warehouses?client=${clientId}&role=${roleId}&organization=${orgId}`, {
     headers: { Accept: "application/json", Authorization: `Bearer ${token}` },
@@ -63,27 +64,6 @@ async function apiGetWarehouses(token, clientId, roleId, orgId) {
   return safeJson(text);
 }
 
-// // Step 3: PUT /api/v1/auth/tokens — finalize session
-// async function apiSetSession(token, clientId, roleId, orgId, warehouseId, language) {
-//   const payload = { clientId, roleId, organizationId: orgId, warehouseId, language };
-//   console.log("[PUT /auth/tokens] payload:", payload);
-//   const res = await fetch(`api/v1/auth/tokens`, {
-//     method: "PUT",
-//     headers: {
-//       "Content-Type": "application/json",
-//       Accept: "application/json",
-//       Authorization: `Bearer ${token}`,
-//     },
-//     body: JSON.stringify(payload),
-//   });
-//   const text = await res.text();
-//   console.log("[PUT /auth/tokens]", res.status, text);
-//   if (!res.ok) {
-//     const err = safeJson(text);
-//     throw new Error(err.detail || err.message || `Sesi gagal diperbarui (${res.status})`);
-//   }
-//   return safeJson(text);
-// }
 // Step 3: PUT /api/v1/auth/tokens — finalize session
 async function apiSetSession(token, clientId, roleId, orgId, warehouseId, language) {
     const payload = { 
@@ -116,7 +96,6 @@ async function apiSetSession(token, clientId, roleId, orgId, warehouseId, langua
   
     const data = safeJson(text);
   
-    // --- PERBAIKAN DI SINI ---
     // Sangat penting: Update localStorage dengan token FINAL dari respons PUT
     if (data.token) {
       localStorage.setItem('token', data.token);
@@ -148,58 +127,6 @@ function normaliseList(data, key) {
     if (found) return found;
   }
   return [];
-}
-
-// ─── Icons ────────────────────────────────────────────────────────────────────
-function EyeIcon({ show }) {
-  return show ? (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94"/>
-      <path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19"/>
-      <line x1="1" y1="1" x2="23" y2="23"/>
-    </svg>
-  ) : (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-      <circle cx="12" cy="12" r="3"/>
-    </svg>
-  );
-}
-function CheckIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="20 6 9 17 4 12"/>
-    </svg>
-  );
-}
-function ArrowIcon({ left }) {
-  return left ? (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>
-    </svg>
-  ) : (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
-    </svg>
-  );
-}
-function AlertIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="10"/>
-      <line x1="12" y1="8" x2="12" y2="12"/>
-      <line x1="12" y1="16" x2="12.01" y2="16"/>
-    </svg>
-  );
-}
-function InfoIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="10"/>
-      <line x1="12" y1="16" x2="12" y2="12"/>
-      <line x1="12" y1="8" x2="12.01" y2="8"/>
-    </svg>
-  );
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
@@ -436,8 +363,14 @@ export default function IDempiereAuth({ onLoginSuccess }) {
           {/* ── Step 1 ── */}
           {step === 1 && (
             <div className="card slide-enter">
-              <div className="card-title">Masuk ke <em>iDempiere</em></div>
-              <div className="card-sub">Masukkan kredensial akun Anda untuk melanjutkan.</div>
+              <div className="brand">
+                <div className="brand-icon">iD</div>
+                <div>
+                  <div className="brand-name">iDempiere</div>
+                  <div className="brand-sub">ERP Platform</div>
+                </div>
+              </div>
+              <div className="card-sub"><em>Masukkan username dan password akun Anda untuk melanjutkan.</em></div>
 
               {error && <div className="error-box"><AlertIcon />{error}</div>}
 
