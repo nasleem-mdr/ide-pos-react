@@ -1,10 +1,10 @@
-@import url('https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Mono:wght@300;400;500&display=swap');
+@import url('https://googleapis.com');
 
 /* ── Backdrop ── */
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(10, 16, 22, 0.75);
+  background: rgba(240, 244, 248, 0.75); /* Diubah ke putih keabuan transparan */
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
   display: flex;
@@ -23,13 +23,13 @@
 .modal-card {
   position: relative;
   width: 380px;
-  background: #2c3e50;
-  border: 1px solid rgba(236, 240, 241, 0.1);
+  background: #ffffff; /* Diubah dari #2c3e50 ke Putih murni */
+  border: 1px solid rgba(0, 0, 0, 0.08); /* Border digelapkan sedikit agar kontras */
   border-radius: 14px;
   overflow: hidden;
   box-shadow:
-    0 24px 64px rgba(0, 0, 0, 0.5),
-    0 0 0 1px rgba(0, 209, 178, 0.06);
+    0 24px 64px rgba(0, 0, 0, 0.1), /* Shadow dibuat lebih halus/tipis */
+    0 0 0 1px rgba(0, 209, 178, 0.04);
   animation: modalIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
@@ -61,8 +61,8 @@
   width: 44px;
   height: 44px;
   border-radius: 10px;
-  background: rgba(231, 76, 60, 0.12);
-  border: 1px solid rgba(231, 76, 60, 0.25);
+  background: rgba(231, 76, 60, 0.1); /* Merah transparan disesuaikan */
+  border: 1px solid rgba(231, 76, 60, 0.2);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -75,7 +75,7 @@
   font-family: 'Syne', sans-serif;
   font-weight: 800;
   font-size: 17px;
-  color: #ecf0f1;
+  color: #1a252f; /* Diubah ke warna gelap bertekstur */
   letter-spacing: -0.5px;
   margin-bottom: 8px;
 }
@@ -84,20 +84,20 @@
 .modal-message {
   font-family: 'DM Mono', monospace;
   font-size: 11px;
-  color: rgba(236, 240, 241, 0.55);
+  color: #5a6a85; /* Diubah ke abu-abu gelap agar teks terbaca jelas */
   line-height: 1.7;
   letter-spacing: 0.2px;
 }
 
 .modal-message strong {
-  color: rgba(236, 240, 241, 0.85);
+  color: #1a252f; /* Tebal diubah ke warna judul */
   font-weight: 500;
 }
 
 /* ── Divider ── */
 .modal-divider {
   height: 1px;
-  background: rgba(236, 240, 241, 0.07);
+  background: rgba(0, 0, 0, 0.06); /* Diubah ke hitam transparan tipis */
   margin: 0 28px;
 }
 
@@ -113,9 +113,9 @@
 .modal-btn-cancel {
   padding: 10px 20px;
   background: transparent;
-  border: 1.5px solid rgba(236, 240, 241, 0.15);
+  border: 1.5px solid rgba(0, 0, 0, 0.12); /* Border disesuaikan kontrasnya */
   border-radius: 8px;
-  color: rgba(236, 240, 241, 0.6);
+  color: #5a6a85; /* Diubah ke abu-abu gelap */
   font-family: 'Syne', sans-serif;
   font-weight: 600;
   font-size: 11px;
@@ -126,9 +126,9 @@
 }
 
 .modal-btn-cancel:hover {
-  border-color: rgba(236, 240, 241, 0.3);
-  color: #ecf0f1;
-  background: rgba(236, 240, 241, 0.04);
+  border-color: rgba(0, 0, 0, 0.25);
+  color: #1a252f;
+  background: rgba(0, 0, 0, 0.03);
 }
 
 /* OK / Confirm */
@@ -137,21 +137,21 @@
   background: #00d1b2;
   border: none;
   border-radius: 8px;
-  color: #2c3e50;
+  color: #ffffff; /* Diubah ke putih agar kontras dengan tombol toska */
   font-family: 'Syne', sans-serif;
   font-weight: 700;
   font-size: 11px;
   letter-spacing: 1px;
   text-transform: uppercase;
   cursor: pointer;
-  box-shadow: 0 4px 14px rgba(0, 209, 178, 0.25);
+  box-shadow: 0 4px 14px rgba(0, 209, 178, 0.2);
   transition: all 0.2s ease;
 }
 
 .modal-btn-confirm:hover {
   background: #00b89c;
   transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(0, 209, 178, 0.35);
+  box-shadow: 0 6px 20px rgba(0, 209, 178, 0.3);
 }
 
 .modal-btn-confirm:active {
