@@ -374,7 +374,7 @@ const DIALOG_CLOSED = {
     };
     
 
-    // ─── 3. Fetch UOM options untuk satu produk ───────────────────────────────
+    // ─── 3a. Fetch UOM options untuk satu produk ───────────────────────────────
     const fetchUOMOptions = async (product) => {
         const productId = product.M_Product_ID;
 
@@ -428,6 +428,23 @@ const DIALOG_CLOSED = {
         return options;
     };
 
+     // ─── 3b. Fetch QtyOnHand dari T_InventoryValue ────────────────────────────
+const fetchQtyOnHand = async (productId) => {
+    try {
+        const adOrgId = posConfig?.AD_Org_ID?.id ?? posConfig?.AD_Org_ID;
+        let filter = `M_Product_ID eq ${productId}`;
+        if (adOrgId) filter += ` and AD_Org_ID eq ${adOrgId}`;
+
+        const res = await customFetch(
+            `/models/t_inventoryvalue?$filter=${filter}&$select=M_Product_ID,QtyOnHand&$top=1`
+        );
+        const record = res?.records?.[0];
+        return record ? parseFloat(record.QtyOnHand ?? 0) : 0;
+    } catch (err) {
+        console.warn("Gagal fetch QtyOnHand:", err.message);
+        return null; // null = tidak bisa cek, biarkan lanjut
+    }
+};
     // ─── 4. Add to cart ───────────────────────────────────────────────────────
     const addToCart = async (product) => {
         const existingIndex = cart.findIndex(item => item.M_Product_ID === product.M_Product_ID);
