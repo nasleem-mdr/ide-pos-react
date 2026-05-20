@@ -5,6 +5,7 @@ import ProductCard from '../components/ProductCard';
 import CartItem from '../components/CartItem';
 import ConfirmModal from '../components/ConfirmModal';
 import PaymentModal from '../components/PaymentModal';
+import ReceiptModal from '../components/ReceiptModal';
 
 const POSContainer = () => {
      // 1. State untuk kontrol Loading & Data POS
@@ -684,7 +685,8 @@ const DIALOG_CLOSED = {
 
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
     const [currentOrderData, setCurrentOrderData]     = useState(null);
-
+    const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
+    const [receiptData, setReceiptData]               = useState(null);
     const handleCheckout = async () => {
         if (cart.length === 0) { triggerAlert("Keranjang masih kosong!"); return; }
 
@@ -746,13 +748,26 @@ const DIALOG_CLOSED = {
             });
 
             const finalDocNo = completedOrder.DocumentNo || currentOrderData.DocumentNo || orderId;
-            triggerAlert(`Transaksi Lunas & Sukses!\nNomor Dokumen: ${finalDocNo}`, "Sukses");
+            // Siapkan data struk sebelum cart di-reset
+               setReceiptData({
+                   documentNo:   finalDocNo,
+                   date:         new Date().toLocaleString("id-ID"),
+                   posName:      posConfig?.Name || "POS Terminal",
+                   cashierName:  posConfig?.SalesRep_ID?.identifier || posConfig?.SalesRep_ID?.id || "-",
+                   bPartnerName: selectedBPartner?.name || "-",
+                   items:        [...cart],           // snapshot cart sebelum di-reset
+                   total:        calculateTotal(),
+                   payments:     cleanPaymentsArray,
+               });
 
             setIsPaymentModalOpen(false);
             setCurrentOrderData(null);
             setCart([]);
+            setIsReceiptModalOpen(true); 
+             
+            //triggerAlert(`Transaksi Lunas & Sukses!\nNomor Dokumen: ${finalDocNo}`, "Sukses");
 
-        } catch (err) {
+       } catch (err) {
             console.error("Proses Pembayaran POS Gagal:", err.message);
             triggerAlert("Gagal memproses pembayaran: " + err.message, "Error");
         }
@@ -993,6 +1008,11 @@ const DIALOG_CLOSED = {
                     onSubmitPayment={handleCompletePOSPaymentWorkflow}
                     customFetch={customFetch}
                 />
+               <ReceiptModal
+                   isOpen={isReceiptModalOpen}
+                   onClose={() => setIsReceiptModalOpen(false)}
+                   receiptData={receiptData}
+               />
             </div>
         </div>
     );
