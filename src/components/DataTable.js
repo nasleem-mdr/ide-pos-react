@@ -22,23 +22,22 @@ export default function DataTable({
   loading, 
   offset, 
   pageSize, 
-  totalRecords = 0, // Tambahkan prop baru untuk total data dari API
-  onPageChange,     // Menggunakan satu fungsi handle pergeseran halaman
-  detailPathPrefix 
+  totalRecords = 0, 
+  onPageChange,     
+  renderActions // Prop baru berupa fungsi untuk merender tombol aksi khusus
 }) {
   if (loading) return <div className="loading-state">Loading data iDempiere...</div>;
 
-  // Kalkulasi Halaman Aktif dan Total Halaman
   const currentPage = Math.floor(offset / pageSize) + 1;
   const totalPages = Math.ceil(totalRecords / pageSize) || 1;
-
+  
   return (
     <div className="table-card">
       <table className="modern-table">
         <thead>
           <tr>
             {columns.map(col => <th key={col.key}>{col.label}</th>)}
-            <th>Action</th>
+            <th>Actions</th> {/* Kolom action tetap ada secara default */}
           </tr>
         </thead>
         <tbody>
@@ -50,9 +49,8 @@ export default function DataTable({
                 </td>
               ))}
               <td>
-                <Link to={`${detailPathPrefix}/${item.id}`}>
-                  <button className="btn-action-view">View Detail</button>
-                </Link>
+                {/* Menjalankan fungsi renderActions yang dikirim dari Pages */}
+                {renderActions ? renderActions(item) : '-'}
               </td>
             </tr>
           ))}
