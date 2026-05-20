@@ -1,4 +1,5 @@
 /* ── Dashboard.css ──────────────────────────────────────────────────────── */
+/* ── Cari bagian ini di Dashboard.css Anda dan ganti kodenya ── */
 
 .dashboard-root {
     min-height: 88vh;
@@ -8,24 +9,27 @@
     border-radius: 20px;
   }
   
-  .dashboard-main {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 48px 24px;
-  }
   
-  /* Welcome section */
-  .dashboard-welcome {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-    max-width: 640px;
-    width: 100%;
-    animation: fadeUp 0.4s ease both;
-  }
+.dashboard-main {
+  flex: 1;
+  display: flex;
+  align-items: flex-start; /* Ganti dari center agar layout mulai dari atas */
+  justify-content: center;
+  padding: 48px 24px;
+}
+
+/* Welcome section */
+.dashboard-welcome {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;    /* Ganti dari center agar konten mengisi lebar maksimal */
+  text-align: center;
+  max-width: 1200px;       /* Naikkan dari 640px menjadi 1200px agar muat menyamping */
+  width: 100%;
+  gap: 24px;               /* Memberi jarak vertikal otomatis antara Nav dan Stats */
+  animation: fadeUp 0.4s ease both;
+}
+
   
   @keyframes fadeUp {
     from { opacity: 0; transform: translateY(16px); }
@@ -109,7 +113,11 @@
     letter-spacing: 0.8px;
     color: #475569;
   }
-  
+  .welcome-card-link {
+    text-decoration: none;
+    /* Tambahkan ini jika ingin memastikan warna teks tidak berubah menjadi biru link */
+    color: inherit; 
+  }
   .welcome-card-value {
     font-size: 13px;
     font-weight: 600;

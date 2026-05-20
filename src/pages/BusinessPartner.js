@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { Link } from "react-router-dom";
 import PageHeader from '../components/PageHeader';
 import DataTable from '../components/DataTable';
 import '../App.css';
@@ -14,7 +15,8 @@ function BusinessPartner() {
   const columns = [
     { key: 'Value', label: 'Search Key' },
     { key: 'Name', label: 'Partner Name' },
-    { key: 'TaxID', label: 'Tax ID' }
+    { key: 'TaxID', label: 'Tax ID' },
+    { key: 'TotalOpenBalance', label: 'Open balance' }
   ];
 
   const fetchBP = useCallback(async () => {
@@ -23,10 +25,18 @@ function BusinessPartner() {
 
     setLoading(true);
     try {
-      let url = `/api/v1/models/c_bpartner?$top=${pageSize}&$skip=${offset}`;
+      // Menentukan kolom spesifik untuk menghemat bandwidth dan mempercepat respons
+      const fields = 'Name,Value,Description,IsVendor,IsCustomer,TotalOpenBalance,TaxID';
+
+      let url = `/api/v1/models/c_bpartner?$select=${fields}&$top=${pageSize}&$skip=${offset}`;
       if (search) {
         url += `&$filter=contains(tolower(Name),'${search.toLowerCase()}')`;
       }
+
+      // let url = `/api/v1/models/c_bpartner?$top=${pageSize}&$skip=${offset}`;
+      // if (search) {
+      //   url += `&$filter=contains(tolower(Name),'${search.toLowerCase()}')`;
+      // }
 
       const response = await fetch(url, {
         headers: {

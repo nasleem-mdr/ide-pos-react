@@ -23,8 +23,9 @@ export default function DataTable({
   offset, 
   pageSize, 
   totalRecords = 0, 
-  onPageChange,     
-  renderActions // Prop baru berupa fungsi untuk merender tombol aksi khusus
+  onPageChange,
+  renderActions, // Prop baru berupa fungsi untuk merender tombol aksi khusus
+  summaryRow,    // Opsional: { columnKey: string, value: string } untuk summary tfoot
 }) {
   if (loading) return <div className="loading-state">Loading data iDempiere...</div>;
 
@@ -36,26 +37,44 @@ export default function DataTable({
       <table className="modern-table">
         <thead>
           <tr>
-            {columns.map(col => <th key={col.key}>{col.label}</th>)}
-            <th>Actions</th> {/* Kolom action tetap ada secara default */}
+            {columns.map(col => (
+              <th key={col.key} style={{ textAlign: col.align || 'left' }}>{col.label}</th>
+            ))}
+            <th>Actions</th>
           </tr>
         </thead>
         <tbody>
           {data.map((item) => (
             <tr key={item.id}>
               {columns.map(col => (
-                <td key={col.key}>
+                <td key={col.key} style={{ textAlign: col.align || 'left' }}>
                   {col.key === 'Value' ? <strong>{item[col.key]}</strong> : item[col.key] || '-'}
                 </td>
-              ))}
-              <td>
-                {/* Menjalankan fungsi renderActions yang dikirim dari Pages */}
-                {renderActions ? renderActions(item) : '-'}
-              </td>
+              ))}<td>{renderActions ? renderActions(item) : '-'}</td>
             </tr>
           ))}
         </tbody>
+
+        {/* Summary Row — tampil jika prop summaryRow diberikan */}
+        {summaryRow && (
+          <tfoot>
+            <tr style={styles.summaryRow}>
+              {columns.map((col) => (
+                <td key={col.key} style={col.key === summaryRow.columnKey ? styles.summaryValue : styles.summaryEmpty}>
+                  {col.key === summaryRow.columnKey ? (
+                    <>
+                      <span style={styles.summaryLabel}>{summaryRow.label || "Total"} &nbsp;</span>
+                      <strong>{summaryRow.value}</strong>
+                    </>
+                  ) : null}
+                </td>
+              ))}
+              <td style={styles.summaryEmpty} />
+            </tr>
+          </tfoot>
+        )}
       </table>
+
       
       {/* Format Navigasi Baru: <| <  1 / 10 > |> */}
       <div className="pagination-container" style={paginationWrapperStyle}>
@@ -118,4 +137,26 @@ const paginationWrapperStyle = {
   gap: '6px',
   padding: '16px',
   background: '#ffffff'
+};
+
+const styles = {
+  summaryRow: {
+    backgroundColor: '#f0f4ff',
+    borderTop: '2px solid #c5cae9',
+  },
+  summaryEmpty: {
+    padding: '10px 16px',
+  },
+  summaryValue: {
+    padding: '10px 16px',
+    textAlign: 'right',
+    fontSize: '13px',
+    color: '#1a237e',
+    whiteSpace: 'nowrap',
+  },
+  summaryLabel: {
+    fontWeight: 'normal',
+    color: '#555',
+    fontSize: '12px',
+  },
 };
