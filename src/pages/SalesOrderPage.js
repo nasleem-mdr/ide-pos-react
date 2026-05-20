@@ -47,7 +47,6 @@ const SalesOrderPage = () => {
 
         setLoading(true);
         try {
-            // Format tanggal hari ini: YYYY-MM-DD
             const today = new Date().toISOString().split("T")[0];
 
             let filterClause =
@@ -56,7 +55,6 @@ const SalesOrderPage = () => {
                 ` and Created ge ${today}T00:00:00Z` +
                 ` and Created le ${today}T23:59:59Z`;
 
-            // Tambah filter pencarian berdasarkan DocumentNo
             if (search) {
                 filterClause += ` and contains(tolower(DocumentNo),'${search.toLowerCase()}')`;
             }
@@ -87,17 +85,16 @@ const SalesOrderPage = () => {
         navigate("/pos-order", { state: { editOrder: order } });
     };
 
-    // Konfigurasi kolom untuk DataTable
+    // 1. Konfigurasi kolom untuk DataTable murni berisi data saja
     const columns = [
         { key: "DocumentNo",    label: "No. Dokumen" },
         { key: "DateOrdered",   label: "Tanggal" },
         { key: "C_BPartner_ID", label: "Customer" },
         { key: "GrandTotal",    label: "Grand Total" },
         { key: "DocStatus",     label: "Status" },
-        { key: "_actions",      label: "Aksi" },
     ];
 
-    // Transform data agar sesuai format flat untuk DataTable
+    // 2. Transform data agar sesuai format flat untuk DataTable
     const tableData = orders.map((order) => {
         const orderId  = order.id ?? order.C_Order_ID;
         const status   = order.DocStatus?.id ?? order.DocStatus ?? "DR";
@@ -122,26 +119,35 @@ const SalesOrderPage = () => {
                     {getStatusLabel(status)}
                 </span>
             ),
-            _actions: (
-                <button
-                    onClick={() => status === "DR" ? handleEdit(order) : null}
-                    disabled={status !== "DR"}
-                    style={{
-                        ...styles.editBtn,
-                        backgroundColor: status === "DR" ? "#f57c00" : "#ccc",
-                        cursor:          status === "DR" ? "pointer"  : "not-allowed",
-                        opacity:         status === "DR" ? 1          : 0.6,
-                    }}
-                >
-                    ✏️ Edit
-                </button>
-            ),
         };
     });
 
+    // 3. Fungsi Render Actions Khusus dengan Validasi Kondisi Status "DR"
+    const actionRenderer = (item) => {
+        // Karena data sudah ditransform, ambil status asli dari properti internal _status
+        const isEditDisabled = item._status !== "DR";
+
+        return (
+            <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                    onClick={() => !isEditDisabled ? handleEdit(item) : null}
+                    disabled={isEditDisabled}
+                    style={{
+                        ...styles.editBtn,
+                        backgroundColor: !isEditDisabled ? "#f57c00" : "#ccc",
+                        cursor:          !isEditDisabled ? "pointer"  : "not-allowed",
+                        opacity:         !isEditDisabled ? 1          : 0.6,
+                    }}
+                    title={isEditDisabled ? `Status ${getStatusLabel(item._status)} tidak dapat diubah` : "Edit Dokumen"}
+                >
+                    ✏️ Edit
+                </button>
+            </div>
+        );
+    };
+
     return (
         <div className="card-container">
-            {/* PageHeader dengan search — sama seperti BusinessPartner */}
             <PageHeader
                 title="📋 Sales Order — Hari ini"
                 onSearch={(val) => { setSearch(val); setOffset(0); }}
@@ -155,7 +161,7 @@ const SalesOrderPage = () => {
                 }
             />
 
-            {/* DataTable dengan pagination — sama seperti BusinessPartner */}
+            {/* 4. Pemanggilan DataTable Universal dengan Prop renderActions */}
             <DataTable
                 columns={columns}
                 data={tableData}
@@ -164,6 +170,7 @@ const SalesOrderPage = () => {
                 pageSize={pageSize}
                 totalRecords={totalRecords}
                 onPageChange={(newOffset) => setOffset(newOffset)}
+                renderActions={actionRenderer}
             />
         </div>
     );
@@ -172,7 +179,7 @@ const SalesOrderPage = () => {
 const styles = {
     newBtn:  { backgroundColor: "#1976d2", color: "#fff", border: "none", padding: "10px 18px", borderRadius: "6px", cursor: "pointer", fontWeight: "bold" },
     badge:   { color: "#fff", padding: "3px 10px", borderRadius: "12px", fontSize: "11px", fontWeight: "bold" },
-    editBtn: { backgroundColor: "#f57c00", color: "#fff", border: "none", padding: "6px 14px", borderRadius: "6px", cursor: "pointer", fontWeight: "bold", fontSize: "12px" },
+    editBtn: { color: "#fff", border: "none", padding: "6px 14px", borderRadius: "6px", fontWeight: "bold", fontSize: "12px", transition: "all 0.2s ease" },
 };
 
 export default SalesOrderPage;
