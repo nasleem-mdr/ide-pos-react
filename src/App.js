@@ -45,7 +45,7 @@ export default function App() {
               <Routes>
                 <Route path="/dashboard" element={<Dashboard session={session} />} />
                 <Route path="/business-partner" element={<BusinessPartner />} />
-                <Route path="/sales-order" element={<POSContainer />} />
+                <Route path="/pos-order" element={<POSContainer />} />
                 <Route path="/bp/:id" element={<BusinessPartnerDetail />} />
                 <Route path="/bp/:id/edit" element={<BusinessPartnerEdit />} />
                 <Route path="/sales-orders" element={<SalesOrderPage />} />

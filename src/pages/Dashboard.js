@@ -33,7 +33,7 @@ export default function Dashboard({ session, onLogout }) {
           <div className="welcome-cards">
             <div className="welcome-card">
             <div className="welcome-card-icon"></div>
-              <Link to="/sales-order" className="welcome-card-link"> 
+              <Link to="/pos-order" className="welcome-card-link"> 
                 <CashierIcon />  
                 <div className="welcome-card-label">Menu</div>
                 <div className="welcome-card-value">Sales Order</div>

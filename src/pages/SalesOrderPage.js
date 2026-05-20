@@ -44,7 +44,7 @@ const SalesOrderPage = () => {
 
     const handleEdit = (order) => {
         // Kirim data order ke POSContainer via router state
-        navigate("/pos", { state: { editOrder: order } });
+        navigate("/pos-order", { state: { editOrder: order } });
     };
 
     const getStatusLabel = (status) => {
@@ -61,7 +61,7 @@ const SalesOrderPage = () => {
         <div style={styles.container}>
             <div style={styles.header}>
                 <h2 style={{ margin: 0 }}>📋 Sales Order — Draft</h2>
-                <button onClick={() => navigate("/pos")} style={styles.newBtn}>
+                <button onClick={() => navigate("/pos-order")} style={styles.newBtn}>
                     + Transaksi Baru
                 </button>
             </div>

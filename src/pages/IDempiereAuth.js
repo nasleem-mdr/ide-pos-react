@@ -14,7 +14,7 @@ async function apiLogin(username, password) {
     body: JSON.stringify({ userName: username, password }),
   });
   const text = await res.text();
-  console.log("[POST /auth/tokens]", res.status, text);
+  //console.log("[POST /auth/tokens]", res.status, text);
   if (!res.ok) {
     const err = safeJson(text);
     throw new Error(err.detail || err.message || `Login gagal (${res.status})`);
@@ -28,7 +28,7 @@ async function apiGetRoles(token, clientId) {
     headers: { Accept: "application/json", Authorization: `Bearer ${token}` },
   });
   const text = await res.text();
-  console.log("[GET /auth/roles]", res.status, text);
+  //console.log("[GET /auth/roles]", res.status, text);
   if (!res.ok) {
     const err = safeJson(text);
     throw new Error(err.detail || err.message || `Gagal ambil roles (${res.status})`);
@@ -42,7 +42,7 @@ async function apiGetOrganizations(token, clientId, roleId) {
     headers: { Accept: "application/json", Authorization: `Bearer ${token}` },
   });
   const text = await res.text();
-  console.log("[GET /auth/organizations]", res.status, text);
+  //console.log("[GET /auth/organizations]", res.status, text);
   if (!res.ok) {
     const err = safeJson(text);
     throw new Error(err.detail || err.message || `Gagal ambil organisasi (${res.status})`);
@@ -56,7 +56,7 @@ async function apiGetWarehouses(token, clientId, roleId, orgId) {
     headers: { Accept: "application/json", Authorization: `Bearer ${token}` },
   });
   const text = await res.text();
-  console.log("[GET /auth/warehouses]", res.status, text);
+  //console.log("[GET /auth/warehouses]", res.status, text);
   if (!res.ok) {
     const err = safeJson(text);
     throw new Error(err.detail || err.message || `Gagal ambil warehouse (${res.status})`);
@@ -74,7 +74,7 @@ async function apiSetSession(token, clientId, roleId, orgId, warehouseId, langua
       language 
     };
   
-    console.log("[PUT /auth/tokens] payload:", payload);
+    //console.log("[PUT /auth/tokens] payload:", payload);
     
     const res = await fetch(`api/v1/auth/tokens`, {
       method: "PUT",
@@ -87,7 +87,7 @@ async function apiSetSession(token, clientId, roleId, orgId, warehouseId, langua
     });
   
     const text = await res.text();
-    console.log("[PUT /auth/tokens]", res.status, text);
+    //console.log("[PUT /auth/tokens]", res.status, text);
   
     if (!res.ok) {
       const err = safeJson(text);

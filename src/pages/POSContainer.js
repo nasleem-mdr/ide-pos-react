@@ -755,6 +755,7 @@ const DIALOG_CLOSED = {
         return payload;
     };
 
+
      const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
      const [currentOrderData, setCurrentOrderData]     = useState(null);
      const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
@@ -836,6 +837,7 @@ const DIALOG_CLOSED = {
      };
      //handle proses pembayaran
      const handleCompletePOSPaymentWorkflow = async (cleanPaymentsArray) => {
+
         if (!currentOrderData) return;
 
         const orderId    = currentOrderData.id || currentOrderData.C_Order_ID;
