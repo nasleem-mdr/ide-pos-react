@@ -10,7 +10,7 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }) {
     { path: '/dashboard', label: 'Dashboard', icon: <HomeIcon /> },
     { path: '/business-partner', label: 'Business Partner', icon: <PartnerIcon /> },
     { path: '/product', label: 'Products', icon: <BoxIcon /> },
-    { path: '/sales-order', label: 'Sales Order', icon: <ShoppingCartIcon /> },
+    { path: '/sales-orders', label: 'Sales Order', icon: <ShoppingCartIcon /> },
   ];
 
   return (
