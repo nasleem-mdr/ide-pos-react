@@ -14,8 +14,15 @@ Aplikasi ini free dengan resiko anda sendiri (masih banyak ekspose console.log u
 
 * Setup Pos Terminal, product, business partner dan laporan2 masih menggunakan Aplikasi IDempiere, kedepan akan dikembangkan untuk setup melalui aplikasi ini 
 
-### Fitur yang belum teredia:
-* POS Session
+### Fitur yang tersedia:
+* POINT OF SALES (menu utama)
+* List Sales Order harian (dengan total sales)
+* Edit Sales Order saat dokumen status masih draft / belum dibayar /belum complete
+* Dashboard (Sementara masih sederhana)
+* List Business Partner (Belum bisa diedit bro)
+
+### Fitur yang belum tersedia:
+* POS Session 
 * Mix Payment akan asyik jika bisa disambungkan ke QRIS
 * Tranfer Cash Register ke Kas Finance/Bendahara 
 * Laporan dan setup masih menggunakan aplikasi IDempiere
