@@ -27,14 +27,23 @@ const SalesOrderPage = () => {
     useEffect(() => {
         const fetchDraftOrders = async () => {
             try {
+                const loginUserId = localStorage.getItem("AD_User_ID");
+                if (!loginUserId) return;
+    
+                // Format tanggal hari ini: YYYY-MM-DD
+                const today = new Date().toISOString().split("T")[0];
+    
                 const res = await customFetch(
                     `/models/c_order?$filter=IsSOTrx eq true` +
+                    ` and CreatedBy eq ${loginUserId}` +
+                    ` and Created ge '${today}T00:00:00'` +
+                    ` and Created le '${today}T23:59:59'` +
                     `&$select=C_Order_ID,DocumentNo,DateOrdered,C_BPartner_ID,GrandTotal,DocStatus,M_PriceList_ID,M_Warehouse_ID,C_DocTypeTarget_ID` +
                     `&$orderby=DateOrdered desc&$top=50`
                 );
                 setOrders(Array.isArray(res.records) ? res.records : []);
             } catch (err) {
-                console.error("Gagal fetch draft orders:", err.message);
+                console.error("Gagal fetch orders:", err.message);
             } finally {
                 setLoading(false);
             }
