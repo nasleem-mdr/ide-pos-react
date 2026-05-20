@@ -829,11 +829,23 @@ const DIALOG_CLOSED = {
             });
 
             const finalDocNo = completedOrder.DocumentNo || currentOrderData.DocumentNo || orderId;
-            triggerAlert(`Transaksi Lunas & Sukses!\nNomor Dokumen: ${finalDocNo}`, "Sukses");
-
-            setIsPaymentModalOpen(false);
-            setCurrentOrderData(null);
-            setCart([]);
+               
+               // Tambah ini
+               setReceiptData({
+                   documentNo:   finalDocNo,
+                   date:         new Date().toLocaleString("id-ID"),
+                   posName:      posConfig?.Name || "POS Terminal",
+                   cashierName:  posConfig?.SalesRep_ID?.identifier || "-",
+                   bPartnerName: selectedBPartner?.name || "-",
+                   items:        [...cart],
+                   total:        calculateTotal(),
+                   payments:     cleanPaymentsArray,  // ← langsung pakai parameter fungsi
+               });
+               
+               setIsPaymentModalOpen(false);
+               setCurrentOrderData(null);
+               setCart([]);
+               setIsReceiptModalOpen(true);
 
         } catch (err) {
             console.error("Proses Pembayaran POS Gagal:", err.message);
