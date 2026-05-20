@@ -49,7 +49,41 @@ function BusinessPartner() {
   useEffect(() => {
     fetchBP();
   }, [fetchBP]);
+  
+  const actionRenderer = (item) => {
+    const isEditDisabled = item.IsActive === 'N';
 
+    return (
+      <div style={{ display: 'flex', gap: '8px' }}>
+        {/* Tombol View selalu aktif */}
+        <Link to={`/orders/view/${item.id}`}>
+          <button className="btn-action-view">View</button>
+        </Link>
+        
+        {/* Kondisi Tombol Edit diatur penuh di sini */}
+        <Link 
+          to={isEditDisabled ? '#' : `/orders/edit/${item.id}`}
+          style={{ pointerEvents: isEditDisabled ? 'none' : 'auto' }}
+        >
+          <button 
+            disabled={isEditDisabled} 
+            className="btn-action-edit"
+            style={{
+              color: '#fff',
+              border: 'none',
+              padding: '6px 12px',
+              borderRadius: '4px',
+              opacity: isEditDisabled ? 0.5 : 1,
+              cursor: isEditDisabled ? 'not-allowed' : 'pointer',
+              backgroundColor: isEditDisabled ? '#6c757d' : '#e0a800'
+            }}
+          >
+            Edit
+          </button>
+        </Link>
+      </div>
+    );
+  };
   return (
     <div className="card-container">
       {/* 1. Pakai PageHeader */}
@@ -67,7 +101,7 @@ function BusinessPartner() {
         pageSize={pageSize}
         totalRecords={totalRecords} // Kirim total record ke komponen
         onPageChange={(newOffset) => setOffset(newOffset)} // Mengatur perpindahan halaman secara dinamis
-        detailPathPrefix="/bp"
+        renderActions={actionRenderer}
       />
     </div>
   );
