@@ -715,63 +715,63 @@ const DIALOG_CLOSED = {
         }
     };
 
-    const handleProcessPayment = async (paymentDetails) => {
-        if (!currentOrderData) return;
+    // const handleProcessPayment = async (paymentDetails) => {
+    //     if (!currentOrderData) return;
 
-        const orderId = currentOrderData.id || currentOrderData.C_Order_ID;
-        // FIX: posConfig.id adalah sumber ID terminal POS yang valid (posConfig.C_POS_ID = undefined)
-        const posId = parseInt(posConfig?.id ?? posConfig?.C_POS_ID?.id ?? posConfig?.C_POS_ID) || null;
+    //     const orderId = currentOrderData.id || currentOrderData.C_Order_ID;
+    //     // FIX: posConfig.id adalah sumber ID terminal POS yang valid (posConfig.C_POS_ID = undefined)
+    //     const posId = parseInt(posConfig?.id ?? posConfig?.C_POS_ID?.id ?? posConfig?.C_POS_ID) || null;
 
-        try {
-            console.log("Langkah 2: Mengirim data pembayaran ke C_POSPayment...");
+    //     try {
+    //         console.log("Langkah 2: Mengirim data pembayaran ke C_POSPayment...");
 
-            const paymentPayload = {
-                AD_Client_ID:  { id: currentOrderData.AD_Client_ID?.id },
-                AD_Org_ID:     { id: currentOrderData.AD_Org_ID?.id },
-                C_Order_ID:    { id: orderId },
-                C_POS_ID:      { id: posId },
-                PayAmt:        paymentDetails.amount,
-                TenderType:    paymentDetails.tenderType,
-                POSTenderType: paymentDetails.tenderType,
-            };
+    //         const paymentPayload = {
+    //             AD_Client_ID:  { id: currentOrderData.AD_Client_ID?.id },
+    //             AD_Org_ID:     { id: currentOrderData.AD_Org_ID?.id },
+    //             C_Order_ID:    { id: orderId },
+    //             C_POS_ID:      { id: posId },
+    //             PayAmt:        paymentDetails.amount,
+    //             TenderType:    paymentDetails.tenderType,
+    //             POSTenderType: paymentDetails.tenderType,
+    //         };
 
-            await customFetch("/models/c_pospayment", {
-                method: "POST",
-                body: JSON.stringify(paymentPayload),
-            });
+    //         await customFetch("/models/c_pospayment", {
+    //             method: "POST",
+    //             body: JSON.stringify(paymentPayload),
+    //         });
 
-            console.log("✅ Pembayaran sukses dicatat. Langkah 3: Melakukan Complete Order...");
+    //         console.log("✅ Pembayaran sukses dicatat. Langkah 3: Melakukan Complete Order...");
 
-            const completedOrder = await customFetch(`/models/c_order/${orderId}`, {
-                method: "PUT",
-                body: JSON.stringify({ "doc-action": "CO" }),
-            });
+    //         const completedOrder = await customFetch(`/models/c_order/${orderId}`, {
+    //             method: "PUT",
+    //             body: JSON.stringify({ "doc-action": "CO" }),
+    //         });
 
-            const finalDocNo = completedOrder.DocumentNo || currentOrderData.DocumentNo || orderId;
-            // Siapkan data struk sebelum cart di-reset
-               setReceiptData({
-                   documentNo:   finalDocNo,
-                   date:         new Date().toLocaleString("id-ID"),
-                   posName:      posConfig?.Name || "POS Terminal",
-                   cashierName:  posConfig?.SalesRep_ID?.identifier || posConfig?.SalesRep_ID?.id || "-",
-                   bPartnerName: selectedBPartner?.name || "-",
-                   items:        [...cart],           // snapshot cart sebelum di-reset
-                   total:        calculateTotal(),
-                   payments:     cleanPaymentsArray,
-               });
+    //         const finalDocNo = completedOrder.DocumentNo || currentOrderData.DocumentNo || orderId;
+    //         // Siapkan data struk sebelum cart di-reset
+    //            setReceiptData({
+    //                documentNo:   finalDocNo,
+    //                date:         new Date().toLocaleString("id-ID"),
+    //                posName:      posConfig?.Name || "POS Terminal",
+    //                cashierName:  posConfig?.SalesRep_ID?.identifier || posConfig?.SalesRep_ID?.id || "-",
+    //                bPartnerName: selectedBPartner?.name || "-",
+    //                items:        [...cart],           // snapshot cart sebelum di-reset
+    //                total:        calculateTotal(),
+    //                payments:     cleanPaymentsArray,
+    //            });
 
-            setIsPaymentModalOpen(false);
-            setCurrentOrderData(null);
-            setCart([]);
-            setIsReceiptModalOpen(true); 
+    //         setIsPaymentModalOpen(false);
+    //         setCurrentOrderData(null);
+    //         setCart([]);
+    //         setIsReceiptModalOpen(true); 
              
-            //triggerAlert(`Transaksi Lunas & Sukses!\nNomor Dokumen: ${finalDocNo}`, "Sukses");
+    //         //triggerAlert(`Transaksi Lunas & Sukses!\nNomor Dokumen: ${finalDocNo}`, "Sukses");
 
-       } catch (err) {
-            console.error("Proses Pembayaran POS Gagal:", err.message);
-            triggerAlert("Gagal memproses pembayaran: " + err.message, "Error");
-        }
-    };
+    //    } catch (err) {
+    //         console.error("Proses Pembayaran POS Gagal:", err.message);
+    //         triggerAlert("Gagal memproses pembayaran: " + err.message, "Error");
+    //     }
+    // };
 
     const handleCompletePOSPaymentWorkflow = async (cleanPaymentsArray) => {
         if (!currentOrderData) return;
