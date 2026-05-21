@@ -849,22 +849,18 @@ const DIALOG_CLOSED = {
             return line;
         });
 
-        const todayISO = new Date().toISOString().split('T')[0];
-
         const payload = {
             AD_Client_ID:       { id: adClientId },
             AD_Org_ID:          { id: adOrgId },
-            C_DocTypeTarget_ID: { id: docTypeId }, // DocType tujuan (untuk header)
-            C_DocType_ID:       { id: docTypeId }, // DocType aktif — wajib diisi eksplisit agar tidak 0/"** New **"
+            C_DocTypeTarget_ID: { id: docTypeId },
             C_BPartner_ID:      { id: bPartnerId },
             M_Warehouse_ID:     { id: warehouseId },
             M_PriceList_ID:     { id: priceListId },
-            DateOrdered:        todayISO,
-            DatePromised:       todayISO, // Wajib eksplisit — iDempiere pakai ini sebagai movement date saat cek stok
+            DateOrdered:        new Date().toISOString().split('T')[0],
             PaymentRule:        "M",
             c_orderline:        formattedLines,
             IsSOTrx:            "Y",
-            Description:        "POS Transaction",
+            Description:        "Request REST API Test from REACT App",
             C_POS_ID:           { id: posId },
         };
 
