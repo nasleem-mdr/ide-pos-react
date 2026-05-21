@@ -340,7 +340,7 @@ const DIALOG_CLOSED = {
                await Promise.all(
                    productRecords.map(async (p) => {
                        const pId = p.M_Product_ID?.id ?? p.M_Product_ID ?? p.id;
-                       const qty = await fetchQtyOnHand(pId);
+                       const qty = await Hand(pId);
                        qtyOnHandMap.set(pId, qty);
                    })
                ); // ← pastikan semicolon di sini
@@ -440,21 +440,21 @@ const DIALOG_CLOSED = {
 
      // ─── 3b. Fetch QtyOnHand dari T_InventoryValue ────────────────────────────
      const fetchQtyOnHand = async (productId) => {
-         try {
-             const adOrgId = posConfig?.AD_Org_ID?.id ?? posConfig?.AD_Org_ID;
-             let filter = `M_Product_ID eq ${productId}`;
-             if (adOrgId) filter += ` and AD_Org_ID eq ${adOrgId}`;
-     
-             const res = await customFetch(
-                 `/models/t_inventoryvalue?$filter=${filter}&$select=M_Product_ID,QtyOnHand&$top=1`
-             );
-             const record = res?.records?.[0];
-             return record ? parseFloat(record.QtyOnHand ?? 0) : 0;
-         } catch (err) {
-             console.warn("Gagal fetch QtyOnHand:", err.message);
-             return null; // null = tidak bisa cek, biarkan lanjut
-         }
-     };
+              try {
+                  const adOrgId = posConfig?.AD_Org_ID?.id ?? posConfig?.AD_Org_ID;
+                  let filter = `M_Product_ID eq ${productId}`;
+                  if (adOrgId) filter += ` and AD_Org_ID eq ${adOrgId}`;
+          
+                  const res = await customFetch(
+                      `/models/t_inventoryvalue?$filter=${filter}&$select=M_Product_ID,QtyOnHand&$top=1`
+                  );
+                  const record = res?.records?.[0];
+                  return record ? parseFloat(record.QtyOnHand ?? 0) : 0;
+              } catch (err) {
+                  console.warn("Gagal fetch QtyOnHand:", err.message);
+                  return 0;
+              }
+          };
      
      // ─── 4. Add to cart ───────────────────────────────────────────────────────
      const addToCart = async (product) => {
