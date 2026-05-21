@@ -335,42 +335,43 @@ const DIALOG_CLOSED = {
             );
             const productRecords = Array.isArray(productData.records) ? productData.records : (productData.records ? [productData.records] : []);
             // Setelah mendapat productRecords, fetch QtyOnHand untuk semua produk sekaligus
-               const qtyOnHandMap = new Map();
+            const qtyOnHandMap = new Map();
+               
                await Promise.all(
                    productRecords.map(async (p) => {
                        const pId = p.M_Product_ID?.id ?? p.M_Product_ID ?? p.id;
                        const qty = await fetchQtyOnHand(pId);
                        qtyOnHandMap.set(pId, qty);
                    })
-               );
-             
-            const finalProducts = productRecords.map(p => {
-                const pId   = p.M_Product_ID?.id ?? p.M_Product_ID ?? p.id;
-                const price = priceMap.get(pId);
-                if (price === undefined) return null;
-    
-                const defaultUOM = {
-                    id:           p.C_UOM_ID?.id ?? p.C_UOM_ID,
-                    name:         p.C_UOM_ID?.Name || p.C_UOM_ID?.identifier || 'EA',
-                    multiplyRate: 1,
-                };
-    
-                // TAMBAHAN: Mapping data M_Product_Category_ID
-                const category = {
-                    id:   p.M_Product_Category_ID?.id ?? p.M_Product_Category_ID,
-                    name: p.M_Product_Category_ID?.Name || p.M_Product_Category_ID?.identifier || 'N/A'
-                };
-    
-                return {
-                    M_Product_ID:     pId,
-                    Name:             p.Name,
-                    Value:            p.Value,
-                    PriceActual:      price ?? 0,
-                    basePrice:        price ?? 0,
-                    defaultUOM,
-                    ProductCategory: category,
-                    QtyOnHand:       qtyOnHandMap.get(pId) ?? 0,  // ← TAMBAHAN
-            }).filter(Boolean);
+               ); // ← pastikan semicolon di sini
+               
+               const finalProducts = productRecords.map((p) => {
+                   const pId   = p.M_Product_ID?.id ?? p.M_Product_ID ?? p.id;
+                   const price = priceMap.get(pId);
+                   if (price === undefined) return null;
+               
+                   const defaultUOM = {
+                       id:           p.C_UOM_ID?.id ?? p.C_UOM_ID,
+                       name:         p.C_UOM_ID?.Name || p.C_UOM_ID?.identifier || 'EA',
+                       multiplyRate: 1,
+                   };
+               
+                   const category = {
+                       id:   p.M_Product_Category_ID?.id ?? p.M_Product_Category_ID,
+                       name: p.M_Product_Category_ID?.Name || p.M_Product_Category_ID?.identifier || 'N/A',
+                   };
+               
+                   return {
+                       M_Product_ID:    pId,
+                       Name:            p.Name,
+                       Value:           p.Value,
+                       PriceActual:     price ?? 0,
+                       basePrice:       price ?? 0,
+                       defaultUOM,
+                       ProductCategory: category,
+                       QtyOnHand:       qtyOnHandMap.get(pId) ?? 0,
+                   };
+               }).filter(Boolean); // ← dan di sini
     
             console.log("✅ finalProducts length:", finalProducts.length);
             setProducts(finalProducts);
