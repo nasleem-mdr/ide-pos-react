@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { HomeIcon, PartnerIcon, BoxIcon, ShoppingCartIcon, CashierIcon } from '../components/Icons';
+import { CashierIcon } from '../components/Icons';
 import '../css/Dashboard.css';
 
 /**
