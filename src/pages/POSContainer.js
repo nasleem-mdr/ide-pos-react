@@ -288,101 +288,205 @@ const DIALOG_CLOSED = {
     };
 
     // ─── 2. Fetch products ────────────────────────────────────────────────────
-    const fetchProducts = async (query = "", priceListId = null, terminalConfig = null) => {
-        try {
-            setLoading(true);
-            setVersionMissing(false);
+    // const fetchProducts = async (query = "", priceListId = null, terminalConfig = null) => {
+    //     try {
+    //         setLoading(true);
+    //         setVersionMissing(false);
     
-            const config           = terminalConfig || posConfig;
-            const rawPriceId       = priceListId || config?.M_PriceList_ID;
-            const finalPriceListId = typeof rawPriceId === 'object' ? rawPriceId?.id : rawPriceId;
-            if (!finalPriceListId) { console.error("PriceList ID tidak ditemukan"); return; }
+    //         const config           = terminalConfig || posConfig;
+    //         const rawPriceId       = priceListId || config?.M_PriceList_ID;
+    //         const finalPriceListId = typeof rawPriceId === 'object' ? rawPriceId?.id : rawPriceId;
+    //         if (!finalPriceListId) { console.error("PriceList ID tidak ditemukan"); return; }
     
-            const versionRes    = await customFetch(
-                `/models/m_pricelist_version?$filter=M_PriceList_ID eq ${finalPriceListId} and IsActive eq true&$orderby=ValidFrom desc&$top=1`
-            );
-            const activeVersion = versionRes?.records?.[0];
-            if (!activeVersion) {
-                setCurrentVersionId("NOT_FOUND");
-                setVersionMissing(true);
-                setProducts([]);
-                return;
-            }
+    //         const versionRes    = await customFetch(
+    //             `/models/m_pricelist_version?$filter=M_PriceList_ID eq ${finalPriceListId} and IsActive eq true&$orderby=ValidFrom desc&$top=1`
+    //         );
+    //         const activeVersion = versionRes?.records?.[0];
+    //         if (!activeVersion) {
+    //             setCurrentVersionId("NOT_FOUND");
+    //             setVersionMissing(true);
+    //             setProducts([]);
+    //             return;
+    //         }
     
-            const versionId = activeVersion.id || activeVersion.M_PriceList_Version_ID?.id || activeVersion.M_PriceList_Version_ID;
-            setCurrentVersionId(versionId);
-            setVersionMissing(false);
+    //         const versionId = activeVersion.id || activeVersion.M_PriceList_Version_ID?.id || activeVersion.M_PriceList_Version_ID;
+    //         setCurrentVersionId(versionId);
+    //         setVersionMissing(false);
     
-            const priceData       = await customFetch(
-                `/models/m_productprice?$filter=M_PriceList_Version_ID eq ${versionId}&$select=M_Product_ID,PriceStd`
-            );
-            const priceMap        = new Map();
-            const rawPriceRecords = Array.isArray(priceData.records) ? priceData.records : (priceData.records ? [priceData.records] : []);
-            rawPriceRecords.forEach(p => {
-                const pid = p.M_Product_ID?.id ?? p.M_Product_ID ?? p.id;
-                if (pid != null) priceMap.set(pid, p.PriceStd);
-            });
+    //         const priceData       = await customFetch(
+    //             `/models/m_productprice?$filter=M_PriceList_Version_ID eq ${versionId}&$select=M_Product_ID,PriceStd`
+    //         );
+    //         const priceMap        = new Map();
+    //         const rawPriceRecords = Array.isArray(priceData.records) ? priceData.records : (priceData.records ? [priceData.records] : []);
+    //         rawPriceRecords.forEach(p => {
+    //             const pid = p.M_Product_ID?.id ?? p.M_Product_ID ?? p.id;
+    //             if (pid != null) priceMap.set(pid, p.PriceStd);
+    //         });
     
-            let productFilter = "IsSold eq true and IsActive eq true";
-            if (query) {
-                const safeQuery = query.toUpperCase().replace(/'/g, "''");
-                productFilter += ` and (contains(toupper(Name),'${safeQuery}') or contains(toupper(Value),'${safeQuery}'))`;
-            }
+    //         let productFilter = "IsSold eq true and IsActive eq true";
+    //         if (query) {
+    //             const safeQuery = query.toUpperCase().replace(/'/g, "''");
+    //             productFilter += ` and (contains(toupper(Name),'${safeQuery}') or contains(toupper(Value),'${safeQuery}'))`;
+    //         }
     
-            // TAMBAHAN: Menambahkan M_Product_Category_ID dan ProductType ke dalam $select
-            const productData    = await customFetch(
-                `/models/m_product?$select=M_Product_ID,Name,Value,C_UOM_ID,M_Product_Category_ID,ProductType&$filter=${productFilter}&$top=50`
-            );
-            const productRecords = Array.isArray(productData.records) ? productData.records : (productData.records ? [productData.records] : []);
-            // Setelah mendapat productRecords, fetch QtyOnHand untuk semua produk sekaligus
-            const qtyOnHandMap = new Map();
+    //         // TAMBAHAN: Menambahkan M_Product_Category_ID dan ProductType ke dalam $select
+    //         const productData    = await customFetch(
+    //             `/models/m_product?$select=M_Product_ID,Name,Value,C_UOM_ID,M_Product_Category_ID,ProductType&$filter=${productFilter}&$top=50`
+    //         );
+    //         const productRecords = Array.isArray(productData.records) ? productData.records : (productData.records ? [productData.records] : []);
+    //         // Setelah mendapat productRecords, fetch QtyOnHand untuk semua produk sekaligus
+    //         const qtyOnHandMap = new Map();
                
-               await Promise.all(
-                   productRecords.map(async (p) => {
-                       const pId = p.M_Product_ID?.id ?? p.M_Product_ID ?? p.id;
-                       const qty = await fetchQtyOnHand(pId, config); // ← teruskan config agar warehouse filter benar saat posConfig belum di-set
-                       qtyOnHandMap.set(pId, qty);
-                   })
-               );
+    //            await Promise.all(
+    //                productRecords.map(async (p) => {
+    //                    const pId = p.M_Product_ID?.id ?? p.M_Product_ID ?? p.id;
+    //                    const qty = await fetchQtyOnHand(pId, config); // ← teruskan config agar warehouse filter benar saat posConfig belum di-set
+    //                    qtyOnHandMap.set(pId, qty);
+    //                })
+    //            );
                
-               const finalProducts = productRecords.map((p) => {
-                   const pId   = p.M_Product_ID?.id ?? p.M_Product_ID ?? p.id;
-                   const price = priceMap.get(pId);
-                   if (price === undefined) return null;
+    //            const finalProducts = productRecords.map((p) => {
+    //                const pId   = p.M_Product_ID?.id ?? p.M_Product_ID ?? p.id;
+    //                const price = priceMap.get(pId);
+    //                if (price === undefined) return null;
                
-                   const defaultUOM = {
-                       id:           p.C_UOM_ID?.id ?? p.C_UOM_ID,
-                       name:         p.C_UOM_ID?.Name || p.C_UOM_ID?.identifier || 'EA',
-                       multiplyRate: 1,
-                   };
+    //                const defaultUOM = {
+    //                    id:           p.C_UOM_ID?.id ?? p.C_UOM_ID,
+    //                    name:         p.C_UOM_ID?.Name || p.C_UOM_ID?.identifier || 'EA',
+    //                    multiplyRate: 1,
+    //                };
                
-                   const category = {
-                       id:   p.M_Product_Category_ID?.id ?? p.M_Product_Category_ID,
-                       name: p.M_Product_Category_ID?.Name || p.M_Product_Category_ID?.identifier || 'N/A',
-                   };
+    //                const category = {
+    //                    id:   p.M_Product_Category_ID?.id ?? p.M_Product_Category_ID,
+    //                    name: p.M_Product_Category_ID?.Name || p.M_Product_Category_ID?.identifier || 'N/A',
+    //                };
                
-                   return {
-                       M_Product_ID:    pId,
-                       Name:            p.Name,
-                       Value:           p.Value,
-                       PriceActual:     price ?? 0,
-                       basePrice:       price ?? 0,
-                       defaultUOM,
-                       ProductCategory: category,
-                       ProductType:     p.ProductType?.id ?? p.ProductType ?? null, // Normalisasi: API mengembalikan object {id:'S',...}
-                       QtyOnHand:       qtyOnHandMap.get(pId) ?? 0,
-                   };
-               }).filter(Boolean); // ← dan di sini
+    //                return {
+    //                    M_Product_ID:    pId,
+    //                    Name:            p.Name,
+    //                    Value:           p.Value,
+    //                    PriceActual:     price ?? 0,
+    //                    basePrice:       price ?? 0,
+    //                    defaultUOM,
+    //                    ProductCategory: category,
+    //                    ProductType:     p.ProductType?.id ?? p.ProductType ?? null, // Normalisasi: API mengembalikan object {id:'S',...}
+    //                    QtyOnHand:       qtyOnHandMap.get(pId) ?? 0,
+    //                };
+    //            }).filter(Boolean); // ← dan di sini
     
-            console.log("✅ finalProducts length:", finalProducts.length);
-            setProducts(finalProducts);
-        } catch (err) {
-            console.error("Fetch Products Error:", err.message);
-            setProducts([]);
-        } finally {
-            setLoading(false);
-        }
-    };
+    //         console.log("✅ finalProducts length:", finalProducts.length);
+    //         setProducts(finalProducts);
+    //     } catch (err) {
+    //         console.error("Fetch Products Error:", err.message);
+    //         setProducts([]);
+    //     } finally {
+    //         setLoading(false);
+    //     }
+    // };
+     const fetchProducts = async (query = "", priceListId = null, terminalConfig = null) => {
+         try {
+             setLoading(true);
+             setVersionMissing(false);
+     
+             const config           = terminalConfig || posConfig;
+             const rawPriceId       = priceListId || config?.M_PriceList_ID;
+             const finalPriceListId = typeof rawPriceId === 'object' ? rawPriceId?.id : rawPriceId;
+             if (!finalPriceListId) { console.error("PriceList ID tidak ditemukan"); return; }
+     
+             // ── Step 1: Ambil version (harus duluan karena jadi dependency) ──────
+             const versionRes = await customFetch(
+                 `/models/m_pricelist_version?$filter=M_PriceList_ID eq ${finalPriceListId}` +
+                 ` and IsActive eq true&$orderby=ValidFrom desc&$top=1`
+             );
+             const activeVersion = versionRes?.records?.[0];
+             if (!activeVersion) {
+                 setCurrentVersionId("NOT_FOUND");
+                 setVersionMissing(true);
+                 setProducts([]);
+                 return;
+             }
+     
+             const versionId = activeVersion.id
+                 || activeVersion.M_PriceList_Version_ID?.id
+                 || activeVersion.M_PriceList_Version_ID;
+             setCurrentVersionId(versionId);
+     
+             // ── Step 2: Fetch price + product PARALEL ────────────────────────────
+             let productFilter = "IsSold eq true and IsActive eq true";
+             if (query) {
+                 const safeQuery = query.toUpperCase().replace(/'/g, "''");
+                 productFilter += ` and (contains(toupper(Name),'${safeQuery}') or contains(toupper(Value),'${safeQuery}'))`;
+             }
+     
+             const [priceData, productData] = await Promise.all([
+                 customFetch(
+                     `/models/m_productprice?$filter=M_PriceList_Version_ID eq ${versionId}` +
+                     `&$select=M_Product_ID,PriceStd`
+                 ),
+                 customFetch(
+                     `/models/m_product?$select=M_Product_ID,Name,Value,C_UOM_ID,M_Product_Category_ID,ProductType` +
+                     `&$filter=${productFilter}&$top=50`
+                 ),
+             ]);
+     
+             const productRecords = Array.isArray(productData.records)
+                 ? productData.records
+                 : productData.records ? [productData.records] : [];
+     
+             // ── Step 3: Build priceMap, filter hanya produk yang relevan ─────────
+             const relevantIds = new Set(
+                 productRecords.map(p => p.M_Product_ID?.id ?? p.M_Product_ID ?? p.id)
+             );
+             const rawPriceRecords = Array.isArray(priceData.records)
+                 ? priceData.records
+                 : priceData.records ? [priceData.records] : [];
+     
+             const priceMap = new Map();
+             rawPriceRecords
+                 .filter(p => relevantIds.has(p.M_Product_ID?.id ?? p.M_Product_ID))
+                 .forEach(p => {
+                     const pid = p.M_Product_ID?.id ?? p.M_Product_ID;
+                     if (pid != null) priceMap.set(pid, p.PriceStd);
+                 });
+     
+             // ── Step 4: Batch fetch QtyOnHand (1 request, bukan N) ───────────────
+             const productIds   = [...relevantIds];
+             const qtyOnHandMap = await fetchQtyOnHandBatch(productIds, config);
+     
+             // ── Step 5: Mapping final ─────────────────────────────────────────────
+             const finalProducts = productRecords.map((p) => {
+                 const pId  = p.M_Product_ID?.id ?? p.M_Product_ID ?? p.id;
+                 const price = priceMap.get(pId);
+                 if (price === undefined) return null;
+     
+                 return {
+                     M_Product_ID:    pId,
+                     Name:            p.Name,
+                     Value:           p.Value,
+                     PriceActual:     price ?? 0,
+                     basePrice:       price ?? 0,
+                     defaultUOM: {
+                         id:           p.C_UOM_ID?.id ?? p.C_UOM_ID,
+                         name:         p.C_UOM_ID?.Name || p.C_UOM_ID?.identifier || 'EA',
+                         multiplyRate: 1,
+                     },
+                     ProductCategory: {
+                         id:   p.M_Product_Category_ID?.id ?? p.M_Product_Category_ID,
+                         name: p.M_Product_Category_ID?.Name || p.M_Product_Category_ID?.identifier || 'N/A',
+                     },
+                     ProductType:  p.ProductType?.id ?? p.ProductType ?? null,
+                     QtyOnHand:    qtyOnHandMap.get(pId) ?? 0,
+                 };
+             }).filter(Boolean);
+     
+             setProducts(finalProducts);
+         } catch (err) {
+             console.error("Fetch Products Error:", err.message);
+             setProducts([]);
+         } finally {
+             setLoading(false);
+         }
+     };
     
 
     // ─── 3a. Fetch UOM options untuk satu produk ───────────────────────────────
@@ -440,58 +544,81 @@ const DIALOG_CLOSED = {
     };
 
      // ─── 3b. Fetch QtyOnHand dari M_StorageOnHand ────────────────────────────
-
+     const fetchQtyOnHandBatch = async (productIds, config) => {
+         const cfg         = config || posConfig;
+         const warehouseId = cfg?.M_Warehouse_ID?.id ?? cfg?.M_Warehouse_ID;
+         if (!warehouseId || productIds.length === 0) return new Map();
+     
+         const idList = productIds.join(',');
+         const filter = `M_Warehouse_ID eq ${warehouseId} and IsActive eq true` +
+                        ` and M_Product_ID in (${idList})`;
+     
+         try {
+             const res = await customFetch(
+                 `/models/m_storage?$filter=${filter}&$select=M_Product_ID,QtyOnHand`
+             );
+             const map = new Map();
+             (res.records || []).forEach(r => {
+                 const pid = r.M_Product_ID?.id ?? r.M_Product_ID;
+                 const existing = map.get(pid) ?? 0;
+                 map.set(pid, existing + parseFloat(r.QtyOnHand || 0));
+             });
+             return map;
+         } catch {
+             return new Map();
+         }
+     };
      // config bersifat opsional: jika tidak dikirim, fallback ke posConfig state
-     const fetchQtyOnHand = async (productId, config = null) => {
-        try {
-            const resolvedConfig = config || posConfig;
-            const adOrgId      = resolvedConfig?.AD_Org_ID?.id      ?? resolvedConfig?.AD_Org_ID;
-            const mWarehouseId = resolvedConfig?.M_Warehouse_ID?.id ?? resolvedConfig?.M_Warehouse_ID;
+     // const fetchQtyOnHand = async (productId, config = null) => {
+     //    try {
+    //         const resolvedConfig = config || posConfig;
+    //         const adOrgId      = resolvedConfig?.AD_Org_ID?.id      ?? resolvedConfig?.AD_Org_ID;
+    //         const mWarehouseId = resolvedConfig?.M_Warehouse_ID?.id ?? resolvedConfig?.M_Warehouse_ID;
 
-            // Langkah 1: Jika ada M_Warehouse_ID, ambil dulu semua Locator ID milik gudang itu
-            let locatorIds = null;
-            if (mWarehouseId) {
-                try {
-                    const locRes = await customFetch(
-                        `/models/m_locator?$filter=M_Warehouse_ID eq ${mWarehouseId} and IsActive eq true&$select=M_Locator_ID`
-                    );
-                    const locRecords = Array.isArray(locRes?.records) ? locRes.records : [];
-                    locatorIds = locRecords.map(r => r.M_Locator_ID?.id ?? r.M_Locator_ID ?? r.id).filter(Boolean);
-                } catch (e) {
-                    console.warn("Gagal fetch locator untuk warehouse:", e.message);
-                }
-            }
+    //         // Langkah 1: Jika ada M_Warehouse_ID, ambil dulu semua Locator ID milik gudang itu
+    //         let locatorIds = null;
+    //         if (mWarehouseId) {
+    //             try {
+    //                 const locRes = await customFetch(
+    //                     `/models/m_locator?$filter=M_Warehouse_ID eq ${mWarehouseId} and IsActive eq true&$select=M_Locator_ID`
+    //                 );
+    //                 const locRecords = Array.isArray(locRes?.records) ? locRes.records : [];
+    //                 locatorIds = locRecords.map(r => r.M_Locator_ID?.id ?? r.M_Locator_ID ?? r.id).filter(Boolean);
+    //             } catch (e) {
+    //                 console.warn("Gagal fetch locator untuk warehouse:", e.message);
+    //             }
+    //         }
 
-            // Langkah 2: Build filter StorageOnHand
-            let filter = `M_Product_ID eq ${productId}`;
-            if (adOrgId) filter += ` and AD_Org_ID eq ${adOrgId}`;
+    //         // Langkah 2: Build filter StorageOnHand
+    //         let filter = `M_Product_ID eq ${productId}`;
+    //         if (adOrgId) filter += ` and AD_Org_ID eq ${adOrgId}`;
 
-            const res = await customFetch(
-                `/models/m_storageonhand?$filter=${filter}&$select=M_Product_ID,QtyOnHand,M_Locator_ID`
-            );
+    //         const res = await customFetch(
+    //             `/models/m_storageonhand?$filter=${filter}&$select=M_Product_ID,QtyOnHand,M_Locator_ID`
+    //         );
 
-            if (!res?.records || res.records.length === 0) return 0;
+    //         if (!res?.records || res.records.length === 0) return 0;
 
-            // Langkah 3: Akumulasi QtyOnHand, filter berdasarkan locatorIds jika tersedia
-            const totalQty = res.records.reduce((sum, record) => {
-                const recordLocatorId = record.M_Locator_ID?.id ?? record.M_Locator_ID;
+    //         // Langkah 3: Akumulasi QtyOnHand, filter berdasarkan locatorIds jika tersedia
+    //         const totalQty = res.records.reduce((sum, record) => {
+    //             const recordLocatorId = record.M_Locator_ID?.id ?? record.M_Locator_ID;
 
-                // Jika daftar locator sudah diambil, pastikan locator record ini masuk daftar gudang
-                if (locatorIds !== null && locatorIds.length > 0) {
-                    if (!locatorIds.includes(recordLocatorId) && !locatorIds.includes(Number(recordLocatorId))) {
-                        return sum; // Lewati — locator ini bukan milik gudang POS
-                    }
-                }
+    //             // Jika daftar locator sudah diambil, pastikan locator record ini masuk daftar gudang
+    //             if (locatorIds !== null && locatorIds.length > 0) {
+    //                 if (!locatorIds.includes(recordLocatorId) && !locatorIds.includes(Number(recordLocatorId))) {
+    //                     return sum; // Lewati — locator ini bukan milik gudang POS
+    //                 }
+    //             }
 
-                return sum + parseFloat(record.QtyOnHand ?? 0);
-            }, 0);
+    //             return sum + parseFloat(record.QtyOnHand ?? 0);
+    //         }, 0);
 
-            return totalQty;
-        } catch (err) {
-            console.warn("Gagal fetch QtyOnHand:", err.message);
-            return 0;
-        }
-    };
+    //         return totalQty;
+    //     } catch (err) {
+    //         console.warn("Gagal fetch QtyOnHand:", err.message);
+    //         return 0;
+    //     }
+    // };
         
 
 
