@@ -334,7 +334,16 @@ const DIALOG_CLOSED = {
                 `/models/m_product?$select=M_Product_ID,Name,Value,C_UOM_ID,M_Product_Category_ID&$filter=${productFilter}&$top=50`
             );
             const productRecords = Array.isArray(productData.records) ? productData.records : (productData.records ? [productData.records] : []);
-    
+            // Setelah mendapat productRecords, fetch QtyOnHand untuk semua produk sekaligus
+               const qtyOnHandMap = new Map();
+               await Promise.all(
+                   productRecords.map(async (p) => {
+                       const pId = p.M_Product_ID?.id ?? p.M_Product_ID ?? p.id;
+                       const qty = await fetchQtyOnHand(pId);
+                       qtyOnHandMap.set(pId, qty);
+                   })
+               );
+             
             const finalProducts = productRecords.map(p => {
                 const pId   = p.M_Product_ID?.id ?? p.M_Product_ID ?? p.id;
                 const price = priceMap.get(pId);
@@ -359,8 +368,8 @@ const DIALOG_CLOSED = {
                     PriceActual:      price ?? 0,
                     basePrice:        price ?? 0,
                     defaultUOM,
-                    ProductCategory:  category // TAMBAHAN: Properti baru untuk digunakan di ProductCard
-                };
+                    ProductCategory: category,
+                    QtyOnHand:       qtyOnHandMap.get(pId) ?? 0,  // ← TAMBAHAN
             }).filter(Boolean);
     
             console.log("✅ finalProducts length:", finalProducts.length);
@@ -429,65 +438,73 @@ const DIALOG_CLOSED = {
     };
 
      // ─── 3b. Fetch QtyOnHand dari T_InventoryValue ────────────────────────────
-const fetchQtyOnHand = async (productId) => {
-    try {
-        const adOrgId = posConfig?.AD_Org_ID?.id ?? posConfig?.AD_Org_ID;
-        let filter = `M_Product_ID eq ${productId}`;
-        if (adOrgId) filter += ` and AD_Org_ID eq ${adOrgId}`;
-
-        const res = await customFetch(
-            `/models/t_inventoryvalue?$filter=${filter}&$select=M_Product_ID,QtyOnHand&$top=1`
-        );
-        const record = res?.records?.[0];
-        return record ? parseFloat(record.QtyOnHand ?? 0) : 0;
-    } catch (err) {
-        console.warn("Gagal fetch QtyOnHand:", err.message);
-        return null; // null = tidak bisa cek, biarkan lanjut
-    }
-};
-    // ─── 4. Add to cart ───────────────────────────────────────────────────────
-    const addToCart = async (product) => {
-        const existingIndex = cart.findIndex(item => item.M_Product_ID === product.M_Product_ID);
-        if (existingIndex !== -1) {
-            setCart(prev => prev.map((item, i) =>
-                i === existingIndex ? { ...item, QtyOrdered: item.QtyOrdered + 1 } : item
-            ));
-            return;
-        }
-
-        if (product.PriceActual === 0) {
-            triggerConfirm(product);
-            return;
-        }
-
-        try {
-            const uomOptions         = await fetchUOMOptions(product);
-            const defaultUOMFallback = product.defaultUOM || { id: null, name: 'EA', multiplyRate: 1 };
-            const selectedUOM        = (Array.isArray(uomOptions) && uomOptions.length > 0)
-                ? uomOptions[0]
-                : { id: defaultUOMFallback.id, name: defaultUOMFallback.name, multiplyRate: 1 };
-
-            setCart(prev => [...prev, {
-                ...product,
-                QtyOrdered:  1,
-                PriceActual: product.PriceActual,
-                basePrice:   product.PriceActual,
-                uomOptions:  Array.isArray(uomOptions) && uomOptions.length > 0 ? uomOptions : [selectedUOM],
-                selectedUOM,
-            }]);
-        } catch (err) {
-            console.error("Gagal menambahkan item karena masalah UOM:", err.message);
-            const emergencyUOM = { id: product.defaultUOM?.id, name: product.defaultUOM?.name || 'EA', multiplyRate: 1 };
-            setCart(prev => [...prev, {
-                ...product,
-                QtyOrdered:  1,
-                PriceActual: product.PriceActual,
-                basePrice:   product.PriceActual,
-                uomOptions:  [emergencyUOM],
-                selectedUOM: emergencyUOM,
-            }]);
-        }
-    };
+     const fetchQtyOnHand = async (productId) => {
+         try {
+             const adOrgId = posConfig?.AD_Org_ID?.id ?? posConfig?.AD_Org_ID;
+             let filter = `M_Product_ID eq ${productId}`;
+             if (adOrgId) filter += ` and AD_Org_ID eq ${adOrgId}`;
+     
+             const res = await customFetch(
+                 `/models/t_inventoryvalue?$filter=${filter}&$select=M_Product_ID,QtyOnHand&$top=1`
+             );
+             const record = res?.records?.[0];
+             return record ? parseFloat(record.QtyOnHand ?? 0) : 0;
+         } catch (err) {
+             console.warn("Gagal fetch QtyOnHand:", err.message);
+             return null; // null = tidak bisa cek, biarkan lanjut
+         }
+     };
+     
+     // ─── 4. Add to cart ───────────────────────────────────────────────────────
+     const addToCart = async (product) => {
+         // Cek stok terkini
+         const qtyOnHand = await fetchQtyOnHand(product.M_Product_ID);
+     
+         if (qtyOnHand <= 0) {
+             triggerAlert(
+                 `Stok produk "${product.Name}" habis (QtyOnHand = 0). Produk tidak dapat ditambahkan ke keranjang.`,
+                 "Stok Habis"
+             );
+             return;
+         }
+     
+         // Cek apakah produk sudah ada di cart
+         const existingIndex = cart.findIndex(item => item.M_Product_ID === product.M_Product_ID);
+         if (existingIndex >= 0) {
+             const existingQty = cart[existingIndex].QtyOrdered;
+             if (existingQty + 1 > qtyOnHand) {
+                 triggerAlert(
+                     `Stok "${product.Name}" tidak mencukupi. Tersedia: ${qtyOnHand}, di keranjang: ${existingQty}.`,
+                     "Stok Tidak Cukup"
+                 );
+                 return;
+             }
+         }
+     
+         if (product.PriceActual === 0) {
+             triggerConfirm(product);
+             return;
+         }
+     
+         const uomOptions  = await fetchUOMOptions(product);
+         const selectedUOM = uomOptions[0];
+     
+         if (existingIndex >= 0) {
+             setCart(prev => prev.map((item, i) =>
+                 i === existingIndex
+                     ? { ...item, QtyOrdered: item.QtyOrdered + 1 }
+                     : item
+             ));
+         } else {
+             setCart(prev => [...prev, {
+                 ...product,
+                 QtyOrdered:  1,
+                 uomOptions,
+                 selectedUOM,
+                 QtyOnHand:   qtyOnHand,  // ← simpan di cart item untuk referensi updateCartQty
+             }]);
+         }
+     };
 
     // ─── 5. Handler confirm untuk dialog mode "confirm" ───────────────────────
     const handleDialogConfirm = async () => {
@@ -509,11 +526,36 @@ const fetchQtyOnHand = async (productId) => {
 
     const calculateTotal = () => cart.reduce((s, i) => s + (i.PriceActual * i.QtyOrdered), 0);
 
-    const updateCartQty = (id, value) => {
-        const qty = parseInt(value, 10);
-        if (isNaN(qty) || qty < 1) return;
-        setCart(prev => prev.map(i => i.M_Product_ID === id ? { ...i, QtyOrdered: qty } : i));
-    };
+    const updateCartQty = (productId, newQty) => {
+    setCart(prev => {
+        const item = prev.find(i => i.M_Product_ID === productId);
+        if (!item) return prev;
+
+        const qtyOnHand = item.QtyOnHand ?? Infinity; // fallback jika tidak tersedia
+     
+             if (newQty > qtyOnHand) {
+                 // Tampilkan alert tapi jangan update state dulu
+                 // Gunakan setTimeout agar setCart selesai dulu baru triggerAlert
+                 setTimeout(() => {
+                     triggerAlert(
+                         `Kuantitas melebihi stok tersedia untuk "${item.Name}". Stok tersedia: ${qtyOnHand}.`,
+                         "Stok Tidak Cukup"
+                     );
+                 }, 0);
+                 return prev; // Batalkan update
+             }
+     
+             if (newQty <= 0) {
+                 return prev.filter(i => i.M_Product_ID !== productId);
+             }
+     
+             return prev.map(i =>
+                 i.M_Product_ID === productId
+                     ? { ...i, QtyOrdered: newQty }
+                     : i
+             );
+         });
+     };
 
     const updateCartPrice = (id, value) => {
         const price = parseFloat(value);
