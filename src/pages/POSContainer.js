@@ -191,7 +191,7 @@ const DIALOG_CLOSED = {
                  // Fetch order lines
                  const linesRes = await customFetch(
                      `/models/c_orderline?$filter=C_Order_ID eq ${orderId}` +
-                     `&$select=C_OrderLine_ID,M_Product_ID,QtyOrdered,PriceActual,PriceEntered,C_UOM_ID`
+                     `&$select=C_OrderLine_ID,M_Product_ID,QtyEntered,PriceActual,PriceEntered,C_UOM_ID`
                  );
                  const lines = Array.isArray(linesRes.records) ? linesRes.records : [];
      
@@ -202,7 +202,7 @@ const DIALOG_CLOSED = {
                      const uomId       = line.C_UOM_ID?.id   ?? line.C_UOM_ID;
                      const uomName     = line.C_UOM_ID?.identifier || line.C_UOM_ID?.Name || "EA";
                      const price       = parseFloat(line.PriceActual || line.PriceEntered || 0);
-                     const qty         = parseFloat(line.QtyOrdered || 1);
+                     const qty         = parseFloat(line.QtyEntered || 1);
                      const lineId      = line.id ?? line.C_OrderLine_ID;
      
                      const selectedUOM = { id: uomId, name: uomName, multiplyRate: 1 };
@@ -214,7 +214,7 @@ const DIALOG_CLOSED = {
                          Value:          "",
                          PriceActual:    price,
                          basePrice:      price,
-                         QtyOrdered:     qty,
+                         QtyEntered:     qty,
                          defaultUOM:     selectedUOM,
                          uomOptions:     [selectedUOM],
                          selectedUOM,
@@ -553,7 +553,7 @@ const DIALOG_CLOSED = {
         const uomOptions = await fetchUOMOptions(product);
         setCart(prev => [...prev, {
             ...product,
-            QtyOrdered:  1,
+            QtyEntered:  1,
             PriceActual: product.PriceActual,
             basePrice:   product.PriceActual,
             uomOptions,
@@ -565,7 +565,7 @@ const DIALOG_CLOSED = {
     // ─── 6. Cart handlers ─────────────────────────────────────────────────────
     const removeFromCart = (id) => setCart(prev => prev.filter(i => i.M_Product_ID !== id));
 
-    const calculateTotal = () => cart.reduce((s, i) => s + (i.PriceActual * i.QtyOrdered), 0);
+    const calculateTotal = () => cart.reduce((s, i) => s + (i.PriceActual * i.QtyEnyrred), 0);
 
     const updateCartQty = (productId, newQty) => {
     setCart(prev => {
@@ -592,7 +592,7 @@ const DIALOG_CLOSED = {
      
              return prev.map(i =>
                  i.M_Product_ID === productId
-                     ? { ...i, QtyOrdered: newQty }
+                     ? { ...i, QtyEntered: newQty }
                      : i
              );
          });
