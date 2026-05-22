@@ -539,7 +539,7 @@ const DIALOG_CLOSED = {
         } else {
             setCart(prev => [...prev, {
                 ...product,
-                QtyOrdered:  1,
+                QtyEntered:  1,
                 uomOptions,
                 selectedUOM,
                 QtyOnHand:   isService ? 0 : qtyOnHand,
@@ -824,7 +824,7 @@ const DIALOG_CLOSED = {
             const line = {
                 AD_Org_ID:    { id: adOrgId },
                 M_Product_ID: { id: parseInt(item.M_Product_ID?.id ?? item.M_Product_ID) },
-                QtyEntered:   parseFloat(item.QtyOrdered || 1),
+                QtyEntered:   parseFloat(item.QttEntered || 1),
                 PriceActual:  parseFloat(item.PriceActual || 0),
                 PriceEntered: parseFloat(item.PriceActual || 0),
             };
@@ -905,7 +905,7 @@ const DIALOG_CLOSED = {
                              C_Order_ID:   { id: editOrderId },
                              AD_Org_ID:    { id: adOrgId },
                              M_Product_ID: { id: parseInt(item.M_Product_ID) },
-                             QtyEntered:   parseFloat(item.QtyOrdered || 1),
+                             QtyEntered:   parseFloat(item.QtyEntered || 1),
                              PriceActual:  parseFloat(item.PriceActual || 0),
                              PriceEntered: parseFloat(item.PriceActual || 0),
                              C_UOM_ID:     { id: item.selectedUOM?.id },
