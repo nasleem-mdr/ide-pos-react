@@ -507,7 +507,7 @@ const DIALOG_CLOSED = {
     
         // 3. Hitung jumlah item yang akan dipesan (Akan bertambah 1)
         const existingIndex = cart.findIndex(item => item.M_Product_ID === product.M_Product_ID);
-        const existingQty = existingIndex >= 0 ? cart[existingIndex].QtyOrdered : 0;
+        const existingQty = existingIndex >= 0 ? cart[existingIndex]. QtyEntered : 0;
         const targetQty = existingQty + 1;
     
         // 4. Validasi batas stok HANYA jika BUKAN produk Jasa
@@ -533,7 +533,7 @@ const DIALOG_CLOSED = {
         if (existingIndex >= 0) {
             setCart(prev => prev.map((item, i) =>
                 i === existingIndex
-                    ? { ...item, QtyOrdered: targetQty, QtyOnHand: isService ? 0 : qtyOnHand }
+                    ? { ...item, QtyEntered: targetQty, QtyOnHand: isService ? 0 : qtyOnHand }
                     : item
             ));
         } else {
@@ -824,7 +824,7 @@ const DIALOG_CLOSED = {
             const line = {
                 AD_Org_ID:    { id: adOrgId },
                 M_Product_ID: { id: parseInt(item.M_Product_ID?.id ?? item.M_Product_ID) },
-                QtyOrdered:   parseFloat(item.QtyOrdered || 1),
+                QtyEntered:   parseFloat(item.QtyOrdered || 1),
                 PriceActual:  parseFloat(item.PriceActual || 0),
                 PriceEntered: parseFloat(item.PriceActual || 0),
             };
@@ -905,7 +905,7 @@ const DIALOG_CLOSED = {
                              C_Order_ID:   { id: editOrderId },
                              AD_Org_ID:    { id: adOrgId },
                              M_Product_ID: { id: parseInt(item.M_Product_ID) },
-                             QtyOrdered:   parseFloat(item.QtyOrdered || 1),
+                             QtyEntered:   parseFloat(item.QtyOrdered || 1),
                              PriceActual:  parseFloat(item.PriceActual || 0),
                              PriceEntered: parseFloat(item.PriceActual || 0),
                              C_UOM_ID:     { id: item.selectedUOM?.id },
