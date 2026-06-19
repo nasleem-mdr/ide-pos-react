@@ -9,6 +9,8 @@ import Header from "./components/Header";
 import Sidebar from "./components/Sidebar";
 import BusinessPartnerEdit from './pages/BusinessPartnerEdit';
 import SalesOrderPage from "./pages/SalesOrderPage";
+import RequisitionContainer from './pages/RequisitionContainer';
+
 import './css/AppLayout.css'; // Pastikan mengimpor file CSS layout Anda
 
 export default function App() {
@@ -50,6 +52,7 @@ export default function App() {
                 <Route path="/bp/:id/edit" element={<BusinessPartnerEdit />} />
                 <Route path="/sales-orders" element={<SalesOrderPage />} />
                 <Route path="/" element={<Navigate to="/dashboard" />} />
+                <Route path="/requisition" element={<RequisitionContainer />} />
               </Routes>
             </main>
           </div>
