@@ -1,0 +1,40 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// Style tokens — dipakai di semua komponen agar tampilan konsisten.
+// Pindahkan ke sini supaya tidak ada COLOR/RADIUS yang terduplikasi
+// di setiap file komponen (sebelumnya didefinisikan ulang per file).
+// ─────────────────────────────────────────────────────────────────────────────
+export const COLOR = {
+  primary:    '#2563eb',
+  primaryDk:  '#1d4ed8',
+  success:    '#16a34a',
+  successLt:  '#f0fdf4',
+  danger:     '#dc2626',
+  dangerLt:   '#fff1f1',
+  bg:         '#f4f6fb',
+  surface:    '#ffffff',
+  border:     '#dde3ef',
+  textDk:     '#1a2744',
+  textMd:     '#4b5563',
+  textLt:     '#9ca3af',
+  vendor:     '#4a7fbf',
+  vendorBg:   '#edf3fc',
+};
+
+export const RADIUS = { sm: '6px', md: '10px', lg: '14px', xl: '18px' };
+
+// Style dasar tombol stepper (−/+), dipakai di CartItem & ProductDetailSheet.
+// Component pemanggil bisa override ukuran via `size` prop pada QtyStepper.
+export const stepBtnBase = {
+  border: `1px solid ${COLOR.border}`,
+  borderRadius: RADIUS.sm,
+  background: COLOR.surface,
+  cursor: 'pointer',
+  fontWeight: 700,
+  color: COLOR.primary,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  padding: 0,
+  WebkitTapHighlightColor: 'transparent',
+  flexShrink: 0,
+};
