@@ -1,262 +1,515 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import SearchBar from '../components/SearchBar';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// KONFIGURASI HARDCODE — Hanya C_DocType_ID yang di-hardcode
+// KONFIGURASI — hanya yang tidak tersimpan di localStorage saat login
 // ─────────────────────────────────────────────────────────────────────────────
 const REQUISITION_CONFIG = {
-  C_DOCTYPE_ID: 320,        // Ganti dengan C_DocType_ID untuk "Purchase Requisition"
+  C_DOCTYPE_ID: 320,                           // C_DocType_ID untuk Purchase Requisition
   DESCRIPTION:  'Purchase Requisition via Web',
 };
+
 // ─────────────────────────────────────────────────────────────────────────────
+// HELPER: Ambil semua field sesi dari localStorage
+// ─────────────────────────────────────────────────────────────────────────────
+const getLoginInfo = () => ({
+  userId:      parseInt(localStorage.getItem('AD_User_ID'))    || null,
+  warehouseId: parseInt(localStorage.getItem('M_Warehouse_ID'))|| null,
+  orgId:       parseInt(localStorage.getItem('AD_Org_ID'))     || null,
+  clientId:    parseInt(localStorage.getItem('AD_Client_ID'))  || null,
+  roleId:      parseInt(localStorage.getItem('AD_Role_ID'))    || null,
+  userName:    localStorage.getItem('UserName') || localStorage.getItem('Name') || 'User',
+});
 
-// ─── ReqProductCard ──────────────────────────────────────────────────────────
-const ReqProductCard = ({ product, onClick }) => (
-  <div
-    onClick={() => onClick(product)}
-    style={{
-      border: '1px solid #dde3ef',
-      borderRadius: '10px',
-      padding: '12px 14px',
-      cursor: 'pointer',
-      background: '#fff',
-      transition: 'box-shadow 0.15s, border-color 0.15s',
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '4px',
-      userSelect: 'none',
-    }}
-    onMouseEnter={e => {
-      e.currentTarget.style.boxShadow = '0 2px 12px rgba(30,90,200,0.13)';
-      e.currentTarget.style.borderColor = '#7aa4e8';
-    }}
-    onMouseLeave={e => {
-      e.currentTarget.style.boxShadow = 'none';
-      e.currentTarget.style.borderColor = '#dde3ef';
-    }}
-  >
-    <span style={{ fontWeight: 700, fontSize: '13px', color: '#1a2744', lineHeight: '1.3' }}>
-      {product.Name}
-    </span>
-    <span style={{ fontSize: '11px', color: '#888', letterSpacing: '0.03em' }}>
-      {product.Value}
-    </span>
-    {product.VendorName && (
-      <span style={{
+// ─────────────────────────────────────────────────────────────────────────────
+// CONSTANTS — Styling tokens
+// ─────────────────────────────────────────────────────────────────────────────
+const COLOR = {
+  primary:    '#2563eb',
+  primaryDk:  '#1d4ed8',
+  success:    '#16a34a',
+  successLt:  '#f0fdf4',
+  danger:     '#dc2626',
+  dangerLt:   '#fff1f1',
+  bg:         '#f4f6fb',
+  surface:    '#ffffff',
+  border:     '#dde3ef',
+  textDk:     '#1a2744',
+  textMd:     '#4b5563',
+  textLt:     '#9ca3af',
+  vendor:     '#4a7fbf',
+  vendorBg:   '#edf3fc',
+};
+
+const RADIUS = { sm: '6px', md: '10px', lg: '14px', xl: '18px' };
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SUB-COMPONENT: UoM Selector pill untuk ReqCartItem
+// Menampilkan dropdown UoM alternatif dari C_UOM_Conversion
+// ─────────────────────────────────────────────────────────────────────────────
+const UomSelector = ({ item, onUomChange }) => {
+  if (!item.uomOptions || item.uomOptions.length <= 1) {
+    return (
+      <span style={{ fontSize: '11px', color: COLOR.textLt, marginLeft: '4px' }}>
+        {item.selectedUom?.Name || item.C_UOM_Name || 'EA'}
+      </span>
+    );
+  }
+  return (
+    <select
+      value={item.selectedUom?.C_UOM_ID || item.C_UOM_ID}
+      onChange={e => {
+        const chosen = item.uomOptions.find(u => String(u.C_UOM_ID) === e.target.value);
+        if (chosen) onUomChange(item.M_Product_ID, chosen);
+      }}
+      onClick={e => e.stopPropagation()}
+      style={{
         fontSize: '11px',
-        color: '#4a7fbf',
-        background: '#edf3fc',
-        borderRadius: '4px',
-        padding: '2px 6px',
-        marginTop: '4px',
-        alignSelf: 'flex-start',
-      }}>
-        🏭 {product.VendorName}
-      </span>
-    )}
-    {product.C_UOM_Name && (
-      <span style={{ fontSize: '11px', color: '#aaa', marginTop: '2px' }}>
-        Base UOM: {product.C_UOM_Name}
-      </span>
-    )}
-  </div>
-);
+        color: COLOR.primary,
+        background: COLOR.vendorBg,
+        border: '1px solid #c5d0e8',
+        borderRadius: RADIUS.sm,
+        padding: '1px 4px',
+        cursor: 'pointer',
+        marginLeft: '4px',
+        maxWidth: '90px',
+      }}
+    >
+      {item.uomOptions.map(u => (
+        <option key={u.C_UOM_ID} value={String(u.C_UOM_ID)}>
+          {u.Name}
+        </option>
+      ))}
+    </select>
+  );
+};
 
-// ─── ReqCartItem ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// SUB-COMPONENT: ReqProductCard
+// ─────────────────────────────────────────────────────────────────────────────
+const ReqProductCard = ({ product, onAdd }) => {
+  const [pressed, setPressed] = useState(false);
+  return (
+    <div
+      onClick={() => onAdd(product)}
+      onTouchStart={() => setPressed(true)}
+      onTouchEnd={() => setPressed(false)}
+      onMouseDown={() => setPressed(true)}
+      onMouseUp={() => setPressed(false)}
+      onMouseLeave={() => setPressed(false)}
+      style={{
+        border: `1.5px solid ${pressed ? COLOR.primary : COLOR.border}`,
+        borderRadius: RADIUS.md,
+        padding: '12px 12px 10px',
+        cursor: 'pointer',
+        background: pressed ? '#f0f5ff' : COLOR.surface,
+        transform: pressed ? 'scale(0.97)' : 'scale(1)',
+        transition: 'transform 0.1s, border-color 0.15s, background 0.1s',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '5px',
+        userSelect: 'none',
+        WebkitTapHighlightColor: 'transparent',
+        minHeight: '80px',
+      }}
+    >
+      <span style={{
+        fontWeight: 700, fontSize: '13px', color: COLOR.textDk,
+        lineHeight: '1.35', display: '-webkit-box',
+        WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
+      }}>
+        {product.Name}
+      </span>
+      <span style={{ fontSize: '11px', color: COLOR.textLt, letterSpacing: '0.03em' }}>
+        {product.Value}
+      </span>
+      {product.VendorName && (
+        <span style={{
+          fontSize: '10px', color: COLOR.vendor, background: COLOR.vendorBg,
+          borderRadius: '4px', padding: '2px 6px', alignSelf: 'flex-start',
+          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%',
+        }}>
+          🏭 {product.VendorName}
+        </span>
+      )}
+      <span style={{
+        fontSize: '11px', color: COLOR.textLt,
+        background: '#f5f5f5', borderRadius: '4px',
+        padding: '1px 5px', alignSelf: 'flex-start',
+      }}>
+        {product.C_UOM_Name || 'EA'}
+      </span>
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SUB-COMPONENT: ReqCartItem (mobile-optimised)
+// ─────────────────────────────────────────────────────────────────────────────
 const ReqCartItem = ({ item, onRemove, onQtyChange, onUomChange }) => (
   <div style={{
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    padding: '8px 10px',
-    background: '#f7f9ff',
-    borderRadius: '8px',
-    marginBottom: '8px',
-    border: '1px solid #e4eaf5',
+    display: 'flex', alignItems: 'center', gap: '8px',
+    padding: '10px 10px', background: '#f7f9ff',
+    borderRadius: RADIUS.md, marginBottom: '8px',
+    border: `1px solid ${COLOR.border}`,
   }}>
+    {/* Info */}
     <div style={{ flex: 1, minWidth: 0 }}>
-      <div style={{ fontWeight: 600, fontSize: '13px', color: '#1a2744', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+      <div style={{
+        fontWeight: 600, fontSize: '13px', color: COLOR.textDk,
+        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+      }}>
         {item.Name}
       </div>
-      <div style={{ fontSize: '11px', color: '#888', marginBottom: '4px' }}>{item.Value}</div>
-      
-      {/* Selector UoM Konversi */}
-      {item.AvailableUoms && item.AvailableUoms.length > 1 ? (
-        <select
-          value={item.Selected_C_UOM_ID}
-          onChange={(e) => onUomChange(item.M_Product_ID, parseInt(e.target.value))}
-          style={{ padding: '2px 4px', fontSize: '11px', borderRadius: '4px', border: '1px solid #c8d4ec', color: '#4a7fbf', background: '#fff' }}
-        >
-          {item.AvailableUoms.map((uom) => (
-            <option key={uom.C_UOM_ID} value={uom.C_UOM_ID}>
-              {uom.C_UOM_Name} {uom.MultiplyRate !== 1 ? `(x${uom.MultiplyRate})` : ''}
-            </option>
-          ))}
-        </select>
-      ) : (
-        <div style={{ fontSize: '11px', color: '#888' }}>{item.Selected_C_UOM_Name || 'EA'}</div>
-      )}
+      <div style={{ fontSize: '11px', color: COLOR.textMd, display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '2px' }}>
+        <span>{item.Value}</span>
+        <UomSelector item={item} onUomChange={onUomChange} />
+      </div>
     </div>
 
-    {/* Qty stepper */}
-    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
+    {/* Stepper */}
+    <div style={{ display: 'flex', alignItems: 'center', gap: '3px', flexShrink: 0 }}>
       <button
+        onTouchEnd={e => { e.preventDefault(); onQtyChange(item.M_Product_ID, item.Qty - 1); }}
         onClick={() => onQtyChange(item.M_Product_ID, item.Qty - 1)}
-        style={btnStepper}
+        style={stepBtn}
       >−</button>
       <input
-        type="number"
-        min="0.01"
-        step="1"
+        type="number" min="0.01" step="1"
         value={item.Qty}
         onChange={e => onQtyChange(item.M_Product_ID, parseFloat(e.target.value) || 0)}
         style={{
-          width: '56px', textAlign: 'center', padding: '4px 2px',
-          border: '1px solid #c8d4ec', borderRadius: '5px', fontSize: '13px',
-          fontWeight: 600, color: '#1a2744',
+          width: '52px', textAlign: 'center', padding: '5px 2px',
+          border: `1px solid ${COLOR.border}`, borderRadius: RADIUS.sm,
+          fontSize: '14px', fontWeight: 700, color: COLOR.textDk,
+          MozAppearance: 'textfield',
         }}
       />
       <button
+        onTouchEnd={e => { e.preventDefault(); onQtyChange(item.M_Product_ID, item.Qty + 1); }}
         onClick={() => onQtyChange(item.M_Product_ID, item.Qty + 1)}
-        style={btnStepper}
+        style={stepBtn}
       >+</button>
     </div>
 
+    {/* Remove */}
     <button
+      onTouchEnd={e => { e.preventDefault(); onRemove(item.M_Product_ID); }}
       onClick={() => onRemove(item.M_Product_ID)}
-      title="Hapus"
-      style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#c62828', fontSize: '16px', padding: '2px 4px', flexShrink: 0 }}
+      style={{
+        background: COLOR.dangerLt, border: 'none', cursor: 'pointer',
+        color: COLOR.danger, fontSize: '14px', padding: '6px 8px',
+        borderRadius: RADIUS.sm, flexShrink: 0, lineHeight: 1,
+      }}
     >✕</button>
   </div>
 );
 
-const btnStepper = {
-  width: '26px', height: '26px', border: '1px solid #c8d4ec',
-  borderRadius: '5px', background: '#fff', cursor: 'pointer',
-  fontSize: '15px', display: 'flex', alignItems: 'center',
-  justifyContent: 'center', fontWeight: 700, color: '#4a7fbf', padding: 0,
+const stepBtn = {
+  width: '32px', height: '32px', border: `1px solid ${COLOR.border}`,
+  borderRadius: RADIUS.sm, background: COLOR.surface, cursor: 'pointer',
+  fontSize: '18px', fontWeight: 700, color: COLOR.primary,
+  display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
+  WebkitTapHighlightColor: 'transparent', flexShrink: 0,
 };
 
-// ─── Dialog / Alert sederhana ─────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// SUB-COMPONENT: QR/Barcode Scanner Modal
+// Menggunakan BarcodeDetector API (native browser)
+// ─────────────────────────────────────────────────────────────────────────────
+const BarcodeScanner = ({ isOpen, onDetected, onClose }) => {
+  const videoRef    = useRef(null);
+  const streamRef   = useRef(null);
+  const rafRef      = useRef(null);
+  const detectorRef = useRef(null);
+  const [status, setStatus]         = useState('init');  // init | scanning | error
+  const [errorMsg, setErrorMsg]     = useState('');
+  const [lastCode, setLastCode]     = useState('');
+  const [supported, setSupported]   = useState(true);
+
+  const stopStream = useCallback(() => {
+    cancelAnimationFrame(rafRef.current);
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(t => t.stop());
+      streamRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen) { stopStream(); setStatus('init'); setLastCode(''); return; }
+
+    if (!('BarcodeDetector' in window)) {
+      setSupported(false);
+      setStatus('error');
+      setErrorMsg('Browser ini tidak mendukung BarcodeDetector API.\nGunakan Chrome 83+ atau Edge 83+ di Android.');
+      return;
+    }
+
+    setSupported(true);
+    setStatus('init');
+
+    // Format yang umum digunakan di gudang/warehouse
+    detectorRef.current = new window.BarcodeDetector({
+      formats: ['qr_code', 'code_128', 'code_39', 'ean_13', 'ean_8', 'upc_a', 'upc_e', 'data_matrix'],
+    });
+
+    const startCamera = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: { ideal: 'environment' },
+            width:  { ideal: 1280 },
+            height: { ideal: 720 },
+          },
+          audio: false,
+        });
+        streamRef.current = stream;
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          await videoRef.current.play();
+          setStatus('scanning');
+          scanLoop();
+        }
+      } catch (err) {
+        setStatus('error');
+        setErrorMsg(`Kamera tidak bisa diakses:\n${err.message}\n\nPastikan izin kamera sudah diberikan.`);
+      }
+    };
+
+    const scanLoop = () => {
+      if (!videoRef.current || videoRef.current.readyState < 2) {
+        rafRef.current = requestAnimationFrame(scanLoop);
+        return;
+      }
+      detectorRef.current.detect(videoRef.current)
+        .then(results => {
+          if (results.length > 0) {
+            const code = results[0].rawValue;
+            if (code && code !== lastCode) {
+              setLastCode(code);
+              // Vibrate feedback (mobile)
+              if (navigator.vibrate) navigator.vibrate([60]);
+              onDetected(code);
+            }
+          }
+          rafRef.current = requestAnimationFrame(scanLoop);
+        })
+        .catch(() => {
+          rafRef.current = requestAnimationFrame(scanLoop);
+        });
+    };
+
+    startCamera();
+    return () => stopStream();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 2000,
+      background: 'rgba(0,0,0,0.92)',
+      display: 'flex', flexDirection: 'column',
+      alignItems: 'center', justifyContent: 'center',
+    }}>
+      {/* Header */}
+      <div style={{
+        position: 'absolute', top: 0, left: 0, right: 0,
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '14px 18px',
+        background: 'rgba(0,0,0,0.5)',
+      }}>
+        <span style={{ color: '#fff', fontWeight: 700, fontSize: '15px' }}>
+          📷 Scan QR / Barcode
+        </span>
+        <button
+          onClick={onClose}
+          style={{
+            background: 'rgba(255,255,255,0.15)', border: 'none',
+            color: '#fff', borderRadius: '50%', width: '34px', height: '34px',
+            fontSize: '18px', cursor: 'pointer', display: 'flex',
+            alignItems: 'center', justifyContent: 'center',
+          }}
+        >✕</button>
+      </div>
+
+      {/* Viewfinder */}
+      {status !== 'error' && (
+        <div style={{ position: 'relative', width: '100%', maxWidth: '500px' }}>
+          <video
+            ref={videoRef}
+            playsInline
+            muted
+            style={{ width: '100%', display: 'block', borderRadius: RADIUS.md }}
+          />
+          {/* Overlay frame */}
+          <div style={{
+            position: 'absolute', inset: 0,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            pointerEvents: 'none',
+          }}>
+            <div style={{
+              width: '200px', height: '200px',
+              border: '2px solid rgba(255,255,255,0.5)',
+              borderRadius: RADIUS.md,
+              boxShadow: '0 0 0 2000px rgba(0,0,0,0.45)',
+              position: 'relative',
+            }}>
+              {/* Corner markers */}
+              {[
+                { top: '-2px', left: '-2px', borderTop: '4px solid #22c55e', borderLeft: '4px solid #22c55e' },
+                { top: '-2px', right: '-2px', borderTop: '4px solid #22c55e', borderRight: '4px solid #22c55e' },
+                { bottom: '-2px', left: '-2px', borderBottom: '4px solid #22c55e', borderLeft: '4px solid #22c55e' },
+                { bottom: '-2px', right: '-2px', borderBottom: '4px solid #22c55e', borderRight: '4px solid #22c55e' },
+              ].map((s, i) => (
+                <div key={i} style={{ position: 'absolute', width: '20px', height: '20px', borderRadius: '2px', ...s }} />
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Status / Error */}
+      <div style={{
+        marginTop: '20px', padding: '12px 24px',
+        background: status === 'error' ? 'rgba(220,38,38,0.85)' : 'rgba(255,255,255,0.1)',
+        borderRadius: RADIUS.lg, maxWidth: '400px', textAlign: 'center',
+      }}>
+        {status === 'init'     && <p style={{ color: '#ddd', margin: 0, fontSize: '14px' }}>Menginisialisasi kamera...</p>}
+        {status === 'scanning' && <p style={{ color: '#a3e635', margin: 0, fontSize: '13px' }}>🔍 Arahkan kamera ke barcode produk</p>}
+        {status === 'error'    && (
+          <>
+            <p style={{ color: '#fff', margin: '0 0 8px', fontWeight: 700, fontSize: '14px' }}>⚠ Error</p>
+            <p style={{ color: '#fca5a5', margin: 0, fontSize: '13px', whiteSpace: 'pre-line' }}>{errorMsg}</p>
+            {!supported && (
+              <p style={{ color: '#fde68a', margin: '10px 0 0', fontSize: '12px' }}>
+                Anda bisa ketik kode produk manual di kolom pencarian.
+              </p>
+            )}
+            <button
+              onClick={onClose}
+              style={{
+                marginTop: '16px', background: COLOR.surface, color: COLOR.danger,
+                border: 'none', borderRadius: RADIUS.sm, padding: '8px 20px',
+                fontWeight: 700, cursor: 'pointer',
+              }}
+            >Tutup</button>
+          </>
+        )}
+      </div>
+
+      {/* Last detected */}
+      {lastCode && (
+        <div style={{
+          marginTop: '10px', padding: '8px 20px',
+          background: 'rgba(34,197,94,0.2)', borderRadius: RADIUS.md,
+          border: '1px solid #22c55e',
+        }}>
+          <p style={{ color: '#86efac', margin: 0, fontSize: '12px', textAlign: 'center' }}>
+            ✓ Terdeteksi: <strong style={{ color: '#fff' }}>{lastCode}</strong>
+          </p>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SUB-COMPONENT: Dialog Alert
+// ─────────────────────────────────────────────────────────────────────────────
 const ReqDialog = ({ isOpen, title, message, onClose }) => {
   if (!isOpen) return null;
   return (
     <div style={{
-      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1500,
+      padding: '16px',
     }}>
       <div style={{
-        background: '#fff', borderRadius: '12px', padding: '28px 32px',
-        maxWidth: '420px', width: '90%', boxShadow: '0 8px 40px rgba(0,0,0,0.18)',
+        background: COLOR.surface, borderRadius: RADIUS.lg, padding: '24px 20px',
+        maxWidth: '380px', width: '100%', boxShadow: '0 8px 40px rgba(0,0,0,0.2)',
       }}>
-        <div style={{ fontWeight: 700, fontSize: '16px', marginBottom: '12px', color: '#1a2744' }}>
+        <div style={{ fontWeight: 700, fontSize: '16px', marginBottom: '10px', color: COLOR.textDk }}>
           {title}
         </div>
-        <div style={{ fontSize: '14px', color: '#444', marginBottom: '24px', whiteSpace: 'pre-line', lineHeight: '1.6' }}>
+        <div style={{ fontSize: '14px', color: '#444', marginBottom: '20px', whiteSpace: 'pre-line', lineHeight: 1.6 }}>
           {message}
         </div>
-        <button
-          onClick={onClose}
-          style={{
-            background: '#2563eb', color: '#fff', border: 'none',
-            borderRadius: '7px', padding: '9px 24px', fontWeight: 600,
-            fontSize: '14px', cursor: 'pointer', float: 'right',
-          }}
-        >Tutup</button>
+        <button onClick={onClose} style={{
+          background: COLOR.primary, color: '#fff', border: 'none',
+          borderRadius: RADIUS.sm, padding: '10px 24px', fontWeight: 700,
+          fontSize: '14px', cursor: 'pointer', width: '100%',
+        }}>Tutup</button>
       </div>
     </div>
   );
 };
 
-// ─── SuccessModal ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// SUB-COMPONENT: Success Modal
+// ─────────────────────────────────────────────────────────────────────────────
 const ReqSuccessModal = ({ isOpen, data, onClose }) => {
   if (!isOpen || !data) return null;
   return (
     <div style={{
-      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      zIndex: 1500, padding: '16px',
     }}>
       <div style={{
-        background: '#fff', borderRadius: '14px', padding: '32px 36px',
-        maxWidth: '480px', width: '90%', boxShadow: '0 8px 40px rgba(0,0,0,0.2)',
-        textAlign: 'center',
+        background: COLOR.surface, borderRadius: RADIUS.xl, padding: '28px 20px',
+        maxWidth: '440px', width: '100%', boxShadow: '0 8px 40px rgba(0,0,0,0.25)',
+        textAlign: 'center', maxHeight: '90vh', overflowY: 'auto',
       }}>
-        <div style={{ fontSize: '48px', marginBottom: '12px' }}>✅</div>
-        <div style={{ fontSize: '20px', fontWeight: 700, color: '#1a6e3c', marginBottom: '6px' }}>
-          Requisition Berhasil Dibuat!
+        <div style={{ fontSize: '52px', marginBottom: '8px' }}>✅</div>
+        <div style={{ fontSize: '19px', fontWeight: 700, color: COLOR.success, marginBottom: '4px' }}>
+          Requisition Berhasil!
         </div>
-        <div style={{ fontSize: '14px', color: '#555', marginBottom: '20px' }}>
+        <div style={{ fontSize: '13px', color: COLOR.textMd, marginBottom: '18px' }}>
           Dokumen telah di-<em>Complete</em> dan diteruskan ke workflow pembelian.
         </div>
 
         <div style={{
-          background: '#f0f9f4', border: '1px solid #b2dfcc',
-          borderRadius: '8px', padding: '16px', marginBottom: '24px', textAlign: 'left',
+          background: COLOR.successLt, border: `1px solid #bbf7d0`,
+          borderRadius: RADIUS.md, padding: '14px', marginBottom: '16px', textAlign: 'left',
         }}>
-          <div style={{ marginBottom: '6px' }}>
-            <span style={{ color: '#888', fontSize: '12px' }}>Document No</span>
-            <div style={{ fontWeight: 700, fontSize: '16px', color: '#1a2744' }}>{data.documentNo}</div>
-          </div>
-          <div style={{ marginBottom: '6px' }}>
-            <span style={{ color: '#888', fontSize: '12px' }}>Tanggal</span>
-            <div style={{ fontSize: '14px', color: '#333' }}>{data.date}</div>
-          </div>
-          <div style={{ marginBottom: '6px' }}>
-            <span style={{ color: '#888', fontSize: '12px' }}>Requester</span>
-            <div style={{ fontSize: '14px', color: '#333' }}>{data.requesterName}</div>
-          </div>
-          <div>
-            <span style={{ color: '#888', fontSize: '12px' }}>Total Item</span>
-            <div style={{ fontSize: '14px', color: '#333' }}>{data.items.length} produk</div>
-          </div>
+          {[
+            ['Document No', data.documentNo, true],
+            ['Tanggal',     data.date,        false],
+            ['Requester',   data.requesterName,false],
+            ['Total Item',  `${data.items.length} produk`, false],
+          ].map(([label, val, bold]) => (
+            <div key={label} style={{ marginBottom: '6px' }}>
+              <span style={{ color: COLOR.textLt, fontSize: '11px' }}>{label}</span>
+              <div style={{ fontSize: bold ? '16px' : '14px', fontWeight: bold ? 700 : 500, color: COLOR.textDk }}>
+                {val}
+              </div>
+            </div>
+          ))}
         </div>
 
-        <div style={{ marginBottom: '20px', textAlign: 'left' }}>
-          <div style={{ fontWeight: 600, fontSize: '13px', color: '#555', marginBottom: '8px' }}>Detail Permintaan:</div>
+        <div style={{ textAlign: 'left', marginBottom: '20px' }}>
+          <div style={{ fontWeight: 600, fontSize: '12px', color: COLOR.textMd, marginBottom: '6px' }}>
+            Detail Permintaan:
+          </div>
           {data.items.map((item, i) => (
             <div key={i} style={{
               display: 'flex', justifyContent: 'space-between',
               fontSize: '13px', padding: '5px 0',
-              borderBottom: i < data.items.length - 1 ? '1px solid #eee' : 'none',
+              borderBottom: i < data.items.length - 1 ? `1px solid #eee` : 'none',
             }}>
-              <span style={{ color: '#333' }}>{item.Name}</span>
-              <span style={{ fontWeight: 600, color: '#1a2744' }}>
-                {item.Qty} {item.Selected_C_UOM_Name || 'EA'}
+              <span style={{ color: '#333', flex: 1, marginRight: '8px' }}>{item.Name}</span>
+              <span style={{ fontWeight: 700, color: COLOR.textDk, whiteSpace: 'nowrap' }}>
+                {item.Qty} {item.selectedUom?.Name || item.C_UOM_Name || 'EA'}
               </span>
             </div>
           ))}
         </div>
 
-        <button
-          onClick={onClose}
-          style={{
-            background: '#2563eb', color: '#fff', border: 'none',
-            borderRadius: '8px', padding: '12px 32px', fontWeight: 700,
-            fontSize: '15px', cursor: 'pointer', width: '100%',
-          }}
-        >
-          Buat Requisition Baru
-        </button>
-      </div>
-    </div>
-  );
-};
-
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// MAIN COMPONENT
-// ═══════════════════════════════════════════════════════════════════════════════
-const RequisitionContainer = () => {
-  const navigate = useNavigate();
-
-  // ─── State ───────────────────────────────────────────────────────────────
-  const [products, setProducts]       = useState([]);
-  const [cart, setCart]               = useState([]);
-  const [loading, setLoading]         = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [searchValue, setSearchValue] = useState('');
-  const [warehouseInfo, setWarehouseInfo] = useState(null); // { id, name }
+        <button onClick={onClose} style={{
+          background: COLOR.primary, color: '#fff', border: 'none',
+          borderRadius: RADIUS.md, padding: '14px', fontWeight: 7 { id, name }
   const [requesterName, setRequesterName] = useState('');
 
   const [dialog, setDialog]           = useState({ isOpen: false, title: '', message: '' });
