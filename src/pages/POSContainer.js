@@ -6,6 +6,8 @@ import CartItem from '../components/CartItem';
 import ConfirmModal from '../components/ConfirmModal';
 import PaymentModal from '../components/PaymentModal';
 import ReceiptModal from '../components/ReceiptModal';
+import { useAccess } from '../context/AccessContext';
+import { useAccess } from '../context/AccessContext';
 
 const POSContainer = () => {
      // 1. State untuk kontrol Loading & Data POS
@@ -20,7 +22,8 @@ const POSContainer = () => {
          const [isEditMode, setIsEditMode]   = useState(false);
          const location = useLocation();
          const navigate = useNavigate();
-         
+         const { canEdit } = useAccess();
+         const canSubmitRequisition = canEdit('requisition');
     // ─── Unified Dialog State ─────────────────────────────────────────────────
 // mode: "confirm" → tampilkan tombol onConfirm + onCancel (produk harga 0)
 // mode: "alert"   → tampilkan tombol onClose saja (notifikasi/error)
