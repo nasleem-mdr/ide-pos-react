@@ -13,7 +13,7 @@ export const WINDOW_ACCESS_MAP = {
   dashboard:            null,   // null = selalu boleh diakses (tidak dicek ke AD_Window_Access)
   businessPartner:      117,    // contoh AD_Window_ID untuk window Business Partner (ganti sesuai instance Anda)
   businessPartnerEdit:  117,    // window sama dengan list, tapi action 'edit' yang dicek readwrite-nya
-  pos:                  ' ',    // ganti dengan AD_Window_ID window POS Anda (custom window biasanya >= 1000000)
+  pos:                  '167 ',    // ganti dengan AD_Window_ID window POS Anda (custom window biasanya >= 1000000)
   salesOrder:           167,    // contoh: Sales Order standar iDempiere
   requisition:          1000010, // contoh: window Purchase Requisition custom Anda
 };
