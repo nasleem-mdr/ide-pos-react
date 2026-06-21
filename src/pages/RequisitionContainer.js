@@ -9,7 +9,7 @@ import ProductDetailSheet from '../components/product/ProductDetailSheet';
 import BarcodeScanner from '../components/scanner/BarcodeScanner';
 import RequisitionSuccessModal from '../components/requisition/RequisitionSuccessModal';
 import { useRequisitionSubmit } from '../components/requisition/useRequisitionSubmit';
-
+import { useAccess } from '../context/AccessContext';
 import { useCart } from '../hooks/useCart';
 import { useProductSearch } from '../hooks/useProductSearch';
 import { getLoginInfo, getMissingSessionFields } from '../hooks/useLoginInfo';
@@ -55,7 +55,8 @@ const RequisitionContainer = () => {
     description: REQUISITION_CONFIG.DESCRIPTION,
     onError:     alert,
   });
-
+  const { canEdit } = useAccess();
+  const canSubmitRequisition = canEdit('requisition'); 
   // ── Init ───────────────────────────────────────────────────────────────────
   useEffect(() => {
     const init = async () => {
@@ -297,15 +298,27 @@ const RequisitionContainer = () => {
         onRemove={removeFromCart}
         onQtyChange={updateQty}
         onUomChange={updateUom}
-        onClearCart={clearCart}
+        //onClearCart={clearCart}
+        onClearCart={canSubmitRequisition ? clearCart : undefined}
         totalItems={totalItems}
         totalQty={totalQty}
         summaryRight={`📦 ${warehouseInfo?.name || '...'}`}
         title="📝 Daftar Permintaan"
         submitLabel="📤 KIRIM REQUISITION"
-        onSubmit={handleSubmit}
-        isSubmitting={isSubmitting}
+        onSubmit={canSubmitRequisition ? handleSubmit : undefined}
+        isSubmitting={false}
+        //onSubmit={handleSubmit}
+        //isSubmitting={isSubmitting}
       />
+      {!canSubmitRequisition && (
+        <div style={{
+          position: 'fixed', bottom: 0, left: 0, right: 0,
+          background: '#fef3c7', color: '#92400e', fontSize: '12px',
+          padding: '8px 14px', textAlign: 'center',
+        }}>
+          ⚠ Role Anda hanya memiliki akses lihat (read-only) untuk Requisition.
+        </div>
+      )}
     </div>
   );
 };
