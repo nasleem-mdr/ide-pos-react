@@ -10,6 +10,9 @@ import Sidebar from "./components/Sidebar";
 import BusinessPartnerEdit from './pages/BusinessPartnerEdit';
 import SalesOrderPage from "./pages/SalesOrderPage";
 import RequisitionContainer from './pages/RequisitionContainer';
+import { AccessProvider } from './context/AccessContext';
+import ProtectedRoute from './components/ProtectedRoute';
+
 
 import './css/AppLayout.css'; // Pastikan mengimpor file CSS layout Anda
 
@@ -29,6 +32,7 @@ export default function App() {
 
   return (
     <BrowserRouter>
+    <AccessProvider>
       {!session ? (
         <Routes>
           <Route path="/" element={<IDempiereAuth onLoginSuccess={handleLoginSuccess} />} />
@@ -46,18 +50,45 @@ export default function App() {
             <main className="content">
               <Routes>
                 <Route path="/dashboard" element={<Dashboard session={session} />} />
-                <Route path="/business-partner" element={<BusinessPartner />} />
-                <Route path="/pos-order" element={<POSContainer />} />
-                <Route path="/bp/:id" element={<BusinessPartnerDetail />} />
-                <Route path="/bp/:id/edit" element={<BusinessPartnerEdit />} />
-                <Route path="/sales-orders" element={<SalesOrderPage />} />
-                <Route path="/" element={<Navigate to="/dashboard" />} />
-                <Route path="/requisition" element={<RequisitionContainer />} />
+                <Route path="/business-partner" element={
+                    <ProtectedRoute windowKey="businessPartner">
+                      <BusinessPartner />
+                    </ProtectedRoute>
+                } />
+                <Route path="/business-partner/:id/edit" element={
+                  <ProtectedRoute windowKey="businessPartnerEdit">
+                    <BusinessPartnerEdit />
+                  </ProtectedRoute>
+                } />
+                <Route path="/business-partner/:id" element={
+                  <ProtectedRoute windowKey="businessPartner">
+                    <BusinessPartnerDetail />
+                  </ProtectedRoute>
+                } />
+
+                <Route path="/pos-order" element={
+                  <ProtectedRoute windowKey="pos">
+                    <POSContainer />
+                  </ProtectedRoute>
+                } />
+      
+                <Route path="/sales-order" element={
+                  <ProtectedRoute windowKey="salesOrder">
+                    <SalesOrderPage />
+                  </ProtectedRoute>
+                } />
+      
+                <Route path="/requisition" element={
+                  <ProtectedRoute windowKey="requisition">
+                    <RequisitionContainer />
+                  </ProtectedRoute>
+                } />
               </Routes>
             </main>
           </div>
         </div>
       )}
+      </AccessProvider>
     </BrowserRouter>
   );
 }
