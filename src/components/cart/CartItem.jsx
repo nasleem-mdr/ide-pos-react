@@ -3,17 +3,6 @@ import QtyStepper from '../common/QtyStepper';
 import UomSelector from '../product/UomSelector';
 import { COLOR, RADIUS } from '../../utils/styleTokens';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// CartItem.jsx
-// Baris item di dalam cart sheet — info produk, qty stepper, UoM selector, hapus.
-// Generic terhadap modul (tidak menyebut "Requisition"), pakai di POS cart juga.
-//
-// Penggunaan:
-//   {cart.map(item => (
-//     <CartItem key={item.M_Product_ID} item={item}
-//       onRemove={removeFromCart} onQtyChange={updateQty} onUomChange={updateUom} />
-//   ))}
-// ─────────────────────────────────────────────────────────────────────────────
 const CartItem = ({ item, onRemove, onQtyChange, onUomChange }) => (
   <div style={{
     display: 'flex', alignItems: 'center', gap: '8px',
@@ -34,11 +23,7 @@ const CartItem = ({ item, onRemove, onQtyChange, onUomChange }) => (
       </div>
     </div>
 
-    <QtyStepper
-      value={item.Qty}
-      onChange={q => onQtyChange(item.M_Product_ID, q)}
-      size="sm"
-    />
+    <QtyStepper value={item.Qty} onChange={q => onQtyChange(item.M_Product_ID, q)} size="sm" />
 
     <button
       onTouchEnd={e => { e.preventDefault(); onRemove(item.M_Product_ID); }}

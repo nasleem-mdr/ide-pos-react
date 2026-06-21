@@ -1,19 +1,6 @@
 import React from 'react';
 import { COLOR, RADIUS } from '../../utils/styleTokens';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// BottomSheet.jsx
-// Wrapper bottom-sheet generic (overlay + panel naik dari bawah + drag handle).
-// Pola ini berulang persis di 3 tempat pada kode asli: cart panel,
-// ReqProductDetail, dan bisa juga dipakai untuk modal lain di POS.
-// Diekstrak supaya animasi/struktur sheet konsisten dan tidak perlu
-// menulis ulang overlay+borderRadius+boxShadow di setiap modal baru.
-//
-// Penggunaan:
-//   <BottomSheet isOpen={open} onClose={() => setOpen(false)} maxHeight="85dvh">
-//     <YourContent />
-//   </BottomSheet>
-// ─────────────────────────────────────────────────────────────────────────────
 const BottomSheet = ({ isOpen, onClose, children, maxHeight = '85dvh', maxWidth = '480px', zIndex = 300 }) => {
   if (!isOpen) return null;
   return (
@@ -33,7 +20,6 @@ const BottomSheet = ({ isOpen, onClose, children, maxHeight = '85dvh', maxWidth 
         display: 'flex', flexDirection: 'column',
         boxShadow: '0 -4px 30px rgba(0,0,0,0.18)',
       }}>
-        {/* Drag handle */}
         <div style={{ display: 'flex', justifyContent: 'center', padding: '10px 0 0' }}>
           <div
             onClick={onClose}

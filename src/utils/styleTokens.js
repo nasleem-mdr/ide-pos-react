@@ -1,8 +1,3 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// Style tokens — dipakai di semua komponen agar tampilan konsisten.
-// Pindahkan ke sini supaya tidak ada COLOR/RADIUS yang terduplikasi
-// di setiap file komponen (sebelumnya didefinisikan ulang per file).
-// ─────────────────────────────────────────────────────────────────────────────
 export const COLOR = {
   primary:    '#2563eb',
   primaryDk:  '#1d4ed8',
@@ -22,10 +17,8 @@ export const COLOR = {
 
 export const RADIUS = { sm: '6px', md: '10px', lg: '14px', xl: '18px' };
 
-// Style dasar tombol stepper (−/+), dipakai di CartItem & ProductDetailSheet.
-// Component pemanggil bisa override ukuran via `size` prop pada QtyStepper.
 export const stepBtnBase = {
-  border: `1px solid ${COLOR.border}`,
+  border: '1px solid #dde3ef',
   borderRadius: RADIUS.sm,
   background: COLOR.surface,
   cursor: 'pointer',

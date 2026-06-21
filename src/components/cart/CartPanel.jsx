@@ -2,24 +2,6 @@ import React from 'react';
 import CartItem from './CartItem';
 import { COLOR, RADIUS } from '../../utils/styleTokens';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// CartPanel.jsx
-// Bottom sheet cart lengkap (header, list item, ringkasan, tombol submit).
-// Diekstrak dari blok "Collapsible Cart Panel" pada RequisitionContainer.
-// Generic terhadap label/aksi submit via props, supaya bisa dipakai untuk
-// "KIRIM REQUISITION" maupun "BAYAR" di POS dengan komponen yang sama.
-//
-// Penggunaan:
-//   <CartPanel
-//     isOpen={cartOpen} onClose={() => setCartOpen(false)}
-//     cart={cart} onRemove={removeFromCart} onQtyChange={updateQty} onUomChange={updateUom}
-//     onClearCart={clearCart}
-//     totalItems={totalItems} totalQty={totalQty}
-//     summaryRight="📦 Gudang Pusat"
-//     submitLabel="📤 KIRIM REQUISITION" onSubmit={handleSubmit} isSubmitting={isSubmitting}
-//     title="📝 Daftar Permintaan"
-//   />
-// ─────────────────────────────────────────────────────────────────────────────
 const CartPanel = ({
   isOpen, onClose,
   cart, onRemove, onQtyChange, onUomChange, onClearCart,
@@ -45,7 +27,6 @@ const CartPanel = ({
         display: 'flex', flexDirection: 'column',
         boxShadow: '0 -4px 30px rgba(0,0,0,0.18)',
       }}>
-        {/* Drag handle */}
         <div style={{ display: 'flex', justifyContent: 'center', padding: '10px 0 0' }}>
           <div
             onClick={onClose}
@@ -53,7 +34,6 @@ const CartPanel = ({
           />
         </div>
 
-        {/* Header */}
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           padding: '10px 16px 6px', borderBottom: `1px solid ${COLOR.border}`, flexShrink: 0,
@@ -92,7 +72,6 @@ const CartPanel = ({
           </div>
         </div>
 
-        {/* List */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '12px 14px', minHeight: 0 }}>
           {cart.length === 0 ? (
             <p style={{ color: COLOR.textLt, fontSize: '13px', textAlign: 'center', margin: '20px 0' }}>
@@ -111,7 +90,6 @@ const CartPanel = ({
           )}
         </div>
 
-        {/* Summary + submit */}
         {cart.length > 0 && onSubmit && (
           <div style={{
             borderTop: `1px solid ${COLOR.border}`, padding: '12px 14px', flexShrink: 0,

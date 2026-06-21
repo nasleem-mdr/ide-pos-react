@@ -3,15 +3,12 @@ import { idempiereApi, fkId, fkLabel } from '../utils/idempiereApi';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // useProductSearch.js
-// Fetch produk + vendor aktif (M_ProductPO) + UoM conversion (C_UOM_Conversion),
-// dengan debounce search bawaan. Diekstrak dari fetchProducts() di
-// RequisitionContainer — logic gabungan 3 endpoint ini cukup rumit dan kemungkinan
-// dipakai lagi di modul lain yang butuh produk + vendor (mis. PO Create form).
-//
-// Penggunaan:
-//   const { products, loading, search, searchValue, setSearchValue } = useProductSearch();
-//   useEffect(() => { search(''); }, []);
-//   <input onChange={e => search(e.target.value)} />  // debounced otomatis
+// Gambar produk TIDAK lagi diambil di sini — sebelumnya field ImageURL ada
+// di $select, tapi ternyata gambar produk disimpan sebagai AD_Attachment
+// (file menempel ke record), bukan field kolom. Pengambilan gambar sekarang
+// dilakukan terpisah, hanya untuk produk yang sedang dibuka di
+// ProductDetailSheet (lihat utils/idempiereApi.js: getProductImageBlobUrl),
+// supaya tidak ada N+1 request attachment untuk semua produk di grid.
 // ─────────────────────────────────────────────────────────────────────────────
 export function useProductSearch({ debounceMs = 420 } = {}) {
   const [products, setProducts] = useState([]);
@@ -30,7 +27,7 @@ export function useProductSearch({ debounceMs = 420 } = {}) {
       }
 
       const [productData, productPoData, uomConvData] = await Promise.all([
-        idempiereApi(`/models/m_product?$select=M_Product_ID,Name,Value,C_UOM_ID&$filter=${productFilter}&$orderby=Name&$top=100`),
+        idempiereApi(`/models/m_product?$select=M_Product_ID,Name,Value,C_UOM_ID,Description&$filter=${productFilter}&$orderby=Name&$top=100`),
         idempiereApi(`/models/m_product_po?$select=M_Product_ID,C_BPartner_ID,IsCurrentVendor&$filter=IsActive eq true and IsCurrentVendor eq true&$top=500`),
         idempiereApi(`/models/c_uom_conversion?$select=C_UOM_Conversion_ID,M_Product_ID,C_UOM_ID,C_UOM_To_ID,MultiplyRate,DivideRate&$filter=IsActive eq true&$top=1000`),
       ]);
@@ -39,7 +36,6 @@ export function useProductSearch({ debounceMs = 420 } = {}) {
       const poRecords    = Array.isArray(productPoData.records) ? productPoData.records : [];
       const uomRecords   = Array.isArray(uomConvData.records)   ? uomConvData.records   : [];
 
-      // Vendor aktif per produk
       const vendorMap = new Map();
       poRecords.forEach(po => {
         const pid = fkId(po.M_Product_ID);
@@ -51,7 +47,6 @@ export function useProductSearch({ debounceMs = 420 } = {}) {
         }
       });
 
-      // UoM alternatif per produk (dari C_UOM_Conversion)
       const uomConvMap = new Map();
       uomRecords.forEach(conv => {
         const pid       = fkId(conv.M_Product_ID);
@@ -60,7 +55,7 @@ export function useProductSearch({ debounceMs = 420 } = {}) {
         const toUomName = fkLabel(conv.C_UOM_To_ID);
         const fromName  = fkLabel(conv.C_UOM_ID);
 
-        if (!pid) return; // skip konversi global tanpa produk spesifik
+        if (!pid) return;
         if (!uomConvMap.has(pid)) uomConvMap.set(pid, []);
         const list = uomConvMap.get(pid);
 
@@ -72,7 +67,6 @@ export function useProductSearch({ debounceMs = 420 } = {}) {
         }
       });
 
-      // Gabungkan, hanya produk yang punya vendor aktif
       const finalProducts = rawProducts
         .filter(p => vendorMap.has(fkId(p.M_Product_ID) ?? p.id))
         .map(p => {
@@ -90,6 +84,7 @@ export function useProductSearch({ debounceMs = 420 } = {}) {
             Value:        p.Value,
             C_UOM_ID:     baseUomId,
             C_UOM_Name:   baseUom.Name,
+            Description:  p.Description || null,
             VendorId:     vendor?.vendorId,
             VendorName:   vendor?.vendorName,
             uomOptions:   allUoms,
@@ -103,8 +98,6 @@ export function useProductSearch({ debounceMs = 420 } = {}) {
     }
   }, []);
 
-  // search() = versi debounced untuk dipanggil langsung dari onChange input.
-  // Untuk fetch immediate (mis. saat init atau Enter ditekan), panggil fetchProducts() langsung.
   const search = useCallback((query) => {
     setSearchValue(query);
     clearTimeout(debounceRef.current);
@@ -120,8 +113,8 @@ export function useProductSearch({ debounceMs = 420 } = {}) {
   return {
     products, loading,
     searchValue, setSearchValue,
-    fetchProducts,    // fetch langsung (untuk init, Enter key, dll)
-    search,            // fetch dengan debounce (untuk onChange)
-    searchImmediate,   // set value + fetch langsung tanpa debounce
+    fetchProducts,
+    search,
+    searchImmediate,
   };
 }

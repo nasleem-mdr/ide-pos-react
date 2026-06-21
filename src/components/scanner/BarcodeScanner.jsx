@@ -1,22 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { COLOR, RADIUS } from '../../utils/styleTokens';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// BarcodeScanner.jsx
-// Modal scan QR/barcode pakai BarcodeDetector API native browser. Sudah generic
-// di kode asli (tidak ada logic requisition) — dipindah apa adanya. Cocok dipakai
-// di POS (scan produk), Inventory (scan lokasi/SN), atau modul mana pun yang
-// butuh hasil scan berupa string code via callback `onDetected`.
-//
-// Penggunaan:
-//   <BarcodeScanner isOpen={scannerOpen} onDetected={handleCode} onClose={() => setScannerOpen(false)} />
-// ─────────────────────────────────────────────────────────────────────────────
 const BarcodeScanner = ({ isOpen, onDetected, onClose }) => {
   const videoRef    = useRef(null);
   const streamRef   = useRef(null);
   const rafRef      = useRef(null);
   const detectorRef = useRef(null);
-  const [status, setStatus]       = useState('init');  // init | scanning | error
+  const [status, setStatus]       = useState('init');
   const [errorMsg, setErrorMsg]   = useState('');
   const [lastCode, setLastCode]   = useState('');
   const [supported, setSupported] = useState(true);

@@ -1,15 +1,6 @@
 import React from 'react';
 import { COLOR, RADIUS } from '../../utils/styleTokens';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// UomSelector.jsx
-// Dropdown kecil untuk memilih UoM alternatif pada item cart (mis. Pcs ↔ Lusin).
-// Generic terhadap bentuk item — hanya butuh `uomOptions`, `selectedUom`/`C_UOM_ID`,
-// `C_UOM_Name`, dan `M_Product_ID` (atau id apa pun) untuk callback.
-//
-// Penggunaan:
-//   <UomSelector item={cartItem} onUomChange={(id, uom) => updateUom(id, uom)} />
-// ─────────────────────────────────────────────────────────────────────────────
 const UomSelector = ({ item, onUomChange }) => {
   if (!item.uomOptions || item.uomOptions.length <= 1) {
     return (
@@ -27,15 +18,9 @@ const UomSelector = ({ item, onUomChange }) => {
       }}
       onClick={e => e.stopPropagation()}
       style={{
-        fontSize: '11px',
-        color: COLOR.primary,
-        background: COLOR.vendorBg,
-        border: '1px solid #c5d0e8',
-        borderRadius: RADIUS.sm,
-        padding: '1px 4px',
-        cursor: 'pointer',
-        marginLeft: '4px',
-        maxWidth: '90px',
+        fontSize: '11px', color: COLOR.primary, background: COLOR.vendorBg,
+        border: '1px solid #c5d0e8', borderRadius: RADIUS.sm, padding: '1px 4px',
+        cursor: 'pointer', marginLeft: '4px', maxWidth: '90px',
       }}
     >
       {item.uomOptions.map(u => (

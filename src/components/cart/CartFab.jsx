@@ -1,17 +1,6 @@
 import React from 'react';
 import { COLOR } from '../../utils/styleTokens';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// CartFab.jsx
-// Floating button "buka cart" dengan badge jumlah item. Diekstrak dari blok FAB
-// inline di RequisitionContainer agar bisa dipakai di modul lain (POS, dll)
-// tanpa menulis ulang style tombol melayang.
-//
-// Penggunaan:
-//   {cart.length > 0 && !cartOpen && (
-//     <CartFab count={totalItems} label="Daftar Permintaan" onClick={() => setCartOpen(true)} />
-//   )}
-// ─────────────────────────────────────────────────────────────────────────────
 const CartFab = ({ count, label = 'Keranjang', onClick, icon = '📝' }) => (
   <button
     onClick={onClick}

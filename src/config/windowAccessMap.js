@@ -13,9 +13,16 @@ export const WINDOW_ACCESS_MAP = {
   dashboard:            null,   // null = selalu boleh diakses (tidak dicek ke AD_Window_Access)
   businessPartner:      117,    // contoh AD_Window_ID untuk window Business Partner (ganti sesuai instance Anda)
   businessPartnerEdit:  117,    // window sama dengan list, tapi action 'edit' yang dicek readwrite-nya
-  pos:                  '167 ',    // ganti dengan AD_Window_ID window POS Anda (custom window biasanya >= 1000000)
+
+  // POS dan Sales Order memakai window AD yang SAMA (sama-sama window
+  // standar "Sales Order" / C_Order), karena POSContainer menulis
+  // langsung ke C_Order/C_OrderLine lewat window itu juga — bukan window
+  // custom terpisah. Kalau suatu saat dibuatkan window POS khusus,
+  // pisahkan nilai 'pos' dari 'salesOrder' di sini.
+  pos:                  167,
   salesOrder:           167,    // contoh: Sales Order standar iDempiere
-  requisition:          1000010, // contoh: window Purchase Requisition custom Anda
+
+  requisition:          null, // contoh: window Purchase Requisition custom Anda
 };
 
 // Helper: ambil AD_Window_ID dari key, atau null kalau tidak terdaftar/tidak dibatasi.

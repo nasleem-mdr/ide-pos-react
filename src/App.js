@@ -78,11 +78,7 @@ export default function App() {
                   </ProtectedRoute>
                 } />
       
-                <Route path="/requisition" element={
-                  <ProtectedRoute windowKey="requisition">
-                    <RequisitionContainer />
-                  </ProtectedRoute>
-                } />
+                <Route path="/requisition" element={<RequisitionContainer />} />
               </Routes>
             </main>
           </div>

@@ -2,17 +2,6 @@ import { useState, useCallback } from 'react';
 import { idempiereApi } from '../../utils/idempiereApi';
 import { getLoginInfo } from '../../hooks/useLoginInfo';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// useRequisitionSubmit.js
-// Spesifik requisition: encapsulate alur create M_Requisition header → insert
-// M_RequisitionLine per item cart → Complete (doc-action CO). Dipisah dari
-// RequisitionContainer supaya container fokus ke render, dan logic submit
-// bisa di-unit-test terpisah tanpa perlu mounting komponen UI.
-//
-// Penggunaan:
-//   const { submit, isSubmitting } = useRequisitionSubmit({ docTypeId: 320, description: '...' });
-//   const result = await submit(cart, requesterName); // null kalau gagal (alert via onError)
-// ─────────────────────────────────────────────────────────────────────────────
 export function useRequisitionSubmit({ docTypeId, description, onError }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
 

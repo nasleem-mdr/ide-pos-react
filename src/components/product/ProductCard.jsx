@@ -3,15 +3,13 @@ import { COLOR, RADIUS } from '../../utils/styleTokens';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ProductCard.jsx
-// Kartu produk untuk grid (nama, kode, vendor, UoM dasar). Generic terhadap
-// modul pemanggil — tidak ada logic requisition di dalamnya, cocok dipakai
-// di POS, PO Create, atau modul lain yang menampilkan grid produk.
-//
-// Penggunaan:
-//   <ProductCard product={p} onClick={(product) => openDetail(product)} />
+// Tambahan: thumbnail ImageURL kalau tersedia (ditampilkan di atas nama
+// produk). Kalau ImageURL kosong, kartu tetap render seperti sebelumnya
+// tanpa area gambar kosong yang janggal.
 // ─────────────────────────────────────────────────────────────────────────────
 const ProductCard = ({ product, onClick }) => {
   const [pressed, setPressed] = useState(false);
+
   return (
     <div
       onClick={() => onClick(product)}

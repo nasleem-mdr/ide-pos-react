@@ -1,16 +1,6 @@
 import React from 'react';
 import { COLOR, RADIUS } from '../../utils/styleTokens';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Dialog.jsx
-// Modal alert generic (judul + pesan + tombol tutup). Sebelumnya bernama
-// "ReqDialog" — diganti nama jadi generic karena tidak ada logic khusus
-// requisition di dalamnya, bisa dipakai modul mana pun untuk pesan error/info.
-//
-// Penggunaan:
-//   const [dialog, setDialog] = useState({ isOpen: false, title: '', message: '' });
-//   <Dialog {...dialog} onClose={() => setDialog({ isOpen: false, title: '', message: '' })} />
-// ─────────────────────────────────────────────────────────────────────────────
 const Dialog = ({ isOpen, title, message, onClose, closeLabel = 'Tutup' }) => {
   if (!isOpen) return null;
   return (

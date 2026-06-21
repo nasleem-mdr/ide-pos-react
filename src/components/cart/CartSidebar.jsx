@@ -1,0 +1,127 @@
+import React from 'react';
+import CartItem from './CartItem';
+import { COLOR, RADIUS } from '../../utils/styleTokens';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CartSidebar.jsx
+// Versi desktop dari cart — panel statis di sisi kanan (bukan bottom sheet
+// yang overlay/modal). Selalu terlihat selama ada layar produk di sebelahnya,
+// tidak perlu di-toggle buka/tutup seperti versi mobile.
+//
+// Props-nya sengaja dibuat semirip mungkin dengan CartPanel.jsx supaya mudah
+// dipakai bergantian dari satu state yang sama di container (lihat
+// RequisitionContainer.jsx: render salah satu berdasarkan useIsDesktop()).
+//
+// Penggunaan:
+//   {isDesktop && (
+//     <CartSidebar
+//       cart={cart} onRemove={removeFromCart} onQtyChange={updateQty} onUomChange={updateUom}
+//       onClearCart={clearCart} totalItems={totalItems} totalQty={totalQty}
+//       summaryRight="📦 Gudang Pusat" title="📝 Daftar Permintaan"
+//       submitLabel="📤 KIRIM REQUISITION" onSubmit={handleSubmit} isSubmitting={isSubmitting}
+//     />
+//   )}
+// ─────────────────────────────────────────────────────────────────────────────
+const CartSidebar = ({
+  cart, onRemove, onQtyChange, onUomChange, onClearCart,
+  totalItems, totalQty,
+  summaryRight,
+  submitLabel = 'KIRIM',
+  onSubmit, isSubmitting = false,
+  title = 'Keranjang',
+  emptyLabel = 'Belum ada produk dipilih.',
+  width = '360px',
+}) => {
+  return (
+    <div style={{
+      width, flexShrink: 0,
+      background: COLOR.surface,
+      borderLeft: `1px solid ${COLOR.border}`,
+      display: 'flex', flexDirection: 'column',
+      height: '100%', minHeight: 0,
+    }}>
+      {/* Header */}
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '16px 18px', borderBottom: `1px solid ${COLOR.border}`, flexShrink: 0,
+      }}>
+        <span style={{ fontWeight: 700, fontSize: '15px', color: COLOR.textDk }}>
+          {title}
+          {totalItems > 0 && (
+            <span style={{
+              marginLeft: '8px', background: COLOR.primary, color: '#fff',
+              borderRadius: '50%', width: '22px', height: '22px',
+              fontSize: '12px', display: 'inline-flex',
+              alignItems: 'center', justifyContent: 'center',
+            }}>{totalItems}</span>
+          )}
+        </span>
+        {cart.length > 0 && onClearCart && (
+          <button
+            onClick={onClearCart}
+            style={{
+              background: COLOR.dangerLt, border: 'none', color: COLOR.danger,
+              borderRadius: RADIUS.sm, padding: '5px 10px',
+              fontSize: '12px', cursor: 'pointer', fontWeight: 600,
+            }}
+          >Kosongkan</button>
+        )}
+      </div>
+
+      {/* List */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: '14px 16px', minHeight: 0 }}>
+        {cart.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '40px 0', color: COLOR.textLt }}>
+            <div style={{ fontSize: '32px', marginBottom: '8px' }}>🛒</div>
+            <p style={{ fontSize: '13px', margin: 0 }}>{emptyLabel}</p>
+          </div>
+        ) : (
+          cart.map((item, idx) => (
+            <CartItem
+              key={`${item.M_Product_ID}-${idx}`}
+              item={item}
+              onRemove={onRemove}
+              onQtyChange={onQtyChange}
+              onUomChange={onUomChange}
+            />
+          ))
+        )}
+      </div>
+
+      {/* Summary + submit */}
+      {cart.length > 0 && onSubmit && (
+        <div style={{ borderTop: `1px solid ${COLOR.border}`, padding: '14px 16px', flexShrink: 0 }}>
+          <div style={{
+            background: '#f0f4ff', borderRadius: RADIUS.md,
+            padding: '10px 14px', marginBottom: '12px',
+            display: 'flex', justifyContent: 'space-between',
+            alignItems: 'center', flexWrap: 'wrap', gap: '6px',
+          }}>
+            <div style={{ fontSize: '13px', color: COLOR.textMd }}>
+              <strong style={{ color: COLOR.textDk }}>{totalItems}</strong> jenis ·{' '}
+              <strong style={{ color: COLOR.textDk }}>{totalQty.toLocaleString('id-ID')}</strong> qty
+            </div>
+            {summaryRight && <div style={{ fontSize: '12px', color: COLOR.textLt }}>{summaryRight}</div>}
+          </div>
+
+          <button
+            onClick={onSubmit}
+            disabled={isSubmitting}
+            style={{
+              background: isSubmitting ? '#9ca3af' : COLOR.primary,
+              color: '#fff', border: 'none',
+              padding: '14px', width: '100%',
+              borderRadius: RADIUS.md, fontWeight: 700,
+              fontSize: '15px', cursor: isSubmitting ? 'not-allowed' : 'pointer',
+              letterSpacing: '0.02em', transition: 'background 0.15s',
+            }}
+          >
+            {isSubmitting ? '⏳ Memproses...' : submitLabel}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default CartSidebar;

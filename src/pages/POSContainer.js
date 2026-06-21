@@ -7,7 +7,6 @@ import ConfirmModal from '../components/ConfirmModal';
 import PaymentModal from '../components/PaymentModal';
 import ReceiptModal from '../components/ReceiptModal';
 import { useAccess } from '../context/AccessContext';
-import { useAccess } from '../context/AccessContext';
 
 const POSContainer = () => {
      // 1. State untuk kontrol Loading & Data POS

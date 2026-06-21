@@ -1,15 +1,6 @@
 import React from 'react';
 import { COLOR, RADIUS } from '../../utils/styleTokens';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// RequisitionSuccessModal.jsx
-// Spesifik requisition: menampilkan DocumentNo, requester, dan ringkasan item
-// setelah dokumen M_Requisition berhasil Complete. Tidak generic karena field
-// (Document No, "diteruskan ke workflow pembelian") khas alur requisition.
-// Kalau modul lain (mis. PO) butuh pola serupa, lebih baik bikin varian baru
-// daripada memaksakan generic di sini — copy-modify lebih murah daripada
-// abstraksi prematur untuk modal sekali pakai seperti ini.
-// ─────────────────────────────────────────────────────────────────────────────
 const RequisitionSuccessModal = ({ isOpen, data, onClose }) => {
   if (!isOpen || !data) return null;
   return (

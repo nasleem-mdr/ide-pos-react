@@ -105,6 +105,10 @@ async function apiSetSession(token, clientId, roleId, orgId, warehouseId, langua
           } else {
             console.warn("AD_User_ID tidak ditemukan di respon API.");
           }
+      localStorage.setItem('AD_Client_ID', clientId);
+      localStorage.setItem('AD_Role_ID', roleId);
+      localStorage.setItem('AD_Org_ID', orgId);
+      localStorage.setItem('M_Warehouse_ID', warehouseId);
       console.log("Token final berhasil disimpan ke localStorage");
     }
     // -------------------------
