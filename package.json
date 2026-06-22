@@ -2,7 +2,7 @@
   "name": "idempiere-pro",
   "version": "0.1.0",
   "private": true,
-  "proxy": "https://demo.globalqss.com",
+  "proxy": "https://192.168.0.126:8443",
   "dependencies": {
     "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.9.1",

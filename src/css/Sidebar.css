@@ -1,13 +1,14 @@
 .sidebar {
     width: 250px;
-    background-color: #2c3e50; /* Warna gelap elegan */
+    background-color: #161b22;
     color: white;
     display: flex;
     flex-direction: column;
     height: 100vh;
-    position: sticky;
+    position: relative;
     top: 0;
     box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+    z-index: 200;
   }
   
   .sidebar-brand {
@@ -16,12 +17,14 @@
     align-items: center;
     gap: 12px;
     border-bottom: 1px solid rgba(255,255,255,0.1);
-    background-color: #1a252f;
   }
-  
+  .sidebar-brand.collapsed {
+    width: 80px;
+    background-color: #6366f1;
+    border-radius: 0 20px 20px 0;
+  }
   .brand-icon {
-    background-color: #00d1b2;
-    color: white;
+    color: #00d1b2;
     width: 32px;
     height: 32px;
     display: flex;
@@ -29,6 +32,7 @@
     justify-content: center;
     border-radius: 6px;
     font-weight: bold;
+    background-color: #6366f1;
   }
   
   .sidebar-nav {
@@ -73,8 +77,9 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 6px;
+  border-bottom: 0x solid rgba(255, 255, 255, 0.1);
+  background-color: #1a252f;
 }
 
 /* Desain Tombol Hamburger */
@@ -97,7 +102,7 @@
 
 /* Pengaturan Struktur Dasar Sidebar */
 .sidebar {
-  width: 260px;
+  width: 210px;
   height: 100vh;
   transition: width 0.3s ease;
   display: flex;
@@ -106,12 +111,12 @@
 
 /* Ketika Sidebar Mengecil */
 .sidebar.collapsed {
-  width: 70px;
+  width: 50px;
 }
 
 .sidebar.collapsed .sidebar-header {
   flex-direction: column; /* Susun vertikal antara hamburger dan logo iD */
-  padding: 16px 0;
+  padding: 6px 0;
   gap: 8px;
 }
 

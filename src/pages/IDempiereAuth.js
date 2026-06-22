@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { ArrowIcon, EyeIcon, CheckIcon, AlertIcon, InfoIcon } from '../components/Icons';
+import { ArrowIcon, EyeIcon, CheckIcon, AlertIcon, InfoIcon, LogoSMA } from '../components/Icons';
 import '../css/Login.css';
 
 
@@ -328,10 +328,10 @@ export default function IDempiereAuth({ onLoginSuccess }) {
         {/* LEFT PANEL */}
         <div className="auth-left">
           <div className="brand">
-            <div className="brand-icon">iD</div>
+            <div><LogoSMA /></div>
             <div>
-              <div className="brand-name">iDempiere</div>
-              <div className="brand-sub">ERP Platform</div>
+              <div className="brand-name">SMA Application</div>
+              <div className="brand-sub">IDempiere Platform</div>
             </div>
           </div>
 
@@ -368,10 +368,10 @@ export default function IDempiereAuth({ onLoginSuccess }) {
           {step === 1 && (
             <div className="card slide-enter">
               <div className="brand">
-                <div className="brand-icon">iD</div>
+                <div><LogoSMA /></div>
                 <div>
-                  <div className="brand-name">iDempiere</div>
-                  <div className="brand-sub">ERP Platform</div>
+                  <div className="brand-name">SMA Application</div>
+                  <div className="brand-sub">IDempiere Platform</div>
                 </div>
               </div>
               <div className="card-sub"><em>Masukkan username dan password akun Anda untuk melanjutkan.</em></div>

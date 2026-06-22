@@ -17,9 +17,10 @@ import { useIsDesktop } from '../hooks/useIsDesktop';
 import { getLoginInfo, getMissingSessionFields } from '../hooks/useLoginInfo';
 import { idempiereApi } from '../utils/idempiereApi';
 import { COLOR, RADIUS } from '../utils/styleTokens';
+import '../css/Header.css';
 
 const REQUISITION_CONFIG = {
-  C_DOCTYPE_ID: 127,
+  C_DOCTYPE_ID: 1000018,
   DESCRIPTION:  'Purchase Requisition via Web',
 };
 
@@ -182,11 +183,7 @@ const RequisitionContainer = () => {
       />
 
       {/* Top Bar */}
-      <div style={{
-        background: COLOR.primary, padding: '0 16px', display: 'flex', alignItems: 'center',
-        gap: '10px', height: '52px', flexShrink: 0, position: 'sticky', top: 0, zIndex: 100,
-        boxShadow: '0 2px 8px rgba(37,99,235,0.25)',
-      }}>
+      <div className='header'>
         <button
           onClick={() => navigate('/pos')}
           style={{

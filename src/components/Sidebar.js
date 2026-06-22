@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { PartnerIcon, HomeIcon, BoxIcon, ShoppingCartIcon } from './Icons';
+import { PartnerIcon, HomeIcon, BoxIcon, ShoppingCartIcon, LogoSMAWarna} from './Icons';
 import { useAccess } from '../context/AccessContext';
 import '../css/Sidebar.css';
 
@@ -13,7 +13,7 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }) {
     { key: 'businessPartner', path: '/business-partner', label: 'Business Partner', icon: <PartnerIcon /> },
     { key: 'product',         path: '/product',          label: 'Products',         icon: <BoxIcon /> },
     { key: 'salesOrder',      path: '/sales-orders',     label: 'Sales Order',      icon: <ShoppingCartIcon /> },
-    { key: 'requisition',     path: '/requisition',      label: 'Requisition',      icon: '📋' },
+    { key: 'requisition',     path: '/requisition',      label: 'Requisition',      icon: <ShoppingCartIcon /> },
   ];
 
   // Selama accessMap loading, tampilkan skeleton ringan alih-alih menu kosong
@@ -22,9 +22,9 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }) {
     return (
       <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''}`}>
         <div className="sidebar-header">
-          <div className="sidebar-brand">
+          <div className={`sidebar-brand ${isCollapsed ? 'collapsed' : ''}`}>
             <div className="brand-icon">iD</div>
-            {!isCollapsed && <span>iDempiere <em>POS</em></span>}
+            {!isCollapsed && <span>sma <em>APP</em></span>}
           </div>
           <button
             className="hamburger-btn"
@@ -49,9 +49,9 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }) {
   return (
     <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''}`}>
       <div className="sidebar-header">
-        <div className="sidebar-brand">
-          <div className="brand-icon">iD</div>
-          {!isCollapsed && <span>iDempiere <em>POS</em></span>}
+          <div className={`sidebar-brand ${isCollapsed ? 'collapsed' : ''}`}>
+          <div className="brand-icon"><LogoSMAWarna/></div>
+          {!isCollapsed && <span>sma <em>APP</em></span>}
         </div>
 
         <button

@@ -4,13 +4,14 @@
     display: flex;
     align-items: center;
     gap: 12px;
-    height: 65px;
+    height: 50px;
     padding: 24px;
-    background: #0f1117;
+    background:#161b22;
     border-bottom: 1px solid #1e2230;
     position: sticky;
     top: 0;
-    z-index: 100;
+    margin-top: 18px;
+    z-index: 10;
   }
   
   /* Brand */
