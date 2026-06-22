@@ -490,3 +490,79 @@
     .card { padding: 28px 24px; }
     .session-grid { grid-template-columns: 1fr; }
   }
+ /* --- Keadaan Normal (Sidebar Terbuka) --- */
+.auth-left {
+  width: 300px; /* Atur sesuai layout Anda */
+  transition: all 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  padding: 20px;
+}
+
+.hamburger-wrapper {
+  display: flex;
+  justify-content: flex-start; /* Normalnya rata kiri */
+  margin-bottom: 20px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 40px;
+}
+
+.step-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.step-dot {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  flex-shrink: 0; /* Mencegah lingkaran gepeng */
+}
+
+
+/* --- Keadaan Saat COLLAPSED (Sidebar Mengecil) --- */
+.auth-left.collapsed {
+  width: 70px; /* Ukuran sidebar saat mengecil */
+  padding: 20px 0; /* Hilangkan padding horizontal agar space merata */
+  align-items: center; /* Membuat semua item di dalamnya rata tengah */
+}
+
+/* 1. Hamburger button jadi di tengah */
+.auth-left.collapsed .hamburger-wrapper {
+  justify-content: center;
+  width: 100%;
+}
+
+/* 2. Logo jadi di tengah & teks brand disembunyikan */
+.auth-left.collapsed .brand {
+  justify-content: center;
+  width: 100%;
+}
+.auth-left.collapsed .brand-text {
+  display: none; /* Sembunyikan text "SMA Application" */
+}
+
+/* 3. Nomor (step-dot) jadi di tengah & info disembunyikan */
+.auth-left.collapsed .step-item {
+  justify-content: center;
+  width: 100%;
+}
+.auth-left.collapsed .step-info {
+  display: none; /* Sembunyikan label dan deskripsi teks */
+}
+
+/* 4. Footer kiri opsional (bisa disembunyikan saat mengecil) */
+.auth-left.collapsed .auth-footer {
+  display: none;
+}
