@@ -185,13 +185,13 @@ const RequisitionContainer = () => {
       {/* Top Bar */}
       <div className='header'>
         <button
-          onClick={() => navigate('/pos')}
+          onClick={() => navigate('/dashboard')}
           style={{
             background: 'rgba(255,255,255,0.15)', border: 'none', color: '#fff',
             borderRadius: RADIUS.sm, padding: '6px 10px', cursor: 'pointer',
             fontSize: '13px', fontWeight: 600, WebkitTapHighlightColor: 'transparent',
           }}
-        >← POS</button>
+        >← Home</button>
         <span style={{ color: '#fff', fontWeight: 700, fontSize: '15px', flex: 1 }}>📋 Requisition</span>
         <span style={{
           background: 'rgba(255,255,255,0.18)', borderRadius: '20px',
@@ -295,7 +295,7 @@ const RequisitionContainer = () => {
                   display: 'grid',
                   gridTemplateColumns: isDesktop
                     ? 'repeat(auto-fill, minmax(170px, 1fr))'
-                    : 'repeat(2, 1fr))',
+                    : 'repeat(2, 1fr)',
                   gap: '10px',
                 }}>
                   {products.map((p, idx) => (
