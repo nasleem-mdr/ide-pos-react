@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { PartnerIcon, HomeIcon, BoxIcon, ShoppingCartIcon, LogoSMAWarna} from './Icons';
+import { PartnerIcon, HomeIcon, BoxIcon, ShoppingCartIcon, LogoSMAWarna, ListIcon} from './Icons';
 import { useAccess } from '../context/AccessContext';
 import '../css/Sidebar.css';
 
@@ -12,14 +12,16 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }) {
     { key: 'dashboard',       path: '/dashboard',        label: 'Dashboard',        icon: <HomeIcon /> },
     { key: 'businessPartner', path: '/business-partner', label: 'Business Partner', icon: <PartnerIcon /> },
     { key: 'product',         path: '/product',          label: 'Products',         icon: <BoxIcon /> },
-    { key: 'salesOrder',      path: '/sales-orders',     label: 'Sales Order',      icon: <ShoppingCartIcon /> },
+    //{ key: 'salesOrder',      path: '/sales-orders',     label: 'Sales Order',      icon: <ShoppingCartIcon /> },
     { key: 'requisition',     path: '/requisition',      label: 'Requisition',      icon: <ShoppingCartIcon /> },
+    { key: 'requisition-list',     path: '/requisition-list',      label: 'Requisition List',      icon: <ListIcon /> },
   ];
 
   // Selama accessMap loading, tampilkan skeleton ringan alih-alih menu kosong
   // (mencegah "flash of no menu" lalu tiba-tiba muncul setelah fetch selesai).
   if (loading) {
     return (
+      <div className="side-panel-left">
       <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''}`}>
         <div className="sidebar-header">
           <div className={`sidebar-brand ${isCollapsed ? 'collapsed' : ''}`}>
@@ -40,6 +42,7 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }) {
           ))}
         </nav>
       </aside>
+      </div>
     );
   }
 
@@ -47,6 +50,7 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }) {
   const visibleItems = menuItems.filter(item => !item.key || canView(item.key));
 
   return (
+    <div className="side-panel-left">
     <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''}`}>
       <div className="sidebar-header">
           <div className={`sidebar-brand ${isCollapsed ? 'collapsed' : ''}`}>
@@ -77,5 +81,6 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }) {
         ))}
       </nav>
     </aside>
+    </div>
   );
 }

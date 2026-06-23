@@ -40,7 +40,7 @@ const REQUISITION_CONFIG = {
 const RequisitionContainer = () => {
   const navigate = useNavigate();
   const isDesktop = useIsDesktop();
-
+  console.log('isDesktop:', isDesktop); 
   const [warehouseInfo, setWarehouseInfo] = useState(null);
   const [requesterName, setRequesterName] = useState('');
   const [cartOpen, setCartOpen]         = useState(false);   // hanya relevan di mobile
@@ -290,11 +290,12 @@ const RequisitionContainer = () => {
                 <div style={{ fontSize: '12px', color: COLOR.textLt, marginBottom: '8px' }}>
                   {products.length} produk ditemukan
                 </div>
+                
                 <div style={{
                   display: 'grid',
                   gridTemplateColumns: isDesktop
                     ? 'repeat(auto-fill, minmax(170px, 1fr))'
-                    : 'repeat(auto-fill, minmax(155px, 1fr))',
+                    : 'repeat(2, 1fr))',
                   gap: '10px',
                 }}>
                   {products.map((p, idx) => (

@@ -21,10 +21,11 @@ export default defineConfig({
     exclude: [],
   },
   server: {
-    port: 3000,
+    host: true,
+    port: 5173,
     proxy: {
       '/api': {
-        target: 'https://demo.globalqss.com',
+        target: 'http://192.168.0.126:8080',
         changeOrigin: true,
       },
     },

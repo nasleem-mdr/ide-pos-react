@@ -25,12 +25,13 @@ import '../css/Header.css';
             <RoleIcon />
             <span className="header-info-value">{roleName}</span>
           </div>
+          {/* dst...
           <div className="header-divider" />
-          {/* dst... */}
           <div className="header-info-item">
             <ClientIcon />
             <span className="header-info-value">{clientName}</span>
           </div>
+          */}
         </div>
   
         {/* Logout */}

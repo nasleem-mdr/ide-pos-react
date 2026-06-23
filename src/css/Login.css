@@ -575,3 +575,14 @@
 .auth-left.collapsed .auth-footer {
   display: none;
 }
+/* Secara default (untuk layar mobile/kecil), panel kiri disembunyikan */
+.login-panel-left {
+  display: none;
+}
+
+/* Ketika lebar layar mencapai 768px atau lebih (Tablet/Desktop), panel kiri ditampilkan */
+@media (min-width: 768px) {
+  .login-panel-left {
+    display: block; /* atau display: flex; sesuai kebutuhan layout */
+  }
+}

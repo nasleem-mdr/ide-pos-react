@@ -104,6 +104,9 @@
   .welcome-card-icon {
     font-size: 22px;
     line-height: 1;
+    color: #00d1b2;
+    width: 42px;
+    height: 42px;
   }
   
   .welcome-card-label {

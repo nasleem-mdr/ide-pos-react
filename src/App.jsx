@@ -12,7 +12,8 @@ import SalesOrderPage from "./pages/SalesOrderPage";
 import RequisitionContainer from './pages/RequisitionContainer';
 import { AccessProvider } from './context/AccessContext';
 import ProtectedRoute from './components/ProtectedRoute';
-
+import RequisitionList from "./pages/RequisitionList";
+import ProductList from "./pages/ProductList";
 
 import './css/AppLayout.css'; // Pastikan mengimpor file CSS layout Anda
 
@@ -32,7 +33,7 @@ export default function App() {
 
   return (
     <BrowserRouter>
-    <AccessProvider>
+    
       {!session ? (
         <Routes>
           <Route path="/" element={<IDempiereAuth onLoginSuccess={handleLoginSuccess} />} />
@@ -40,6 +41,7 @@ export default function App() {
         </Routes>
       ) : (
         /* 2. Tambahkan class dinamis 'sidebar-collapsed' pada pembungkus utama */
+        <AccessProvider>
         <div className={`app-layout ${isSidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
           {/* 3. Kirim state dan setter ke Sidebar sebagai props */}
           <Sidebar isCollapsed={isSidebarCollapsed} setIsCollapsed={setIsSidebarCollapsed} />
@@ -49,6 +51,7 @@ export default function App() {
             
             <main className="content">
               <Routes>
+                <Route path="/"            element={<Navigate to="/dashboard" replace />} />
                 <Route path="/dashboard" element={<Dashboard session={session} />} />
                 <Route path="/business-partner" element={
                     <ProtectedRoute windowKey="businessPartner">
@@ -77,14 +80,19 @@ export default function App() {
                     <SalesOrderPage />
                   </ProtectedRoute>
                 } />
-      
+                <Route path="/product" element={
+                  <ProtectedRoute windowKey="product">
+                    <ProductList />
+                  </ProtectedRoute>
+                } />
+                <Route path="/requisition-list" element={<RequisitionList />} />
                 <Route path="/requisition" element={<RequisitionContainer />} />
               </Routes>
             </main>
           </div>
         </div>
+        </AccessProvider>
       )}
-      </AccessProvider>
     </BrowserRouter>
   );
 }

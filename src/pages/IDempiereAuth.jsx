@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { ArrowIcon, EyeIcon, CheckIcon, AlertIcon, InfoIcon, LogoSMA, LogoSMAWarna } from '../components/Icons';
+import { useNavigate } from 'react-router-dom';
 import '../css/Login.css';
 
 
@@ -121,6 +122,7 @@ export default function IDempiereAuth({ onLoginSuccess }) {
   const [error, setError] = useState("");
   const [sessionData, setSessionData] = useState(null);
   const [leftOpen, setLeftOpen] = useState(true);
+  const navigate = useNavigate();
 
   // Step 1
   const [form1, setForm1] = useState({ username: "", password: "" });
@@ -273,6 +275,7 @@ export default function IDempiereAuth({ onLoginSuccess }) {
         orgName: orgs.find((o) => String(o.id) === selectedOrgId)?.name || selectedOrgId,
         language,
       });
+      navigate('/dashboard');
     } catch (err) {
       setError(err.message);
     } finally {
@@ -305,52 +308,52 @@ export default function IDempiereAuth({ onLoginSuccess }) {
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="auth-root">
-
       {/* LEFT PANEL */}
-      <div className={`auth-left ${leftOpen ? '' : 'collapsed'}`}>
-        <div className="left-content">
-          {/* Brand / Logo */}
-          <div className="brand">
-            <div className="logo-container"><LogoSMAWarna /></div>
-            <div className="brand-text">
-              <div className="brand-name">SMA App</div>
-              <div className="brand-sub">IDePlatform</div>
+      <div className="login-panel-left">
+        <div className={`auth-left ${leftOpen ? '' : 'collapsed'}`}>
+          <div className="left-content">
+            {/* Brand / Logo */}
+            <div className="brand">
+              <div className="logo-container"><LogoSMAWarna /></div>
+              <div className="brand-text">
+                <div className="brand-name">SMA App</div>
+                <div className="brand-sub">IDePlatform</div>
+              </div>
+              <button className="hamburger-btn" onClick={() => setLeftOpen(!leftOpen)}>
+                {leftOpen ? '☰' : '☰'}
+              </button>
             </div>
-            <button className="hamburger-btn" onClick={() => setLeftOpen(!leftOpen)}>
-              {leftOpen ? '☰' : '☰'}
-            </button>
-          </div>
-          
-          {/* Navigation Steps */}
-          <div className="steps-nav">
-            {stepConfig.map((s) => {
-              const isDone = step > s.num;
-              const isActive = step === s.num;
-              return (
-                <div key={s.num} className="step-item">
-                  <div className={`step-dot ${isDone ? "done" : isActive ? "active" : ""}`}>
-                    {isDone ? <CheckIcon /> : s.num}
+            
+            {/* Navigation Steps */}
+            <div className="steps-nav">
+              {stepConfig.map((s) => {
+                const isDone = step > s.num;
+                const isActive = step === s.num;
+                return (
+                  <div key={s.num} className="step-item">
+                    <div className={`step-dot ${isDone ? "done" : isActive ? "active" : ""}`}>
+                      {isDone ? <CheckIcon /> : s.num}
+                    </div>
+                    {/* Hanya step-info yang disembunyikan saat collapsed */}
+                    <div className="step-info">
+                      <div className={`step-label ${isDone ? "done" : isActive ? "active" : ""}`}>{s.label}</div>
+                      <div className={`step-desc ${isActive ? "active" : ""}`}>{s.desc}</div>
+                    </div>
                   </div>
-                  {/* Hanya step-info yang disembunyikan saat collapsed */}
-                  <div className="step-info">
-                    <div className={`step-label ${isDone ? "done" : isActive ? "active" : ""}`}>{s.label}</div>
-                    <div className={`step-desc ${isActive ? "active" : ""}`}>{s.desc}</div>
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
-        </div>
 
-        {/* Footer Left */}
-        <div className="auth-footer">
-          <div className="footer-text">
-            Autentikasi REST API IDempiere v13+.<br />
-            Sesi token berlaku sesuai konfigurasi server.
+          {/* Footer Left */}
+          <div className="auth-footer">
+            <div className="footer-text">
+              Autentikasi REST API IDempiere v13+.<br />
+              Sesi token berlaku sesuai konfigurasi server.
+            </div>
           </div>
         </div>
       </div>
-
       {/* RIGHT PANEL */}
       <div className="auth-right">
 

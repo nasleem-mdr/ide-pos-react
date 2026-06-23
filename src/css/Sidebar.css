@@ -1,3 +1,15 @@
+/* Secara default (untuk layar mobile/kecil), panel kiri disembunyikan */
+.side-panel-left {
+  display: none;
+}
+
+/* Ketika lebar layar mencapai 768px atau lebih (Tablet/Desktop), panel kiri ditampilkan */
+@media (min-width: 768px) {
+  .side-panel-left {
+    display: block; /* atau display: flex; sesuai kebutuhan layout */
+  }
+}
+
 .sidebar {
     width: 250px;
     background-color: #161b22;
