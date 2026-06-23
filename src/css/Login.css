@@ -202,17 +202,23 @@
   }
 
   .field {
+    display: flex;
+    flex-direction: row;  /* ← ubah dari column ke row */
+    align-items: center;
+    gap: 12px;
     margin-bottom: 20px;
   }
-
+    
   .field-label {
     font-size: 12px;
     font-weight: 500;
     color: #8b949e;
     letter-spacing: 0.8px;
-    text-transform: uppercase;
     margin-bottom: 8px;
     display: block;
+    width: 120px;        /* ← lebar tetap biar rata */
+    flex-shrink: 0;      /* ← jangan ikut menyusut */
+    font-size: 0.85rem;
   }
 
   .field-input {
@@ -227,6 +233,7 @@
     font-weight: 400;
     transition: border-color 0.2s, box-shadow 0.2s;
     outline: none;
+    flex: 1; 
     appearance: none;
     -webkit-appearance: none;
   }
@@ -502,7 +509,7 @@
 
 .hamburger-wrapper {
   display: flex;
-  justify-content: flex-start; /* Normalnya rata kiri */
+  justify-content: right; 
   margin-bottom: 20px;
 }
 
@@ -536,11 +543,13 @@
   width: 70px; /* Ukuran sidebar saat mengecil */
   padding: 20px 0; /* Hilangkan padding horizontal agar space merata */
   align-items: center; /* Membuat semua item di dalamnya rata tengah */
+  flex-direction: column; 
 }
 
 /* 1. Hamburger button jadi di tengah */
-.auth-left.collapsed .hamburger-wrapper {
+.auth-left.collapsed .brand {
   justify-content: center;
+  flex-direction: column; 
   width: 100%;
 }
 

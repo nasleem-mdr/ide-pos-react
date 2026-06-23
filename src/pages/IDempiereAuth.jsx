@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { ArrowIcon, EyeIcon, CheckIcon, AlertIcon, InfoIcon, LogoSMA } from '../components/Icons';
+import { ArrowIcon, EyeIcon, CheckIcon, AlertIcon, InfoIcon, LogoSMA, LogoSMAWarna } from '../components/Icons';
 import '../css/Login.css';
 
 
@@ -308,23 +308,19 @@ export default function IDempiereAuth({ onLoginSuccess }) {
 
       {/* LEFT PANEL */}
       <div className={`auth-left ${leftOpen ? '' : 'collapsed'}`}>
-        {/* Hamburger Button wrapper */}
-        <div className="hamburger-wrapper">
-          <button className="hamburger-btn" onClick={() => setLeftOpen(!leftOpen)}>
-            {leftOpen ? 'x' : '☰'}
-          </button>
-        </div>
-
         <div className="left-content">
           {/* Brand / Logo */}
           <div className="brand">
-            <div className="logo-container"><LogoSMA /></div>
+            <div className="logo-container"><LogoSMAWarna /></div>
             <div className="brand-text">
-              <div className="brand-name">SMA Application</div>
-              <div className="brand-sub">IDempiere Platform</div>
+              <div className="brand-name">SMA App</div>
+              <div className="brand-sub">IDePlatform</div>
             </div>
+            <button className="hamburger-btn" onClick={() => setLeftOpen(!leftOpen)}>
+              {leftOpen ? '☰' : '☰'}
+            </button>
           </div>
-
+          
           {/* Navigation Steps */}
           <div className="steps-nav">
             {stepConfig.map((s) => {
@@ -420,14 +416,14 @@ export default function IDempiereAuth({ onLoginSuccess }) {
         {/* ── Step 2 ── */}
         {step === 2 && (
           <div className="card slide-enter">
-            <div className="card-title">Pilih <em>Sesi Kerja</em></div>
-            <div className="card-sub">Tentukan konteks akses untuk sesi ini.</div>
-
+            <div className="card-title">Pilih <em>Acces Role</em></div>
+            <div className="card-sub">Role Acces sesi anda.</div>
+            {/*
             <div className="info-box">
               <InfoIcon />
               <span>Masuk sebagai <strong>{form1.username}</strong> — pilih lingkungan kerja Anda.</span>
             </div>
-
+            */}
             {error && <div className="error-box"><AlertIcon />{error}</div>}
 
             <form onSubmit={handleStep2} noValidate>
