@@ -119,7 +119,17 @@ export  function RoleIcon() {
       </svg>
     );
   }
-export  function LogoutIcon() {
+  export function LogoSMA20() {
+    return (
+      <svg width="20" height="20"  viewBox="0 0 23.812 23.813" xmlns="http://www.w3.org/2000/svg">
+        <g transform="matrix(.81511 0 0 .81511 -2.3477 1.9722)">
+          <path d="m18.405 9.3341c5.7093-4.665 13.135-0.097258 11.077 4.9796-3.1133 7.681-18.099 7.4839-22.117 2.2965 8.6887 3.4129 15.146-0.016114 16.343-2.0055 0.60998-1.0135 2.3813-4.6259-5.3037-5.2705z" fill="#fff"/>
+          <path d="m16.569 15.041c-5.7093 4.665-13.135 0.097257-11.077-4.9796 3.1133-7.681 18.099-7.4839 22.117-2.2965-8.6887-3.4129-15.146 0.016111-16.343 2.0055-0.60998 1.0135-2.3813 4.6259 5.3037 5.2705z" fill="#fff"/>
+        </g>
+      </svg>
+    );
+  }
+  export  function LogoutIcon() {
     return (
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
         strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

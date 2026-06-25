@@ -1,5 +1,5 @@
 import React from 'react'; // Pastikan React diimport
-import { UserIcon, ClientIcon, RoleIcon, LogoutIcon } from './Icons'; 
+import { UserIcon, ClientIcon, RoleIcon, LogoutIcon, LogoSMA20 } from './Icons'; 
 import '../css/Header.css';
  
   export default function Header({ session, onLogout }) {
@@ -14,17 +14,18 @@ import '../css/Header.css';
   
         {/* Session Info */}
         <div className="header-session">
+                   {/* dst... */}
+          <div className="header-info-item">
+            <LogoSMA20 />
+            <span className="header-info-value">SMA <em>App</em></span>
+          </div>
+          <div className="header-divider" />
           {/* ... (isi session info tetap sama) ... */}
           <div className="header-info-item">
             <UserIcon />
             <span className="header-info-value">{username}</span>
           </div>
-          <div className="header-divider" />
-          {/* dst... */}
-          <div className="header-info-item">
-            <RoleIcon />
-            <span className="header-info-value">{roleName}</span>
-          </div>
+          
           {/* dst...
           <div className="header-divider" />
           <div className="header-info-item">

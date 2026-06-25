@@ -87,7 +87,11 @@
     font-weight: 600;
     color: #e2e8f0;
   }
-  
+  .header-info-value em {
+    font-size: 13px;
+    font-weight: 600;
+    color: #00d1b2;
+  }
   .header-id {
     font-style: normal;
     font-size: 11px;

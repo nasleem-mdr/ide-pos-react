@@ -5,14 +5,19 @@ import { getLoginInfo } from '../../hooks/useLoginInfo';
 export function useRequisitionSubmit({ docTypeId, description, onError }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const submit = useCallback(async (cart, requesterName) => {
+  // warehouseId sekarang diterima dari caller (RequisitionContainer),
+  // bukan lagi hardcode dari session — supaya ikut warehouse yang dipilih user.
+  const submit = useCallback(async (cart, requesterName, warehouseId) => {
     if (cart.length === 0) {
       onError?.('Daftar permintaan masih kosong!');
       return null;
     }
 
-    const { userId, warehouseId, orgId, clientId } = getLoginInfo();
-    if (!userId || !warehouseId || !orgId || !clientId) {
+    const { userId, orgId, clientId } = getLoginInfo();
+
+    // warehouseId wajib ada — dari pilihan user atau fallback session
+    const resolvedWarehouseId = warehouseId ?? getLoginInfo().warehouseId;
+    if (!userId || !resolvedWarehouseId || !orgId || !clientId) {
       onError?.('Data sesi tidak lengkap.\nSilakan login kembali.', 'Error');
       return null;
     }
@@ -27,7 +32,7 @@ export function useRequisitionSubmit({ docTypeId, description, onError }) {
           AD_Client_ID:   { id: clientId },
           AD_Org_ID:      { id: orgId },
           C_DocType_ID:   { id: docTypeId },
-          M_Warehouse_ID: { id: warehouseId },
+          M_Warehouse_ID: { id: resolvedWarehouseId }, // ← pakai yg dipilih user
           AD_User_ID:     { id: userId },
           DateRequired:   todayISO,
           Description:    description,
@@ -63,6 +68,7 @@ export function useRequisitionSubmit({ docTypeId, description, onError }) {
         documentNo:    docNo,
         date:          new Date().toLocaleString('id-ID'),
         requesterName,
+        warehouseName: null, // diisi dari caller kalau perlu di modal sukses
         items:         [...cart],
       };
     } catch (err) {

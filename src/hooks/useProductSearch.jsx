@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { idempiereApi, fkId, fkLabel } from '../utils/idempiereApi';
 
 export function useProductSearch({ debounceMs = 420 } = {}) {
@@ -6,6 +6,11 @@ export function useProductSearch({ debounceMs = 420 } = {}) {
   const [loading, setLoading] = useState(false);
   const [searchValue, setSearchValue] = useState('');
   const debounceRef = useRef(null);
+
+  // Bersihkan timeout saat komponen unmount untuk menghindari memory leak
+  useEffect(() => {
+    return () => clearTimeout(debounceRef.current);
+  }, []);
 
   // ── shared helper: build product objects dari raw API records ──────────────
   const buildProducts = useCallback((rawProducts, poRecords, uomRecords) => {
@@ -54,7 +59,7 @@ export function useProductSearch({ debounceMs = 420 } = {}) {
           M_Product_ID: pid,
           Name:         p.Name,
           Value:        p.Value,
-          UPC:          p.UPC || null,   // ← tambahan
+          UPC:          p.UPC || null,
           C_UOM_ID:     baseUomId,
           C_UOM_Name:   baseUom.Name,
           Description:  p.Description || null,
@@ -65,82 +70,131 @@ export function useProductSearch({ debounceMs = 420 } = {}) {
       });
   }, []);
 
-  // ── fetch utama (Name / Value search, debounced) ───────────────────────────
-  const fetchProducts = useCallback(async (query = '') => {
+  // fetchWarehouseLocatorIds
+  const fetchWarehouseLocatorIds = useCallback(async (warehouseId) => {
+    if (!warehouseId) return null;
     try {
-      setLoading(true);
-      const safeQ = query.toUpperCase().replace(/'/g, "''");
+      const data = await idempiereApi(
+        `/models/m_locator?$select=M_Locator_ID&$filter=M_Warehouse_ID eq ${warehouseId} and IsActive eq true&$top=500`
+      );
+      return (data.records || []).map(r => fkId(r.M_Locator_ID)).filter(Boolean);
+    } catch (err) {
+      console.warn('[useProductSearch] fetchWarehouseLocatorIds error:', err);
+      return null; 
+    }
+  }, []);
 
-      let productFilter = 'IsPurchased eq true and IsActive eq true';
-      if (query) {
-        productFilter += ` and (contains(toupper(Name),'${safeQ}') or contains(toupper(Value),'${safeQ}') or contains(toupper(UPC),'${safeQ}'))`;
+  // ── fetch utama (Name / Value search, debounced) ───────────────────────────
+const fetchProducts = useCallback(async (query = '', warehouseId = null) => {
+  try {
+    setLoading(true);
+    const safeQ = query.toUpperCase().replace(/'/g, "''");
+
+    let productFilter = 'IsPurchased eq true and IsActive eq true';
+    if (query) {
+      productFilter += ` and (contains(toupper(Name),'${safeQ}') or contains(toupper(Value),'${safeQ}') or contains(toupper(UPC),'${safeQ}'))`;
+    }
+
+    const locatorIds = await fetchWarehouseLocatorIds(warehouseId);
+    if (locatorIds !== null && locatorIds.length === 0) {
+      setProducts([]);
+      return [];
+    }
+
+    let rawProducts = [];
+
+    if (locatorIds === null) {
+      // Tidak ada warehouse filter — query normal
+      const productData = await idempiereApi(
+        `/models/m_product?$select=M_Product_ID,Name,Value,UPC,C_UOM_ID,M_Locator_ID,Description,Updated` +
+        `&$filter=${productFilter}&$orderby=Updated desc&$top=50`
+      );
+      rawProducts = Array.isArray(productData.records) ? productData.records : [];
+    } else {
+      // Ada warehouse filter — chunking parallel
+      const CHUNK_SIZE = 15;
+      const chunks = [];
+      for (let i = 0; i < locatorIds.length; i += CHUNK_SIZE) {
+        chunks.push(locatorIds.slice(i, i + CHUNK_SIZE));
       }
 
-       const [productData, productPoData, uomConvData] = await Promise.all([
-         idempiereApi(`/models/m_product?$select=M_Product_ID,Name,Value,UPC,C_UOM_ID,Description,Updated&$filter=${productFilter}&$orderby=Updated desc&$top=100`),
-         idempiereApi(`/models/m_product_po?$select=M_Product_ID,C_BPartner_ID,IsCurrentVendor&$filter=IsActive eq true and IsCurrentVendor eq true&$top=2000`),
-         idempiereApi(`/models/c_uom_conversion?$select=C_UOM_Conversion_ID,M_Product_ID,C_UOM_ID,C_UOM_To_ID,MultiplyRate,DivideRate&$filter=IsActive eq true&$top=2000`),
-       ]);
-      // // Step 1: ambil produk dulu
-      // const productData = await idempiereApi(
-      //   `/models/m_product?$select=M_Product_ID,Name,Value,UPC,C_UOM_ID,Description&$filter=${productFilter}&$orderby=Name&$top=100`
-      // );
-      // console.log('productData:', productData);
-      // console.log('records:', productData?.records);
-      // console.log('productIds:', productData?.records?.map(p => p.M_Product_ID));
+      const chunkResults = await Promise.all(
+        chunks.map(chunk => {
+          const locFilter = chunk.map(id => `M_Locator_ID eq ${id}`).join(' or ');
+          return idempiereApi(
+            `/models/m_product?$select=M_Product_ID,Name,Value,UPC,C_UOM_ID,M_Locator_ID,Description,Updated` +
+            `&$filter=${productFilter} and (${locFilter})&$orderby=Updated desc&$top=50`
+          ).catch(() => ({ records: [] }));
+        })
+      );
 
-      // const productIds = productData.records.map(p => p.M_Product_ID);
-
-      // if (productIds.length === 0) {
-      //   // tidak ada produk, skip query berikutnya
-      //   return;
-      // }
-
-      // // Step 2: query 2 & 3 paralel, filter by product IDs
-      // const idFilter = productIds.map(id => `M_Product_ID eq ${id}`).join(' or ');
-
-      // const [productPoData, uomConvData] = await Promise.all([
-      //   idempiereApi(
-      //     `/models/m_product_po?$select=M_Product_ID,C_BPartner_ID,IsCurrentVendor&$filter=IsActive eq true and IsCurrentVendor eq true and (${idFilter})&$top=200`
-      //   ),
-      //   idempiereApi(
-      //     `/models/c_uom_conversion?$select=C_UOM_Conversion_ID,M_Product_ID,C_UOM_ID,C_UOM_To_ID,MultiplyRate,DivideRate&$filter=IsActive eq true and (${idFilter})&$top=200`
-      //   ),
-      // ]);
-
-      const rawProducts = Array.isArray(productData.records)   ? productData.records   : [];
-      const poRecords   = Array.isArray(productPoData.records)  ? productPoData.records  : [];
-      const uomRecords  = Array.isArray(uomConvData.records)    ? uomConvData.records    : [];
-
-      const finalProducts = buildProducts(rawProducts, poRecords, uomRecords);
-      setProducts(finalProducts);
-      return finalProducts;
-    } finally {
-      setLoading(false);
+      const seen = new Set();
+      rawProducts = chunkResults
+        .flatMap(data => Array.isArray(data.records) ? data.records : [])
+        .filter(p => {
+          const pid = fkId(p.M_Product_ID) ?? p.id;
+          if (seen.has(pid)) return false;
+          seen.add(pid);
+          return true;
+        })
+        .slice(0, 50);
     }
-  }, [buildProducts]);
 
-  // ── searchByUPC: exact match, tanpa debounce, cocok untuk barcode scan ─────
+    if (rawProducts.length === 0) {
+      setProducts([]);
+      return [];
+    }
+
+    // Scope PO & UOM ke produk hasil filter
+    const productIds = rawProducts.map(p => fkId(p.M_Product_ID) ?? p.id).filter(Boolean);
+    const idScopeFilter = productIds.map(id => `M_Product_ID eq ${id}`).join(' or ');
+
+    const [productPoData, uomConvData] = await Promise.all([
+      idempiereApi(`/models/m_product_po?$select=M_Product_ID,C_BPartner_ID,IsCurrentVendor&$filter=IsActive eq true and IsCurrentVendor eq true and (${idScopeFilter})`),
+      idempiereApi(`/models/c_uom_conversion?$select=C_UOM_Conversion_ID,M_Product_ID,C_UOM_ID,C_UOM_To_ID,MultiplyRate,DivideRate&$filter=IsActive eq true and (${idScopeFilter})`),
+    ]);
+
+    const poRecords  = Array.isArray(productPoData.records) ? productPoData.records : [];
+    const uomRecords = Array.isArray(uomConvData.records)   ? uomConvData.records   : [];
+
+    const finalProducts = buildProducts(rawProducts, poRecords, uomRecords);
+    setProducts(finalProducts);
+    return finalProducts;
+  } catch (err) {
+    console.error('[useProductSearch] error:', err);
+    return [];
+  } finally {
+    setLoading(false);
+  }
+}, [buildProducts, fetchWarehouseLocatorIds]);
+
+  // ── searchByUPC: exact match, tanpa debounce ──────────────────────────────
   const searchByUPC = useCallback(async (upc) => {
     if (!upc) return null;
     try {
       setLoading(true);
       const safeUPC = upc.trim().replace(/'/g, "''");
 
-      const [productData, productPoData, uomConvData] = await Promise.all([
-        idempiereApi(`/models/m_product?$select=M_Product_ID,Name,Value,UPC,C_UOM_ID,Description&$filter=IsPurchased eq true and IsActive eq true and UPC eq '${safeUPC}'&$top=1`),
-        idempiereApi(`/models/m_product_po?$select=M_Product_ID,C_BPartner_ID,IsCurrentVendor&$filter=IsActive eq true and IsCurrentVendor eq true&$top=500`),
-        idempiereApi(`/models/c_uom_conversion?$select=C_UOM_Conversion_ID,M_Product_ID,C_UOM_ID,C_UOM_To_ID,MultiplyRate,DivideRate&$filter=IsActive eq true&$top=1000`),
-      ]);
-
+      const productData = await idempiereApi(`/models/m_product?$select=M_Product_ID,Name,Value,UPC,C_UOM_ID,Description&$filter=IsPurchased eq true and IsActive eq true and UPC eq '${safeUPC}'&$top=1`);
       const rawProducts = Array.isArray(productData.records) ? productData.records : [];
-      if (rawProducts.length === 0) return null; // UPC tidak ditemukan
+      if (rawProducts.length === 0) return null;
+
+      // OPTIMASI: Hanya cari PO & UOM untuk 1 produk spesifik ini
+      const targetProductId = fkId(rawProducts[0].M_Product_ID) ?? rawProducts[0].id;
+
+      const [productPoData, uomConvData] = await Promise.all([
+        idempiereApi(`/models/m_product_po?$select=M_Product_ID,C_BPartner_ID,IsCurrentVendor&$filter=IsActive eq true and IsCurrentVendor eq true and M_Product_ID eq ${targetProductId}`),
+        idempiereApi(`/models/c_uom_conversion?$select=C_UOM_Conversion_ID,M_Product_ID,C_UOM_ID,C_UOM_To_ID,MultiplyRate,DivideRate&$filter=IsActive eq true and M_Product_ID eq ${targetProductId}`),
+      ]);
 
       const poRecords  = Array.isArray(productPoData.records) ? productPoData.records : [];
       const uomRecords = Array.isArray(uomConvData.records)   ? uomConvData.records   : [];
 
       const results = buildProducts(rawProducts, poRecords, uomRecords);
-      return results[0] ?? null; // kembalikan satu produk atau null
+      return results[0] ?? null;
+    } catch (err) {
+      console.error('[useProductSearch] searchByUPC error:', err);
+      return null; // ← daripada throw ke caller
     } finally {
       setLoading(false);
     }
@@ -164,6 +218,6 @@ export function useProductSearch({ debounceMs = 420 } = {}) {
     fetchProducts,
     search,
     searchImmediate,
-    searchByUPC,   // ← export
+    searchByUPC,
   };
 }

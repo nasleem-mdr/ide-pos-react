@@ -28,7 +28,7 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api': {
-        target: 'http://192.168.0.126:8080',
+        target: 'https://demo.globalqss.com',
         changeOrigin: true,
       },
     },
