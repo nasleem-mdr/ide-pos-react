@@ -6,7 +6,7 @@
     min-height: 100vh;
     display: flex;
     font-family: 'DM Sans', sans-serif;
-    background: #0d1117;
+    background: #161b22;
     color: #e6edf3;
     overflow: hidden;
   }
@@ -36,7 +36,7 @@
     align-items: center;
     justify-content: center;
     position: relative;
-    background: #0d1117;
+    background: #283a57;
     padding: 40px;
   }
 
@@ -216,8 +216,8 @@
     letter-spacing: 0.8px;
     margin-bottom: 8px;
     display: block;
-    width: 120px;        /* ← lebar tetap biar rata */
-    flex-shrink: 0;      /* ← jangan ikut menyusut */
+    width: 100px;    
+    flex-shrink: 0;  
     font-size: 0.85rem;
   }
 

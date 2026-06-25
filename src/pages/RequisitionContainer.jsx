@@ -20,7 +20,7 @@ import { COLOR, RADIUS } from '../utils/styleTokens';
 import '../css/Header.css';
 
 const REQUISITION_CONFIG = {
-  C_DOCTYPE_ID: 1000018,
+  C_DOCTYPE_ID: 127,  //sma 1000018
   DESCRIPTION:  'Purchase Requisition via Web',
 };
 
@@ -40,7 +40,6 @@ const REQUISITION_CONFIG = {
 const RequisitionContainer = () => {
   const navigate = useNavigate();
   const isDesktop = useIsDesktop();
-  console.log('isDesktop:', isDesktop); 
   const [warehouseInfo, setWarehouseInfo] = useState(null);
   const [requesterName, setRequesterName] = useState('');
   const [cartOpen, setCartOpen]         = useState(false);   // hanya relevan di mobile
@@ -55,7 +54,15 @@ const RequisitionContainer = () => {
 
   const alert = (message, title = 'Perhatian') => setDialog({ isOpen: true, title, message });
 
-  const { products, loading: productsLoading, fetchProducts, search, searchValue, setSearchValue } = useProductSearch();
+  // const { 
+  //   products, loading: productsLoading, 
+  //   fetchProducts, search, searchValue, 
+  //   setSearchValue } = useProductSearch();
+  const {
+    products, loading: productsLoading,
+    fetchProducts, search, searchValue, setSearchValue,
+    //searchByUPC,   // ← tambah ini
+  } = useProductSearch();
   const { cart, addToCart, removeFromCart, updateQty, updateUom, clearCart, totalQty, totalItems } = useCart();
   const { submit, isSubmitting } = useRequisitionSubmit({
     docTypeId:   REQUISITION_CONFIG.C_DOCTYPE_ID,
@@ -64,6 +71,7 @@ const RequisitionContainer = () => {
   });
   const { canEdit } = useAccess();
   const canSubmitRequisition = canEdit('requisition');
+  const { searchByUPC } = useProductSearch();
 
   useEffect(() => {
     const init = async () => {
@@ -119,17 +127,37 @@ const RequisitionContainer = () => {
 
   // Barcode: produk sudah pasti dari scan → langsung ke cart, tanpa modal
   // detail, dan tanpa auto-buka cart juga (konsisten dengan poin 2).
-  const handleBarcodeDetected = useCallback((code) => {
-    const found = products.find(p => p.Value?.toUpperCase() === code.toUpperCase());
+  const handleBarcodeDetected = useCallback(async (code) => {
+    setScannerOpen(false);
+
+    // 1. Coba exact match by UPC dulu
+    let found = await searchByUPC(code);
+
+    // 2. Fallback: cari dari products yg sudah loaded by Value
+    if (!found) {
+      found = products.find(p => p.Value?.toUpperCase() === code.toUpperCase()) ?? null;
+    }
+
     if (found) {
+      // Langsung add to cart, tanpa buka detail sheet
       addToCart(found, 1, { C_UOM_ID: found.C_UOM_ID, Name: found.C_UOM_Name, multiplyRate: 1 });
-      setScannerOpen(false);
     } else {
-      setScannerOpen(false);
+      // Tidak ditemukan → tampilkan di search bar supaya user bisa lihat hasilnya
       setSearchValue(code);
       fetchProducts(code);
     }
-  }, [products, addToCart, fetchProducts, setSearchValue]);
+  }, [products, addToCart, fetchProducts, setSearchValue, searchByUPC]);
+  // const handleBarcodeDetected = useCallback((code) => {
+  //   const found = products.find(p => p.Value?.toUpperCase() === code.toUpperCase());
+  //   if (found) {
+  //     addToCart(found, 1, { C_UOM_ID: found.C_UOM_ID, Name: found.C_UOM_Name, multiplyRate: 1 });
+  //     setScannerOpen(false);
+  //   } else {
+  //     setScannerOpen(false);
+  //     setSearchValue(code);
+  //     fetchProducts(code);
+  //   }
+  // }, [products, addToCart, fetchProducts, setSearchValue]);
 
   const handleSubmit = async () => {
     const result = await submit(cart, requesterName);

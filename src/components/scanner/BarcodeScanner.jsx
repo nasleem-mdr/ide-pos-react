@@ -88,7 +88,7 @@ const BarcodeScanner = ({ isOpen, onDetected, onClose }) => {
       display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
     }}>
       <div style={{
-        position: 'absolute', top: 0, left: 0, right: 0,
+        position: 'fixed', top: 0, left: 0, right: 0, zIndex: 2001,
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         padding: '14px 18px', background: 'rgba(0,0,0,0.5)',
       }}>

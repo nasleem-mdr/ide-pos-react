@@ -1,7 +1,13 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { COLOR, RADIUS } from '../../utils/styleTokens';
 
 const RequisitionSuccessModal = ({ isOpen, data, onClose }) => {
+  const navigate = useNavigate();
+  const handleClose = () => {
+    onClose();
+    navigate('/dashboard');
+  };
   if (!isOpen || !data) return null;
   return (
     <div style={{
@@ -13,7 +19,18 @@ const RequisitionSuccessModal = ({ isOpen, data, onClose }) => {
         background: COLOR.surface, borderRadius: RADIUS.xl, padding: '28px 20px',
         maxWidth: '440px', width: '100%', boxShadow: '0 8px 40px rgba(0,0,0,0.25)',
         textAlign: 'center', maxHeight: '90vh', overflowY: 'auto',
+        position: 'relative',
       }}>
+        <button
+          onClick={handleClose}
+          style={{
+            position: 'absolute', top: '12px', right: '12px',
+            background: 'rgba(0,0,0,0.06)', border: 'none', color: COLOR.textMd,
+            borderRadius: '50%', width: '30px', height: '30px', fontSize: '16px',
+            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            lineHeight: 1,
+          }}
+        >✕</button>
         <div style={{ fontSize: '52px', marginBottom: '8px' }}>✅</div>
         <div style={{ fontSize: '19px', fontWeight: 700, color: COLOR.success, marginBottom: '4px' }}>
           Requisition Berhasil!

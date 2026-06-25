@@ -2,6 +2,7 @@ import useDashboardStats from '../hooks/useDashboardStats';
 import WelcomeCards      from '../components/dashboard/WelcomeCards';
 import StatCard          from '../components/dashboard/StatCard';
 import MonthlyChartCard  from '../components/dashboard/MonthlyChartCard';
+import DashboardStats from '../components/dashboard/DashboardStats';
 import '../css/Dashboard.css';
 
 /**
@@ -12,7 +13,7 @@ import '../css/Dashboard.css';
  */
 export default function Dashboard({ session, onLogout }) {
   const { stats, loading } = useDashboardStats();
-
+ 
   return (
     <div className="dashboard-root">
       <main className="dashboard-main">
@@ -32,6 +33,8 @@ export default function Dashboard({ session, onLogout }) {
             </div>
           ) : (
             <div style={gridStyle}>
+              
+              {/* 
               <StatCard
                 label="Total Penjualan"
                 today={stats.todaySales}
@@ -48,9 +51,10 @@ export default function Dashboard({ session, onLogout }) {
                 color="#10b981"
               />
               <MonthlyChartCard data={stats.monthChart} />
+              */}
             </div>
           )}
-
+          <DashboardStats />
         </div>
       </main>
     </div>

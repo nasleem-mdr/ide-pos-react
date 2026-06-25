@@ -131,8 +131,8 @@ const RequisitionList = () => {
     const columns = [
         { key: "DocumentNo",    label: "No. Dokumen" },
         { key: "DateDoc",   label: "Tanggal" },
-        { key: "M_Warehouse_ID", label: "Customer" },
-        { key: "TotalLines",    label: "Total Lines", align: "right" },
+        { key: "M_Warehouse_ID", label: "Gudang" },
+        //{ key: "TotalLines",    label: "Total Lines", align: "right" },
         { key: "DocStatus",     label: "Status", align: "center" },
     ];
 
@@ -148,8 +148,8 @@ const RequisitionList = () => {
             DateDoc: requisition.DateDoc
                 ? new Date(requisition.DateDoc).toLocaleDateString("id-ID")
                 : "-",
-            "M_Warhouse_ID": requisition.M_Warhouse_ID?.identifier
-                || requisiton.M_Warehouse_ID?.Name
+            "M_Warehouse_ID": requisition.M_Warehouse_ID?.identifier
+                || requisition.M_Warehouse_ID?.Name
                 || "-",
             TotalLines: ` ${parseFloat(requisition.TotalLines || 0).toLocaleString("id-ID")}`,
             DocStatus: (
@@ -184,7 +184,9 @@ const RequisitionList = () => {
 
     return (
         <div className="card-container">
+            
             <PageHeader
+                
                 title="📋 Requisition"
                 onSearch={(val) => { setSearch(val); setOffset(0); }}
                 extraAction={

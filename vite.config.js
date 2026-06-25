@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
+import basicSsl from '@vitejs/plugin-basic-ssl'
 import path from 'path';
 
 export default defineConfig({
@@ -14,6 +15,7 @@ export default defineConfig({
       filename: 'service-worker.js',
       registerType: 'autoUpdate',
     }),
+    basicSsl(),
   ],
   esbuild: {
     loader: 'jsx',
@@ -22,10 +24,11 @@ export default defineConfig({
   },
   server: {
     host: true,
+    https: true,
     port: 5173,
     proxy: {
       '/api': {
-        target: 'http://192.168.0.126:8080',
+        target: 'https://demo.globalqss.com',
         changeOrigin: true,
       },
     },
