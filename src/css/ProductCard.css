@@ -1,96 +1,85 @@
-@import url('https://fonts.googleapis.com/css2?family=Syne:wght@600;700&family=DM+Mono:wght@300;400;500&display=swap');
+/* ─── ProductCard.css ─────────────────────────────────────────────────────── */
 
-/* ── Card container ── */
+/* Card utama */
 .product-card {
-  background: #2c3e50; /* sama dengan Header & card */
-  border: 1px solid rgba(236, 240, 241, 0.1);
-  border-radius: 10px;
-  padding: 14px;
+  border-radius: 8px;
   cursor: pointer;
-  font-family: 'DM Mono', monospace;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-  transition: border-color 0.2s, box-shadow 0.2s, transform 0.15s;
-  position: relative;
-  overflow: hidden;
+  background: #ffffff;
+  transition: transform 0.1s, border-color 0.15s, background 0.1s;
   display: flex;
   flex-direction: column;
+  gap: 5px;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  height: 100%;
+  box-sizing: border-box;
+  padding: 12px 12px 10px;
+  min-height: 80px;
+  border: 1.5px solid #e0e0e0;
 }
 
-/* Accent garis kiri teal */
-.product-card::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 3px;
-  background: #00d1b2;
-  opacity: 0;
-  transition: opacity 0.2s;
-  border-radius: 10px 0 0 10px;
+.product-card:active,
+.product-card.pressed {
+  background: #f0f5ff;
+  transform: scale(0.97);
+  border-color: #2563eb;
 }
 
-.product-card:hover {
-  border-color: rgba(0, 209, 178, 0.35);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(0, 209, 178, 0.1);
-  transform: translateY(-2px);
-}
-
-.product-card:hover::before {
-  opacity: 1;
-}
-
-.product-card:active {
-  transform: translateY(0);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-}
-
-/* ── Product category badge (TAMBAHAN) ── */
-.product-card__category {
-  align-self: flex-start;
-  font-size: 8px;
-  text-transform: uppercase;
-  font-weight: 500;
-  background: rgba(236, 240, 241, 0.08);
-  color: rgba(236, 240, 241, 0.6);
-  padding: 2px 6px;
-  border-radius: 4px;
-  margin-bottom: 6px;
-  letter-spacing: 0.5px;
-  max-width: 100%;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* ── Product name ── */
-.product-card__name {
-  font-family: 'Syne', sans-serif;
+/* Nama produk */
+.product-card .prod-name {
   font-weight: 700;
   font-size: 13px;
-  color: #ecf0f1;
-  white-space: nowrap;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  text-overflow: ellipsis;
 }
 
-/* ── Product code / value ── */
-.product-card__value {
+/* Kode/Value produk */
+.product-card .prod-value {
+  font-size: 11px;
+  letter-spacing: 0.03em;
+}
+
+/* Badge vendor */
+.product-card .prod-vendor {
   font-size: 10px;
-  color: rgba(236, 240, 241, 0.4);
-  letter-spacing: 0.5px;
-  margin-top: 3px;
+  border-radius: 4px;
+  padding: 2px 6px;
+  align-self: flex-start;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  max-width: 100%;
 }
 
-/* ── Price ── */
-.product-card__price {
-  margin-top: auto; /* Memastikan harga selalu berada di bawah card jika ada nama yang panjang */
-  padding-top: 12px;
-  font-family: 'DM Mono', monospace;
-  font-weight: 500;
-  font-size: 13px;
-  color: #00d1b2; /* teal aksen — konsisten dengan ci-price-input */
+/* Badge UOM */
+.product-card .prod-uom {
+  font-size: 10px;
+  background: #f5f5f5;
+  border-radius: 4px;
+  padding: 1px 5px;
+  align-self: flex-start;
+}
+
+/* Spacer */
+.product-card .prod-spacer {
+  flex-grow: 1;
+}
+
+/* ─── Mobile (< 768px) ────────────────────────────────────────────────────── */
+@media (max-width: 767px) {
+  .product-card {
+    padding: 10px 8px;
+    min-height: 70px;
+  }
+
+  .product-card .prod-name {
+    font-size: 12px;
+  }
+
+  .product-card .prod-value {
+    font-size: 10px;
+  }
 }

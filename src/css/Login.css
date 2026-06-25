@@ -260,6 +260,8 @@
 
   .input-wrapper {
     position: relative;
+    flex: 1;      /* ← tambahkan ini */
+    width: 100%;  /* ← dan ini */
   }
 
   .input-icon {

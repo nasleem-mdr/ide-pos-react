@@ -20,7 +20,7 @@ import { COLOR, RADIUS } from '../utils/styleTokens';
 import '../css/Header.css';
 
 const REQUISITION_CONFIG = {
-  C_DOCTYPE_ID: 127,  //sma 1000018
+  C_DOCTYPE_ID: 1000018,  //sma 1000018 garden word 127
   DESCRIPTION:  'Purchase Requisition via Web',
 };
 

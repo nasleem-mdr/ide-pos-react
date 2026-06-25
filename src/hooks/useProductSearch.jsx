@@ -76,11 +76,37 @@ export function useProductSearch({ debounceMs = 420 } = {}) {
         productFilter += ` and (contains(toupper(Name),'${safeQ}') or contains(toupper(Value),'${safeQ}') or contains(toupper(UPC),'${safeQ}'))`;
       }
 
-      const [productData, productPoData, uomConvData] = await Promise.all([
-        idempiereApi(`/models/m_product?$select=M_Product_ID,Name,Value,UPC,C_UOM_ID,Description&$filter=${productFilter}&$orderby=Name&$top=100`),
-        idempiereApi(`/models/m_product_po?$select=M_Product_ID,C_BPartner_ID,IsCurrentVendor&$filter=IsActive eq true and IsCurrentVendor eq true&$top=500`),
-        idempiereApi(`/models/c_uom_conversion?$select=C_UOM_Conversion_ID,M_Product_ID,C_UOM_ID,C_UOM_To_ID,MultiplyRate,DivideRate&$filter=IsActive eq true&$top=1000`),
-      ]);
+       const [productData, productPoData, uomConvData] = await Promise.all([
+         idempiereApi(`/models/m_product?$select=M_Product_ID,Name,Value,UPC,C_UOM_ID,Description,Updated&$filter=${productFilter}&$orderby=Updated desc&$top=100`),
+         idempiereApi(`/models/m_product_po?$select=M_Product_ID,C_BPartner_ID,IsCurrentVendor&$filter=IsActive eq true and IsCurrentVendor eq true&$top=2000`),
+         idempiereApi(`/models/c_uom_conversion?$select=C_UOM_Conversion_ID,M_Product_ID,C_UOM_ID,C_UOM_To_ID,MultiplyRate,DivideRate&$filter=IsActive eq true&$top=2000`),
+       ]);
+      // // Step 1: ambil produk dulu
+      // const productData = await idempiereApi(
+      //   `/models/m_product?$select=M_Product_ID,Name,Value,UPC,C_UOM_ID,Description&$filter=${productFilter}&$orderby=Name&$top=100`
+      // );
+      // console.log('productData:', productData);
+      // console.log('records:', productData?.records);
+      // console.log('productIds:', productData?.records?.map(p => p.M_Product_ID));
+
+      // const productIds = productData.records.map(p => p.M_Product_ID);
+
+      // if (productIds.length === 0) {
+      //   // tidak ada produk, skip query berikutnya
+      //   return;
+      // }
+
+      // // Step 2: query 2 & 3 paralel, filter by product IDs
+      // const idFilter = productIds.map(id => `M_Product_ID eq ${id}`).join(' or ');
+
+      // const [productPoData, uomConvData] = await Promise.all([
+      //   idempiereApi(
+      //     `/models/m_product_po?$select=M_Product_ID,C_BPartner_ID,IsCurrentVendor&$filter=IsActive eq true and IsCurrentVendor eq true and (${idFilter})&$top=200`
+      //   ),
+      //   idempiereApi(
+      //     `/models/c_uom_conversion?$select=C_UOM_Conversion_ID,M_Product_ID,C_UOM_ID,C_UOM_To_ID,MultiplyRate,DivideRate&$filter=IsActive eq true and (${idFilter})&$top=200`
+      //   ),
+      // ]);
 
       const rawProducts = Array.isArray(productData.records)   ? productData.records   : [];
       const poRecords   = Array.isArray(productPoData.records)  ? productPoData.records  : [];

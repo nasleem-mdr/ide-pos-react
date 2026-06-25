@@ -377,7 +377,7 @@ export default function IDempiereAuth({ onLoginSuccess }) {
                 <input
                   className="field-input"
                   type="text"
-                  placeholder="contoh: SuperUser"
+                  placeholder="Username"
                   value={form1.username}
                   onChange={updateForm1("username")}
                   autoComplete="username"

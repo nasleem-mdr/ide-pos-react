@@ -8,7 +8,8 @@ Aplikasi ini free dengan resiko anda sendiri (masih banyak ekspose console.log u
 
 * Clone pada local server anda
 * Jalankan `npm install`
-* Edit Package.json rubah proxy ke real IDempiere Rest API anda, atau anda bisa gunakan www.demo.globalqss.com untuk testing.
+* Jalankan `npm install recharts` dependency untuk chart
+* Edit vite.config.js/Package.json rubah proxy ke real IDempiere Rest API anda, atau anda bisa gunakan www.demo.globalqss.com untuk testing.
 * Jalankan `npm run dev` atau `npx vite`
 * Buka browser  [http://localhost:3000](http://localhost:3000) 
 
