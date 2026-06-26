@@ -120,17 +120,45 @@ export async function getProductImageUrl(productId) {
 // query param, atau kalau ingin menghindari token tampil di Network tab URL.
 // PENTING: pemanggil WAJIB memanggil URL.revokeObjectURL(url) saat selesai
 // (mis. di useEffect cleanup) untuk mencegah memory leak.
-export async function getProductImageBlobUrl(productId) {
+// export async function getProductImageBlobUrl(productId) {
+//   const attachments = await getProductAttachments(productId);
+//   const image = attachments.find(a => a.contentType?.startsWith('image/'));
+//   if (!image) return null;
+
+//   const token = localStorage.getItem('token');
+//   const res = await fetch(`/api/v1/models/m_product/${productId}/attachments/${encodeURIComponent(image.name)}`, {
+//     headers: { Authorization: `Bearer ${token}` },
+//   });
+//   if (!res.ok) return null;
+
+//   const blob = await res.blob();
+//   return URL.createObjectURL(blob);
+// }
+// Fetch SEMUA attachment image sebagai array blob URLs
+// Return: [{ url, name, index }, ...]
+// PENTING: pemanggil wajib revoke semua URL saat cleanup
+export async function getProductImageBlobUrls(productId) {
   const attachments = await getProductAttachments(productId);
-  const image = attachments.find(a => a.contentType?.startsWith('image/'));
-  if (!image) return null;
+  const images = attachments.filter(a => a.contentType?.startsWith('image/'));
+  if (images.length === 0) return [];
 
   const token = localStorage.getItem('token');
-  const res = await fetch(`/api/v1/models/m_product/${productId}/attachments/${encodeURIComponent(image.name)}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  if (!res.ok) return null;
 
-  const blob = await res.blob();
-  return URL.createObjectURL(blob);
+  const results = await Promise.all(
+    images.map(async (img, index) => {
+      try {
+        const res = await fetch(
+          `/api/v1/models/m_product/${productId}/attachments/${encodeURIComponent(img.name)}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        if (!res.ok) return null;
+        const blob = await res.blob();
+        return { url: URL.createObjectURL(blob), name: img.name, index };
+      } catch {
+        return null;
+      }
+    })
+  );
+
+  return results.filter(Boolean);
 }

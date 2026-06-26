@@ -74,6 +74,8 @@ export function useProductSearch({ debounceMs = 420 } = {}) {
   const fetchWarehouseLocatorIds = useCallback(async (warehouseId) => {
     if (!warehouseId) return null;
     try {
+      
+      return (data.records || []).map(r => fkId(r.M_Locator_ID)).filter(Boolean);
       const data = await idempiereApi(
         `/models/m_locator?$select=M_Locator_ID&$filter=M_Warehouse_ID eq ${warehouseId} and IsActive eq true&$top=500`
       );
@@ -120,7 +122,8 @@ const fetchProducts = useCallback(async (query = '', warehouseId = null) => {
 
       const chunkResults = await Promise.all(
         chunks.map(chunk => {
-          const locFilter = chunk.map(id => `M_Locator_ID eq ${id}`).join(' or ');
+          //const locFilter = chunk.map(id => `M_Locator_ID eq ${id}`).join(' or ');
+          const locFilter = chunk.map(id => `M_Locator_ID/id eq ${id}`).join(' or ');
           return idempiereApi(
             `/models/m_product?$select=M_Product_ID,Name,Value,UPC,C_UOM_ID,M_Locator_ID,Description,Updated` +
             `&$filter=${productFilter} and (${locFilter})&$orderby=Updated desc&$top=50`

@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import BottomSheet from '../common/BottomSheet';
 import QtyStepper from '../common/QtyStepper';
 import { COLOR, RADIUS } from '../../utils/styleTokens';
-import { getProductImageBlobUrl, getProductAvailability } from '../../utils/idempiereApi';
+import { getProductImageBlobUrls, getProductAvailability } from '../../utils/idempiereApi';
 import '../../css/ProductDetailSheet.css';
 
 const ProductDetailSheet = ({
@@ -12,13 +12,16 @@ const ProductDetailSheet = ({
   onConfirm,
   confirmLabel = 'Tambah ke Keranjang',
 }) => {
-  const [qty, setQty] = useState(1);
-  const [uom, setUom] = useState(null);
-  const [imageUrl, setImageUrl] = useState(null);
+  const [qty, setQty]                   = useState(1);
+  const [uom, setUom]                   = useState(null);
+  const [images, setImages]             = useState([]);
+  const [activeIdx, setActiveIdx]       = useState(0);
   const [imageLoading, setImageLoading] = useState(false);
-  const [stock, setStock] = useState(null);
+  const [stock, setStock]               = useState(null);
   const [stockLoading, setStockLoading] = useState(false);
+  const touchStartX                     = useRef(null);
 
+  // ── Reset qty & uom saat produk berganti ──────────────────────────────────
   useEffect(() => {
     if (product) {
       setQty(1);
@@ -26,28 +29,35 @@ const ProductDetailSheet = ({
     }
   }, [product]);
 
+  // ── Fetch semua image attachment ──────────────────────────────────────────
   useEffect(() => {
-    let currentUrl = null;
-    let cancelled = false;
+    let cancelled  = false;
+    let loadedUrls = [];
 
     if (isOpen && product?.M_Product_ID) {
       setImageLoading(true);
-      setImageUrl(null);
-      getProductImageBlobUrl(product.M_Product_ID)
-        .then(url => {
-          if (cancelled) { if (url) URL.revokeObjectURL(url); return; }
-          currentUrl = url;
-          setImageUrl(url);
+      setImages([]);
+      setActiveIdx(0);
+
+      getProductImageBlobUrls(product.M_Product_ID)
+        .then(imgs => {
+          if (cancelled) {
+            imgs.forEach(i => URL.revokeObjectURL(i.url));
+            return;
+          }
+          loadedUrls = imgs;
+          setImages(imgs);
         })
         .finally(() => { if (!cancelled) setImageLoading(false); });
     }
 
     return () => {
       cancelled = true;
-      if (currentUrl) URL.revokeObjectURL(currentUrl);
+      loadedUrls.forEach(i => URL.revokeObjectURL(i.url));
     };
   }, [isOpen, product?.M_Product_ID]);
 
+  // ── Fetch stock availability ───────────────────────────────────────────────
   useEffect(() => {
     let cancelled = false;
 
@@ -61,6 +71,20 @@ const ProductDetailSheet = ({
 
     return () => { cancelled = true; };
   }, [isOpen, product?.M_Product_ID]);
+
+  // ── Swipe handler ─────────────────────────────────────────────────────────
+  const handleTouchStart = (e) => {
+    touchStartX.current = e.touches[0].clientX;
+  };
+
+  const handleTouchEnd = (e) => {
+    if (touchStartX.current === null) return;
+    const delta = e.changedTouches[0].clientX - touchStartX.current;
+    touchStartX.current = null;
+    if (Math.abs(delta) < 40) return;
+    if (delta < 0) setActiveIdx(i => Math.min(i + 1, images.length - 1));
+    if (delta > 0) setActiveIdx(i => Math.max(i - 1, 0));
+  };
 
   if (!product) return null;
 
@@ -90,11 +114,7 @@ const ProductDetailSheet = ({
               )}
             </div>
           </div>
-          <button
-            className="pds-close-btn"
-            onClick={onClose}
-            style={{ color: COLOR.textMd }}
-          >
+          <button className="pds-close-btn" onClick={onClose} style={{ color: COLOR.textMd }}>
             ✕
           </button>
         </div>
@@ -102,27 +122,53 @@ const ProductDetailSheet = ({
         {/* Scroll Area */}
         <div className="pds-scroll-area">
 
-          {/* Image */}
+          {/* Image Carousel */}
           {imageLoading && (
-            <div
-              className="pds-image-placeholder"
-              style={{ background: COLOR.bg, color: COLOR.textLt }}
-            >
+            <div className="pds-image-placeholder" style={{ background: COLOR.bg, color: COLOR.textLt }}>
               Memuat gambar...
             </div>
           )}
-          {!imageLoading && imageUrl && (
-            <div className="pds-image-container" style={{ background: COLOR.bg }}>
-              <img src={imageUrl} alt={product.Name} />
+
+          {!imageLoading && images.length > 0 && (
+            <div
+              className="pds-image-container"
+              style={{ background: COLOR.bg, position: 'relative', userSelect: 'none' }}
+              onTouchStart={handleTouchStart}
+              onTouchEnd={handleTouchEnd}
+            >
+              <img src={images[activeIdx].url} alt={`${product.Name} ${activeIdx + 1}`} />
+
+              {images.length > 1 && (
+                <>
+                  <button
+                    onClick={() => setActiveIdx(i => Math.max(i - 1, 0))}
+                    disabled={activeIdx === 0}
+                    className="pds-carousel-btn pds-carousel-prev"
+                  >‹</button>
+                  <button
+                    onClick={() => setActiveIdx(i => Math.min(i + 1, images.length - 1))}
+                    disabled={activeIdx === images.length - 1}
+                    className="pds-carousel-btn pds-carousel-next"
+                  >›</button>
+
+                  <div className="pds-carousel-dots">
+                    {images.map((_, i) => (
+                      <span
+                        key={i}
+                        onClick={() => setActiveIdx(i)}
+                        className="pds-carousel-dot"
+                        style={{ background: i === activeIdx ? COLOR.primary : COLOR.border }}
+                      />
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
           )}
 
           {/* Description */}
           {product.Description && (
-            <div
-              className="pds-description"
-              style={{ color: COLOR.textMd, background: COLOR.bg }}
-            >
+            <div className="pds-description" style={{ color: COLOR.textMd, background: COLOR.bg }}>
               {product.Description}
             </div>
           )}
@@ -136,10 +182,7 @@ const ProductDetailSheet = ({
 
           {/* Stock Box */}
           {!stockLoading && stock && (
-            <div
-              className="pds-stock-box"
-              style={{ border: `1px solid ${COLOR.border}` }}
-            >
+            <div className="pds-stock-box" style={{ border: `1px solid ${COLOR.border}` }}>
               <div
                 className="pds-stock-header"
                 style={{ background: stock.totals.qtyAvailable > 0 ? COLOR.successLt : COLOR.dangerLt }}
@@ -194,37 +237,30 @@ const ProductDetailSheet = ({
                     );
                     if (chosen) setUom(chosen);
                   }}
-                  style={{
-                    color: COLOR.textDk,
-                    background: COLOR.bg,
-                    borderColor: COLOR.border,
-                  }}
+                  style={{ color: COLOR.textDk, background: COLOR.bg, borderColor: COLOR.border }}
                 >
-                  {product.uomOptions.map(u => (
-                    <option key={u.C_UOM_ID} value={String(u.C_UOM_ID)}>{u.Name}</option>
-                  ))}
+                  {product.uomOptions
+                    .filter(u => u.C_UOM_ID != null)
+                    .map(u => (
+                      <option key={u.C_UOM_ID} value={String(u.C_UOM_ID)}>{u.Name}</option>
+                    ))
+                  }
                 </select>
               ) : (
                 <div
                   className="pds-uom-display"
-                  style={{
-                    color: COLOR.textDk,
-                    background: COLOR.bg,
-                    borderColor: COLOR.border,
-                  }}
+                  style={{ color: COLOR.textDk, background: COLOR.bg, borderColor: COLOR.border }}
                 >
                   {product.C_UOM_Name || 'EA'}
                 </div>
               )}
             </div>
           </div>
+
         </div>
 
         {/* Footer */}
-        <div
-          className="pds-footer"
-          style={{ borderTopColor: COLOR.border, background: COLOR.surface }}
-        >
+        <div className="pds-footer" style={{ borderTopColor: COLOR.border, background: COLOR.surface }}>
           <button
             className="pds-confirm-btn"
             onClick={() => { if (qty > 0) onConfirm(product, qty, uom); }}

@@ -21,8 +21,8 @@ import '../css/Header.css';
 import { HomeIcon } from '../components/Icons';
 
 const REQUISITION_CONFIG = {
-  C_DOCTYPE_ID: 127, //sma 1000018 garden 127
-  DESCRIPTION:  'Purchase Requisition via Web',
+  C_DOCTYPE_ID: 1000018, //sma 1000018 garden 127
+  DESCRIPTION:  'Purchase Requisition via REST API',
 };
 
 const RequisitionContainer = () => {
@@ -251,8 +251,9 @@ const RequisitionContainer = () => {
           {warehouses.length === 0 && (
             <option value="">Memuat...</option>
           )}
-          {warehouses.map(wh => (
-            <option key={wh.id} value={wh.id} style={{ background: '#1e3a5f', color: '#e0eaff' }}>
+          {warehouses.map((wh, idx) => (
+            // Menggunakan wh.id jika ada, jika null/falsy gunakan kombinasi string unik dengan index
+            <option key={wh.id || `wh-null-${idx}`} value={wh.id ?? ''} style={{ background: '#1e3a5f', color: '#e0eaff' }}>
               📦 {wh.name}
             </option>
           ))}
@@ -396,7 +397,7 @@ const RequisitionContainer = () => {
             totalQty={totalQty}
             summaryRight={cartSummaryRight}
             title="📝 Daftar Permintaan"
-            submitLabel="📤 KIRIM REQUISITION"
+            submitLabel="📤 KIRIM FPB"
             onSubmit={canSubmitRequisition ? handleSubmit : undefined}
             isSubmitting={isSubmitting}
           />
@@ -421,7 +422,7 @@ const RequisitionContainer = () => {
           totalQty={totalQty}
           summaryRight={cartSummaryRight}
           title="📝 Daftar Permintaan"
-          submitLabel="📤 KIRIM REQUISITION"
+          submitLabel="📤 KIRIM FPB"
           onSubmit={canSubmitRequisition ? handleSubmit : undefined}
           isSubmitting={isSubmitting}
         />
