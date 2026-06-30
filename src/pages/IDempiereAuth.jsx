@@ -114,6 +114,11 @@ function normaliseList(data, key) {
   return [];
 }
 
+// Urutkan berdasarkan id (mis. AD_Client_ID, AD_Role_ID, dst), naik (ascending)
+function sortById(list) {
+  return [...list].sort((a, b) => (a.id ?? 0) - (b.id ?? 0));
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function IDempiereAuth({ onLoginSuccess }) {
   const [step, setStep] = useState(1);
@@ -149,9 +154,15 @@ export default function IDempiereAuth({ onLoginSuccess }) {
     if (isMobile) setLeftOpen(false);
   }, []);
 
-  // Auto-select client jika hanya 1
+  // Auto-select client pertama (urut AD_Client_ID) begitu data clients tersedia
+  // setelah login, lalu cascade otomatis ke role → organisasi → warehouse.
   useEffect(() => {
-    if (clients.length === 1) handleClientChange(String(clients[0].id));
+    if (clients.length > 0 && !selectedClientId) {
+      const sorted = sortById(clients);
+      setClients(sorted);
+      handleClientChange(String(sorted[0].id));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clients]);
 
   // ── Step 1: Login ─────────────────────────────────────────────────────────
@@ -175,7 +186,8 @@ export default function IDempiereAuth({ onLoginSuccess }) {
     }
   }
 
-  // ── Client dipilih → GET roles ────────────────────────────────────────────
+  // ── Client dipilih (manual atau otomatis) → GET roles ───────────────────────
+  // Auto-select role pertama (urut AD_Role_ID), lalu cascade ke organisasi.
   async function handleClientChange(clientId) {
     setSelectedClientId(clientId);
     setSelectedRoleId("");
@@ -189,9 +201,9 @@ export default function IDempiereAuth({ onLoginSuccess }) {
     setError("");
     try {
       const data = await apiGetRoles(token, clientId);
-      const roleList = normaliseList(data, "roles");
+      const roleList = sortById(normaliseList(data, "roles"));
       setRoles(roleList);
-      if (roleList.length === 1) {
+      if (roleList.length > 0) {
         await handleRoleChange(String(roleList[0].id), clientId);
       }
     } catch (err) {
@@ -201,7 +213,8 @@ export default function IDempiereAuth({ onLoginSuccess }) {
     }
   }
 
-  // ── Role dipilih → GET organizations ─────────────────────────────────────
+  // ── Role dipilih (manual atau otomatis) → GET organizations ─────────────────
+  // Auto-select organisasi pertama (urut AD_Org_ID), lalu cascade ke warehouse.
   async function handleRoleChange(roleId, clientIdOverride) {
     const clientId = clientIdOverride || selectedClientId;
     setSelectedRoleId(roleId);
@@ -214,9 +227,9 @@ export default function IDempiereAuth({ onLoginSuccess }) {
     setError("");
     try {
       const data = await apiGetOrganizations(token, clientId, roleId);
-      const orgList = normaliseList(data, "organizations");
+      const orgList = sortById(normaliseList(data, "organizations"));
       setOrgs(orgList);
-      if (orgList.length === 1) {
+      if (orgList.length > 0) {
         await handleOrgChange(String(orgList[0].id), clientId, roleId);
       }
     } catch (err) {
@@ -226,7 +239,8 @@ export default function IDempiereAuth({ onLoginSuccess }) {
     }
   }
 
-  // ── Org dipilih → GET warehouses ──────────────────────────────────────────
+  // ── Org dipilih (manual atau otomatis) → GET warehouses ──────────────────────
+  // Auto-select warehouse pertama (urut M_Warehouse_ID). Tetap opsional untuk user.
   async function handleOrgChange(orgId, clientIdOverride, roleIdOverride) {
     const clientId = clientIdOverride || selectedClientId;
     const roleId   = roleIdOverride   || selectedRoleId;
@@ -238,7 +252,11 @@ export default function IDempiereAuth({ onLoginSuccess }) {
     setError("");
     try {
       const data = await apiGetWarehouses(token, clientId, roleId, orgId);
-      setWarehouses(normaliseList(data, "warehouses"));
+      const whList = sortById(normaliseList(data, "warehouses"));
+      setWarehouses(whList);
+      if (whList.length > 0) {
+        setSelectedWarehouseId(String(whList[0].id));
+      }
     } catch (err) {
       setError(err.message);
     } finally {
@@ -515,11 +533,7 @@ export default function IDempiereAuth({ onLoginSuccess }) {
                 >
                   <option value="en_US">English (US)</option>
                   <option value="id_ID">Bahasa Indonesia</option>
-                  <option value="de_DE">Deutsch</option>
-                  <option value="fr_FR">Français</option>
                   <option value="es_ES">Español</option>
-                  <option value="zh_CN">中文 (简体)</option>
-                  <option value="ja_JP">日本語</option>
                 </select>
               </div>
 
