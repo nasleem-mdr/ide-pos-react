@@ -3,18 +3,20 @@ import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 import basicSsl from '@vitejs/plugin-basic-ssl'
 import path from 'path';
+import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig({
   plugins: [
     react({
       include: '**/*.{jsx,js}',
     }),
-    VitePWA({
-      strategies: 'injectManifest',
-      srcDir: 'src',
-      filename: 'service-worker.js',
-      registerType: 'autoUpdate',
-    }),
+    tailwindcss(),
+    // VitePWA({
+    //   strategies: 'injectManifest',
+    //   srcDir: 'src',
+    //   filename: 'service-worker.js',
+    //   registerType: 'autoUpdate',
+    // }),
     basicSsl(),
   ],
   esbuild: {
@@ -34,7 +36,7 @@ export default defineConfig({
     },
   },
   build: {
-    outDir: 'build',
+    outDir: 'dist',
   },
   resolve: {
     alias: {

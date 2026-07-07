@@ -13,13 +13,13 @@ import RequisitionContainer from './pages/RequisitionContainer';
 import { AccessProvider } from './context/AccessContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import RequisitionList from "./pages/RequisitionList";
+import RequisitionView from "./pages/RequisitionView";
 import ProductList from "./pages/ProductList";
 
 import './css/AppLayout.css'; // Pastikan mengimpor file CSS layout Anda
 
 export default function App() {
   const [session, setSession] = useState(null);
-  // 1. Tambahkan state collapse di sini
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   function handleLoginSuccess(sessionInfo) {
@@ -28,71 +28,81 @@ export default function App() {
 
   function handleLogout() {
     setSession(null);
-    localStorage.removeItem('token'); 
+    localStorage.removeItem("token");
   }
 
   return (
     <BrowserRouter>
-    
-      {!session ? (
-        <Routes>
-          <Route path="/" element={<IDempiereAuth onLoginSuccess={handleLoginSuccess} />} />
-          <Route path="*" element={<Navigate to="/" />} />
-        </Routes>
-      ) : (
-        /* 2. Tambahkan class dinamis 'sidebar-collapsed' pada pembungkus utama */
-        <AccessProvider>
-        <div className={`app-layout ${isSidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
-          {/* 3. Kirim state dan setter ke Sidebar sebagai props */}
-          <Sidebar isCollapsed={isSidebarCollapsed} setIsCollapsed={setIsSidebarCollapsed} />
-          
-          <div className="main-wrapper">
-            <Header session={session} onLogout={handleLogout} />
-            
-            <main className="content">
-              <Routes>
-                <Route path="/"            element={<Navigate to="/dashboard" replace />} />
-                <Route path="/dashboard" element={<Dashboard session={session} />} />
-                <Route path="/business-partner" element={
-                    <ProtectedRoute windowKey="businessPartner">
-                      <BusinessPartner />
-                    </ProtectedRoute>
-                } />
-                <Route path="/business-partner/:id/edit" element={
-                  <ProtectedRoute windowKey="businessPartnerEdit">
-                    <BusinessPartnerEdit />
-                  </ProtectedRoute>
-                } />
-                <Route path="/business-partner/:id" element={
-                  <ProtectedRoute windowKey="businessPartner">
-                    <BusinessPartnerDetail />
-                  </ProtectedRoute>
-                } />
+      <Routes>
 
-                <Route path="/pos-order" element={
-                  <ProtectedRoute windowKey="pos">
-                    <POSContainer />
-                  </ProtectedRoute>
-                } />
-      
-                <Route path="/sales-order" element={
-                  <ProtectedRoute windowKey="salesOrder">
-                    <SalesOrderPage />
-                  </ProtectedRoute>
-                } />
-                <Route path="/product" element={
-                  <ProtectedRoute windowKey="product">
-                    <ProductList />
-                  </ProtectedRoute>
-                } />
-                <Route path="/requisition-list" element={<RequisitionList />} />
-                <Route path="/requisition" element={<RequisitionContainer />} />
+        {/* ===== ROUTE PUBLIK - di luar kondisi session apapun ===== */}
+        <Route path="/view/requisition/:uuid" element={<RequisitionView />} />
+        {/* nanti tambah di sini: */}
+        {/* <Route path="/view/booking" element={<BookingView />} /> */}
+
+        {/* ===== ROUTE YANG BUTUH SESSION ===== */}
+        <Route
+          path="*"
+          element={
+            !session ? (
+              // Belum login - tampilkan auth
+              <Routes>
+                <Route path="/" element={<IDempiereAuth onLoginSuccess={handleLoginSuccess} />} />
+                <Route path="*" element={<Navigate to="/" />} />
               </Routes>
-            </main>
-          </div>
-        </div>
-        </AccessProvider>
-      )}
+            ) : (
+              // Sudah login - tampilkan app
+              <AccessProvider>
+                <div className={`app-layout ${isSidebarCollapsed ? "sidebar-collapsed" : ""}`}>
+                  <Sidebar isCollapsed={isSidebarCollapsed} setIsCollapsed={setIsSidebarCollapsed} />
+                  <div className="main-wrapper">
+                    <Header session={session} onLogout={handleLogout} />
+                    <main className="content">
+                      <Routes>
+                        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                        <Route path="/dashboard" element={<Dashboard session={session} />} />
+                        <Route path="/business-partner" element={
+                          <ProtectedRoute windowKey="businessPartner">
+                            <BusinessPartner />
+                          </ProtectedRoute>
+                        } />
+                        <Route path="/business-partner/:id/edit" element={
+                          <ProtectedRoute windowKey="businessPartnerEdit">
+                            <BusinessPartnerEdit />
+                          </ProtectedRoute>
+                        } />
+                        <Route path="/business-partner/:id" element={
+                          <ProtectedRoute windowKey="businessPartner">
+                            <BusinessPartnerDetail />
+                          </ProtectedRoute>
+                        } />
+                        <Route path="/pos-order" element={
+                          <ProtectedRoute windowKey="pos">
+                            <POSContainer />
+                          </ProtectedRoute>
+                        } />
+                        <Route path="/sales-order" element={
+                          <ProtectedRoute windowKey="salesOrder">
+                            <SalesOrderPage />
+                          </ProtectedRoute>
+                        } />
+                        <Route path="/product" element={
+                          <ProtectedRoute windowKey="product">
+                            <ProductList />
+                          </ProtectedRoute>
+                        } />
+                        <Route path="/requisition-list" element={<RequisitionList />} />
+                        <Route path="/requisition" element={<RequisitionContainer />} />
+                      </Routes>
+                    </main>
+                  </div>
+                </div>
+              </AccessProvider>
+            )
+          }
+        />
+
+      </Routes>
     </BrowserRouter>
   );
 }

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 import Dialog from '../components/common/Dialog';
 import CartFab from '../components/cart/CartFab';
@@ -27,6 +27,7 @@ const REQUISITION_CONFIG = {
 
 const RequisitionContainer = () => {
   const navigate   = useNavigate();
+  const location   = useLocation();
   const isDesktop  = useIsDesktop();
   const searchRef  = useRef(null);
 
@@ -42,6 +43,12 @@ const RequisitionContainer = () => {
   const [detailOpen, setDetailOpen]           = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
 
+  // ── edit mode state ─────────────────────────────────────────────────────────
+  // Mengikuti pola POSContainer: requisition draft yang dikirim dari
+  // RequisitionList.jsx via navigate("/requisition", { state: { editRequisition } })
+  const [editRequisitionId, setEditRequisitionId] = useState(null);
+  const [isEditMode, setIsEditMode]               = useState(false);
+
   const alert = (message, title = 'Perhatian') =>
     setDialog({ isOpen: true, title, message });
 
@@ -52,7 +59,7 @@ const RequisitionContainer = () => {
     searchByUPC,
   } = useProductSearch();
 
-  const { cart, addToCart, removeFromCart, updateQty, updateUom, clearCart, totalQty, totalItems } = useCart();
+  const { cart, addToCart, removeFromCart, updateQty, updateUom, clearCart, setCart, totalQty, totalItems } = useCart();
 
   const { submit, isSubmitting } = useRequisitionSubmit({
     docTypeId:   REQUISITION_CONFIG.C_DOCTYPE_ID,
@@ -116,6 +123,87 @@ const RequisitionContainer = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // ── load draft requisition jika datang dari RequisitionList ────────────────
+  // Sama seperti POSContainer.loadDraftOrder: tunggu warehouse list & produk
+  // siap dulu (defaultWh dari init di atas), baru override dengan data draft.
+  useEffect(() => {
+    // Tunggu sampai daftar warehouse selesai dimuat dulu
+    if (warehouses.length === 0) return;
+
+    const editRequisition = location.state?.editRequisition;
+    if (!editRequisition) return;
+
+    // Sudah pernah diproses untuk requisition yang sama → skip
+    const incomingId = editRequisition.id ?? editRequisition.M_Requisition_ID;
+    if (editRequisitionId === incomingId) return;
+
+    const loadDraftRequisition = async () => {
+      try {
+        const reqId = editRequisition.id ?? editRequisition.M_Requisition_ID;
+        setEditRequisitionId(reqId);
+        setIsEditMode(true);
+
+        // Override warehouse dari requisition yang diedit
+        const whId   = fkId(editRequisition.M_Warehouse_ID);
+        const whName = editRequisition.M_Warehouse_ID?.identifier
+          || editRequisition.M_Warehouse_ID?.Name;
+        const matchedWh = warehouses.find(w => String(w.id) === String(whId));
+        const resolvedWh = matchedWh ?? (whId ? { id: whId, name: whName || `Gudang #${whId}` } : null);
+        if (resolvedWh) setSelectedWarehouse(resolvedWh);
+
+        // Fetch requisition lines
+        const linesRes = await idempiereApi(
+          `/models/m_requisitionline?$filter=M_Requisition_ID eq ${reqId}` +
+          `&$select=M_RequisitionLine_ID,M_Product_ID,Qty,C_UOM_ID,C_BPartner_ID`
+        );
+        const lines = Array.isArray(linesRes.records) ? linesRes.records : [];
+
+        // Mapping lines ke format cart (selaras dengan struktur yang dipakai useCart/addToCart)
+        const cartItems = lines.map((line) => {
+          const productId   = fkId(line.M_Product_ID);
+          const productName = line.M_Product_ID?.identifier || line.M_Product_ID?.Name || `Product #${productId}`;
+          const uomId        = fkId(line.C_UOM_ID);
+          const uomName      = line.C_UOM_ID?.identifier || line.C_UOM_ID?.Name || 'EA';
+          const qty          = parseFloat(line.Qty || 1);
+          const vendorId     = fkId(line.C_BPartner_ID);
+          const vendorName   = line.C_BPartner_ID?.identifier || line.C_BPartner_ID?.Name || null;
+          const lineId       = line.id ?? line.M_RequisitionLine_ID;
+
+          const selectedUom = { C_UOM_ID: uomId, Name: uomName, multiplyRate: 1 };
+
+          return {
+            M_RequisitionLine_ID: lineId, // simpan untuk referensi, tidak dipakai submit (lines selalu replace)
+            M_Product_ID:         productId,
+            Name:                 productName,
+            Value:                '',
+            VendorId:             vendorId,
+            VendorName:           vendorName,
+            Qty:                  qty,
+            C_UOM_ID:             uomId,
+            C_UOM_Name:           uomName,
+            uomOptions:           [selectedUom],
+            selectedUom,
+          };
+        });
+
+        setCart(cartItems);
+      } catch (err) {
+        alert('Gagal memuat draft requisition: ' + err.message, 'Error');
+      }
+    };
+
+    loadDraftRequisition();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [warehouses, location.state]);
+
+  // ── batal edit ───────────────────────────────────────────────────────────
+  const cancelEditMode = useCallback(() => {
+    setIsEditMode(false);
+    setEditRequisitionId(null);
+    clearCart();
+    navigate('/requisition', { replace: true, state: {} });
+  }, [clearCart, navigate]);
+
   // ── warehouse change ──────────────────────────────────────────────────────
   const handleWarehouseChange = useCallback((e) => {
     const id   = Number(e.target.value);
@@ -162,13 +250,17 @@ const RequisitionContainer = () => {
 
   // ── submit ────────────────────────────────────────────────────────────────
   const handleSubmit = async () => {
-    // Pass warehouseId yang dipilih user ke submit
-    const result = await submit(cart, requesterName, selectedWarehouse?.id);
+    // Pass warehouseId yang dipilih user + editRequisitionId (null jika dokumen baru) ke submit
+    const result = await submit(cart, requesterName, selectedWarehouse?.id, editRequisitionId);
     if (result) {
       setSuccessData({ ...result, warehouseName: selectedWarehouse?.name });
       clearCart();
       setCartOpen(false);
       setSuccessOpen(true);
+      setIsEditMode(false);
+      setEditRequisitionId(null);
+      // Bersihkan location.state agar refresh/back tidak memuat ulang draft lama
+      navigate('/requisition', { replace: true, state: {} });
     }
   };
 
@@ -271,6 +363,27 @@ const RequisitionContainer = () => {
         <span style={{ color: COLOR.textLt }}>|</span>
         <span>Org: <strong>{getLoginInfo().orgId || '...'}</strong></span>
       </div>
+
+      {/* ── Banner Edit Mode ─────────────────────────────────────────────── */}
+      {isEditMode && (
+        <div style={{
+          backgroundColor: '#fff3e0', borderBottom: '1px solid #f57c00',
+          padding: '8px 16px', fontSize: '13px', flexShrink: 0,
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          flexWrap: 'wrap', gap: '8px',
+        }}>
+          <span>✏️ <strong>Mode Edit</strong> — Requisition Draft ID: {editRequisitionId}</span>
+          <button
+            onClick={cancelEditMode}
+            style={{
+              background: 'none', border: '1px solid #f57c00', color: '#f57c00',
+              borderRadius: '4px', padding: '3px 10px', cursor: 'pointer', fontSize: '12px',
+            }}
+          >
+            Batalkan Edit
+          </button>
+        </div>
+      )}
 
       {/* ── Body ─────────────────────────────────────────────────────────── */}
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0 }}>
@@ -396,8 +509,8 @@ const RequisitionContainer = () => {
             totalItems={totalItems}
             totalQty={totalQty}
             summaryRight={cartSummaryRight}
-            title="📝 Daftar Permintaan"
-            submitLabel="📤 KIRIM FPB"
+            title={isEditMode ? '📝 Edit Permintaan' : '📝 Daftar Permintaan'}
+            submitLabel={isEditMode ? '💾 SIMPAN PERUBAHAN' : '📤 KIRIM FPB'}
             onSubmit={canSubmitRequisition ? handleSubmit : undefined}
             isSubmitting={isSubmitting}
           />
@@ -406,7 +519,7 @@ const RequisitionContainer = () => {
 
       {/* Mobile: FAB + bottom sheet cart */}
       {!isDesktop && cart.length > 0 && !cartOpen && (
-        <CartFab count={totalItems} label="Daftar Permintaan" onClick={() => setCartOpen(true)} />
+        <CartFab count={totalItems} label={isEditMode ? 'Edit Permintaan' : 'Daftar Permintaan'} onClick={() => setCartOpen(true)} />
       )}
 
       {!isDesktop && (
@@ -421,8 +534,8 @@ const RequisitionContainer = () => {
           totalItems={totalItems}
           totalQty={totalQty}
           summaryRight={cartSummaryRight}
-          title="📝 Daftar Permintaan"
-          submitLabel="📤 KIRIM FPB"
+          title={isEditMode ? '📝 Edit Permintaan' : '📝 Daftar Permintaan'}
+          submitLabel={isEditMode ? '💾 SIMPAN PERUBAHAN' : '📤 KIRIM FPB'}
           onSubmit={canSubmitRequisition ? handleSubmit : undefined}
           isSubmitting={isSubmitting}
         />

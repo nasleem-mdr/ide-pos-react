@@ -86,7 +86,42 @@ export function useProductSearch({ debounceMs = 420 } = {}) {
     }
   }, []);
 
-  // ── fetch utama (Name / Value search, debounced) ───────────────────────────
+  // ── scoring: prioritas Value/Name di atas UPC/Description ──────────────────
+  // Dipakai untuk sort hasil pencarian client-side, karena OData/iDempiere
+  // REST API tidak punya relevance ranking bawaan — filter server tetap OR
+  // semua field (supaya tidak kehilangan kandidat), tapi urutan tampil
+  // ditentukan di sini berdasarkan field mana yang match dan seberapa "kuat".
+  const scoreMatch = useCallback((product, safeQ) => {
+    if (!safeQ) return 0;
+
+    const value       = (product.Value || '').toUpperCase();
+    const name        = (product.Name || '').toUpperCase();
+    const upc         = (product.UPC || '').toUpperCase();
+    const description = (product.Description || '').toUpperCase();
+
+    let score = 0;
+
+    // Value: exact match tertinggi, lalu starts-with, lalu contains
+    if (value === safeQ) score = Math.max(score, 100);
+    else if (value.startsWith(safeQ)) score = Math.max(score, 90);
+    else if (value.includes(safeQ)) score = Math.max(score, 70);
+
+    // Name: starts-with sedikit di bawah Value exact, contains di bawahnya
+    if (name === safeQ) score = Math.max(score, 95);
+    else if (name.startsWith(safeQ)) score = Math.max(score, 80);
+    else if (name.includes(safeQ)) score = Math.max(score, 60);
+
+    // UPC: biasanya dicari via scan, exact match cukup tinggi
+    if (upc === safeQ) score = Math.max(score, 85);
+    else if (upc.includes(safeQ)) score = Math.max(score, 50);
+
+    // Description: prioritas paling rendah, hanya fallback
+    if (description.includes(safeQ)) score = Math.max(score, 20);
+
+    return score;
+  }, []);
+
+  // ── fetch utama (Name / Value / UPC / Description search, debounced) ───────
 const fetchProducts = useCallback(async (query = '', warehouseId = null) => {
   try {
     setLoading(true);
@@ -94,7 +129,7 @@ const fetchProducts = useCallback(async (query = '', warehouseId = null) => {
 
     let productFilter = 'IsPurchased eq true and IsActive eq true';
     if (query) {
-      productFilter += ` and (contains(toupper(Name),'${safeQ}') or contains(toupper(Value),'${safeQ}') or contains(toupper(UPC),'${safeQ}'))`;
+      productFilter += ` and (contains(toupper(Name),'${safeQ}') or contains(toupper(Value),'${safeQ}') or contains(toupper(UPC),'${safeQ}') or contains(toupper(Description),'${safeQ}'))`;
     }
 
     const locatorIds = await fetchWarehouseLocatorIds(warehouseId);
@@ -161,15 +196,23 @@ const fetchProducts = useCallback(async (query = '', warehouseId = null) => {
     const uomRecords = Array.isArray(uomConvData.records)   ? uomConvData.records   : [];
 
     const finalProducts = buildProducts(rawProducts, poRecords, uomRecords);
-    setProducts(finalProducts);
-    return finalProducts;
+
+    // Urutkan berdasarkan relevansi (Value/Name diprioritaskan di atas
+    // UPC/Description) — hanya berlaku kalau ada query, kalau kosong
+    // (browse semua produk) urutan dari $orderby=Updated desc tetap dipakai.
+    const sortedProducts = query
+      ? [...finalProducts].sort((a, b) => scoreMatch(b, safeQ) - scoreMatch(a, safeQ))
+      : finalProducts;
+
+    setProducts(sortedProducts);
+    return sortedProducts;
   } catch (err) {
     console.error('[useProductSearch] error:', err);
     return [];
   } finally {
     setLoading(false);
   }
-}, [buildProducts, fetchWarehouseLocatorIds]);
+}, [buildProducts, fetchWarehouseLocatorIds, scoreMatch]);
 
   // ── searchByUPC: exact match, tanpa debounce ──────────────────────────────
   const searchByUPC = useCallback(async (upc) => {
