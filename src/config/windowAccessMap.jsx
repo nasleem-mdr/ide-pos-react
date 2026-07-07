@@ -17,6 +17,7 @@ export const WINDOW_ACCESS_MAP = {
   salesOrder:           167,    // contoh: Sales Order standar iDempiere
   product:              null,
   requisition:          null, // contoh: window Purchase Requisition custom Anda
+  goodsReceipt:         null,
 };
 
 // Helper: ambil AD_Window_ID dari key, atau null kalau tidak terdaftar/tidak dibatasi.
