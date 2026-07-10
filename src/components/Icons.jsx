@@ -40,7 +40,16 @@ export const ShoppingCartIcon32 = () => (
   </svg>
 );
 export const ListIcon = () => (
-  <svg width="32px" height="32px" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <svg width="24px" height="24px" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M14 16L16.1 18.5L20 13.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M10 14H3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+    <path d="M10 18H3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+    <path d="M3 6L13.5 6M20 6L17.75 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+    <path d="M20 10L9.5 10M3 10H5.25" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+  </svg>
+);
+export const ListIcon32 = () => (
+  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
     <path d="M14 16L16.1 18.5L20 13.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
     <path d="M10 14H3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
     <path d="M10 18H3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
@@ -106,6 +115,214 @@ export  function RoleIcon() {
             SEKUPANG LOGISTICS
           </text>
         </g>
+      </svg>
+    );
+  }
+  export function DeliveryIcon() {
+    return (
+      <svg xmlns="http://www.w3.org/2000/svg" xmlSpace="preserve" id="svg12" width="24" height="24" viewBox="0 0 14 16">
+        <path 
+          id="path1" 
+          d="M9.665 7.449c-1.413 2.663-2.618 1.465-3.422.055-3.516.595-3.98 2.64-3.978 4.828l1.63.016v-1.52H7.13l-.018.105s.025 1.339.04 1.904l.54-.452c.176-.133.335-.249.335-.249l.34.255.591.45-.068-2.013h3.214v1.6l1.63.015c-.227-2.123-.297-4.31-4.07-4.994m-5.793 4.91-1.26.006.027 1.655c.138.27.397.454.706.601l.254.013v-.036c0-.164.129-.297.292-.304zm8.244.107.013 1.828c.167.002.3.137.3.304v.143l.253-.012c.31-.148.57-.331.707-.602l-.019-1.66z" 
+          fill="none" stroke="currentColor" strokeWidth="0.5" strokeLinecap="round" strokeLinejoin="round"
+        />
+        <path 
+          id="path2" 
+          d="M4.961 3.905c-.07.652-.38 1.325.628 1.883.288 1.891 2.404 1.815 2.404 1.815s1.967.132 2.44-1.815c1.008-.558.699-1.231.628-1.883-1.234-1.17-4.983-1.357-6.1 0" 
+          fill="none" stroke="currentColor" strokeWidth="0.5" strokeLinecap="round" strokeLinejoin="round"
+        />
+        <path 
+          id="path4" 
+          d="M3.894 10.828v3.466h1.14c.168 0 .304.135.304.304v.573h5.352v-.573c0-.169.136-.305.305-.305h1.11v-3.465H8.89l.078 2.015-.941-.707s-.837.602-.864.707c-.026.104-.052-1.91-.052-1.91l.019-.105z" 
+          fill="none" stroke="currentColor" strokeWidth="0.5" strokeLinecap="round" strokeLinejoin="round"
+        />
+        <path 
+          id="path5" 
+          d="m3.89 10.83.868-1.153 6.618.026.733 1.125" 
+          fill="none" stroke="currentColor" strokeWidth="0.5" strokeLinecap="round" strokeLinejoin="round"
+        />
+        <path 
+          id="path6" 
+          d="m7.321 9.755-.209 1.177s.026 2.015.053 1.91c.026-.104.863-.706.863-.706l.942.706-.079-2.014-.196-1.099Z" 
+          fill="none" stroke="currentColor" strokeWidth="0.5" strokeLinecap="round" strokeLinejoin="round"
+        />
+        <path 
+          id="path7" 
+          d="M4.907 4.002s-.535-1.644 1.026-2.718C7.485.215 8.725.406 9.993 1.186c1.428.88 1.1 2.787 1.1 2.787.227.295-.549.758-.76.66-.506-.236-3.453-.76-4.636-.025-.827-.115-.983-.476-.79-.606" 
+          fill="#fff" stroke="currentColor" strokeWidth="0.5" strokeLinecap="round" strokeLinejoin="round"
+        />
+        <path 
+          id="rect8" 
+          d="M3.903 14.293a.304.304 0 0 0-.304.305v.569c0 .169.135.305.304.305h1.13a.304.304 0 0 0 .305-.305v-.569a.304.304 0 0 0-.305-.305zm7.092 0a.304.304 0 0 0-.305.305v.569c0 .169.136.305.305.305h1.13a.304.304 0 0 0 .304-.305v-.569a.304.304 0 0 0-.304-.305z" 
+          fill="none" stroke="currentColor" strokeWidth="0.5" strokeLinecap="round" strokeLinejoin="round"
+        />
+        <path 
+          id="path10" 
+          d="m6.335 7.079-.019.555zm3.194.163-.022.456z" 
+          fill="none" stroke="currentColor" strokeWidth="0.5" strokeLinecap="round" strokeLinejoin="round"
+        />
+      </svg>
+    );
+  }
+  export function DeliveryIcon32() {
+    return (
+      <svg xmlns="http://www.w3.org/2000/svg" xmlSpace="preserve" id="svg12" width="32" height="32" viewBox="0 0 14 16">
+  <path 
+    id="path1" 
+    d="M9.665 7.449c-1.413 2.663-2.618 1.465-3.422.055-3.516.595-3.98 2.64-3.978 4.828l1.63.016v-1.52H7.13l-.018.105s.025 1.339.04 1.904l.54-.452c.176-.133.335-.249.335-.249l.34.255.591.45-.068-2.013h3.214v1.6l1.63.015c-.227-2.123-.297-4.31-4.07-4.994m-5.793 4.91-1.26.006.027 1.655c.138.27.397.454.706.601l.254.013v-.036c0-.164.129-.297.292-.304zm8.244.107.013 1.828c.167.002.3.137.3.304v.143l.253-.012c.31-.148.57-.331.707-.602l-.019-1.66z" 
+    fill="none" stroke="currentColor" strokeWidth="0.9" strokeLinecap="round" strokeLinejoin="round"
+  />
+  <path 
+    id="path2" 
+    d="M4.961 3.905c-.07.652-.38 1.325.628 1.883.288 1.891 2.404 1.815 2.404 1.815s1.967.132 2.44-1.815c1.008-.558.699-1.231.628-1.883-1.234-1.17-4.983-1.357-6.1 0" 
+    fill="none" stroke="currentColor" strokeWidth="0.9" strokeLinecap="round" strokeLinejoin="round"
+  />
+  <path 
+    id="path4" 
+    d="M3.894 10.828v3.466h1.14c.168 0 .304.135.304.304v.573h5.352v-.573c0-.169.136-.305.305-.305h1.11v-3.465H8.89l.078 2.015-.941-.707s-.837.602-.864.707c-.026.104-.052-1.91-.052-1.91l.019-.105z" 
+    fill="currentColor" stroke="currentColor" strokeWidth="0.9" strokeLinecap="round" strokeLinejoin="round"
+  />
+  <path 
+    id="path5" 
+    d="m3.89 10.83.868-1.153 6.618.026.733 1.125" 
+    fill="none" stroke="currentColor" strokeWidth="0.5" strokeLinecap="round" strokeLinejoin="round"
+  />
+  <path 
+    id="path6" 
+    d="m7.321 9.755-.209 1.177s.026 2.015.053 1.91c.026-.104.863-.706.863-.706l.942.706-.079-2.014-.196-1.099Z" 
+    fill="none" stroke="currentColor" strokeWidth="0.5" strokeLinecap="round" strokeLinejoin="round"
+  />
+  <path 
+    id="path7" 
+    d="M4.907 4.002s-.535-1.644 1.026-2.718C7.485.215 8.725.406 9.993 1.186c1.428.88 1.1 2.787 1.1 2.787.227.295-.549.758-.76.66-.506-.236-3.453-.76-4.636-.025-.827-.115-.983-.476-.79-.606" 
+    fill="currentColor" stroke="currentColor" strokeWidth="0.5" strokeLinecap="round" strokeLinejoin="round"
+  />
+  <path 
+    id="rect8" 
+    d="M3.903 14.293a.304.304 0 0 0-.304.305v.569c0 .169.135.305.304.305h1.13a.304.304 0 0 0 .305-.305v-.569a.304.304 0 0 0-.305-.305zm7.092 0a.304.304 0 0 0-.305.305v.569c0 .169.136.305.305.305h1.13a.304.304 0 0 0 .304-.305v-.569a.304.304 0 0 0-.304-.305z" 
+    fill="none" stroke="currentColor" strokeWidth="0.5" strokeLinecap="round" strokeLinejoin="round"
+  />
+  <path 
+    id="path10" 
+    d="m6.335 7.079-.019.555zm3.194.163-.022.456z" 
+    fill="none" stroke="currentColor" strokeWidth="0.5" strokeLinecap="round" strokeLinejoin="round"
+  />
+</svg>
+    );
+  }
+  export function RequisitionIcon() {
+    return (
+      <svg xmlns="http://www.w3.org/2000/svg" xmlSpace="preserve" id="svg12" width="24" height="24" viewBox="0 0 6.35 6.35">
+        <rect 
+          id="rect16" 
+          width=".414" 
+          height="1.09" 
+          x="-.06" 
+          y="4.426" 
+          ry=".024" 
+          fill="currentColor"
+          stroke="none"
+          strokeWidth=".259668"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          transform="matrix(.98666 -.16281 .1194 .99285 0 0)"
+        />
+        <path 
+          id="path16" 
+          d="m1.008 4.356.117.954c.53-.328 1.65-.226 2.46-.158.18.015.3-.005.454-.078.724-.345 1.291-.664 1.886-.988.05-.174-.098-.37-.384-.307l-.414.148-.234.093-.227.046c-.138.008-.228.045-.331.075.106.636-.278.554-1.543.44.045-.04.16-.057.257-.074.257-.045.608-.036.847-.027.096.003.193.024.27-.038a.28.28 0 0 0 .106-.182c.011-.087-.037-.161-.085-.21-.057-.056-.124-.07-.207-.083-.372-.059-.64-.015-1.056-.132-.129-.036-.247-.054-.345-.082-.254-.072-.397-.067-.67.127a3.4 3.4 0 0 1-.901.476" 
+          fill="none"
+          stroke="currentColor"
+          strokeWidth=".2549715"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <rect 
+          id="rect27" 
+          width="3.624" 
+          height="2.571" 
+          x="1.327" 
+          y=".9" 
+          ry=".101" 
+          fill="none"
+          stroke="currentColor"
+          strokeWidth=".2549715"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path 
+          id="text27" 
+          d="M4.067 2.873q0 .013-.008.023-.006.01-.024.016t-.047.01-.075.003q-.044 0-.074-.004-.03-.003-.047-.01-.017-.006-.024-.015-.008-.01-.008-.023V1.578h-.002l-.461 1.294q-.005.016-.016.027t-.031.016-.048.008-.071.002q-.042 0-.072-.004-.03-.002-.049-.008-.018-.008-.03-.017-.01-.01-.014-.024L2.52 1.578h-.002v1.295q0 .013-.007.023t-.025.016-.048.01q-.028.003-.074.003-.044 0-.074-.004-.03-.003-.048-.01-.017-.006-.024-.015-.006-.01-.006-.023V1.455q0-.063.033-.096t.088-.033h.212q.057 0 .097.01.04.008.07.03t.05.057.034.086l.344.949h.005l.357-.946q.016-.052.035-.088t.044-.057.06-.031.08-.01h.218q.033 0 .056.009.025.008.04.025.016.016.023.041.009.023.009.054z" 
+          aria-label="M" 
+          fill="none"
+          stroke="currentColor"
+          strokeWidth=".2549715"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          style={{
+            fontWeight: 700,
+            fontSize: '6.82848px',
+            fontFamily: 'Calibri',
+            letterSpacing: '0.0279346px'
+          }}
+        />
+      </svg>
+    );
+  }
+  export function RequisitionIcon32() {
+    return (
+      <svg xmlns="http://www.w3.org/2000/svg" xmlSpace="preserve" id="svg12" width="32" height="32" viewBox="0 0 6.35 6.35">
+        <rect 
+          id="rect16" 
+          width=".414" 
+          height="1.09" 
+          x="-.06" 
+          y="4.426" 
+          ry=".024" 
+          fill="currentColor"
+          stroke="none"
+          strokeWidth=".259668"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          transform="matrix(.98666 -.16281 .1194 .99285 0 0)"
+        />
+        <path 
+          id="path16" 
+          d="m1.008 4.356.117.954c.53-.328 1.65-.226 2.46-.158.18.015.3-.005.454-.078.724-.345 1.291-.664 1.886-.988.05-.174-.098-.37-.384-.307l-.414.148-.234.093-.227.046c-.138.008-.228.045-.331.075.106.636-.278.554-1.543.44.045-.04.16-.057.257-.074.257-.045.608-.036.847-.027.096.003.193.024.27-.038a.28.28 0 0 0 .106-.182c.011-.087-.037-.161-.085-.21-.057-.056-.124-.07-.207-.083-.372-.059-.64-.015-1.056-.132-.129-.036-.247-.054-.345-.082-.254-.072-.397-.067-.67.127a3.4 3.4 0 0 1-.901.476" 
+          fill="none"
+          stroke="currentColor"
+          strokeWidth=".2549715"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <rect 
+          id="rect27" 
+          width="3.624" 
+          height="2.571" 
+          x="1.327" 
+          y=".9" 
+          ry=".101" 
+          fill="none"
+          stroke="currentColor"
+          strokeWidth=".2549715"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path 
+          id="text27" 
+          d="M4.067 2.873q0 .013-.008.023-.006.01-.024.016t-.047.01-.075.003q-.044 0-.074-.004-.03-.003-.047-.01-.017-.006-.024-.015-.008-.01-.008-.023V1.578h-.002l-.461 1.294q-.005.016-.016.027t-.031.016-.048.008-.071.002q-.042 0-.072-.004-.03-.002-.049-.008-.018-.008-.03-.017-.01-.01-.014-.024L2.52 1.578h-.002v1.295q0 .013-.007.023t-.025.016-.048.01q-.028.003-.074.003-.044 0-.074-.004-.03-.003-.048-.01-.017-.006-.024-.015-.006-.01-.006-.023V1.455q0-.063.033-.096t.088-.033h.212q.057 0 .097.01.04.008.07.03t.05.057.034.086l.344.949h.005l.357-.946q.016-.052.035-.088t.044-.057.06-.031.08-.01h.218q.033 0 .056.009.025.008.04.025.016.016.023.041.009.023.009.054z" 
+          aria-label="M" 
+          fill="none"
+          stroke="currentColor"
+          strokeWidth=".2549715"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          style={{
+            fontWeight: 700,
+            fontSize: '6.82848px',
+            fontFamily: 'Calibri',
+            letterSpacing: '0.0279346px'
+          }}
+        />
       </svg>
     );
   }

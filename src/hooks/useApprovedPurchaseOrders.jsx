@@ -47,7 +47,7 @@ export function useApprovedPurchaseOrders() {
       );
       const records = Array.isArray(res.records) ? res.records : [];
 
-      const list = records.map(o => ({
+      let list = records.map(o => ({
         C_Order_ID:             fkId(o.C_Order_ID) ?? o.id,
         DocumentNo:             o.DocumentNo,
         DateOrdered:            o.DateOrdered,
@@ -58,6 +58,36 @@ export function useApprovedPurchaseOrders() {
         C_BPartner_Location_ID: fkId(o.C_BPartner_Location_ID),
         GrandTotal:             o.GrandTotal ?? 0,
       }));
+
+      // ── Sembunyikan PO yang seluruh line-nya sudah diterima penuh ───────
+      // Dulu ini dicoba dalam 1 request besar (filter "or" berantai untuk
+      // semua PO sekaligus) — tapi kalau daftar PO banyak, filter-nya jadi
+      // sangat panjang dan bisa gagal/silently fallback (menampilkan PO
+      // yang sebenarnya sudah fully-received). Sekarang tiap PO di-query
+      // TERPISAH secara paralel (Promise.all) — request lebih pendek &
+      // lebih stabil, dan kalau salah satu gagal, hanya PO itu yang
+      // fallback ke "tetap ditampilkan" (bukan seluruh daftar).
+      if (list.length > 0) {
+        const results = await Promise.all(list.map(async (o) => {
+          try {
+            const lineRes = await idempiereApi(
+              `/models/c_orderline?$filter=C_Order_ID eq ${o.C_Order_ID}&$select=QtyOrdered,QtyDelivered`
+            );
+            const lineRecords = Array.isArray(lineRes.records) ? lineRes.records : [];
+            const remaining = lineRecords.reduce((sum, l) => {
+              return sum + Math.max(parseFloat(l.QtyOrdered || 0) - parseFloat(l.QtyDelivered || 0), 0);
+            }, 0);
+            return { ...o, TotalQtyRemaining: remaining, _queryOk: true };
+          } catch (err) {
+            console.error(`[useApprovedPurchaseOrders] gagal cek sisa qty PO ${o.DocumentNo}:`, err);
+            // Query gagal untuk PO ini spesifik → tetap tampilkan (jangan
+            // sampai error jaringan bikin PO valid ikut hilang dari daftar).
+            return { ...o, TotalQtyRemaining: null, _queryOk: false };
+          }
+        }));
+
+        list = results.filter(o => !o._queryOk || o.TotalQtyRemaining > 0);
+      }
 
       setOrders(list);
       return list;

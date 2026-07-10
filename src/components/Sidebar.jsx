@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { PartnerIcon, HomeIcon, BoxIcon, ShoppingCartIcon, LogoSMAWarna, ListIcon} from './Icons';
+import { PartnerIcon, HomeIcon, BoxIcon, ShoppingCartIcon, LogoSMAWarna, ListIcon, DeliveryIcon, RequisitionIcon} from './Icons';
 import { useAccess } from '../context/AccessContext';
 import '../css/Sidebar.css';
 
@@ -10,11 +10,13 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }) {
 
   const menuItems = [
     { key: 'dashboard',       path: '/dashboard',        label: 'Dashboard',        icon: <HomeIcon /> },
+    { key: 'requisition',     path: '/requisition',      label: 'Requisition',      icon: <RequisitionIcon /> },
+    { key: 'purchasing',     path: '/purchasing',      label: 'Purchasing',      icon: <ShoppingCartIcon /> },
+    { key: 'goods-receipt',      path: '/goods-receipt',     label: 'Goods Receipt',      icon: <DeliveryIcon /> },
+    { key: 'requisition-list',     path: '/requisition-list',      label: 'Requisition List',      icon: <ListIcon /> },
     { key: 'businessPartner', path: '/business-partner', label: 'Business Partner', icon: <PartnerIcon /> },
     { key: 'product',         path: '/product',          label: 'Products',         icon: <BoxIcon /> },
-    //{ key: 'salesOrder',      path: '/sales-orders',     label: 'Sales Order',      icon: <ShoppingCartIcon /> },
-    { key: 'requisition',     path: '/requisition',      label: 'Requisition',      icon: <ShoppingCartIcon /> },
-    { key: 'requisition-list',     path: '/requisition-list',      label: 'Requisition List',      icon: <ListIcon /> },
+
   ];
 
   // Selama accessMap loading, tampilkan skeleton ringan alih-alih menu kosong

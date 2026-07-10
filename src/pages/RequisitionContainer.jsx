@@ -16,12 +16,13 @@ import { useProductSearch } from '../hooks/useProductSearch';
 import { useIsDesktop } from '../hooks/useIsDesktop';
 import { getLoginInfo, getMissingSessionFields } from '../hooks/useLoginInfo';
 import { idempiereApi, fkId } from '../utils/idempiereApi';
+import { resolveDocTypeId, DOC_BASE_TYPE } from '../utils/docTypeResolver';
 import { COLOR, RADIUS } from '../utils/styleTokens';
 import '../css/Header.css';
 import { HomeIcon } from '../components/Icons';
 
 const REQUISITION_CONFIG = {
-  C_DOCTYPE_ID: 1000018, //sma 1000018 garden 127
+  //C_DOCTYPE_ID: 1000018, //sma 1000018 garden 127
   DESCRIPTION:  'Purchase Requisition via REST API',
 };
 
@@ -30,7 +31,7 @@ const RequisitionContainer = () => {
   const location   = useLocation();
   const isDesktop  = useIsDesktop();
   const searchRef  = useRef(null);
-
+  const [docTypeId, setDocTypeId] = useState(null);
   // ── state ─────────────────────────────────────────────────────────────────
   const [warehouses, setWarehouses]           = useState([]);         // list semua WH
   const [selectedWarehouse, setSelectedWarehouse] = useState(null);   // {id, name}
@@ -62,7 +63,7 @@ const RequisitionContainer = () => {
   const { cart, addToCart, removeFromCart, updateQty, updateUom, clearCart, setCart, totalQty, totalItems } = useCart();
 
   const { submit, isSubmitting } = useRequisitionSubmit({
-    docTypeId:   REQUISITION_CONFIG.C_DOCTYPE_ID,
+    docTypeId,
     description: REQUISITION_CONFIG.DESCRIPTION,
     onError:     alert,
   });
@@ -83,7 +84,12 @@ const RequisitionContainer = () => {
           );
           return;
         }
-
+      try {
+            const dt = await resolveDocTypeId(DOC_BASE_TYPE.MATERIAL_RECEIPT, { orgId: info.orgId });
+              setDocTypeId(dt);
+            } catch (err) {
+              alert(err.message, 'Document Type Tidak Ditemukan');
+            }
         // Fetch daftar warehouse aktif untuk org ini
         const whData = await idempiereApi(
           `/models/m_warehouse?$select=M_Warehouse_ID,Name` +
@@ -315,7 +321,7 @@ const RequisitionContainer = () => {
             borderRadius: RADIUS.sm, padding: '6px 10px', cursor: 'pointer',
             fontSize: '13px', fontWeight: 600, WebkitTapHighlightColor: 'transparent',
           }}
-        ><HomeIcon />Home</button>
+        ><HomeIcon /></button>
 
         <span style={{ color: '#fff', fontWeight: 700, fontSize: '15px', flex: 1 }}>
           📋 Requisition
@@ -359,7 +365,7 @@ const RequisitionContainer = () => {
       }}>
         <span>👤 <strong>{requesterName || '...'}</strong></span>
         <span style={{ color: COLOR.textLt }}>|</span>
-        <span>DocType: <strong>{REQUISITION_CONFIG.C_DOCTYPE_ID}</strong></span>
+        <span>DocType: <strong>{docTypeId}</strong></span>
         <span style={{ color: COLOR.textLt }}>|</span>
         <span>Org: <strong>{getLoginInfo().orgId || '...'}</strong></span>
       </div>

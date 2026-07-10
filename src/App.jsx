@@ -15,7 +15,8 @@ import ProtectedRoute from './components/ProtectedRoute';
 import RequisitionList from "./pages/RequisitionList";
 import RequisitionView from "./pages/RequisitionView";
 import ProductList from "./pages/ProductList";
-
+import GoodsReceiptContainer from './pages/GoodsReceiptContainer';
+import PurchasingContainer from './pages/PurchasingContainer';
 import './css/AppLayout.css'; // Pastikan mengimpor file CSS layout Anda
 
 export default function App() {
@@ -93,6 +94,16 @@ export default function App() {
                         } />
                         <Route path="/requisition-list" element={<RequisitionList />} />
                         <Route path="/requisition" element={<RequisitionContainer />} />
+                        <Route path="/goods-receipt" element={
+                          <ProtectedRoute windowKey="goodsReceipt">
+                            <GoodsReceiptContainer />
+                          </ProtectedRoute>
+                        } />
+                        <Route path="/purchasing" element={
+                          <ProtectedRoute windowKey="purchasing">
+                            <PurchasingContainer />
+                          </ProtectedRoute>
+                        } />
                       </Routes>
                     </main>
                   </div>

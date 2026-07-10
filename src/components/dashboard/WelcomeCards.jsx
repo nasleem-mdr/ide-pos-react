@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { CashierIcon, ShoppingCartIcon32, ListIcon } from '../Icons';
+import { ShoppingCartIcon32, ListIcon32, DeliveryIcon32, RequisitionIcon32 } from '../Icons';
 
 /**
  * WelcomeCards — kartu info sesi + shortcut navigasi
@@ -13,25 +13,26 @@ export default function WelcomeCards({ session }) {
       {/* Shortcut: Requisition */}
       <Link to="/requisition" className="welcome-card-link">
       <div className="welcome-card">
-        <div className="welcome-card-icon"><ShoppingCartIcon32 /></div>
+        <div className="welcome-card-icon"><RequisitionIcon32 /></div>
         <div className="welcome-card-label">Formulir</div>
         <div className="welcome-card-value">Requisition</div>
       </div>
       </Link>
-      <Link to="/requisition-list" className="welcome-card-link">
+      <Link to="/purchasing" className="welcome-card-link">
       <div className="welcome-card">
-        <div className="welcome-card-icon"><ListIcon /></div>
-        <div className="welcome-card-label">Daftar</div>
-        <div className="welcome-card-value">Requisition</div>
+        <div className="welcome-card-icon"><ShoppingCartIcon32 /></div>
+        <div className="welcome-card-label">Formulir</div>
+        <div className="welcome-card-value">Purchase Order</div>
       </div>
       </Link>
-      {/* Info: Role */}
+      {/* Delivery Icon */}
+      <Link to="/goods-receipt" className="welcome-card-link">
       <div className="welcome-card">
-        <div className="welcome-card-icon">🛡️</div>
-        <div className="welcome-card-label">Role</div>
-        <div className="welcome-card-value">{session.roleName}</div>
+        <div className="welcome-card-icon"><DeliveryIcon32 /></div>
+        <div className="welcome-card-label">Formulir</div>
+        <div className="welcome-card-value">Goods Receipt</div>
       </div>
-
+      </Link>
       {/* Info: Organisasi */}
       <div className="welcome-card">
         <div className="welcome-card-icon">🏬</div>

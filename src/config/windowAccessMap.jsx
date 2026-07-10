@@ -18,6 +18,7 @@ export const WINDOW_ACCESS_MAP = {
   product:              null,
   requisition:          null, // contoh: window Purchase Requisition custom Anda
   goodsReceipt:         null,
+  purchasing:           null,
 };
 
 // Helper: ambil AD_Window_ID dari key, atau null kalau tidak terdaftar/tidak dibatasi.

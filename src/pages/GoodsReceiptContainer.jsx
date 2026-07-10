@@ -18,16 +18,12 @@ import { useProductSearch } from '../hooks/useProductSearch';
 import { useIsDesktop } from '../hooks/useIsDesktop';
 import { getLoginInfo, getMissingSessionFields } from '../hooks/useLoginInfo';
 import { idempiereApi, fkId } from '../utils/idempiereApi';
+import { resolveDocTypeId, DOC_BASE_TYPE } from '../utils/docTypeResolver';
 import { COLOR, RADIUS } from '../utils/styleTokens';
 import '../css/Header.css';
 
-// ⚠️ WAJIB DISESUAIKAN: ganti dengan C_DocType_ID Document Type bertipe
-// "MM Receipt" (Vendor Receipts / Material Receipt) di instance Anda.
-// Cek lewat: GET /api/v1/models/c_doctype?$select=C_DocType_ID,Name,DocBaseType&$filter=contains(Name,'Receipt')
-const GOODS_RECEIPT_CONFIG = {
-  C_DOCTYPE_ID: 1000019, // ← GANTI sesuai C_DocType_ID "MM Receipt" instance Anda
-  DESCRIPTION:  'Goods Receipt via Web',
-};
+// Deskripsi dokumen — tidak client-specific, aman tetap konstan.
+const GOODS_RECEIPT_DESCRIPTION = 'Goods Receipt via Web';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GoodsReceiptContainer.jsx (REVISI)
@@ -53,6 +49,7 @@ const GoodsReceiptContainer = () => {
 
   const [warehouseInfo, setWarehouseInfo] = useState(null);
   const [defaultLocatorId, setDefaultLocatorId] = useState(null);
+  const [docTypeId, setDocTypeId] = useState(null); // ← di-resolve dinamis, bukan hardcode
 
   // ── Vendor (BPartner) yang mengirim barang ──────────────────────────────
   const [vendorQuery, setVendorQuery]   = useState('');
@@ -76,8 +73,8 @@ const GoodsReceiptContainer = () => {
   const { cart, setCart, addToCart, removeFromCart, updateQty, updateUom, clearCart, totalQty, totalItems } = useCart();
   const { vendors, loading: vendorLoading, search: searchVendor, getDefaultBPLocation } = useVendorSearch();
   const { submit, isSubmitting } = useGoodsReceiptSubmit({
-    docTypeId:   GOODS_RECEIPT_CONFIG.C_DOCTYPE_ID,
-    description: GOODS_RECEIPT_CONFIG.DESCRIPTION,
+    docTypeId,
+    description: GOODS_RECEIPT_DESCRIPTION,
     onError:     alert,
   });
   const { canEdit } = useAccess();
@@ -105,6 +102,16 @@ const GoodsReceiptContainer = () => {
           setWarehouseInfo({ id: info.warehouseId, name: wh.Name || `WH #${info.warehouseId}` });
         } catch {
           setWarehouseInfo({ id: info.warehouseId, name: `WH #${info.warehouseId}` });
+        }
+
+        // Resolve C_DocType_ID secara dinamis berdasarkan DocBaseType 'MMR'
+        // (Material Receipt) + AD_Client_ID sesi login — BUKAN hardcode,
+        // supaya benar untuk client manapun yang login (lihat docTypeResolver.jsx).
+        try {
+          const dt = await resolveDocTypeId(DOC_BASE_TYPE.MATERIAL_RECEIPT, { orgId: info.orgId });
+          setDocTypeId(dt);
+        } catch (err) {
+          alert(err.message, 'Document Type Tidak Ditemukan');
         }
 
         // Cari locator default gudang ini — fallback ke locator aktif pertama
@@ -218,6 +225,10 @@ const GoodsReceiptContainer = () => {
   }, [clearCart]);
 
   const handleSubmit = async () => {
+    if (!docTypeId) {
+      alert('Document Type belum siap (gagal di-resolve). Cek konfigurasi Document Type "MMR" di iDempiere, lalu muat ulang halaman.', 'Error');
+      return;
+    }
     if (!selectedVendor) {
       alert('Vendor belum ditentukan. Import dari Purchase Order, atau pilih vendor manual.', 'Vendor Belum Dipilih');
       return;
