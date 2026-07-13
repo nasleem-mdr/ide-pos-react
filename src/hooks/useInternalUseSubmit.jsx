@@ -20,6 +20,15 @@ import { getLoginInfo } from './useLoginInfo';
 // UOM dasar dilakukan di frontend sebelum submit — lihat useUomConversion.jsx
 // dan perhitungan qtyBase di bawah.
 //
+// ⚠️ M_InventoryLine dipakai bersama oleh 2 jenis dokumen: Physical
+// Inventory (MMI>PI) dan Internal Use (MMO>IU). Untuk Physical Inventory,
+// QtyBook (stok sistem) dan QtyCount (hasil hitung fisik) memang harus
+// diisi nilai riil karena itu intinya stock opname (selisihnya jadi
+// variance). TAPI untuk Internal Use, iDempiere HANYA memproses
+// QtyInternalUse — QtyBook dan QtyCount cukup diisi 0 (bukan resolve stok
+// sistem), karena bukan proses opname dan tidak menghasilkan variance.
+// Jangan resolve/fetch QtyOnHand untuk transaksi ini — cukup hardcode 0.
+//
 // ⚠️ MULTI-WAREHOUSE (baru): 1 dokumen M_Inventory (header) cuma boleh punya
 // 1 M_Warehouse_ID, dan M_Locator_ID tiap line HARUS berada di dalam
 // warehouse header itu. Karena user sekarang bisa pilih gudang berbeda per
@@ -126,6 +135,13 @@ export function useInternalUseSubmit({ docTypeId, description, onError }) {
         // tabel ini SELALU dalam UOM DASAR produk. Konversi dari UOM entry
         // (mis. "Dus") ke UOM dasar dilakukan DI SINI, pakai multiplyRate
         // dari C_UOM_Conversion (lihat useUomConversion.jsx).
+        //
+        // QtyBook/QtyCount di-hardcode 0 — untuk Internal Use iDempiere
+        // tidak memakai nilai ini untuk apa pun (tidak dihitung sebagai
+        // variance, tidak memengaruhi hasil Complete). Yang benar-benar
+        // diproses cuma QtyInternalUse. Field NOT NULL di tabel terpenuhi
+        // dengan angka 0 eksplisit, bukan hasil resolve stok yang tidak
+        // perlu (dan sebelumnya jadi sumber kebingungan).
         for (const item of group.items) {
           const qtyBase = parseFloat(item.Qty || 0) * (item.selectedUom?.multiplyRate ?? 1);
           await idempiereApi('/models/m_inventoryline', {
@@ -135,8 +151,8 @@ export function useInternalUseSubmit({ docTypeId, description, onError }) {
               M_Inventory_ID:   { id: inventoryId },
               M_Product_ID:     { id: parseInt(item.M_Product_ID) },
               M_Locator_ID:     { id: parseInt(item.M_Locator_ID) },
-              QtyBook:          item.QtyOnHand ?? qtyBase,
-              QtyCount:         item.QtyOnHand ?? qtyBase, // tidak ada variance — bukan stock opname
+              QtyBook:          0,
+              QtyCount:         0,
               QtyInternalUse:   qtyBase,
               C_Charge_ID:      { id: parseInt(item.C_Charge_ID) },
             }),
