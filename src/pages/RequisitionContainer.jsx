@@ -9,7 +9,7 @@ import ProductCard from '../components/product/ProductCard';
 import ProductDetailSheet from '../components/product/ProductDetailSheet';
 import BarcodeScanner from '../components/scanner/BarcodeScanner';
 import RequisitionSuccessModal from '../components/requisition/RequisitionSuccessModal';
-import { useRequisitionSubmit } from '../components/requisition/useRequisitionSubmit';
+import { useRequisitionSubmit } from '../hooks/useRequisitionSubmit';
 import { useAccess } from '../context/AccessContext';
 import { useCart } from '../hooks/useCart';
 import { useProductSearch } from '../hooks/useProductSearch';
