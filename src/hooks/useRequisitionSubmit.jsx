@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
-import { idempiereApi } from '../../utils/idempiereApi';
-import { getLoginInfo } from '../../hooks/useLoginInfo';
+import { idempiereApi } from '../utils/idempiereApi';
+import { getLoginInfo } from './useLoginInfo';
 
 export function useRequisitionSubmit({ docTypeId, description: defaultDescription, onError }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
