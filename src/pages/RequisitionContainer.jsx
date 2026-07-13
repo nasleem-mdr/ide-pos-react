@@ -1,6 +1,18 @@
+// 1. External
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 
+// 2. Context
+import { useAccess } from '../context/AccessContext';
+
+// 3. Hooks
+import { useRequisitionSubmit } from '../hooks/useRequisitionSubmit';
+import { useCart } from '../hooks/useCart';
+import { useProductSearch } from '../hooks/useProductSearch';
+import { useIsDesktop } from '../hooks/useIsDesktop';
+import { getLoginInfo, getMissingSessionFields } from '../hooks/useLoginInfo';
+
+// 4. Components
 import Dialog from '../components/common/Dialog';
 import CartFab from '../components/cart/CartFab';
 import CartPanel from '../components/cart/CartPanel';
@@ -9,18 +21,15 @@ import ProductCard from '../components/product/ProductCard';
 import ProductDetailSheet from '../components/product/ProductDetailSheet';
 import BarcodeScanner from '../components/scanner/BarcodeScanner';
 import RequisitionSuccessModal from '../components/requisition/RequisitionSuccessModal';
-import { useRequisitionSubmit } from '../hooks/useRequisitionSubmit';
-import { useAccess } from '../context/AccessContext';
-import { useCart } from '../hooks/useCart';
-import { useProductSearch } from '../hooks/useProductSearch';
-import { useIsDesktop } from '../hooks/useIsDesktop';
-import { getLoginInfo, getMissingSessionFields } from '../hooks/useLoginInfo';
+import { HomeIcon } from '../components/Icons';
+
+// 5. Utils
 import { idempiereApi, fkId } from '../utils/idempiereApi';
 import { resolveDocTypeId, DOC_BASE_TYPE } from '../utils/docTypeResolver';
 import { COLOR, RADIUS } from '../utils/styleTokens';
-import '../css/Header.css';
-import { HomeIcon } from '../components/Icons';
 
+// 6. Styles
+import '../css/Header.css';
 const REQUISITION_CONFIG = {
   DESCRIPTION:  'Purchase Requisition via REST API',
 };
