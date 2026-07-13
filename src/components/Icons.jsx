@@ -48,6 +48,128 @@ export const ListIcon = () => (
     <path d="M20 10L9.5 10M3 10H5.25" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
   </svg>
 );
+export function ListIconR(props) {
+  return (
+    <svg 
+      xmlns="http://www.w3.org/2000/svg" 
+      id="svg5" 
+      width="24" 
+      height="24" 
+      fill="none" 
+      viewBox="0 0 24 24"
+      {...props} // Memudahkan jika ingin menambah className atau props lain dari luar
+    >
+      {/* Group untuk memaksa semua child menggunakan stroke currentColor jika bertipe stroke */}
+      <g stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
+        <path id="path1" d="m14 16 2.1 2.5 3.9-5" />
+        <path id="path3" d="M10 18H3" />
+        <path id="path4" d="M3 6h10.5M20 6h-2.25" />
+        
+        <path 
+          id="path6" 
+          d="M3 14h2.238" 
+          strokeWidth="0.953362" 
+        />
+        <path 
+          id="path7" 
+          d="M3 10h2.238" 
+          strokeWidth="0.953362" 
+        />
+        <path 
+          id="path8" 
+          d="M11.209 10H20" 
+          strokeWidth="0.977074" 
+        />
+        <path 
+          id="path9" 
+          d="M11.26 14h2.238" 
+          strokeWidth="0.953362" 
+        />
+      </g>
+
+      {/* Komponen Teks huruf 'R' */}
+      <text 
+        xmlSpace="preserve" 
+        id="text8" 
+        x="4.254" 
+        y="16.091" 
+        fill="currentColor" // Mengikuti warna teks elemen induk
+        style={{
+          fontWeight: 700,
+          fontSize: '13.2887px',
+          fontFamily: 'Calibri, sans-serif',
+          textAlign: 'start',
+          letterSpacing: '0.0543629px',
+          direction: 'ltr',
+          textAnchor: 'start',
+        }}
+      >
+        <tspan id="tspan8" x="4.254" y="16.091">R</tspan>
+      </text>
+    </svg>
+  );
+}
+export function ListIconP(props) {
+  return (
+    <svg 
+      xmlns="http://www.w3.org/2000/svg" 
+      id="svg5" 
+      width="24" 
+      height="24" 
+      fill="none" 
+      viewBox="0 0 24 24"
+      {...props} // Memudahkan jika ingin menambah className atau props lain dari luar
+    >
+      {/* Group untuk memaksa semua child menggunakan stroke currentColor jika bertipe stroke */}
+      <g stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
+        <path id="path1" d="m14 16 2.1 2.5 3.9-5" />
+        <path id="path3" d="M10 18H3" />
+        <path id="path4" d="M3 6h10.5M20 6h-2.25" />
+        
+        <path 
+          id="path6" 
+          d="M3 14h2.238" 
+          strokeWidth="0.953362" 
+        />
+        <path 
+          id="path7" 
+          d="M3 10h2.238" 
+          strokeWidth="0.953362" 
+        />
+        <path 
+          id="path8" 
+          d="M11.209 10H20" 
+          strokeWidth="0.977074" 
+        />
+        <path 
+          id="path9" 
+          d="M11.26 14h2.238" 
+          strokeWidth="0.953362" 
+        />
+      </g>
+
+      {/* Komponen Teks huruf 'R' */}
+      <text 
+        xmlSpace="preserve" 
+        id="text8" 
+        x="4.254" 
+        y="16.091" 
+        fill="currentColor" // Mengikuti warna teks elemen induk
+        style={{
+          fontWeight: 700,
+          fontSize: '13.2887px',
+          fontFamily: 'Calibri, sans-serif',
+          textAlign: 'start',
+          letterSpacing: '0.0543629px',
+          direction: 'ltr',
+          textAnchor: 'start',
+        }}
+      >
+        <tspan id="tspan8" x="4.254" y="16.091">P</tspan>
+      </text>
+    </svg>
+  );
+}
 export const ListIcon32 = () => (
   <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
     <path d="M14 16L16.1 18.5L20 13.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>

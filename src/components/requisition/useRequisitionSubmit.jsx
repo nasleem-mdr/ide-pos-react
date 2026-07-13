@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import { idempiereApi } from '../../utils/idempiereApi';
 import { getLoginInfo } from '../../hooks/useLoginInfo';
 
-export function useRequisitionSubmit({ docTypeId, description, onError }) {
+export function useRequisitionSubmit({ docTypeId, description: defaultDescription, onError }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // warehouseId sekarang diterima dari caller (RequisitionContainer),
@@ -11,11 +11,17 @@ export function useRequisitionSubmit({ docTypeId, description, onError }) {
   // editRequisitionId (opsional): jika diisi, fungsi ini akan UPDATE header +
   // hapus & insert ulang lines milik requisition tersebut, alih-alih membuat
   // dokumen baru. Mengikuti pola "Mode Edit" pada POSContainer.handleCheckout.
-  const submit = useCallback(async (cart, requesterName, warehouseId, editRequisitionId = null) => {
+  //
+  // description (opsional, param ke-5): diisi manual oleh user lewat textarea
+  // di CartSidebar/CartPanel. Kalau kosong/tidak diisi, fallback ke
+  // defaultDescription dari config awal (REQUISITION_CONFIG.DESCRIPTION).
+  const submit = useCallback(async (cart, requesterName, warehouseId, editRequisitionId = null, description = null) => {
     if (cart.length === 0) {
       onError?.('Daftar permintaan masih kosong!');
       return null;
     }
+
+    const resolvedDescription = (description && description.trim()) ? description.trim() : defaultDescription;
 
     const { userId, orgId, clientId } = getLoginInfo();
 
@@ -50,6 +56,7 @@ export function useRequisitionSubmit({ docTypeId, description, onError }) {
           body: JSON.stringify({
             M_Warehouse_ID: { id: resolvedWarehouseId },
             DateRequired:   todayISO,
+            Description:    resolvedDescription,
           }),
         });
 
@@ -100,7 +107,7 @@ export function useRequisitionSubmit({ docTypeId, description, onError }) {
             M_Warehouse_ID: { id: resolvedWarehouseId }, // ← pakai yg dipilih user
             AD_User_ID:     { id: userId },
             DateRequired:   todayISO,
-            Description:    description,
+            Description:    resolvedDescription,
             IsActive:       true,
           }),
         });
@@ -144,7 +151,7 @@ export function useRequisitionSubmit({ docTypeId, description, onError }) {
     } finally {
       setIsSubmitting(false);
     }
-  }, [docTypeId, description, onError]);
+  }, [docTypeId, defaultDescription, onError]);
 
   return { submit, isSubmitting };
 }

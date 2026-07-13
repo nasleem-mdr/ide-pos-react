@@ -31,6 +31,12 @@ const CartSidebar = ({
   title = 'Keranjang',
   emptyLabel = 'Belum ada produk dipilih.',
   width = '360px',
+  // Description manual — opsional. Kalau onDescriptionChange tidak diisi,
+  // field ini tidak dirender sama sekali (backward-compatible untuk
+  // pemakaian CartSidebar lain yang belum butuh field ini).
+  description,
+  onDescriptionChange,
+  descriptionPlaceholder = 'Catatan / keterangan (opsional)...',
 }) => {
   return (
     <div style={{
@@ -43,7 +49,7 @@ const CartSidebar = ({
       {/* Header */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '16px 18px', borderBottom: `1px solid ${COLOR.border}`, flexShrink: 0,
+        padding: '16px 18px', borderBottom: onDescriptionChange ? 'none' : `1px solid ${COLOR.border}`, flexShrink: 0,
       }}>
         <span style={{ fontWeight: 700, fontSize: '15px', color: COLOR.textDk }}>
           {title}
@@ -67,6 +73,24 @@ const CartSidebar = ({
           >Kosongkan</button>
         )}
       </div>
+
+      {/* Description manual — di bawah title, di atas list produk */}
+      {onDescriptionChange && (
+        <div style={{ padding: '10px 18px 14px', borderBottom: `1px solid ${COLOR.border}`, flexShrink: 0 }}>
+          <textarea
+            value={description || ''}
+            onChange={e => onDescriptionChange(e.target.value)}
+            placeholder={descriptionPlaceholder}
+            rows={2}
+            style={{
+              width: '100%', boxSizing: 'border-box', resize: 'vertical',
+              padding: '8px 10px', border: `1.5px solid ${COLOR.border}`,
+              borderRadius: RADIUS.sm, fontSize: '13px', color: COLOR.textDk,
+              fontFamily: 'inherit', outline: 'none', minHeight: '38px',
+            }}
+          />
+        </div>
+      )}
 
       {/* List */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '14px 16px', minHeight: 0 }}>

@@ -24,44 +24,64 @@ import { getLoginInfo } from '../hooks/useLoginInfo';
 //   1. Yang AD_Org_ID-nya = org user login (override khusus org tsb)
 //   2. Yang ditandai IsDefault = true
 //   3. Fallback: yang pertama aktif ditemukan
+//
+// PENTING — kasus M_Inventory (Internal Use): DocBaseType='MMI' dipakai
+// untuk 2 transaksi berbeda di tabel yang sama (M_Inventory), dibedakan
+// lewat kolom DocSubTypeInv (dikonfirmasi dari Javadoc resmi
+// org.compiere.model.X_C_DocType, AD_Reference_ID=200068):
+//   • 'IU' = Internal Use Inventory  ← dipakai InternalUseContainer
+//   • 'PI' = Physical Inventory      (stock opname — BUKAN cakupan modul ini)
+//   • 'CA' = Cost Adjustment
+// Karena itu resolveDocTypeId() menerima docSubTypeInv opsional — WAJIB
+// diisi 'IU' saat resolve doc type untuk Internal Use, supaya tidak
+// salah ambil C_DocType yang sebenarnya untuk Physical Inventory (yang
+// DocBaseType-nya sama-sama 'MMI').
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Cache di memori per sesi browser — key: `${clientId}_${docBaseType}_${orgId}`.
-// Dibersihkan otomatis saat reload halaman; tidak perlu invalidasi manual
-// kecuali Anda ubah konfigurasi Document Type saat aplikasi sedang terbuka.
+// Cache di memori per sesi browser — key mencakup docSubTypeInv juga, supaya
+// 'MMI'+'IU' dan 'MMI'+'PI' tidak saling menimpa cache satu sama lain.
 const _cache = new Map();
 
 /**
  * Resolve C_DocType_ID berdasarkan DocBaseType standar iDempiere.
  *
  * @param {string} docBaseType - mis. 'POO' (Purchase Order), 'MMR' (Material
- *   Receipt/Vendor Receipt), 'POR' (Purchase Requisition), 'MMM' (Movement).
- * @param {{ orgId?: number }} opts - orgId opsional untuk preferensi doc type
- *   khusus org tertentu (kalau organisasi Anda punya doc type berbeda per org).
+ *   Receipt/Vendor Receipt), 'POR' (Purchase Requisition), 'MMI' (Inventory).
+ * @param {{ orgId?: number, docSubTypeInv?: string }} opts - orgId opsional
+ *   untuk preferensi doc type khusus org tertentu; docSubTypeInv WAJIB diisi
+ *   ('IU'/'PI'/'CA') kalau docBaseType='MMI', karena DocBaseType saja tidak
+ *   cukup membedakan Internal Use vs Physical Inventory.
  * @returns {Promise<number>} C_DocType_ID yang sesuai untuk client user login.
  */
-export async function resolveDocTypeId(docBaseType, { orgId = null } = {}) {
+export async function resolveDocTypeId(docBaseType, { orgId = null, docSubTypeInv = null } = {}) {
   const { clientId } = getLoginInfo();
   if (!clientId) {
     throw new Error('AD_Client_ID tidak ditemukan di sesi login — silakan login kembali.');
   }
 
-  const cacheKey = `${clientId}_${docBaseType}_${orgId ?? 0}`;
+  const cacheKey = `${clientId}_${docBaseType}_${docSubTypeInv ?? '-'}_${orgId ?? 0}`;
   if (_cache.has(cacheKey)) return _cache.get(cacheKey);
+
+  let filter = `DocBaseType eq '${docBaseType}' and AD_Client_ID eq ${clientId} and IsActive eq true`;
+  if (docSubTypeInv) {
+    filter += ` and DocSubTypeInv eq '${docSubTypeInv}'`;
+  }
 
   const res = await idempiereApi(
     `/models/c_doctype?$select=C_DocType_ID,Name,AD_Org_ID,IsDefault` +
-    `&$filter=DocBaseType eq '${docBaseType}' and AD_Client_ID eq ${clientId} and IsActive eq true` +
-    `&$orderby=IsDefault desc`
+    `&$filter=${filter}&$orderby=IsDefault desc`
   );
   const records = Array.isArray(res.records) ? res.records : [];
 
   if (records.length === 0) {
     throw new Error(
-      `Tidak ditemukan Document Type aktif dengan DocBaseType='${docBaseType}' ` +
-      `untuk Client ini (AD_Client_ID=${clientId}).\n` +
+      `Tidak ditemukan Document Type aktif dengan DocBaseType='${docBaseType}'` +
+      (docSubTypeInv ? ` dan DocSubTypeInv='${docSubTypeInv}'` : '') +
+      ` untuk Client ini (AD_Client_ID=${clientId}).\n` +
       `Buat/aktifkan Document Type-nya dulu di iDempiere: Window "Document Type", ` +
-      `set Document Base Type = ${docBaseType} dan centang "Default".`
+      `set Document Base Type = ${docBaseType}` +
+      (docSubTypeInv ? ` dan Inv Sub Type = ${docSubTypeInv}` : '') +
+      `, lalu centang "Default".`
     );
   }
 
@@ -88,5 +108,15 @@ export const DOC_BASE_TYPE = {
   PURCHASE_REQUISITION: 'POR', // FPB — Requisition
   PURCHASE_ORDER:        'POO', // Purchasing
   MATERIAL_RECEIPT:      'MMR', // Goods Receipt (Vendor Receipt)
-  MATERIAL_MOVEMENT:     'MMM', // Internal Use (Pengambilan Barang Gudang)
+  MATERIAL_MOVEMENT:     'MMM', // Perpindahan gudang↔gudang (TIDAK dipakai Internal Use)
+  MATERIAL_INVENTORY:    'MMI', // M_Inventory — WAJIB dikombinasikan dengan
+                                  // DOC_SUB_TYPE_INV di bawah (lihat catatan di atas).
+};
+
+// Referensi nilai DocSubTypeInv (AD_Reference_ID=200068) — pembeda transaksi
+// di dalam DocBaseType='MMI' (M_Inventory).
+export const DOC_SUB_TYPE_INV = {
+  INTERNAL_USE:       'IU', // Internal Use Inventory — dipakai InternalUseContainer
+  PHYSICAL_INVENTORY: 'PI', // Physical Inventory (stock opname)
+  COST_ADJUSTMENT:    'CA', // Cost Adjustment
 };

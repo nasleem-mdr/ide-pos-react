@@ -23,42 +23,16 @@ import { idempiereApi } from '../utils/idempiereApi';
 
 import { COLOR, RADIUS } from '../utils/styleTokens';
 import '../css/Header.css';
+import { HomeIcon } from '../components/Icons';
 
 // ⚠️ WAJIB DISESUAIKAN: ganti dengan C_DocType_ID Document Type "Purchase
 // Order" di instance Anda.
 // Cek lewat: GET /api/v1/models/c_doctype?$select=C_DocType_ID,Name,DocBaseType&$filter=contains(Name,'Purchase Order')
 const PURCHASING_CONFIG = {
-  //C_DOCTYPE_ID: 1000016, // ← GANTI sesuai C_DocType_ID "Purchase Order" instance Anda
   DESCRIPTION:  'Purchase Order via Web',
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// PurchasingContainer.jsx
-// Format & layout mengikuti pola RequisitionContainer.jsx / GoodsReceiptContainer.jsx
-// (search produk, scan barcode, tombol import di sebelah scan, cart
-// sidebar/panel desktop-mobile), dengan penyesuaian khusus Purchasing:
-//
-//   1. Cart custom (usePOCart) — tiap baris punya Price & C_BPartner_ID
-//      sendiri, TIDAK seperti useCart generic di modul lain.
-//   2. Tombol 📥 di sebelah Scan QR membuka RequisitionToPOImportModal:
-//      import dari FPB Completed/Approved, tiap baris sudah di-suggest
-//      vendor & harga dari M_Product_PO, dan bisa diedit sebelum import.
-//   3. Saat submit, cart di-groupBy vendor lalu dikirim sebagai PO TERPISAH
-//      per vendor ke iDempiere (lihat usePurchaseOrderSubmit.jsx) — kalau
-//      1 FPB punya produk dari 2 vendor berbeda, hasilnya otomatis 2 PO.
-//   4. Tambah produk manual (search/scan) tetap tersedia — vendor & harga
-//      di-suggest otomatis dari M_Product_PO kalau ada datanya, kalau tidak
-//      user tinggal klik badge 🚚 di cart untuk pilih vendor manual.
-//
-//   5. URUTAN MODAL SAAT SUBMIT — PENTING:
-//      submit() dari usePurchaseOrderSubmit sekarang mengembalikan
-//      { results, hadError }, bukan array langsung. Kalau hadError true
-//      (misal 1 dari 2 vendor gagal di-Complete), Dialog error (dari
-//      onError callback) HARUS terlihat lebih dulu — TIDAK boleh langsung
-//      ketutup oleh Success Modal untuk PO yang terlanjur berhasil. Jadi
-//      success modal untuk kasus ini ditunda lewat `pendingSuccessOpen`,
-//      baru dibuka setelah user menutup Dialog error-nya.
-// ─────────────────────────────────────────────────────────────────────────────
+
 const PurchasingContainer = () => {
   const navigate  = useNavigate();
   const isDesktop = useIsDesktop();
@@ -108,7 +82,7 @@ const PurchasingContainer = () => {
         }
         // supaya benar untuk client manapun yang login (lihat docTypeResolver.jsx).
         try {
-          const dt = await resolveDocTypeId(DOC_BASE_TYPE.MATERIAL_RECEIPT, { orgId: info.orgId });
+          const dt = await resolveDocTypeId(DOC_BASE_TYPE.PURCHASE_ORDER, { orgId: info.orgId });
             setDocTypeId(dt);
             } catch (err) {
              alert(err.message, 'Document Type Tidak Ditemukan');
@@ -277,15 +251,15 @@ const PurchasingContainer = () => {
       />
 
       {/* Top Bar */}
-      <div className='header'>
+      <div className='header-purchasing'>
         <button
-          onClick={() => navigate('/pos')}
+          onClick={() => navigate('/dashboard')}
           style={{
             background: 'rgba(255,255,255,0.15)', border: 'none', color: '#fff',
             borderRadius: RADIUS.sm, padding: '6px 10px', cursor: 'pointer',
             fontSize: '13px', fontWeight: 600, WebkitTapHighlightColor: 'transparent',
           }}
-        >← POS</button>
+        ><HomeIcon/></button>
         <span style={{ color: '#fff', fontWeight: 700, fontSize: '15px', flex: 1 }}>🧾 Purchasing</span>
         <span style={{
           background: 'rgba(255,255,255,0.18)', borderRadius: '20px',

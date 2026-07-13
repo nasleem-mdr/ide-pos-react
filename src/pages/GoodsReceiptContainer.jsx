@@ -21,6 +21,7 @@ import { idempiereApi, fkId } from '../utils/idempiereApi';
 import { resolveDocTypeId, DOC_BASE_TYPE } from '../utils/docTypeResolver';
 import { COLOR, RADIUS } from '../utils/styleTokens';
 import '../css/Header.css';
+import { HomeIcon } from '../components/Icons';
 
 // Deskripsi dokumen — tidak client-specific, aman tetap konstan.
 const GOODS_RECEIPT_DESCRIPTION = 'Goods Receipt via Web';
@@ -299,13 +300,13 @@ const GoodsReceiptContainer = () => {
       {/* Top Bar */}
       <div className='header'>
         <button
-          onClick={() => navigate('/pos')}
+          onClick={() => navigate('/dashboard')}
           style={{
             background: 'rgba(255,255,255,0.15)', border: 'none', color: '#fff',
             borderRadius: RADIUS.sm, padding: '6px 10px', cursor: 'pointer',
             fontSize: '13px', fontWeight: 600, WebkitTapHighlightColor: 'transparent',
           }}
-        >← POS</button>
+        ><HomeIcon/></button>
         <span style={{ color: '#fff', fontWeight: 700, fontSize: '15px', flex: 1 }}>📦 Penerimaan Barang</span>
         <span style={{
           background: 'rgba(255,255,255,0.18)', borderRadius: '20px',

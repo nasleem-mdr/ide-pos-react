@@ -22,7 +22,6 @@ import '../css/Header.css';
 import { HomeIcon } from '../components/Icons';
 
 const REQUISITION_CONFIG = {
-  //C_DOCTYPE_ID: 1000018, //sma 1000018 garden 127
   DESCRIPTION:  'Purchase Requisition via REST API',
 };
 
@@ -36,6 +35,10 @@ const RequisitionContainer = () => {
   const [warehouses, setWarehouses]           = useState([]);         // list semua WH
   const [selectedWarehouse, setSelectedWarehouse] = useState(null);   // {id, name}
   const [requesterName, setRequesterName]     = useState('');
+  // Description manual — diisi user lewat textarea di CartSidebar/CartPanel,
+  // dikirim ke submit() menggantikan REQUISITION_CONFIG.DESCRIPTION yang
+  // sebelumnya hardcode. Kosong = fallback ke default di useRequisitionSubmit.
+  const [description, setDescription]         = useState('');
   const [cartOpen, setCartOpen]               = useState(false);
   const [scannerOpen, setScannerOpen]         = useState(false);
   const [dialog, setDialog]                   = useState({ isOpen: false, title: '', message: '' });
@@ -45,8 +48,6 @@ const RequisitionContainer = () => {
   const [selectedProduct, setSelectedProduct] = useState(null);
 
   // ── edit mode state ─────────────────────────────────────────────────────────
-  // Mengikuti pola POSContainer: requisition draft yang dikirim dari
-  // RequisitionList.jsx via navigate("/requisition", { state: { editRequisition } })
   const [editRequisitionId, setEditRequisitionId] = useState(null);
   const [isEditMode, setIsEditMode]               = useState(false);
 
@@ -85,7 +86,7 @@ const RequisitionContainer = () => {
           return;
         }
       try {
-            const dt = await resolveDocTypeId(DOC_BASE_TYPE.MATERIAL_RECEIPT, { orgId: info.orgId });
+            const dt = await resolveDocTypeId(DOC_BASE_TYPE.PURCHASE_REQUISITION, { orgId: info.orgId });
               setDocTypeId(dt);
             } catch (err) {
               alert(err.message, 'Document Type Tidak Ditemukan');
@@ -130,16 +131,12 @@ const RequisitionContainer = () => {
   }, []);
 
   // ── load draft requisition jika datang dari RequisitionList ────────────────
-  // Sama seperti POSContainer.loadDraftOrder: tunggu warehouse list & produk
-  // siap dulu (defaultWh dari init di atas), baru override dengan data draft.
   useEffect(() => {
-    // Tunggu sampai daftar warehouse selesai dimuat dulu
     if (warehouses.length === 0) return;
 
     const editRequisition = location.state?.editRequisition;
     if (!editRequisition) return;
 
-    // Sudah pernah diproses untuk requisition yang sama → skip
     const incomingId = editRequisition.id ?? editRequisition.M_Requisition_ID;
     if (editRequisitionId === incomingId) return;
 
@@ -149,13 +146,25 @@ const RequisitionContainer = () => {
         setEditRequisitionId(reqId);
         setIsEditMode(true);
 
-        // Override warehouse dari requisition yang diedit
         const whId   = fkId(editRequisition.M_Warehouse_ID);
         const whName = editRequisition.M_Warehouse_ID?.identifier
           || editRequisition.M_Warehouse_ID?.Name;
         const matchedWh = warehouses.find(w => String(w.id) === String(whId));
         const resolvedWh = matchedWh ?? (whId ? { id: whId, name: whName || `Gudang #${whId}` } : null);
         if (resolvedWh) setSelectedWarehouse(resolvedWh);
+
+        // Fetch header requisition (khususnya Description) — editRequisition
+        // yang dikirim dari RequisitionList.jsx belum tentu menyertakan
+        // Description lengkap, jadi diambil ulang langsung dari server.
+        try {
+          const headerRes = await idempiereApi(
+            `/models/m_requisition/${reqId}?$select=Description`
+          );
+          setDescription(headerRes.Description || '');
+        } catch (err) {
+          console.error('[RequisitionContainer] gagal ambil Description draft:', err);
+          setDescription('');
+        }
 
         // Fetch requisition lines
         const linesRes = await idempiereApi(
@@ -164,7 +173,6 @@ const RequisitionContainer = () => {
         );
         const lines = Array.isArray(linesRes.records) ? linesRes.records : [];
 
-        // Mapping lines ke format cart (selaras dengan struktur yang dipakai useCart/addToCart)
         const cartItems = lines.map((line) => {
           const productId   = fkId(line.M_Product_ID);
           const productName = line.M_Product_ID?.identifier || line.M_Product_ID?.Name || `Product #${productId}`;
@@ -178,7 +186,7 @@ const RequisitionContainer = () => {
           const selectedUom = { C_UOM_ID: uomId, Name: uomName, multiplyRate: 1 };
 
           return {
-            M_RequisitionLine_ID: lineId, // simpan untuk referensi, tidak dipakai submit (lines selalu replace)
+            M_RequisitionLine_ID: lineId,
             M_Product_ID:         productId,
             Name:                 productName,
             Value:                '',
@@ -206,6 +214,7 @@ const RequisitionContainer = () => {
   const cancelEditMode = useCallback(() => {
     setIsEditMode(false);
     setEditRequisitionId(null);
+    setDescription('');
     clearCart();
     navigate('/requisition', { replace: true, state: {} });
   }, [clearCart, navigate]);
@@ -215,7 +224,6 @@ const RequisitionContainer = () => {
     const id   = Number(e.target.value);
     const found = warehouses.find(w => w.id === id) ?? null;
     setSelectedWarehouse(found);
-    // Re-query produk dengan warehouse baru, pertahankan search term
     fetchProducts(searchValue, found?.id ?? null);
   }, [warehouses, fetchProducts, searchValue]);
 
@@ -241,7 +249,6 @@ const RequisitionContainer = () => {
     const whId = selectedWarehouse?.id ?? null;
 
     let found = await searchByUPC(code);
-    // Kalau produk ketemu tapi tidak ada di warehouse ini, abaikan
     if (!found) {
       found = products.find(p => p.Value?.toUpperCase() === code.toUpperCase()) ?? null;
     }
@@ -256,8 +263,8 @@ const RequisitionContainer = () => {
 
   // ── submit ────────────────────────────────────────────────────────────────
   const handleSubmit = async () => {
-    // Pass warehouseId yang dipilih user + editRequisitionId (null jika dokumen baru) ke submit
-    const result = await submit(cart, requesterName, selectedWarehouse?.id, editRequisitionId);
+    // description manual (dari textarea di cart) diteruskan sebagai param ke-5
+    const result = await submit(cart, requesterName, selectedWarehouse?.id, editRequisitionId, description);
     if (result) {
       setSuccessData({ ...result, warehouseName: selectedWarehouse?.name });
       clearCart();
@@ -265,7 +272,7 @@ const RequisitionContainer = () => {
       setSuccessOpen(true);
       setIsEditMode(false);
       setEditRequisitionId(null);
-      // Bersihkan location.state agar refresh/back tidak memuat ulang draft lama
+      setDescription('');
       navigate('/requisition', { replace: true, state: {} });
     }
   };
@@ -313,11 +320,11 @@ const RequisitionContainer = () => {
       />
 
       {/* ── Top Bar ─────────────────────────────────────────────────────── */}
-      <div className='header'>
+      <div className='header-requisition'>
         <button
           onClick={() => navigate('/dashboard')}
           style={{
-            background: 'rgba(255,255,255,0.15)', border: 'none', color: '#fff',
+            background: 'rgba(45, 180, 117, 0.15)', border: 'none', color: '#fff',
             borderRadius: RADIUS.sm, padding: '6px 10px', cursor: 'pointer',
             fontSize: '13px', fontWeight: 600, WebkitTapHighlightColor: 'transparent',
           }}
@@ -327,7 +334,6 @@ const RequisitionContainer = () => {
           📋 Requisition
         </span>
 
-        {/* Warehouse combobox — menggantikan span statis */}
         <select
           value={selectedWarehouse?.id ?? ''}
           onChange={handleWarehouseChange}
@@ -342,7 +348,6 @@ const RequisitionContainer = () => {
             cursor: warehouses.length <= 1 ? 'default' : 'pointer',
             outline: 'none',
             maxWidth: isDesktop ? '200px' : '140px',
-            // Warna option untuk kontras (browser native styling)
             colorScheme: 'dark',
           }}
         >
@@ -350,7 +355,6 @@ const RequisitionContainer = () => {
             <option value="">Memuat...</option>
           )}
           {warehouses.map((wh, idx) => (
-            // Menggunakan wh.id jika ada, jika null/falsy gunakan kombinasi string unik dengan index
             <option key={wh.id || `wh-null-${idx}`} value={wh.id ?? ''} style={{ background: '#1e3a5f', color: '#e0eaff' }}>
               📦 {wh.name}
             </option>
@@ -519,6 +523,8 @@ const RequisitionContainer = () => {
             submitLabel={isEditMode ? '💾 SIMPAN PERUBAHAN' : '📤 KIRIM FPB'}
             onSubmit={canSubmitRequisition ? handleSubmit : undefined}
             isSubmitting={isSubmitting}
+            description={description}
+            onDescriptionChange={canSubmitRequisition ? setDescription : undefined}
           />
         )}
       </div>
@@ -544,6 +550,8 @@ const RequisitionContainer = () => {
           submitLabel={isEditMode ? '💾 SIMPAN PERUBAHAN' : '📤 KIRIM FPB'}
           onSubmit={canSubmitRequisition ? handleSubmit : undefined}
           isSubmitting={isSubmitting}
+          description={description}
+          onDescriptionChange={canSubmitRequisition ? setDescription : undefined}
         />
       )}
 

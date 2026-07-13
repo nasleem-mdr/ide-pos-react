@@ -13,10 +13,13 @@ import RequisitionContainer from './pages/RequisitionContainer';
 import { AccessProvider } from './context/AccessContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import RequisitionList from "./pages/RequisitionList";
+import PurchasingList from "./pages/PurchasingList";
 import RequisitionView from "./pages/RequisitionView";
+import PurchasingView from "./pages/PurchasingView";
 import ProductList from "./pages/ProductList";
 import GoodsReceiptContainer from './pages/GoodsReceiptContainer';
 import PurchasingContainer from './pages/PurchasingContainer';
+import InternalUseContainer from './pages/InternalUseContainer';
 import './css/AppLayout.css'; // Pastikan mengimpor file CSS layout Anda
 
 export default function App() {
@@ -38,6 +41,7 @@ export default function App() {
 
         {/* ===== ROUTE PUBLIK - di luar kondisi session apapun ===== */}
         <Route path="/view/requisition/:uuid" element={<RequisitionView />} />
+        <Route path="/view/order/:uuid" element={<PurchasingView />} />
         {/* nanti tambah di sini: */}
         {/* <Route path="/view/booking" element={<BookingView />} /> */}
 
@@ -102,6 +106,12 @@ export default function App() {
                         <Route path="/purchasing" element={
                           <ProtectedRoute windowKey="purchasing">
                             <PurchasingContainer />
+                          </ProtectedRoute>
+                        } />
+                        <Route path="/purchasing-list" element={<PurchasingList />} />
+                          <Route path="/internal-use" element={
+                          <ProtectedRoute windowKey="internalUse">
+                            <InternalUseContainer />
                           </ProtectedRoute>
                         } />
                       </Routes>

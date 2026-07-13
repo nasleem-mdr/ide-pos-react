@@ -11,6 +11,10 @@ const CartPanel = ({
   onSubmit, isSubmitting = false,
   title = 'Keranjang',
   emptyLabel = 'Belum ada produk dipilih.',
+  // Description manual — opsional, sama seperti di CartSidebar.jsx.
+  description,
+  onDescriptionChange,
+  descriptionPlaceholder = 'Catatan / keterangan (opsional)...',
 }) => {
   if (!isOpen) return null;
 
@@ -36,7 +40,7 @@ const CartPanel = ({
 
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '10px 16px 6px', borderBottom: `1px solid ${COLOR.border}`, flexShrink: 0,
+          padding: '10px 16px 6px', borderBottom: onDescriptionChange ? 'none' : `1px solid ${COLOR.border}`, flexShrink: 0,
         }}>
           <span style={{ fontWeight: 700, fontSize: '15px', color: COLOR.textDk }}>
             {title}
@@ -71,6 +75,24 @@ const CartPanel = ({
             >✕</button>
           </div>
         </div>
+
+        {/* Description manual — di bawah title, di atas list produk */}
+        {onDescriptionChange && (
+          <div style={{ padding: '8px 16px 12px', borderBottom: `1px solid ${COLOR.border}`, flexShrink: 0 }}>
+            <textarea
+              value={description || ''}
+              onChange={e => onDescriptionChange(e.target.value)}
+              placeholder={descriptionPlaceholder}
+              rows={2}
+              style={{
+                width: '100%', boxSizing: 'border-box', resize: 'vertical',
+                padding: '8px 10px', border: `1.5px solid ${COLOR.border}`,
+                borderRadius: RADIUS.sm, fontSize: '13px', color: COLOR.textDk,
+                fontFamily: 'inherit', outline: 'none', minHeight: '38px',
+              }}
+            />
+          </div>
+        )}
 
         <div style={{ flex: 1, overflowY: 'auto', padding: '12px 14px', minHeight: 0 }}>
           {cart.length === 0 ? (
