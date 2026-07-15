@@ -6,7 +6,7 @@ import DataTable from '../components/DataTable';
 import jsPDF from "jspdf";
 import QRCode from "qrcode";
 import { LogoSMAMerahHitam } from "../components/Icons";
-import { idempiereApi } from '../utils/idempiereApi'; // sesuaikan path
+import { idempiereApi, getProductImageBlobUrls } from '../utils/idempiereApi'; // sesuaikan path
 import '../App.css';
 
 function ProductList() {
@@ -69,87 +69,59 @@ function ProductList() {
     });
   };
 
-  const blobToDataUrl = (blob) => {
+  // Blob URL (dari getProductImageBlobUrls) -> PNG dataURL + dimensi asli,
+  // supaya bisa dipakai jsPDF addImage() dan proporsinya tetap terjaga.
+  const blobUrlToImageData = (url) => {
     return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result);
-      reader.onerror = reject;
-      reader.readAsDataURL(blob);
-    });
-  };
-
-  // Load actual pixel size of an image so we can preserve its aspect ratio in the PDF
-  const getImageSize = (dataUrl) => {
-    return new Promise((resolve) => {
       const img = new Image();
-      img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight });
-      img.onerror = () => resolve({ width: 1, height: 1 });
-      img.src = dataUrl;
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0);
+        resolve({
+          dataUrl: canvas.toDataURL("image/png"),
+          width: img.naturalWidth,
+          height: img.naturalHeight,
+        });
+      };
+      img.onerror = reject;
+      img.src = url;
     });
-  };
-
-  const jsPdfFormatFromContentType = (contentType = "") => {
-    const ct = contentType.toLowerCase();
-    if (ct.includes("png")) return "PNG";
-    if (ct.includes("jpeg") || ct.includes("jpg")) return "JPEG";
-    if (ct.includes("webp")) return "WEBP";
-    return "PNG"; // fallback
   };
 
   // ---------- PDF generation ----------
 
-  const generateProductPDF = async (productId, token) => {
-    const API_BASE = "/api/v1";
-    const customFetch = async (url) => {
-      const res = await fetch(`${API_BASE}${url}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      return res.json();
-    };
-
+  const generateProductPDF = async (productId) => {
     // 1. Fetch header data
-    const product = await customFetch(
+    const product = await idempiereApi(
       `/models/m_product/${productId}` +
       `?$select=Value,Name,Description,UPC,IsPurchased,IsSold,M_Product_Category_ID,UpdatedBy,Updated`
     );
 
-    // 2. Fetch attachments (max 2 images)
+    // 2. Fetch product images (max 2), lalu convert blob url -> dataURL utk jsPDF
+    let blobUrls = [];
     let images = [];
     try {
-      const attachRes = await customFetch(`/models/m_product/${productId}/attachments`);
-      const entries = attachRes?.entries || attachRes?.records || attachRes?.items || [];
-
-      const imageEntries = entries
-        .filter((e) => (e.contentType || e.mimetype || "").toLowerCase().startsWith("image/"))
-        .slice(0, 2);
-
-      for (const entry of imageEntries) {
-        const filename = entry.filename || entry.name || entry.title;
-        if (!filename) continue;
+      blobUrls = await getProductImageBlobUrls(productId);
+      const first2 = (blobUrls || []).slice(0, 2);
+      for (const item of first2) {
         try {
-          const fileRes = await fetch(
-            `${API_BASE}/models/m_product/${productId}/attachments/${encodeURIComponent(filename)}`,
-            { headers: { Authorization: `Bearer ${token}` } }
-          );
-          if (!fileRes.ok) continue;
-          const blob = await fileRes.blob();
-          const dataUrl = await blobToDataUrl(blob);
-          const size = await getImageSize(dataUrl);
-          images.push({
-            dataUrl,
-            format: jsPdfFormatFromContentType(entry.contentType || entry.mimetype || blob.type),
-            width: size.width,
-            height: size.height,
-          });
+          const imgData = await blobUrlToImageData(item.url);
+          images.push(imgData);
         } catch (imgErr) {
-          console.error("Gagal mengambil attachment:", filename, imgErr.message);
+          console.error("Gagal memuat gambar produk:", imgErr.message);
         }
       }
     } catch (err) {
-      console.error("Gagal fetch attachments:", err.message);
+      console.error("Gagal fetch gambar produk:", err.message);
+    } finally {
+      // Bersihkan object URL setelah selesai dipakai (sama seperti ProductDetailSheet)
+      (blobUrls || []).forEach((i) => URL.revokeObjectURL(i.url));
     }
 
-    // 3. Generate QR code from UPC (fallback ke Value jika UPC kosong)
+    // 3. Generate QR code dari UPC (fallback ke Value jika UPC kosong)
     const qrValue = product.UPC || product.Value || String(productId);
     const qrDataUrl = await QRCode.toDataURL(qrValue, { margin: 1, width: 300 });
 
@@ -230,20 +202,20 @@ function ProductList() {
       const drawH = img.height * ratio;
       const drawX = boxX + (boxWidth - drawW) / 2;
       const drawY = boxY + (boxHeight - drawH) / 2;
-      doc.addImage(img.dataUrl, img.format, drawX, drawY, drawW, drawH);
+      doc.addImage(img.dataUrl, "PNG", drawX, drawY, drawW, drawH);
     };
 
     if (images.length === 1) {
-      // Single image, centered
+      // Satu gambar, diposisikan di tengah
       const boxWidth = usableWidth * 0.6;
       const boxX = marginLeft + (usableWidth - boxWidth) / 2;
       drawImageContained(images[0], boxX, boxWidth, imgAreaTop, imgAreaHeight);
     } else if (images.length === 2) {
-      // 50% x 50% split
+      // Dua gambar, komposisi 50% x 50%
       const halfWidth = usableWidth / 2;
       drawImageContained(images[0], marginLeft, halfWidth - 10, imgAreaTop, imgAreaHeight);
       drawImageContained(images[1], marginLeft + halfWidth + 10, halfWidth - 10, imgAreaTop, imgAreaHeight);
-      // Divider line between the two halves
+      // Garis pembatas putus-putus antar gambar
       doc.setLineDashPattern([2, 2], 0);
       doc.line(pageWidth / 2, imgAreaTop, pageWidth / 2, imgAreaTop + imgAreaHeight);
       doc.setLineDashPattern([], 0);
@@ -272,8 +244,7 @@ function ProductList() {
     const productId = item.id ?? item.M_Product_ID;
     setDownloadingId(productId);
     try {
-      const token = localStorage.getItem("token");
-      await generateProductPDF(productId, token);
+      await generateProductPDF(productId);
     } catch (err) {
       console.error("Gagal generate PDF:", err.message);
       alert("Gagal membuat dokumen PDF.");
