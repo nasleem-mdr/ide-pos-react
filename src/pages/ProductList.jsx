@@ -5,9 +5,10 @@ import PageHeader from '../components/PageHeader';
 import DataTable from '../components/DataTable';
 import jsPDF from "jspdf";
 import QRCode from "qrcode";
-import { LogoSMAMerahHitam } from "../components/Icons";
-import { idempiereApi, getProductImageBlobUrls } from '../utils/idempiereApi'; // sesuaikan path
 import '../App.css';
+import { LogoSMAMerahHitam, LogoSMA20 } from "../components/Icons";
+import { idempiereApi, getProductImageBlobUrls, getFirstProductImageBlobUrl } from '../utils/idempiereApi';
+import { useRef } from 'react'; // tambahkan ke import react di baris atas kalau belum ada
 
 // ---------- Brand palette (sesuaikan dengan warna resmi Sekupang Logistics) ----------
 const BRAND = {
@@ -15,6 +16,12 @@ const BRAND = {
   navy: [26, 38, 91],
   white: [255, 255, 255],
   textDark: [30, 30, 30],
+};
+
+const thumbBoxStyle = {
+  width: 44, height: 44, borderRadius: 6, overflow: 'hidden',
+  display: 'flex', alignItems: 'center', justifyContent: 'center',
+  flexShrink: 0,
 };
 
 function ProductList() {
@@ -25,12 +32,54 @@ function ProductList() {
   const pageSize = 10;
   const [totalRecords, setTotalRecords] = useState(0);
   const [downloadingId, setDownloadingId] = useState(null);
+  const [thumbnails, setThumbnails] = useState({}); // { [productId]: blobUrl | null }
+  const thumbUrlsRef = useRef([]); // untuk cleanup
 
-  const columns = [
-    { key: 'Value', label: 'Search Key' },
-    { key: 'Name', label: 'Partner Name' },
-    { key: 'UPC', label: 'UPC/EAN' },
-  ];
+  // Fetch thumbnail produk pertama tiap kali daftar produk (halaman/search) berubah
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadThumbnails = async () => {
+    // Bersihkan blob url dari page/search sebelumnya sebelum load yang baru
+    thumbUrlsRef.current.forEach(u => URL.revokeObjectURL(u));
+    thumbUrlsRef.current = [];
+
+    const entries = await Promise.all(
+      products.map(async (p) => {
+        const productId = p.id ?? p.M_Product_ID;
+        try {
+          const url = await getFirstProductImageBlobUrl(productId);
+          if (url) thumbUrlsRef.current.push(url);
+          return [productId, url];
+        } catch {
+          return [productId, null];
+        }
+      })
+    );
+
+    if (!cancelled) setThumbnails(Object.fromEntries(entries));
+  };
+
+  if (products.length > 0) loadThumbnails();
+  else setThumbnails({});
+
+  return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [products]);
+
+// Cleanup semua blob url saat komponen unmount
+useEffect(() => {
+  return () => {
+    thumbUrlsRef.current.forEach(u => URL.revokeObjectURL(u));
+  };
+}, []);
+
+const columns = [
+  { key: 'Thumbnail', label: '' },
+  { key: 'Value', label: 'Search Key' },
+  { key: 'Name', label: 'Partner Name' },
+  { key: 'UPC', label: 'UPC/EAN' },
+];
 
   const fetchProduct = useCallback(async () => {
     setLoading(true);
@@ -351,7 +400,23 @@ function ProductList() {
       </div>
     );
   };
+  const tableData = products.map((p) => {
+  const productId = p.id ?? p.M_Product_ID;
+  const url = thumbnails[productId];
 
+  return {
+    ...p,
+    Thumbnail: url ? (
+      <div style={{ ...thumbBoxStyle, background: '#f1f5f9' }}>
+        <img src={url} alt={p.Name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+      </div>
+    ) : (
+      <div style={{ ...thumbBoxStyle, background: '#1a1a2e' }}>
+        <LogoSMA20 />
+      </div>
+    ),
+  };
+});
   return (
     <div className="card-container">
       <PageHeader
@@ -360,7 +425,7 @@ function ProductList() {
       />
       <DataTable
         columns={columns}
-        data={products}
+        data={tableData}
         loading={loading}
         offset={offset}
         pageSize={pageSize}
@@ -373,4 +438,4 @@ function ProductList() {
 }
 
 export default ProductList;
-1
+
