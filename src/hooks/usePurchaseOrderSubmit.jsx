@@ -37,12 +37,9 @@ import { getLoginInfo } from './useLoginInfo';
 // sukses walau ada error di tengah proses (Dialog error jadi ketutup oleh
 // Success Modal). Lihat PurchasingContainer.jsx untuk cara pemakaiannya.
 // ─────────────────────────────────────────────────────────────────────────────
-export function usePurchaseOrderSubmit({ docTypeId, description, onError }) {
+export function usePurchaseOrderSubmit({ docTypeId, defaultDescription, onError }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Tandai 1 baris FPB sebagai "sudah di-PO-kan" — cukup 1 write biner ke
-  // C_OrderLine_ID, TIDAK ada akumulasi qty (beda dari desain awal kita
-  // sebelum dikonfirmasi lewat source code resmi).
   const markRequisitionLineOrdered = useCallback(async (requisitionLineId, orderLineId) => {
     try {
       await idempiereApi(`/models/m_requisitionline/${requisitionLineId}`, {
@@ -61,6 +58,9 @@ export function usePurchaseOrderSubmit({ docTypeId, description, onError }) {
       onError?.('Daftar Purchase Order masih kosong!');
       return { results: null, hadError: true };
     }
+
+    // Fallback ke default kalau user tidak isi manual
+    const finalDescription = (description && description.trim()) || defaultDescription;
 
     const missingVendor = cart.filter(i => !i.C_BPartner_ID);
     if (missingVendor.length > 0) {
@@ -124,7 +124,7 @@ export function usePurchaseOrderSubmit({ docTypeId, description, onError }) {
             M_Warehouse_ID:         { id: parseInt(warehouseId) },
             DateOrdered:            todayISO,
             IsSOTrx:                false, // sisi pembelian
-            Description:            description,
+            Description:            finalDescription,
             IsActive:               true,
             // "Company Agent" di window Purchase Order = kolom SalesRep_ID
             // (FK ke AD_User) — mandatory di sebagian setup iDempiere.
@@ -222,7 +222,7 @@ export function usePurchaseOrderSubmit({ docTypeId, description, onError }) {
     } finally {
       setIsSubmitting(false);
     }
-  }, [docTypeId, description, onError, markRequisitionLineOrdered]);
+  }, [docTypeId, defaultDescription, onError, markRequisitionLineOrdered]);
 
   return { submit, isSubmitting };
 }

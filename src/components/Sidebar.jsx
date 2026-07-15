@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { PartnerIcon, HomeIcon, BoxIcon, ShoppingCartIcon, LogoSMAWarna, ListIconR, DeliveryIcon, RequisitionIcon, ListIconP} from './Icons';
+import { PartnerIcon, HomeIcon, BoxIcon, ShoppingCartIcon, LogoSMAWarna, ListIconR, RequisitionIcon, ListIconP, UserTake, DeliveryIcon} from './Icons';
 import { useAccess } from '../context/AccessContext';
 import '../css/Sidebar.css';
 
@@ -16,7 +16,7 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }) {
         { key: 'requisition',     path: '/requisition',      label: 'Requisition',      icon: <RequisitionIcon /> },
         { key: 'purchasing',      path: '/purchasing',       label: 'Purchasing',       icon: <ShoppingCartIcon /> },
         { key: 'goodsReceipt',   path: '/goods-receipt',    label: 'Goods Receipt',    icon: <DeliveryIcon /> },
-        { key: 'internalUse',   path: '/internal-use',    label: 'Goods Receipt',    icon: <DeliveryIcon /> },
+        { key: 'internalUse',   path: '/internal-use',    label: 'Internal Use',    icon: <UserTake /> },
       ]
     },
     {
@@ -95,6 +95,7 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }) {
                     to={item.path}
                     onClick={() => setIsCollapsed(true)}
                     className={`nav-item ${location.pathname === item.path ? 'active' : ''}`}
+                    data-tooltip={item.label}
                   >
                     <div className="nav-icon">{item.icon}</div>
                     {!isCollapsed && <span className="nav-label">{item.label}</span>}

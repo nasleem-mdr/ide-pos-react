@@ -1,14 +1,30 @@
 import React from 'react';
 
-export const HomeIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+export const HomeIcon = ({ size = 18, className = '', ...props }) => (
+  <svg 
+    width={size}
+    height={size}
+    viewBox="0 0 24 24" 
+    fill="none" 
+    stroke="currentColor" 
+    strokeWidth="2" 
+    strokeLinecap="round" 
+    strokeLinejoin="round">
     <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
     <polyline points="9 22 9 12 15 12 15 22"></polyline>
   </svg>
 );
 
-export const PartnerIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+export const PartnerIcon = ({ size = 18, className = '', ...props }) => (
+  <svg 
+    width={size}
+    height={size}
+    viewBox="0 0 24 24" 
+    fill="none" 
+    stroke="currentColor" 
+    strokeWidth="2" 
+    strokeLinecap="round" 
+    strokeLinejoin="round">
     <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
     <circle cx="9" cy="7" r="4"></circle>
     <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
@@ -16,160 +32,447 @@ export const PartnerIcon = () => (
   </svg>
 );
 
-export const BoxIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+export const BoxIcon = ({ size = 18, className = '', ...props }) => (
+  <svg 
+    width={size}
+    height={size}
+    viewBox="0 0 24 24" 
+    fill="none" 
+    stroke="currentColor" 
+    strokeWidth="2" 
+    strokeLinecap="round" 
+    strokeLinejoin="round">
     <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
     <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
     <line x1="12" y1="22.08" x2="12" y2="12"></line>
   </svg>
 );
 
-export const ShoppingCartIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+export const ShoppingCartIcon = ({ size = 24, className = '', ...props }) => (
+  <svg 
+    width={size}
+    height={size}
+    viewBox="0 0 24 24" 
+    fill="none" 
+    stroke="currentColor" 
+    strokeWidth="2" 
+    strokeLinecap="round" 
+    strokeLinejoin="round">
     <circle cx="9" cy="21" r="1"></circle>
     <circle cx="20" cy="21" r="1"></circle>
     <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
   </svg>
 );
 
-export const ShoppingCartIcon32 = () => (
-  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="9" cy="21" r="1"></circle>
-    <circle cx="20" cy="21" r="1"></circle>
-    <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
-  </svg>
-);
-export const ListIcon = () => (
-  <svg width="24px" height="24px" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M14 16L16.1 18.5L20 13.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-    <path d="M10 14H3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-    <path d="M10 18H3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-    <path d="M3 6L13.5 6M20 6L17.75 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-    <path d="M20 10L9.5 10M3 10H5.25" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-  </svg>
-);
-export function ListIconR(props) {
+export const ListIconR = ({ size = 24, className = '', ...props }) => {
   return (
-    <svg 
-      xmlns="http://www.w3.org/2000/svg" 
-      id="svg5" 
-      width="24" 
-      height="24" 
-      fill="none" 
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width={size}
+      height={size}
+      fill="none"
       viewBox="0 0 24 24"
-      {...props} // Memudahkan jika ingin menambah className atau props lain dari luar
+      className={className}
+      {...props}
     >
-      {/* Group untuk memaksa semua child menggunakan stroke currentColor jika bertipe stroke */}
-      <g stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
-        <path id="path1" d="m14 16 2.1 2.5 3.9-5" />
-        <path id="path3" d="M10 18H3" />
-        <path id="path4" d="M3 6h10.5M20 6h-2.25" />
-        
-        <path 
-          id="path6" 
-          d="M3 14h2.238" 
-          strokeWidth="0.953362" 
-        />
-        <path 
-          id="path7" 
-          d="M3 10h2.238" 
-          strokeWidth="0.953362" 
-        />
-        <path 
-          id="path8" 
-          d="M11.209 10H20" 
-          strokeWidth="0.977074" 
-        />
-        <path 
-          id="path9" 
-          d="M11.26 14h2.238" 
-          strokeWidth="0.953362" 
-        />
-      </g>
-
-      {/* Komponen Teks huruf 'R' */}
-      <text 
-        xmlSpace="preserve" 
-        id="text8" 
-        x="4.254" 
-        y="16.091" 
-        fill="currentColor" // Mengikuti warna teks elemen induk
+      {/* Tanda Centang / Checkmark */}
+      <path
+        id="path1"
+        stroke="currentColor"
+        d="m14.628 16.187 2.481 2.954 4.609-5.908"
+        style={{
+          strokeWidth: 1.65425,
+          strokeDasharray: 'none',
+        }}
+      />
+      
+      {/* Garis Bawah Kiri */}
+      <path
+        id="path3"
+        stroke="currentColor"
+        d="M9.901 18.55h-8.27"
+        style={{
+          strokeWidth: 1.65425,
+          strokeDasharray: 'none',
+        }}
+      />
+      
+      {/* Garis Atas */}
+      <path
+        id="path4"
+        stroke="currentColor"
+        d="M1.63 4.371h12.778m7.91 0h-2.739"
+        style={{
+          strokeWidth: 1.67875,
+          strokeDasharray: 'none',
+        }}
+      />
+      
+      {/* Garis Pendek Tengah-Bawah */}
+      <path
+        id="path6"
+        d="M1.63 13.824h2.645"
+        style={{
+          fill: 'currentColor',
+          fillOpacity: 1,
+          stroke: 'currentColor',
+          strokeWidth: 1.65425,
+          strokeLinecap: 'butt',
+          strokeLinejoin: 'round',
+          strokeDasharray: 'none',
+          strokeOpacity: 1,
+        }}
+      />
+      
+      {/* Garis Pendek Tengah-Atas */}
+      <path
+        id="path7"
+        d="M1.63 9.098h2.645"
+        style={{
+          fill: 'currentColor',
+          fillOpacity: 1,
+          stroke: 'currentColor',
+          strokeWidth: 1.65425,
+          strokeLinecap: 'butt',
+          strokeLinejoin: 'round',
+          strokeDasharray: 'none',
+          strokeOpacity: 1,
+        }}
+      />
+      
+      {/* Garis Panjang Tengah-Kanan */}
+      <path
+        id="path8"
+        d="M12.512 9.098h9.806"
+        style={{
+          fill: 'currentColor',
+          fillOpacity: 1,
+          stroke: 'currentColor',
+          strokeWidth: 1.70732,
+          strokeLinecap: 'butt',
+          strokeLinejoin: 'round',
+          strokeDasharray: 'none',
+          strokeOpacity: 1,
+        }}
+      />
+      
+      {/* Karakter "R" */}
+      <text
+        xmlSpace="preserve"
+        id="text8"
+        x="3.821"
+        y="16.295"
         style={{
           fontWeight: 700,
-          fontSize: '13.2887px',
+          fontSize: '15.702px',
           fontFamily: 'Calibri, sans-serif',
           textAlign: 'start',
-          letterSpacing: '0.0543629px',
+          letterSpacing: '0.0642354px',
+          writingMode: 'lr-tb',
           direction: 'ltr',
           textAnchor: 'start',
+          fill: 'currentColor',
+          stroke: 'none',
+          strokeWidth: 1.53187,
+          strokeLinecap: 'round',
+          strokeLinejoin: 'round',
+          strokeDasharray: 'none',
         }}
       >
-        <tspan id="tspan8" x="4.254" y="16.091">R</tspan>
+        <tspan
+          id="tspan8"
+          x="3.821"
+          y="16.295"
+          style={{
+            fontStyle: 'normal',
+            fontVariant: 'normal',
+            fontWeight: 700,
+            fontStretch: 'normal',
+            fontFamily: 'Calibri, sans-serif',
+            fill: 'currentColor',
+            stroke: 'none',
+            strokeWidth: 1.53187,
+            strokeDasharray: 'none',
+          }}
+        >
+          R
+        </tspan>
       </text>
-    </svg>
-  );
-}
-export function ListIconP(props) {
-  return (
-    <svg 
-      xmlns="http://www.w3.org/2000/svg" 
-      id="svg5" 
-      width="24" 
-      height="24" 
-      fill="none" 
-      viewBox="0 0 24 24"
-      {...props} // Memudahkan jika ingin menambah className atau props lain dari luar
-    >
-      {/* Group untuk memaksa semua child menggunakan stroke currentColor jika bertipe stroke */}
-      <g stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
-        <path id="path1" d="m14 16 2.1 2.5 3.9-5" />
-        <path id="path3" d="M10 18H3" />
-        <path id="path4" d="M3 6h10.5M20 6h-2.25" />
-        
-        <path 
-          id="path6" 
-          d="M3 14h2.238" 
-          strokeWidth="0.953362" 
+      
+      {/* Elemen Atas Kanan (Grup) */}
+      <g
+        id="path9"
+        style={{
+          strokeWidth: 1.4,
+          strokeDasharray: 'none',
+        }}
+        transform="matrix(1.1816 0 0 1.7356 -1.915 -10.474)"
+      >
+        <path
+          id="path10"
+          d="M11.959 14h2.238"
+          style={{
+            fill: 'currentColor',
+            strokeWidth: 1.4,
+            strokeLinejoin: 'round',
+            strokeDasharray: 'none',
+          }}
         />
-        <path 
-          id="path7" 
-          d="M3 10h2.238" 
-          strokeWidth="0.953362" 
-        />
-        <path 
-          id="path8" 
-          d="M11.209 10H20" 
-          strokeWidth="0.977074" 
-        />
-        <path 
-          id="path9" 
-          d="M11.26 14h2.238" 
-          strokeWidth="0.953362" 
+        <path
+          id="path11"
+          d="m11.959 13.523.4.954h1.838v-.954z"
+          style={{
+            color: 'currentColor',
+            fontStyle: 'normal',
+            fontVariant: 'normal',
+            fontWeight: 400,
+            fontStretch: 'normal',
+            fontSize: 'medium',
+            lineHeight: 'normal',
+            fontFamily: 'sans-serif',
+            textIndent: 0,
+            textAlign: 'start',
+            textDecorationLine: 'none',
+            textDecorationStyle: 'solid',
+            letterSpacing: 'normal',
+            wordSpacing: 'normal',
+            textTransform: 'none',
+            writingMode: 'lr-tb',
+            direction: 'ltr',
+            textOrientation: 'mixed',
+            dominantBaseline: 'auto',
+            baselineShift: 'baseline',
+            textAnchor: 'start',
+            whiteSpace: 'normal',
+            clipRule: 'nonzero',
+            display: 'inline',
+            overflow: 'visible',
+            visibility: 'visible',
+            isolation: 'auto',
+            mixBlendMode: 'normal',
+            fill: 'currentColor',
+            fillOpacity: 1,
+            fillRule: 'nonzero',
+            stroke: 'none',
+            strokeWidth: 1.4,
+            strokeLinecap: 'butt',
+            strokeLinejoin: 'round',
+            strokeMiterlimit: 4,
+            strokeDasharray: 'none',
+            strokeDashoffset: 0,
+            strokeOpacity: 1,
+            stopColor: 'currentColor',
+          }}
         />
       </g>
-
-      {/* Komponen Teks huruf 'R' */}
-      <text 
-        xmlSpace="preserve" 
-        id="text8" 
-        x="4.254" 
-        y="16.091" 
-        fill="currentColor" // Mengikuti warna teks elemen induk
-        style={{
-          fontWeight: 700,
-          fontSize: '13.2887px',
-          fontFamily: 'Calibri, sans-serif',
-          textAlign: 'start',
-          letterSpacing: '0.0543629px',
-          direction: 'ltr',
-          textAnchor: 'start',
-        }}
-      >
-        <tspan id="tspan8" x="4.254" y="16.091">P</tspan>
-      </text>
     </svg>
   );
-}
+};
+export const ListIconP = ({ size = 24, className = '', ...props }) => {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width={size}
+      height={size}
+      fill="none"
+      viewBox="0 0 24 24"
+      className={className}
+      {...props}
+    >
+      {/* Tanda Centang / Checkmark */}
+      <path
+        id="path1"
+        stroke="currentColor"
+        d="m14.628 16.187 2.481 2.954 4.609-5.908"
+        style={{
+          strokeWidth: 1.65425,
+          strokeDasharray: 'none',
+        }}
+      />
+      
+      {/* Garis Bawah Kiri */}
+      <path
+        id="path3"
+        stroke="currentColor"
+        d="M9.901 18.55h-8.27"
+        style={{
+          strokeWidth: 1.65425,
+          strokeDasharray: 'none',
+        }}
+      />
+      
+      {/* Garis Atas */}
+      <path
+        id="path4"
+        stroke="currentColor"
+        d="M1.63 4.371h12.778m7.91 0h-2.739"
+        style={{
+          strokeWidth: 1.67875,
+          strokeDasharray: 'none',
+        }}
+      />
+      
+      {/* Garis Pendek Tengah-Bawah */}
+      <path
+        id="path6"
+        d="M1.63 13.824h2.645"
+        style={{
+          fill: 'currentColor',
+          fillOpacity: 1,
+          stroke: 'currentColor',
+          strokeWidth: 1.65425,
+          strokeLinecap: 'butt',
+          strokeLinejoin: 'round',
+          strokeDasharray: 'none',
+          strokeOpacity: 1,
+        }}
+      />
+      
+      {/* Garis Pendek Tengah-Atas */}
+      <path
+        id="path7"
+        d="M1.63 9.098h2.645"
+        style={{
+          fill: 'currentColor',
+          fillOpacity: 1,
+          stroke: 'currentColor',
+          strokeWidth: 1.65425,
+          strokeLinecap: 'butt',
+          strokeLinejoin: 'round',
+          strokeDasharray: 'none',
+          strokeOpacity: 1,
+        }}
+      />
+      
+      {/* Garis Panjang Tengah-Kanan */}
+      <path
+        id="path8"
+        d="M12.512 9.098h9.806"
+        style={{
+          fill: 'currentColor',
+          fillOpacity: 1,
+          stroke: 'currentColor',
+          strokeWidth: 1.70732,
+          strokeLinecap: 'butt',
+          strokeLinejoin: 'round',
+          strokeDasharray: 'none',
+          strokeOpacity: 1,
+        }}
+      />
+      
+      {/* Karakter "P" */}
+      <text
+        xmlSpace="preserve"
+        id="text8"
+        x="3.821"
+        y="16.295"
+        style={{
+          fontWeight: 700,
+          fontSize: '15.702px',
+          fontFamily: 'Calibri, sans-serif',
+          textAlign: 'start',
+          letterSpacing: '0.0642354px',
+          writingMode: 'lr-tb',
+          direction: 'ltr',
+          textAnchor: 'start',
+          fill: 'currentColor',
+          stroke: 'none',
+          strokeWidth: 1.53187,
+          strokeLinecap: 'round',
+          strokeLinejoin: 'round',
+          strokeDasharray: 'none',
+        }}
+      >
+        <tspan
+          id="tspan8"
+          x="3.821"
+          y="16.295"
+          style={{
+            fontStyle: 'normal',
+            fontVariant: 'normal',
+            fontWeight: 700,
+            fontStretch: 'normal',
+            fontFamily: 'Calibri, sans-serif',
+            fill: 'currentColor',
+            stroke: 'none',
+            strokeWidth: 1.53187,
+            strokeDasharray: 'none',
+          }}
+        >
+          P
+        </tspan>
+      </text>
+      
+      {/* Elemen Atas Kanan (Grup) */}
+      <g
+        id="path9"
+        style={{
+          strokeWidth: 1.4,
+          strokeDasharray: 'none',
+        }}
+        transform="matrix(1.1816 0 0 1.7356 -1.915 -10.474)"
+      >
+        <path
+          id="path10"
+          d="M11.959 14h2.238"
+          style={{
+            fill: 'currentColor',
+            strokeWidth: 1.4,
+            strokeLinejoin: 'round',
+            strokeDasharray: 'none',
+          }}
+        />
+        <path
+          id="path11"
+          d="m11.959 13.523.4.954h1.838v-.954z"
+          style={{
+            color: 'currentColor',
+            fontStyle: 'normal',
+            fontVariant: 'normal',
+            fontWeight: 400,
+            fontStretch: 'normal',
+            fontSize: 'medium',
+            lineHeight: 'normal',
+            fontFamily: 'sans-serif',
+            textIndent: 0,
+            textAlign: 'start',
+            textDecorationLine: 'none',
+            textDecorationStyle: 'solid',
+            letterSpacing: 'normal',
+            wordSpacing: 'normal',
+            textTransform: 'none',
+            writingMode: 'lr-tb',
+            direction: 'ltr',
+            textOrientation: 'mixed',
+            dominantBaseline: 'auto',
+            baselineShift: 'baseline',
+            textAnchor: 'start',
+            whiteSpace: 'normal',
+            clipRule: 'nonzero',
+            display: 'inline',
+            overflow: 'visible',
+            visibility: 'visible',
+            isolation: 'auto',
+            mixBlendMode: 'normal',
+            fill: 'currentColor',
+            fillOpacity: 1,
+            fillRule: 'nonzero',
+            stroke: 'none',
+            strokeWidth: 1.4,
+            strokeLinecap: 'butt',
+            strokeLinejoin: 'round',
+            strokeMiterlimit: 4,
+            strokeDasharray: 'none',
+            strokeDashoffset: 0,
+            strokeOpacity: 1,
+            stopColor: 'currentColor',
+          }}
+        />
+      </g>
+    </svg>
+  );
+};
+
 export const ListIcon32 = () => (
   <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
     <path d="M14 16L16.1 18.5L20 13.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
@@ -188,6 +491,94 @@ export function UserIcon() {
       </svg>
     );
   }
+
+  export const UserTake  = ({ size = 24, color = 'currentColor', ...props }) => {
+    return (
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width={size}
+        height={size}
+        viewBox="0 0 6.35 6.35"
+        xmlSpace="preserve"
+        {...props}
+      >
+        <path
+          id="rect10"
+          d="M1.617 2.6h2.711v2.711H1.617z"
+          style={{
+            fill: 'none',
+            stroke: color,
+            strokeWidth: 0.396875,
+            strokeLinecap: 'round',
+            strokeLinejoin: 'round',
+            strokeDasharray: 'none',
+          }}
+          transform="rotate(-15)"
+        />
+        <path
+          id="path11"
+          d="M.412.96c.251.04.43.117.632.181l1.014 3.433"
+          style={{
+            fill: 'none',
+            stroke: color,
+            strokeWidth: 0.396875,
+            strokeLinecap: 'round',
+            strokeLinejoin: 'round',
+            strokeDasharray: 'none',
+          }}
+        />
+        <path
+          id="path13"
+          d="m2.321 4.997-.02.002-.035.003-.035.007-.035.009-.034.01-.034.015-.031.015-.031.019-.03.02-.028.022-.026.025-.025.026-.022.028-.021.03-.018.03-.017.032-.013.033-.012.035-.009.034-.006.036-.004.035-.002.02h0v.01h0v.022l.002.025.003.035.007.036.009.034.012.035.013.033.017.031.018.032.02.029.023.028.025.026.026.025.028.022.03.02.03.018.033.017.032.013.035.012.034.008.036.007.036.003.024.003h.023l.049-.004h0l.07-.013h0l.067-.023.003-.002.06-.031.003-.002.056-.04.003-.002.05-.047.002-.003.042-.053.003-.004.033-.058.002-.004.026-.063v-.003l.017-.067v-.002l.007-.07h0v-.024h0v-.01h0v-.001l-.007-.069V5.41l-.018-.068v-.001l-.028-.065h0l-.036-.062h0l-.044-.055-.002-.002-.05-.047-.003-.002-.056-.04-.004-.001-.06-.03-.004-.002-.064-.022-.004-.001L2.395 5h-.004l-.037-.003H2.32"
+          style={{
+            fill: 'none',
+            stroke: color,
+            strokeWidth: 0.396875,
+            strokeLinecap: 'round',
+            strokeLinejoin: 'round',
+            strokeDasharray: 'none',
+          }}
+        />
+        <path
+          id="path14"
+          d="m3.272 5.358 2.745-.724"
+          style={{
+            fill: 'none',
+            stroke: color,
+            strokeWidth: 0.396875,
+            strokeLinecap: 'round',
+            strokeLinejoin: 'round',
+            strokeDasharray: 'none',
+          }}
+        />
+        <path
+          id="path15"
+          d="m4.13 3.711-.372-1.304"
+          style={{
+            fill: 'none',
+            stroke: color,
+            strokeWidth: 0.396875,
+            strokeLinecap: 'round',
+            strokeLinejoin: 'round',
+            strokeDasharray: 'none',
+          }}
+        />
+        <path
+          id="path16"
+          d="m3.307 2.981.295-.776.839.466"
+          style={{
+            fill: 'none',
+            stroke: color,
+            strokeWidth: 0.396875,
+            strokeLinecap: 'round',
+            strokeLinejoin: 'round',
+            strokeDasharray: 'none',
+          }}
+        />
+      </svg>
+    );
+  };
+
   
 export  function ClientIcon() {
     return (
@@ -240,99 +631,146 @@ export  function RoleIcon() {
       </svg>
     );
   }
-  export function DeliveryIcon() {
+  export const DeliveryIcon = ({ size = 24, className = '', ...props }) => {
     return (
-      <svg xmlns="http://www.w3.org/2000/svg" xmlSpace="preserve" id="svg12" width="24" height="24" viewBox="0 0 14 16">
-        <path 
-          id="path1" 
-          d="M9.665 7.449c-1.413 2.663-2.618 1.465-3.422.055-3.516.595-3.98 2.64-3.978 4.828l1.63.016v-1.52H7.13l-.018.105s.025 1.339.04 1.904l.54-.452c.176-.133.335-.249.335-.249l.34.255.591.45-.068-2.013h3.214v1.6l1.63.015c-.227-2.123-.297-4.31-4.07-4.994m-5.793 4.91-1.26.006.027 1.655c.138.27.397.454.706.601l.254.013v-.036c0-.164.129-.297.292-.304zm8.244.107.013 1.828c.167.002.3.137.3.304v.143l.253-.012c.31-.148.57-.331.707-.602l-.019-1.66z" 
-          fill="none" stroke="currentColor" strokeWidth="0.5" strokeLinecap="round" strokeLinejoin="round"
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width={size}
+        height={size}
+        viewBox="0 0 6.35 6.35"
+        className={className}
+        {...props}
+      >
+        {/* Roda Depan */}
+        <path
+          id="path13"
+          d="m2.607 4.231-.013.002-.023.002-.023.004-.024.006-.022.008-.023.009-.02.01-.021.012-.02.014-.018.015-.018.016-.016.017-.015.019-.014.02-.012.02-.01.021-.01.022-.007.023-.006.023-.005.023-.002.023-.002.014h.001v.006h0v.031l.003.024.005.024.005.022.008.023.01.022.01.021.012.021.014.02.015.018.016.017.018.016.018.015.02.014.02.012.022.01.021.01.023.007.023.006.024.004.023.003.017.001h.015l.032-.002h0l.047-.01h0l.044-.014.002-.001.04-.021.002-.001.037-.027.002-.001.033-.031.002-.002.027-.035.002-.003.023-.039v-.002l.018-.042v-.002l.011-.045v-.001l.005-.046h0V4.56h0v-.007h0v-.002l-.005-.045v-.001l-.012-.045v0l-.018-.044h0l-.024-.04h0l-.03-.037v-.001l-.035-.032h0l-.038-.027-.002-.001-.04-.02-.003-.001-.043-.015H2.7l-.044-.009h-.003l-.024-.002z"
+          style={{
+            fill: 'none',
+            stroke: 'currentColor',
+            strokeWidth: 0.264643,
+            strokeLinecap: 'round',
+            strokeLinejoin: 'round',
+            strokeDasharray: 'none',
+          }}
         />
-        <path 
-          id="path2" 
-          d="M4.961 3.905c-.07.652-.38 1.325.628 1.883.288 1.891 2.404 1.815 2.404 1.815s1.967.132 2.44-1.815c1.008-.558.699-1.231.628-1.883-1.234-1.17-4.983-1.357-6.1 0" 
-          fill="none" stroke="currentColor" strokeWidth="0.5" strokeLinecap="round" strokeLinejoin="round"
+        
+        {/* Badan Truk */}
+        <path
+          id="path9"
+          d="m1.052 1.564.1.26h3.004V3.3s.175.209.104.871h-.94c-.325-.613-1.264-.4-1.4 0h-.364v-.542l-.225.003v.84l.693-.001c.036-.656 1.148-.688 1.17.001l1.188-.001c.021-.666 1.103-.683 1.172 0l.362.001c.062-.277.053-.525.008-.862-.081-.05-.103-.308-.008-.355l-.052-.123c-.024-.313-.277-.707-.512-.981l-.1-.092H4.4v-.495Zm3.348.705h.76c.206.189.339.56.398.731l-.005.16H4.4Z"
+          style={{
+            fontStyle: 'normal',
+            fontVariant: 'normal',
+            fontWeight: 400,
+            fontStretch: 'normal',
+            fontSize: 'medium',
+            lineHeight: 'normal',
+            fontFamily: 'sans-serif',
+            textIndent: 0,
+            textAlign: 'start',
+            textDecorationLine: 'none',
+            textDecorationStyle: 'solid',
+            letterSpacing: 'normal',
+            wordSpacing: 'normal',
+            textTransform: 'none',
+            writingMode: 'lr-tb',
+            direction: 'ltr',
+            textOrientation: 'mixed',
+            dominantBaseline: 'auto',
+            baselineShift: 'baseline',
+            textAnchor: 'start',
+            whiteSpace: 'normal',
+            clipRule: 'nonzero',
+            display: 'inline',
+            overflow: 'visible',
+            visibility: 'visible',
+            isolation: 'auto',
+            mixBlendMode: 'normal',
+            vectorEffect: 'none',
+            fill: 'currentColor',
+            fillOpacity: 1,
+            fillRule: 'nonzero',
+            stroke: 'none',
+            strokeWidth: 1.09016,
+            strokeLinecap: 'round',
+            strokeLinejoin: 'round',
+            strokeMiterlimit: 4,
+            strokeDasharray: 'none',
+            strokeDashoffset: 0,
+            strokeOpacity: 1,
+          }}
         />
-        <path 
-          id="path4" 
-          d="M3.894 10.828v3.466h1.14c.168 0 .304.135.304.304v.573h5.352v-.573c0-.169.136-.305.305-.305h1.11v-3.465H8.89l.078 2.015-.941-.707s-.837.602-.864.707c-.026.104-.052-1.91-.052-1.91l.019-.105z" 
-          fill="none" stroke="currentColor" strokeWidth="0.5" strokeLinecap="round" strokeLinejoin="round"
+        
+        {/* Garis Kecepatan (Kiri) */}
+        <path
+          id="path12"
+          d="M.305 2.182h2.08"
+          style={{
+            fill: 'none',
+            stroke: 'currentColor',
+            strokeWidth: 0.348913,
+            strokeLinecap: 'round',
+            strokeLinejoin: 'round',
+            strokeDasharray: 'none',
+          }}
         />
-        <path 
-          id="path5" 
-          d="m3.89 10.83.868-1.153 6.618.026.733 1.125" 
-          fill="none" stroke="currentColor" strokeWidth="0.5" strokeLinecap="round" strokeLinejoin="round"
+        <path
+          id="path14"
+          d="M.62 2.776h2.05"
+          style={{
+            fill: 'none',
+            stroke: 'currentColor',
+            strokeWidth: 0.348913,
+            strokeLinecap: 'round',
+            strokeLinejoin: 'round',
+            strokeDasharray: 'none',
+          }}
         />
-        <path 
-          id="path6" 
-          d="m7.321 9.755-.209 1.177s.026 2.015.053 1.91c.026-.104.863-.706.863-.706l.942.706-.079-2.014-.196-1.099Z" 
-          fill="none" stroke="currentColor" strokeWidth="0.5" strokeLinecap="round" strokeLinejoin="round"
+        <path
+          id="path16"
+          d="M.936 3.37h2.05"
+          style={{
+            fill: 'none',
+            stroke: 'currentColor',
+            strokeWidth: 0.348913,
+            strokeLinecap: 'round',
+            strokeLinejoin: 'round',
+            strokeDasharray: 'none',
+          }}
         />
-        <path 
-          id="path7" 
-          d="M4.907 4.002s-.535-1.644 1.026-2.718C7.485.215 8.725.406 9.993 1.186c1.428.88 1.1 2.787 1.1 2.787.227.295-.549.758-.76.66-.506-.236-3.453-.76-4.636-.025-.827-.115-.983-.476-.79-.606" 
-          fill="#fff" stroke="currentColor" strokeWidth="0.5" strokeLinecap="round" strokeLinejoin="round"
+        
+        {/* Detail Lampu / Titik Kecil Belakang */}
+        <path
+          id="path18"
+          d="M5.99 3.43a.053.148 0 0 1-.051.15.053.148 0 0 1-.054-.144.053.148 0 0 1 .05-.151.053.148 0 0 1 .055.142l-.052.005z"
+          style={{
+            fill: 'currentColor',
+            stroke: 'none',
+            strokeWidth: 0.100539,
+            strokeLinecap: 'round',
+            strokeLinejoin: 'round',
+            strokeDasharray: 'none',
+          }}
         />
-        <path 
-          id="rect8" 
-          d="M3.903 14.293a.304.304 0 0 0-.304.305v.569c0 .169.135.305.304.305h1.13a.304.304 0 0 0 .305-.305v-.569a.304.304 0 0 0-.305-.305zm7.092 0a.304.304 0 0 0-.305.305v.569c0 .169.136.305.305.305h1.13a.304.304 0 0 0 .304-.305v-.569a.304.304 0 0 0-.304-.305z" 
-          fill="none" stroke="currentColor" strokeWidth="0.5" strokeLinecap="round" strokeLinejoin="round"
-        />
-        <path 
-          id="path10" 
-          d="m6.335 7.079-.019.555zm3.194.163-.022.456z" 
-          fill="none" stroke="currentColor" strokeWidth="0.5" strokeLinecap="round" strokeLinejoin="round"
+        
+        {/* Roda Belakang */}
+        <path
+          id="path19"
+          d="m4.947 4.231-.013.002-.024.002-.023.004-.024.006-.022.008-.022.009-.021.01-.021.012-.02.014-.018.015-.018.016-.016.017-.015.019-.013.02-.013.02-.01.021-.01.022-.007.023-.006.023-.005.023-.002.023-.002.014h.001v.006h0v.015l.001.016.002.024.005.024.006.022.008.023.009.022.01.021.012.021.014.02.015.018.017.017.017.016.018.015.02.014.02.012.022.01.022.01.023.007.022.006.024.004.024.003.016.001h.015l.033-.002h0l.046-.01h0l.044-.014.002-.001.04-.021.002-.001.037-.027.002-.001.033-.031.002-.002.028-.035.001-.003.023-.039.001-.002.017-.042v-.002l.012-.045v-.001l.004-.046h0V4.56h0v-.007h0v-.002l-.005-.045v-.001l-.012-.045v0l-.018-.044h0l-.024-.04h0l-.03-.037v-.001l-.034-.032h-.002l-.037-.027-.002-.001-.04-.02-.003-.001-.042-.015H5.04l-.044-.009h-.003l-.025-.002z"
+          style={{
+            fill: 'none',
+            stroke: 'currentColor',
+            strokeWidth: 0.264643,
+            strokeLinecap: 'round',
+            strokeLinejoin: 'round',
+            strokeDasharray: 'none',
+          }}
         />
       </svg>
     );
-  }
-  export function DeliveryIcon32() {
-    return (
-      <svg xmlns="http://www.w3.org/2000/svg" xmlSpace="preserve" id="svg12" width="32" height="32" viewBox="0 0 14 16">
-  <path 
-    id="path1" 
-    d="M9.665 7.449c-1.413 2.663-2.618 1.465-3.422.055-3.516.595-3.98 2.64-3.978 4.828l1.63.016v-1.52H7.13l-.018.105s.025 1.339.04 1.904l.54-.452c.176-.133.335-.249.335-.249l.34.255.591.45-.068-2.013h3.214v1.6l1.63.015c-.227-2.123-.297-4.31-4.07-4.994m-5.793 4.91-1.26.006.027 1.655c.138.27.397.454.706.601l.254.013v-.036c0-.164.129-.297.292-.304zm8.244.107.013 1.828c.167.002.3.137.3.304v.143l.253-.012c.31-.148.57-.331.707-.602l-.019-1.66z" 
-    fill="none" stroke="currentColor" strokeWidth="0.9" strokeLinecap="round" strokeLinejoin="round"
-  />
-  <path 
-    id="path2" 
-    d="M4.961 3.905c-.07.652-.38 1.325.628 1.883.288 1.891 2.404 1.815 2.404 1.815s1.967.132 2.44-1.815c1.008-.558.699-1.231.628-1.883-1.234-1.17-4.983-1.357-6.1 0" 
-    fill="none" stroke="currentColor" strokeWidth="0.9" strokeLinecap="round" strokeLinejoin="round"
-  />
-  <path 
-    id="path4" 
-    d="M3.894 10.828v3.466h1.14c.168 0 .304.135.304.304v.573h5.352v-.573c0-.169.136-.305.305-.305h1.11v-3.465H8.89l.078 2.015-.941-.707s-.837.602-.864.707c-.026.104-.052-1.91-.052-1.91l.019-.105z" 
-    fill="currentColor" stroke="currentColor" strokeWidth="0.9" strokeLinecap="round" strokeLinejoin="round"
-  />
-  <path 
-    id="path5" 
-    d="m3.89 10.83.868-1.153 6.618.026.733 1.125" 
-    fill="none" stroke="currentColor" strokeWidth="0.5" strokeLinecap="round" strokeLinejoin="round"
-  />
-  <path 
-    id="path6" 
-    d="m7.321 9.755-.209 1.177s.026 2.015.053 1.91c.026-.104.863-.706.863-.706l.942.706-.079-2.014-.196-1.099Z" 
-    fill="none" stroke="currentColor" strokeWidth="0.5" strokeLinecap="round" strokeLinejoin="round"
-  />
-  <path 
-    id="path7" 
-    d="M4.907 4.002s-.535-1.644 1.026-2.718C7.485.215 8.725.406 9.993 1.186c1.428.88 1.1 2.787 1.1 2.787.227.295-.549.758-.76.66-.506-.236-3.453-.76-4.636-.025-.827-.115-.983-.476-.79-.606" 
-    fill="currentColor" stroke="currentColor" strokeWidth="0.5" strokeLinecap="round" strokeLinejoin="round"
-  />
-  <path 
-    id="rect8" 
-    d="M3.903 14.293a.304.304 0 0 0-.304.305v.569c0 .169.135.305.304.305h1.13a.304.304 0 0 0 .305-.305v-.569a.304.304 0 0 0-.305-.305zm7.092 0a.304.304 0 0 0-.305.305v.569c0 .169.136.305.305.305h1.13a.304.304 0 0 0 .304-.305v-.569a.304.304 0 0 0-.304-.305z" 
-    fill="none" stroke="currentColor" strokeWidth="0.5" strokeLinecap="round" strokeLinejoin="round"
-  />
-  <path 
-    id="path10" 
-    d="m6.335 7.079-.019.555zm3.194.163-.022.456z" 
-    fill="none" stroke="currentColor" strokeWidth="0.5" strokeLinecap="round" strokeLinejoin="round"
-  />
-</svg>
-    );
-  }
-  export function RequisitionIcon() {
+  };
+  export function RequisitionIconR() {
     return (
       <svg xmlns="http://www.w3.org/2000/svg" xmlSpace="preserve" id="svg12" width="24" height="24" viewBox="0 0 6.35 6.35">
         <rect 
@@ -390,64 +828,193 @@ export  function RoleIcon() {
       </svg>
     );
   }
-  export function RequisitionIcon32() {
+  
+  export const RequisitionIcon = ({ size = 24, color = 'currentColor', ...props }) => {
     return (
-      <svg xmlns="http://www.w3.org/2000/svg" xmlSpace="preserve" id="svg12" width="32" height="32" viewBox="0 0 6.35 6.35">
-        <rect 
-          id="rect16" 
-          width=".414" 
-          height="1.09" 
-          x="-.06" 
-          y="4.426" 
-          ry=".024" 
-          fill="currentColor"
-          stroke="none"
-          strokeWidth=".259668"
-          strokeLinecap="round"
-          strokeLinejoin="round"
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width={size}
+        height={size}
+        viewBox="0 0 6.35 6.35"
+        xmlSpace="preserve"
+        {...props}
+      >
+        {/* Elemen Dekorasi / Stempel Kecil di Kiri Bawah */}
+        <rect
+          id="rect16"
+          width={0.474}
+          height={1.246}
+          x={-0.305}
+          y={4.854}
+          ry={0.027}
+          style={{
+            fill: color,
+            stroke: 'none',
+          }}
           transform="matrix(.98666 -.16281 .1194 .99285 0 0)"
         />
-        <path 
-          id="path16" 
-          d="m1.008 4.356.117.954c.53-.328 1.65-.226 2.46-.158.18.015.3-.005.454-.078.724-.345 1.291-.664 1.886-.988.05-.174-.098-.37-.384-.307l-.414.148-.234.093-.227.046c-.138.008-.228.045-.331.075.106.636-.278.554-1.543.44.045-.04.16-.057.257-.074.257-.045.608-.036.847-.027.096.003.193.024.27-.038a.28.28 0 0 0 .106-.182c.011-.087-.037-.161-.085-.21-.057-.056-.124-.07-.207-.083-.372-.059-.64-.015-1.056-.132-.129-.036-.247-.054-.345-.082-.254-.072-.397-.067-.67.127a3.4 3.4 0 0 1-.901.476" 
-          fill="none"
-          stroke="currentColor"
-          strokeWidth=".2549715"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-        <rect 
-          id="rect27" 
-          width="3.624" 
-          height="2.571" 
-          x="1.327" 
-          y=".9" 
-          ry=".101" 
-          fill="none"
-          stroke="currentColor"
-          strokeWidth=".2549715"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-        <path 
-          id="text27" 
-          d="M4.067 2.873q0 .013-.008.023-.006.01-.024.016t-.047.01-.075.003q-.044 0-.074-.004-.03-.003-.047-.01-.017-.006-.024-.015-.008-.01-.008-.023V1.578h-.002l-.461 1.294q-.005.016-.016.027t-.031.016-.048.008-.071.002q-.042 0-.072-.004-.03-.002-.049-.008-.018-.008-.03-.017-.01-.01-.014-.024L2.52 1.578h-.002v1.295q0 .013-.007.023t-.025.016-.048.01q-.028.003-.074.003-.044 0-.074-.004-.03-.003-.048-.01-.017-.006-.024-.015-.006-.01-.006-.023V1.455q0-.063.033-.096t.088-.033h.212q.057 0 .097.01.04.008.07.03t.05.057.034.086l.344.949h.005l.357-.946q.016-.052.035-.088t.044-.057.06-.031.08-.01h.218q.033 0 .056.009.025.008.04.025.016.016.023.041.009.023.009.054z" 
-          aria-label="M" 
-          fill="none"
-          stroke="currentColor"
-          strokeWidth=".2549715"
-          strokeLinecap="round"
-          strokeLinejoin="round"
+  
+        {/* Bagian Bawah / Aksen Dokumen */}
+        <path
+          id="path16"
+          d="m1.008 4.885.117.954c.53-.328 1.616-.168 2.426-.1.181.015.35.012.504-.061.724-.346 1.275-.739 1.87-1.063.05-.174-.085-.374-.371-.31l-.415.147-.233.093-.194.038c-.093.032-.06.016-.162.045.006.673-.528.76-1.745.477.044-.038.147-.052.244-.07.257-.044.544.006.783.015.096.003.225.015.333-.079.08-.069.091-.216.083-.256-.019-.086-.046-.095-.094-.143a.7.7 0 0 0-.302-.134c-.373-.059-.511.043-.928-.074-.129-.036-.247-.053-.345-.081-.254-.073-.397-.068-.67.126a3.4 3.4 0 0 1-.901.476"
           style={{
-            fontWeight: 700,
-            fontSize: '6.82848px',
-            fontFamily: 'Calibri',
-            letterSpacing: '0.0279346px'
+            fill: color,
+            stroke: color,
+            strokeWidth: 0.064583,
+            strokeLinecap: 'round',
+            strokeLinejoin: 'round',
+            strokeDasharray: 'none',
+          }}
+        />
+  
+        {/* Sisi Kanan Kotak/Berkas (Perspektif 3D) */}
+        <rect
+          id="rect27"
+          width={1.93}
+          height={1.954}
+          x={1.942}
+          y={0.525}
+          ry={0.077}
+          style={{
+            fill: 'none',
+            stroke: color,
+            strokeWidth: 0.168351,
+            strokeLinecap: 'round',
+            strokeLinejoin: 'round',
+            strokeDasharray: 'none',
+          }}
+          transform="scale(.90526 1) skewY(23.018)"
+        />
+  
+        {/* Sisi Kiri Kotak/Berkas (Perspektif 3D) */}
+        <rect
+          id="rect1"
+          width={1.93}
+          height={1.954}
+          x={-5.843}
+          y={3.82}
+          ry={0.077}
+          style={{
+            fill: 'none',
+            stroke: color,
+            strokeWidth: 0.168351,
+            strokeLinecap: 'round',
+            strokeLinejoin: 'round',
+            strokeDasharray: 'none',
+          }}
+          transform="scale(-.90526 1) skewY(23.018)"
+        />
+  
+        {/* Bagian Atas / Lipatan Dokumen */}
+        <path
+          id="path2"
+          d="M2.011 1.242s1.295.626 1.494.584 1.644-.678 1.644-.678L3.69.804Z"
+          style={{
+            fill: 'none',
+            stroke: color,
+            strokeWidth: 0.145878,
+            strokeLinecap: 'round',
+            strokeLinejoin: 'round',
+            strokeDasharray: 'none',
           }}
         />
       </svg>
     );
-  }
+  };
+  export const RequisitionIcon32 = ({ size = 32, color = 'currentColor', ...props }) => {
+    return (
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width={size}
+        height={size}
+        viewBox="0 0 6.35 6.35"
+        xmlSpace="preserve"
+        {...props}
+      >
+        {/* Elemen Dekorasi / Stempel Kecil di Kiri Bawah */}
+        <rect
+          id="rect16"
+          width={0.474}
+          height={1.246}
+          x={-0.305}
+          y={4.854}
+          ry={0.027}
+          style={{
+            fill: color,
+            stroke: 'none',
+          }}
+          transform="matrix(.98666 -.16281 .1194 .99285 0 0)"
+        />
+  
+        {/* Bagian Bawah / Aksen Dokumen */}
+        <path
+          id="path16"
+          d="m1.008 4.885.117.954c.53-.328 1.616-.168 2.426-.1.181.015.35.012.504-.061.724-.346 1.275-.739 1.87-1.063.05-.174-.085-.374-.371-.31l-.415.147-.233.093-.194.038c-.093.032-.06.016-.162.045.006.673-.528.76-1.745.477.044-.038.147-.052.244-.07.257-.044.544.006.783.015.096.003.225.015.333-.079.08-.069.091-.216.083-.256-.019-.086-.046-.095-.094-.143a.7.7 0 0 0-.302-.134c-.373-.059-.511.043-.928-.074-.129-.036-.247-.053-.345-.081-.254-.073-.397-.068-.67.126a3.4 3.4 0 0 1-.901.476"
+          style={{
+            fill: color,
+            stroke: color,
+            strokeWidth: 0.084583,
+            strokeLinecap: 'round',
+            strokeLinejoin: 'round',
+            strokeDasharray: 'none',
+          }}
+        />
+  
+        {/* Sisi Kanan Kotak/Berkas (Perspektif 3D) */}
+        <rect
+          id="rect27"
+          width={1.93}
+          height={1.954}
+          x={1.942}
+          y={0.525}
+          ry={0.077}
+          style={{
+            fill: 'none',
+            stroke: color,
+            strokeWidth: 0.168351,
+            strokeLinecap: 'round',
+            strokeLinejoin: 'round',
+            strokeDasharray: 'none',
+          }}
+          transform="scale(.90526 1) skewY(23.018)"
+        />
+  
+        {/* Sisi Kiri Kotak/Berkas (Perspektif 3D) */}
+        <rect
+          id="rect1"
+          width={1.93}
+          height={1.954}
+          x={-5.843}
+          y={3.82}
+          ry={0.077}
+          style={{
+            fill: 'none',
+            stroke: color,
+            strokeWidth: 0.168351,
+            strokeLinecap: 'round',
+            strokeLinejoin: 'round',
+            strokeDasharray: 'none',
+          }}
+          transform="scale(-.90526 1) skewY(23.018)"
+        />
+  
+        {/* Bagian Atas / Lipatan Dokumen */}
+        <path
+          id="path2"
+          d="M2.011 1.242s1.295.626 1.494.584 1.644-.678 1.644-.678L3.69.804Z"
+          style={{
+            fill: 'none',
+            stroke: color,
+            strokeWidth: 0.145878,
+            strokeLinecap: 'round',
+            strokeLinejoin: 'round',
+            strokeDasharray: 'none',
+          }}
+        />
+      </svg>
+    );
+  };
   export function LogoSMAMerahHitam() {
     return (
       <svg width="80" height="48" viewBox="0 0 39.687 23.813" xmlns="http://www.w3.org/2000/svg">

@@ -17,7 +17,7 @@ export default function LineChart({ data, color = '#3b82f6', height = 80 }) {
     </div>
   );
 
-  const W    = 500;
+  const W    = 200;
   const H    = height;
   const padX = 8;
   const padY = 8;

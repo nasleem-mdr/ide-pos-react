@@ -11,6 +11,10 @@ const fmtRp = (n) => `Rp ${Math.round(n).toLocaleString('id-ID')}`;
 // per KELOMPOK VENDOR (bukan list datar), dengan subtotal per grup — supaya
 // user bisa lihat langsung "kalau saya submit sekarang, akan jadi berapa PO
 // dan masing-masing senilai berapa" SEBELUM benar-benar submit.
+//
+// Field Description ditempatkan di bawah header (sebelum daftar item) —
+// kalau dikosongkan user, PurchasingContainer akan fallback ke
+// PURCHASING_CONFIG.DESCRIPTION saat submit (lihat descriptionPlaceholder).
 // ─────────────────────────────────────────────────────────────────────────────
 const POCartSidebar = ({
   vendorGroups, onRemove, onQtyChange, onPriceChange, onVendorClick,
@@ -19,6 +23,9 @@ const POCartSidebar = ({
   onSubmit, isSubmitting = false,
   emptyLabel = 'Belum ada produk dipilih.',
   width = '380px',
+  description = '',
+  onDescriptionChange,
+  descriptionPlaceholder = 'Keterangan Purchase Order...',
 }) => {
   const vendorCount = vendorGroups.length;
   const hasIncompleteVendor = vendorGroups.some(g => !g.C_BPartner_ID);
@@ -54,6 +61,25 @@ const POCartSidebar = ({
           >Kosongkan</button>
         )}
       </div>
+
+      {onDescriptionChange && (
+        <div style={{ padding: '12px 16px', borderBottom: `1px solid ${COLOR.border}`, flexShrink: 0 }}>
+          <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: COLOR.textMd, marginBottom: '4px' }}>
+            Keterangan
+          </label>
+          <input
+            type="text"
+            value={description}
+            onChange={e => onDescriptionChange(e.target.value)}
+            placeholder={descriptionPlaceholder}
+            style={{
+              width: '100%', boxSizing: 'border-box', padding: '8px 10px',
+              border: `1.5px solid ${COLOR.border}`, borderRadius: RADIUS.sm,
+              fontSize: '13px', color: COLOR.textDk, outline: 'none',
+            }}
+          />
+        </div>
+      )}
 
       <div style={{ flex: 1, overflowY: 'auto', padding: '14px 16px', minHeight: 0 }}>
         {totalItems === 0 ? (

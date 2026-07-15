@@ -2,55 +2,40 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from "react-router-dom";
 import PageHeader from '../components/PageHeader';
 import DataTable from '../components/DataTable';
+import { idempiereApi } from '../utils/idempiereApi'; // sesuaikan path
 import '../App.css';
 
 function ProductList() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
-  const [offset, setOffset] = useState(0); 
+  const [offset, setOffset] = useState(0);
   const pageSize = 10;
   const [totalRecords, setTotalRecords] = useState(0);
-  // Konfigurasi Kolom untuk Tabel
+
   const columns = [
     { key: 'Value', label: 'Search Key' },
     { key: 'Name', label: 'Partner Name' },
     { key: 'UPC', label: 'UPC/EAN' },
-    //{ key: 'TotalOpenBalance', label: 'Open balance' }
   ];
 
   const fetchProduct = useCallback(async () => {
-    const currentToken = localStorage.getItem('token');
-    if (!currentToken) return;
-
     setLoading(true);
     try {
-      // Menentukan kolom spesifik untuk menghemat bandwidth dan mempercepat respons
       const fields = 'Name,Value,Description,IsPurchased,IsSold,UPC';
 
-      let url = `/api/v1/models/m_product?$select=${fields}&$top=${pageSize}&$skip=${offset}`;
+      let url = `/models/m_product?$select=${fields}&$top=${pageSize}&$skip=${offset}`;
       if (search) {
         url += `&$filter=contains(tolower(Name),'${search.toLowerCase()}')`;
       }
 
-      // let url = `/api/v1/models/c_bpartner?$top=${pageSize}&$skip=${offset}`;
-      // if (search) {
-      //   url += `&$filter=contains(tolower(Name),'${search.toLowerCase()}')`;
-      // }
-
-      const response = await fetch(url, {
-        headers: {
-          'Accept': 'application/json',
-          'Authorization': `Bearer ${currentToken}`
-        }
-      });
-
-      if (response.status === 401) throw new Error("Unauthorized");
-      const data = await response.json();
+      const data = await idempiereApi(url);
       setProducts(data.records || []);
-      setTotalRecords(data['row-count'] || data.totalRecords || 100);
+      setTotalRecords(data['row-count'] ?? 0);
     } catch (err) {
       console.error("Fetch Error:", err.message);
+      setProducts([]);
+      setTotalRecords(0);
     } finally {
       setLoading(false);
     }
@@ -59,7 +44,7 @@ function ProductList() {
   useEffect(() => {
     fetchProduct();
   }, [fetchProduct]);
-  
+
   const actionRenderer = (item) => {
     const isEditDisabled = item.IsActive === 'N';
 

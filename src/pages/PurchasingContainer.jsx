@@ -49,7 +49,7 @@ const PurchasingContainer = () => {
   const [detailOpen, setDetailOpen]   = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [docTypeId, setDocTypeId] = useState(null);
-
+  const [description, setDescription]         = useState('');
   // Vendor picker per-baris cart — vendorPickerTarget = itemKey baris yang
   // sedang diganti vendornya (null = modal tertutup).
   const [vendorPickerTarget, setVendorPickerTarget] = useState(null);
@@ -65,7 +65,7 @@ const PurchasingContainer = () => {
   const { fetchDefaultVendor } = useProductVendorInfo();
   const { submit, isSubmitting } = usePurchaseOrderSubmit({
     docTypeId,
-    description: PURCHASING_CONFIG.DESCRIPTION,
+    defaultDescription: PURCHASING_CONFIG.DESCRIPTION,
     onError:     alert,
   });
   const { canEdit } = useAccess();
@@ -150,9 +150,15 @@ const PurchasingContainer = () => {
       fetchProducts(code);
     }
   }, [products, addItem, fetchDefaultVendor, fetchProducts, setSearchValue]);
+  
+  const handleClearCart = useCallback(() => {
+    clearCart();
+    setDescription('');
+  }, [clearCart]);
 
   const handleImportFromRequisition = useCallback((cartItems, requisition) => {
     addItems(cartItems);
+    setDescription(prev => prev.trim() ? prev : (requisition.Description || `Import dari FPB ${requisition.DocumentNo}`));
     const vendorCount = new Set(cartItems.map(i => i.C_BPartner_ID)).size;
     alert(
       `${cartItems.length} item dari FPB ${requisition.DocumentNo} berhasil diimport.\n` +
@@ -171,19 +177,17 @@ const PurchasingContainer = () => {
   }, [vendorPickerTarget, updateVendor]);
 
   const handleSubmit = async () => {
-    const { results, hadError } = await submit(cart, { warehouseId: warehouseInfo?.id });
+    const { results, hadError } = await submit(cart, {
+      warehouseId: warehouseInfo?.id,
+      description,
+    });
     if (!results || results.length === 0) return;
-
-    // Selalu bersihkan cart & tutup cart panel untuk PO yang sudah berhasil,
-    // baik itu semua sukses maupun cuma sebagian.
+  
     setSuccessData(results);
     clearCart();
     setCartOpen(false);
-
+  
     if (hadError) {
-      // Dialog error dari onError sudah/akan terbuka duluan (dipanggil di
-      // dalam submit() sebelum promise ini resolve) — tunda success modal
-      // supaya tidak menutupinya. Dibuka lagi lewat onClose Dialog di bawah.
       setPendingSuccessOpen(true);
     } else {
       setSuccessOpen(true);
@@ -231,6 +235,7 @@ const PurchasingContainer = () => {
         onClose={() => {
           setSuccessOpen(false);
           setSuccessData(null);
+          setDescription(''); // ← tambahan
           fetchProducts('');
           setSearchValue('');
           setTimeout(() => searchRef.current?.focus(), 150);
@@ -368,17 +373,22 @@ const PurchasingContainer = () => {
 
         {isDesktop && (
           <POCartSidebar
+            isOpen={cartOpen}
+            onClose={() => setCartOpen(false)}
             vendorGroups={vendorGroups}
             onRemove={removeItem}
             onQtyChange={updateQty}
             onPriceChange={updatePrice}
             onVendorClick={handleVendorClick}
-            onClearCart={canSubmitPO ? clearCart : undefined}
+            onClearCart={canSubmitPO ? handleClearCart : undefined}
             totalItems={totalItems}
             totalAmount={totalAmount}
             summaryRight={cartSummaryRight}
             onSubmit={canSubmitPO ? handleSubmit : undefined}
             isSubmitting={isSubmitting}
+            description={description}
+            onDescriptionChange={canSubmitPO ? setDescription : undefined}
+            descriptionPlaceholder={PURCHASING_CONFIG.DESCRIPTION}
           />
         )}
       </div>
@@ -396,7 +406,7 @@ const PurchasingContainer = () => {
           onQtyChange={updateQty}
           onPriceChange={updatePrice}
           onVendorClick={handleVendorClick}
-          onClearCart={canSubmitPO ? clearCart : undefined}
+          onClearCart={canSubmitPO ? handleClearCart : undefined}
           totalItems={totalItems}
           totalAmount={totalAmount}
           summaryRight={cartSummaryRight}

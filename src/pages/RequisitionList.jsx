@@ -6,12 +6,13 @@ import DataTable from "../components/DataTable";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import QRCode from "qrcode";
-import { LogoSMAMerahHitam } from "../components/Icons";
+import { LogoSMAMerahHitam} from "../components/Icons";
 import "../App.css";
+
 
 const RequisitionList = () => {
     const todayStr = new Date().toISOString().split("T")[0];
-
+    
     const [requisitions, setRequisitions]             = useState([]);
     const [loading, setLoading]           = useState(false);
     const [search, setSearch]             = useState("");
@@ -473,7 +474,7 @@ const RequisitionList = () => {
             
             <PageHeader
                 
-                title="📋 Requisition"
+                title="Requisition"
                 onSearch={(val) => { setSearch(val); setOffset(0); }}
                 extraAction={
                     <button

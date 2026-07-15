@@ -12,6 +12,9 @@ export async function idempiereApi(url, options = {}) {
   });
 
   if (!res.ok) {
+    if (res.status === 401) {
+      window.dispatchEvent(new CustomEvent('session-expired'));
+    }
     let msg = `HTTP ${res.status}`;
     try {
       const d = await res.json();

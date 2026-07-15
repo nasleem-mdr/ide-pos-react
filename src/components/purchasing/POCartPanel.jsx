@@ -7,6 +7,8 @@ const fmtRp = (n) => `Rp ${Math.round(n).toLocaleString('id-ID')}`;
 
 // Padanan CartPanel.jsx untuk Purchasing — konten sama dengan POCartSidebar
 // (grouped-by-vendor), tapi dibungkus sebagai bottom-sheet mobile.
+// Field Description ditempatkan di bawah header, sebelum daftar item —
+// sama seperti POCartSidebar (versi desktop).
 const POCartPanel = ({
   isOpen, onClose,
   vendorGroups, onRemove, onQtyChange, onPriceChange, onVendorClick, onClearCart,
@@ -14,6 +16,9 @@ const POCartPanel = ({
   title = '🧾 Daftar Purchase Order',
   onSubmit, isSubmitting = false,
   emptyLabel = 'Belum ada produk dipilih.',
+  description = '',
+  onDescriptionChange,
+  descriptionPlaceholder = 'Keterangan Purchase Order...',
 }) => {
   if (!isOpen) return null;
   const vendorCount = vendorGroups.length;
@@ -69,6 +74,25 @@ const POCartPanel = ({
             >✕</button>
           </div>
         </div>
+
+        {onDescriptionChange && (
+          <div style={{ padding: '10px 16px', borderBottom: `1px solid ${COLOR.border}`, flexShrink: 0 }}>
+            <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: COLOR.textMd, marginBottom: '4px' }}>
+              Keterangan
+            </label>
+            <input
+              type="text"
+              value={description}
+              onChange={e => onDescriptionChange(e.target.value)}
+              placeholder={descriptionPlaceholder}
+              style={{
+                width: '100%', boxSizing: 'border-box', padding: '8px 10px',
+                border: `1.5px solid ${COLOR.border}`, borderRadius: RADIUS.sm,
+                fontSize: '13px', color: COLOR.textDk, outline: 'none',
+              }}
+            />
+          </div>
+        )}
 
         <div style={{ flex: 1, overflowY: 'auto', padding: '12px 14px', minHeight: 0 }}>
           {totalItems === 0 ? (

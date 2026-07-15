@@ -18,7 +18,10 @@
     border-bottom: 1px solid #f1f5f9; /* Garis pemisah tipis yang estetis */
     gap: 24px; /* Ruang aman jika teks judul sangat panjang */
   }
-  
+  .page-header-left {
+    display: flex;
+    gap: 8px; /* Ubah jadi 0px jika ingin benar-benar dempet tanpa jarak */
+  }
   .page-header-title {
     margin: 0;
     font-size: 1.6rem;

@@ -2,7 +2,7 @@ import LineChart from './LineChart';
 import { cardStyle } from './StatCard';
 
 /**
- * MonthlyChartCard — grafik penjualan sepanjang bulan berjalan
+ * MonthlyChartCard — grafik transaksi sepanjang bulan berjalan
  * Props:
  *   data: [{ date: 'YYYY-MM-DD', value: number }]
  */

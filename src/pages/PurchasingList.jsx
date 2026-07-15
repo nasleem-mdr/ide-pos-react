@@ -7,18 +7,11 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import QRCode from "qrcode";
 import { LogoSMAMerahHitam } from "../components/Icons";
+import { idempiereApi } from "../utils/idempiereApi";
 import "../App.css";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PurchasingList.jsx
-// Struktur & gaya SENGAJA dibuat identik dengan RequisitionList.jsx supaya
-// konsisten secara visual — perbedaan utamanya cuma sumber data (C_Order/
-// C_OrderLine, bukan M_Requisition/M_RequisitionLine) dan kolom yang relevan
-// untuk Purchasing (Vendor, Grand Total) menggantikan kolom Gudang/Total Lines.
-//
-// ⚠️ AD_Table_ID untuk C_Order dipakai untuk query riwayat approval
-// (ad_wf_eventaudit). Nilai 259 adalah default standar iDempiere — kalau
-// instance Anda berbeda, cek lewat:
 // GET /api/v1/models/ad_table?$select=AD_Table_ID&$filter=TableName eq 'C_Order'
 // ─────────────────────────────────────────────────────────────────────────────
 const C_ORDER_AD_TABLE_ID = 259; // ← GANTI kalau berbeda di instance Anda
@@ -38,23 +31,23 @@ const PurchasingList = () => {
     const pageSize                        = 10;
     const navigate                        = useNavigate();
 
-    const API_BASE    = "/api/v1";
-    const customFetch = async (url, options = {}) => {
-        const token    = localStorage.getItem("token");
-        const response = await fetch(`${API_BASE}${url}`, {
-            ...options,
-            headers: {
-                ...options.headers,
-                Authorization:  `Bearer ${token}`,
-                "Content-Type": "application/json",
-            },
-        });
-        if (!response.ok) {
-            const text = await response.text().catch(() => "");
-            throw new Error(`[${response.status}] ${text}`);
-        }
-        return response.json();
-    };
+    // const API_BASE    = "/api/v1";
+    // const customFetch = async (url, options = {}) => {
+    //     const token    = localStorage.getItem("token");
+    //     const response = await fetch(`${API_BASE}${url}`, {
+    //         ...options,
+    //         headers: {
+    //             ...options.headers,
+    //             Authorization:  `Bearer ${token}`,
+    //             "Content-Type": "application/json",
+    //         },
+    //     });
+    //     if (!response.ok) {
+    //         const text = await response.text().catch(() => "");
+    //         throw new Error(`[${response.status}] ${text}`);
+    //     }
+    //     return response.json();
+    // };
 
     const getStatusLabel = (status) => {
         const map = { DR: "Draft", IP: "In Progress", CO: "Completed", CL: "Closed", VO: "Voided", RE: "Reversed", NA: "Ditolak" };
@@ -85,7 +78,7 @@ const PurchasingList = () => {
                 filterClause += ` and contains(tolower(DocumentNo),'${search.toLowerCase()}')`;
             }
 
-            const res = await customFetch(
+            const res = await idempiereApi(
                 `/models/c_order` +
                 `?$filter=${filterClause}` +
                 `&$select=C_Order_ID,DocumentNo,DateOrdered,C_BPartner_ID,GrandTotal,DocStatus,C_DocType_ID,M_Warehouse_ID` +
@@ -140,7 +133,7 @@ const PurchasingList = () => {
                 filterClause += ` and contains(tolower(DocumentNo),'${search.toLowerCase()}')`;
             }
 
-            const res = await customFetch(
+            const res = await idempiereApi(
                 `/models/c_order` +
                 `?$filter=${filterClause}` +
                 `&$select=GrandTotal`
@@ -197,22 +190,22 @@ const PurchasingList = () => {
     ];
 
     const generateOrderPDF = async (orderId, documentNo, token) => {
-        const API_BASE = "/api/v1";
-        const customFetch = async (url) => {
-            const res = await fetch(`${API_BASE}${url}`, {
-                headers: { Authorization: `Bearer ${token}` },
-            });
-            return res.json();
-        };
+        // const API_BASE = "/api/v1";
+        // const customFetch = async (url) => {
+        //     const res = await fetch(`${API_BASE}${url}`, {
+        //         headers: { Authorization: `Bearer ${token}` },
+        //     });
+        //     return res.json();
+        // };
 
         // 1. Fetch header data
-        const header = await customFetch(
+        const header = await idempiereApi(
             `/models/c_order/${orderId}` +
             `?$select=DocumentNo,DateOrdered,Description,DocStatus,AD_Org_ID,CreatedBy,C_BPartner_ID,M_Warehouse_ID,GrandTotal,C_Order_UU`
         );
 
         // 2. Fetch line items
-        const linesRes = await customFetch(
+        const linesRes = await idempiereApi(
             `/models/c_orderline` +
             `?$filter=C_Order_ID eq ${orderId}` +
             `&$select=Line,M_Product_ID,QtyOrdered,C_UOM_ID,PriceActual,LineNetAmt,Description` +
@@ -221,7 +214,7 @@ const PurchasingList = () => {
         const lines = linesRes.records || [];
 
         // 3. Fetch workflow history (AD_Table_ID C_Order)
-        const historyRes = await customFetch(
+        const historyRes = await idempiereApi(
             `/models/ad_wf_eventaudit` +
             `?$filter=AD_Table_ID eq ${C_ORDER_AD_TABLE_ID} and Record_ID eq ${orderId}` +
             `&$select=AD_WF_Node_ID,AD_User_ID,Updated` +
@@ -489,7 +482,7 @@ const PurchasingList = () => {
         <div className="card-container">
 
             <PageHeader
-                title="🧾 Purchasing"
+                title="Purchasing"
                 onSearch={(val) => { setSearch(val); setOffset(0); }}
                 extraAction={
                     <button

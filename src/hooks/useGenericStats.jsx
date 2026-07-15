@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-
-const API_BASE = '/api/v1';
+import { idempiereApi } from '../utils/idempiereApi';
 
 function toDateStr(d) {
   return d.toISOString().split('T')[0];
@@ -37,31 +36,16 @@ export default function useGenericStats({
   compareStatuses = [],
   statusField     = 'DocStatus',
   createdBy       = null,
-  createdByList   = null,   // ← tambah parameter ini
+  createdByList   = null,
 } = {}) {
   const [stats,   setStats]   = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const customFetch = useCallback(async (url) => {
-    const token    = localStorage.getItem('token');
-    const response = await fetch(`${API_BASE}${url}`, {
-      headers: {
-        Authorization:  `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-    });
-    if (!response.ok) throw new Error(`[${response.status}] ${url}`);
-    return response.json();
-  }, []);
-
-  // Serialisasi array ke string supaya tidak trigger infinite loop
   const compareStatusesKey = compareStatuses.join(',');
   const createdByListKey   = (createdByList || []).join(',');
 
   useEffect(() => {
     if (!model || !dateField || !totalField) return;
-
-    // Tunggu sampai createdByList sudah resolved (tidak null)
     if (createdByList === null) return;
 
     const load = async () => {
@@ -76,7 +60,6 @@ export default function useGenericStats({
         const filters = [];
         if (baseFilter) filters.push(baseFilter);
 
-        // Filter CreatedBy — list (hierarki) lebih prioritas dari single
         if (createdByList?.length > 0) {
           const orClause = createdByList.map(id => `CreatedBy eq ${id}`).join(' or ');
           filters.push(`(${orClause})`);
@@ -93,7 +76,7 @@ export default function useGenericStats({
           const requests = compareStatuses.map(status => {
             const statusFilter = [...filters, `${statusField} eq '${status}'`].join(' and ');
             const url = `/models/${model}?$filter=${statusFilter}&$select=${select}`;
-            return customFetch(url).then(normaliseRecords);
+            return idempiereApi(url).then(normaliseRecords);
           });
 
           const results    = await Promise.all(requests);
@@ -113,7 +96,7 @@ export default function useGenericStats({
 
         } else {
           const allFilter = filters.join(' and ');
-          const res       = await customFetch(`/models/${model}?$filter=${allFilter}&$select=${select}`);
+          const res       = await idempiereApi(`/models/${model}?$filter=${allFilter}&$select=${select}`);
           const records   = normaliseRecords(res);
           setStats({
             total:         sumField(records, totalField),
@@ -135,7 +118,7 @@ export default function useGenericStats({
     load();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [model, dateField, totalField, baseFilter, selectFields, monthRange,
-      compareStatusesKey, statusField, createdBy, createdByListKey, customFetch]);
+      compareStatusesKey, statusField, createdBy, createdByListKey]);
 
   return { stats, loading };
 }

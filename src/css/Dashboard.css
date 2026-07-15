@@ -163,12 +163,26 @@
 }
 
 .ds-card-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center; /* 🟢 MEMBUAT SEMUA ELEMEN DI TENGAH SECARA HORIZONTAL */
+  gap: 6px;
+  row-gap: 4px;
   font-weight: 700;
   font-size: 13px;
-  color: #94a3b8;                     /* sama dengan welcome-card-value */
-  text-align: center;
+  color: #94a3b8;
+  text-align: center;      /* Menjaga fallback jika flexbox wrap bertingkah */
+  width: 100%;             /* Memastikan title menggunakan lebar penuh kartu */
 }
 
+/* Mengatur label baris kedua agar turun dan teksnya pas di tengah */
+.ds-card-title .ds-card-period {
+  flex-basis: 100%;        /* Memaksa turun ke baris baru */
+  text-align: center;      /* 🟢 Memastikan teks di baris kedua ini berada di tengah */
+  font-weight: 400;        /* (Opsional) membuat teks bulan ini sedikit lebih tipis agar rapi */
+  font-size: 11px;         /* (Opsional) ukurannya disesuaikan */
+}
 .ds-card-period {
   font-weight: 400;
   font-size: 10px;

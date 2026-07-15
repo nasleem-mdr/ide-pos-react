@@ -46,11 +46,11 @@ export function useRequisitionsForPO() {
       }
 
       const res = await idempiereApi(
-        `/models/m_requisition?$select=M_Requisition_ID,DocumentNo,DateDoc,M_Warehouse_ID,DocStatus,TotalLines` +
+        `/models/m_requisition?$select=M_Requisition_ID,DocumentNo,DateDoc,M_Warehouse_ID,DocStatus,TotalLines,Description` +
         `&$filter=${filter}&$orderby=DateDoc desc&$top=50`
       );
       const records = Array.isArray(res.records) ? res.records : [];
-
+      
       let list = records.map(r => ({
         M_Requisition_ID: fkId(r.M_Requisition_ID) ?? r.id,
         DocumentNo:       r.DocumentNo,
@@ -58,6 +58,7 @@ export function useRequisitionsForPO() {
         WarehouseName:    fkLabel(r.M_Warehouse_ID),
         DocStatus:        r.DocStatus?.id ?? r.DocStatus,
         TotalLines:       r.TotalLines ?? 0,
+        Description:      r.Description || '',
       }));
 
       // ── Sembunyikan FPB yang SEMUA line-nya sudah C_OrderLine_ID terisi ──

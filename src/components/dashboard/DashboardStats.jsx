@@ -1,14 +1,31 @@
 import React from 'react';
-import { BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, CartesianGrid } from 'recharts';
+import { BarChart, Bar, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, CartesianGrid } from 'recharts';
 import useGenericStats from '../../hooks/useGenericStats';
 import useDashboardAccess from '../../hooks/useDashboardAccess';
+import usePurchasingStats from '../../hooks/usePurchasingStats';
+import useRequisitionConversion from '../../hooks/useRequisitionConversion';
 import '../../css/Dashboard.css';
+import { useAccess } from '../../context/AccessContext';
+import LineChart from './LineChart';
+import { Link, useLocation } from 'react-router-dom';
+import { PartnerIcon, HomeIcon, BoxIcon, ShoppingCartIcon, LogoSMAWarna, ListIconR, RequisitionIcon, ListIconP, UserTake, DeliveryIcon} from '../Icons';
+
 const COLOR_DR = '#f57c00';
 const COLOR_CO = '#00d1b2';   // teal — sama dengan welcome-card-icon
 const COLOR_IP = '#6366f1';   // indigo — sama dengan welcome-title gradient
 
 const STATUS_LABEL = { CO: 'Completed', IP: 'In Progress', DR: 'Draft' };
-
+const menuSections = [
+    {
+      sectionLabel: 'Laporan & Master',
+      items: [
+        { key: 'requisition-list', borderTop: true, path: '/requisition-list',  label: 'Requisition List',  icon: <ListIconR /> },
+        { key: 'purchasing-list',  path: '/purchasing-list',   label: 'Purchasing List',   icon: <ListIconP /> },
+        { key: 'businessPartner',  path: '/business-partner',  label: 'Business Partner', icon: <PartnerIcon /> },
+        { key: 'product',          path: '/product',           label: 'Products',         icon: <BoxIcon /> },
+      ]
+    }
+  ];
 // ── Requisition: summary card saja ──────────────────────────────────────────
 function RequisitionCard({ createdByList, loadingSubs }) {
   const { stats, loading } = useGenericStats({
@@ -27,7 +44,7 @@ function RequisitionCard({ createdByList, loadingSubs }) {
   return (
     <div className="ds-card">
       <div className="ds-card-title">
-        📋 Requisition <span className="ds-card-period">(bulan ini)</span>
+        <RequisitionIcon size={20}/>Requisition <span className="ds-card-period">(bulan ini)</span>
       </div>
       {loading || loadingSubs ? (
         <div className="ds-loading">Memuat...</div>
@@ -47,7 +64,77 @@ function RequisitionCard({ createdByList, loadingSubs }) {
     </div>
   );
 }
+function OrderTrendCard() {
+  const { stats, loading } = usePurchasingStats(); 
+  // stats.monthChart = [{ date: '2026-07-01', value: ... }, ...]
 
+  return (
+    <div className="ds-card">
+      <div className="ds-card-title">Trend Purchasing</div>
+      {loading ? (
+        <div>Memuat...</div>
+      ) : (
+        <LineChart data={stats?.monthChart} color="#00d1b2" height={100} />
+      )}
+    </div>
+  );
+}
+function PurchasingCard() {
+  const { stats, loading } = usePurchasingStats({ days: 30 }); // opsional, 30 sudah default
+
+  return (
+    <div className="ds-card">
+      <div className="ds-card-title">
+        🛒 Purchase Order <span className="ds-card-period">(30 hari terakhir)</span>
+      </div>
+      {loading ? (
+        <div className="ds-loading">Memuat...</div>
+      ) : (
+        <>
+          <div className="ds-status-row">
+            <div className="ds-status-box">
+              <div className="ds-status-count">{stats?.count ?? 0}</div>
+              <div className="ds-status-label">Total PO</div>
+            </div>
+          </div>
+          <div className="ds-chart-label-mt">Tren Harian</div>
+          <LineChart data={stats?.chartData || []} color="#f57c00" height={90} />
+        </>
+      )}
+    </div>
+  );
+}
+function RequisitionConversionCard() {
+  const { stats, loading } = useRequisitionConversion({ monthRange: 1 });
+
+  return (
+    <div className="ds-card">
+      <div className="ds-card-title">
+        🔄 Requisition → PO <span className="ds-card-period">(bulan ini)</span>
+      </div>
+      {loading ? (
+        <div className="ds-loading">Memuat...</div>
+      ) : (
+        <>
+          <div className="ds-status-row">
+            <div className="ds-status-box">
+              <div className="ds-status-count" style={{ color: COLOR_CO }}>{stats?.converted ?? '-'}</div>
+              <div className="ds-status-label">Sudah jadi PO</div>
+            </div>
+            <div className="ds-divider" />
+            <div className="ds-status-box">
+              <div className="ds-status-count" style={{ color: COLOR_DR }}>{stats?.notConverted ?? '-'}</div>
+              <div className="ds-status-label">Belum diproses</div>
+            </div>
+          </div>
+          <div className="ds-chart-label-mt">
+            Conversion Rate: <strong>{stats?.conversionRate ?? 0}%</strong>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 // ── Chart card generik untuk SO & Invoice ───────────────────────────────────
 function ChartCard({ title, model, dateField, totalField, baseFilter, createdByList, loadingSubs }) {
   const { stats, loading } = useGenericStats({
@@ -106,6 +193,7 @@ function ChartCard({ title, model, dateField, totalField, baseFilter, createdByL
               <div className="ds-chart-label">Tren Harian</div>
               <ResponsiveContainer width="100%">
                 {/* ... LineChart sama */}
+                <PurchasingCard />
               </ResponsiveContainer>
 
               <div className="ds-chart-label-mt">Perbandingan per Hari</div>
@@ -116,6 +204,43 @@ function ChartCard({ title, model, dateField, totalField, baseFilter, createdByL
           )}
         </>
       )}
+    </div>
+  );
+}
+// ── List/daftar ────────────────────────────────────────────────────────
+function ListReport() {
+  const { canView, loading } = useAccess();
+  return (
+    <div className="ds-banner">
+            {menuSections.map((section, index) => {
+            // Filter item di dalam section ini berdasarkan hak akses
+            const visibleItems = section.items.filter(item => !item.key || canView(item.key));
+
+            // Jika tidak ada menu yang boleh dilihat di section ini, jangan rendor section-nya sama sekali
+            if (visibleItems.length === 0) return null;
+
+            return (
+              <div key={index} className="sidebar-section">
+                {/* Pembatas Garis & Judul Section (Hanya muncul dari section ke-2 dst, atau jika tidak collapsed) */}
+                {index > 0 && <hr className="sidebar-divider" />}
+                {<span className="sidebar-section-title">{section.sectionLabel}</span>}
+                {visibleItems.map((item) => (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    label={item.label}
+                    
+                    className={`nav-item ${location.pathname === item.path ? 'active' : ''}`}
+                    data-tooltip={item.label}
+                  >
+                    <div className="nav-icon">{item.icon}</div>
+                    <span className="nav-label">{item.label}</span>
+                  </Link>
+                ))}
+              </div>
+            );
+          })}
+      
     </div>
   );
 }
@@ -141,10 +266,22 @@ export default function DashboardStats() {
    return (
     <div style={{ width: '100%' }}>
       <div className="ds-container">
+        <ListReport />
         <ScopeBanner isSupervisor={isSupervisor} subordinates={subordinates} loadingSubs={loadingSubs} />
         <RequisitionCard {...sharedProps} />
-        <ChartCard title="🛒 Sales Order" model="c_order" dateField="DateOrdered" totalField="GrandTotal" baseFilter="IsSOTrx eq true" {...sharedProps} />
-        <ChartCard title="🧾 Invoice" model="c_invoice" dateField="DateInvoiced" totalField="GrandTotal" baseFilter="IsSOTrx eq true" {...sharedProps} />
+        <ChartCard 
+          title={
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <ShoppingCartIcon size={20} /> Purchase Order
+            </div>
+          } 
+          model="c_order" 
+          dateField="DateOrdered" 
+          totalField="GrandTotal" 
+          baseFilter="IsSOTrx eq false" 
+          {...sharedProps} 
+        />
+        <RequisitionConversionCard />
       </div>
     </div>
   );

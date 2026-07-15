@@ -1,4 +1,5 @@
-// RequisitionView.jsx
+// PurchasingView.jsx , ini adalah modul khusus untuk menampilkan status document dengan
+// Scan qrcode, ini menggunakan aServlet/WebService custom khusus yang tidak perlu login
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 

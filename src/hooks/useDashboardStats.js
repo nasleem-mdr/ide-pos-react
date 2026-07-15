@@ -1,6 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-
-const API_BASE = '/api/v1';
+import { useState, useEffect } from 'react';
+import { idempiereApi } from '../utils/idempiereApi';
 
 function toDateStr(d) {
   return d.toISOString().split('T')[0];
@@ -26,7 +25,7 @@ function extractIds(records) {
 }
 
 function normaliseRecords(data) {
-  if (Array.isArray(data))         return data;
+  if (Array.isArray(data))          return data;
   if (Array.isArray(data?.records)) return data.records;
   return [];
 }
@@ -39,18 +38,6 @@ function normaliseRecords(data) {
 export default function useDashboardStats() {
   const [stats,   setStats]   = useState(null);
   const [loading, setLoading] = useState(true);
-
-  const customFetch = useCallback(async (url) => {
-    const token    = localStorage.getItem('token');
-    const response = await fetch(`${API_BASE}${url}`, {
-      headers: {
-        Authorization:  `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-    });
-    if (!response.ok) throw new Error(`[${response.status}] ${url}`);
-    return response.json();
-  }, []);
 
   useEffect(() => {
     const load = async () => {
@@ -65,9 +52,9 @@ export default function useDashboardStats() {
 
         // ── Fetch order hari ini, kemarin, dan bulan ini ──────────────
         const [resToday, resYday, resMonth] = await Promise.all([
-          customFetch(`/models/c_order?$filter=${baseFilter} and DateOrdered ge ${today}T00:00:00Z and DateOrdered le ${today}T23:59:59Z&$select=C_Order_ID,GrandTotal`),
-          customFetch(`/models/c_order?$filter=${baseFilter} and DateOrdered ge ${yesterday}T00:00:00Z and DateOrdered le ${yesterday}T23:59:59Z&$select=C_Order_ID,GrandTotal`),
-          customFetch(`/models/c_order?$filter=${baseFilter} and DateOrdered ge ${firstOfMonth}T00:00:00Z and DateOrdered le ${today}T23:59:59Z&$select=GrandTotal,DateOrdered`),
+          idempiereApi(`/models/c_order?$filter=${baseFilter} and DateOrdered ge ${today}T00:00:00Z and DateOrdered le ${today}T23:59:59Z&$select=C_Order_ID,GrandTotal`),
+          idempiereApi(`/models/c_order?$filter=${baseFilter} and DateOrdered ge ${yesterday}T00:00:00Z and DateOrdered le ${yesterday}T23:59:59Z&$select=C_Order_ID,GrandTotal`),
+          idempiereApi(`/models/c_order?$filter=${baseFilter} and DateOrdered ge ${firstOfMonth}T00:00:00Z and DateOrdered le ${today}T23:59:59Z&$select=GrandTotal,DateOrdered`),
         ]);
 
         const todayRecords     = normaliseRecords(resToday);
@@ -95,13 +82,13 @@ export default function useDashboardStats() {
 
         if (todayIds.length > 0) {
           const filter = todayIds.map(id => `C_Order_ID eq ${id}`).join(' or ');
-          const res    = await customFetch(`/models/c_orderline?$filter=${filter}&$select=QtyOrdered`);
+          const res    = await idempiereApi(`/models/c_orderline?$filter=${filter}&$select=QtyOrdered`);
           todayQty     = sumQty(normaliseRecords(res));
         }
 
         if (yesterdayIds.length > 0) {
           const filter  = yesterdayIds.map(id => `C_Order_ID eq ${id}`).join(' or ');
-          const res     = await customFetch(`/models/c_orderline?$filter=${filter}&$select=QtyOrdered`);
+          const res     = await idempiereApi(`/models/c_orderline?$filter=${filter}&$select=QtyOrdered`);
           yesterdayQty  = sumQty(normaliseRecords(res));
         }
 
@@ -116,7 +103,7 @@ export default function useDashboardStats() {
     };
 
     load();
-  }, [customFetch]);
+  }, []);
 
   return { stats, loading };
 }
