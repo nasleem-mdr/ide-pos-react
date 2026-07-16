@@ -23,9 +23,9 @@
 
   .content {
     flex: 1;
-    flex: 1;
-    overflow: hidden;
-    min-height: 0;    /* ← ini kuncinya */
+    overflow-y: auto;      /* ← ganti dari overflow: hidden */
+    overflow-x: hidden;    /* opsional, cegah scroll horizontal tidak sengaja */
+    min-height: 0;
     display: flex;
     flex-direction: column;
   }

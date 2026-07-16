@@ -94,7 +94,6 @@ async function apiSetSession(token, clientId, roleId, orgId, warehouseId, langua
     localStorage.setItem('AD_Role_ID', roleId);
     localStorage.setItem('AD_Org_ID', orgId);
     localStorage.setItem('M_Warehouse_ID', warehouseId);
-    console.log("Token final berhasil disimpan ke localStorage");
   }
 
   return data;
