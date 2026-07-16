@@ -117,7 +117,24 @@ export async function getProductImageUrl(productId) {
   const token = localStorage.getItem('token');
   return `/api/v1/models/m_product/${productId}/attachments/${encodeURIComponent(image.name)}?token=${encodeURIComponent(token)}`;
 }
+export async function getFirstProductImageBlobUrl(productId) {
+  const attachments = await getProductAttachments(productId);
+  const image = attachments.find(a => a.contentType?.startsWith('image/'));
+  if (!image) return null;
 
+  const token = localStorage.getItem('token');
+  try {
+    const res = await fetch(
+      `/api/v1/models/m_product/${productId}/attachments/${encodeURIComponent(image.name)}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    return URL.createObjectURL(blob);
+  } catch {
+    return null;
+  }
+}
 // Alternatif lebih aman (tidak menaruh token di URL): fetch sebagai blob lalu
 // buat object URL lokal. Gunakan ini kalau endpoint tidak mendukung token via
 // query param, atau kalau ingin menghindari token tampil di Network tab URL.

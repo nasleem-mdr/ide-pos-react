@@ -215,3 +215,34 @@
   visibility: visible;
   transform: translateY(-50%) translateX(0);
 }
+/* Header section yang bisa diklik untuk collapse/expand */
+.sidebar-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 4px 8px;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+}
+
+.sidebar-section-header:hover .sidebar-section-title {
+  color: #1e293b; /* sesuaikan dengan warna hover yang kamu pakai di tempat lain */
+}
+
+/* Chevron — rotasi 180° saat section tertutup */
+.section-chevron {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #94a3b8;
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+
+.section-chevron.closed {
+  transform: rotate(-90deg);
+}

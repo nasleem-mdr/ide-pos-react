@@ -8,7 +8,7 @@ import '../../css/Dashboard.css';
 import { useAccess } from '../../context/AccessContext';
 import LineChart from './LineChart';
 import { Link, useLocation } from 'react-router-dom';
-import { PartnerIcon, HomeIcon, BoxIcon, ShoppingCartIcon, LogoSMAWarna, ListIconR, RequisitionIcon, ListIconP, UserTake, DeliveryIcon} from '../Icons';
+import { PartnerIcon, HomeIcon, BoxIcon, ShoppingCartIcon, LogoSMAWarna, ListIconR, ListIconG, RequisitionIcon, ListIconP, UserTake, DeliveryIcon} from '../Icons';
 
 const COLOR_DR = '#f57c00';
 const COLOR_CO = '#00d1b2';   // teal — sama dengan welcome-card-icon
@@ -17,14 +17,22 @@ const COLOR_IP = '#6366f1';   // indigo — sama dengan welcome-title gradient
 const STATUS_LABEL = { CO: 'Completed', IP: 'In Progress', DR: 'Draft' };
 const menuSections = [
     {
-      sectionLabel: 'Laporan & Master',
-      items: [
-        { key: 'requisition-list', borderTop: true, path: '/requisition-list',  label: 'Requisition List',  icon: <ListIconR /> },
-        { key: 'purchasing-list',  path: '/purchasing-list',   label: 'Purchasing List',   icon: <ListIconP /> },
-        { key: 'businessPartner',  path: '/business-partner',  label: 'Business Partner', icon: <PartnerIcon /> },
-        { key: 'product',          path: '/product',           label: 'Products',         icon: <BoxIcon /> },
-      ]
-    }
+          sectionLabel: 'Report',
+          defaultCollapsed: true,
+          items: [
+            { key: 'requisition-list', borderTop: true, path: '/requisition-list',  label: 'Requisition List',  icon: <ListIconR /> },
+            { key: 'purchasing-list',  path: '/purchasing-list',   label: 'Purchasing List',   icon: <ListIconP /> },
+            { key: 'goodsreceipt-list',  path: '/goodsreceipt-list',   label: 'Goods Receipt List',   icon: <ListIconG /> },
+          ]
+        },
+        {
+          sectionLabel: 'Master',
+          defaultCollapsed: true,
+          items: [
+            { key: 'businessPartner',  path: '/business-partner',  label: 'Business Partner', icon: <PartnerIcon /> },
+            { key: 'product',          path: '/product',           label: 'Products',         icon: <BoxIcon /> },
+          ]
+        }
   ];
 // ── Requisition: summary card saja ──────────────────────────────────────────
 function RequisitionCard({ createdByList, loadingSubs }) {
@@ -210,37 +218,40 @@ function ChartCard({ title, model, dateField, totalField, baseFilter, createdByL
 // ── List/daftar ────────────────────────────────────────────────────────
 function ListReport() {
   const { canView, loading } = useAccess();
+  const location = useLocation(); // ← sebelumnya hilang, menyebabkan error saat render
+
+  // Filter dulu section yang punya minimal 1 item visible, baru render grid-nya —
+  // supaya jumlah kolom CSS grid (via --section-count) sesuai jumlah section
+  // yang BENAR-BENAR tampil, bukan jumlah section mentah di menuSections.
+  const visibleSections = menuSections
+    .map(section => ({
+      ...section,
+      visibleItems: section.items.filter(item => !item.key || canView(item.key)),
+    }))
+    .filter(section => section.visibleItems.length > 0);
+
+  if (loading || visibleSections.length === 0) return null;
+
   return (
-    <div className="ds-banner">
-            {menuSections.map((section, index) => {
-            // Filter item di dalam section ini berdasarkan hak akses
-            const visibleItems = section.items.filter(item => !item.key || canView(item.key));
-
-            // Jika tidak ada menu yang boleh dilihat di section ini, jangan rendor section-nya sama sekali
-            if (visibleItems.length === 0) return null;
-
-            return (
-              <div key={index} className="sidebar-section">
-                {/* Pembatas Garis & Judul Section (Hanya muncul dari section ke-2 dst, atau jika tidak collapsed) */}
-                {index > 0 && <hr className="sidebar-divider" />}
-                {<span className="sidebar-section-title">{section.sectionLabel}</span>}
-                {visibleItems.map((item) => (
-                  <Link
-                    key={item.path}
-                    to={item.path}
-                    label={item.label}
-                    
-                    className={`nav-item ${location.pathname === item.path ? 'active' : ''}`}
-                    data-tooltip={item.label}
-                  >
-                    <div className="nav-icon">{item.icon}</div>
-                    <span className="nav-label">{item.label}</span>
-                  </Link>
-                ))}
-              </div>
-            );
-          })}
-      
+    <div
+      className="ds-menu-grid"
+      style={{ '--section-count': Math.min(visibleSections.length, 3) }}
+    >
+      {visibleSections.map((section, index) => (
+        <div key={index} className="ds-menu-column">
+          <span className="ds-menu-section-title">{section.sectionLabel}</span>
+          {section.visibleItems.map((item) => (
+            <Link
+              key={item.path}
+              to={item.path}
+              className={`ds-menu-item ${location.pathname === item.path ? 'active' : ''}`}
+            >
+              <div className="ds-menu-icon">{item.icon}</div>
+              <span className="ds-menu-label">{item.label}</span>
+            </Link>
+          ))}
+        </div>
+      ))}
     </div>
   );
 }
@@ -265,8 +276,9 @@ export default function DashboardStats() {
 
    return (
     <div style={{ width: '100%' }}>
+      <ListReport />
       <div className="ds-container">
-        <ListReport />
+        
         <ScopeBanner isSupervisor={isSupervisor} subordinates={subordinates} loadingSubs={loadingSubs} />
         <RequisitionCard {...sharedProps} />
         <ChartCard 

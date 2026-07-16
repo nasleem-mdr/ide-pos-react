@@ -279,3 +279,64 @@
     grid-template-columns: 1fr;
   }
 }
+/* Grid menu — tiap section jadi 1 kolom, maksimal 3 kolom */
+.ds-menu-grid {
+  display: grid;
+  grid-template-columns: repeat(var(--section-count, 1), 1fr);
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.ds-menu-column {
+  border-radius: 12px;
+  padding: 14px 16px;
+  background: #111827;
+  color: #00d1b2;
+}
+
+.ds-menu-section-title {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+    margin-bottom: 8px;
+}
+
+.ds-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 6px;
+  border-radius: 8px;
+  text-decoration: none;
+  color: #c7cdd6;
+  font-size: 13px;
+  font-weight: 500;
+  transition: background 0.15s ease;
+}
+
+.ds-menu-item:hover {
+  background: #07192c;
+}
+
+.ds-menu-item.active {
+  background: #eef2ff;
+  color: #4338ca;
+  font-weight: 600;
+}
+
+.ds-menu-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: inherit;
+}
+
+/* Mobile — turunkan jadi 1 kolom apa pun jumlah section-nya */
+@media (max-width: 768px) {
+  .ds-menu-grid {
+    grid-template-columns: 1fr;
+  }
+}

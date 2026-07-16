@@ -13,6 +13,7 @@ import RequisitionContainer from './pages/RequisitionContainer';
 import { AccessProvider } from './context/AccessContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import RequisitionList from "./pages/RequisitionList";
+import GoodsReceiptList from "./pages/GoodsReceiptList";
 import PurchasingList from "./pages/PurchasingList";
 import RequisitionView from "./pages/RequisitionView";
 import PurchasingView from "./pages/PurchasingView";
@@ -97,6 +98,7 @@ export default function App() {
                           </ProtectedRoute>
                         } />
                         <Route path="/requisition-list" element={<RequisitionList />} />
+                        <Route path="/goodsreceipt-list" element={<GoodsReceiptList />} />
                         <Route path="/requisition" element={<RequisitionContainer />} />
                         <Route path="/goods-receipt" element={
                           <ProtectedRoute windowKey="goodsReceipt">

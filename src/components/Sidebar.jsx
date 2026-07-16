@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { PartnerIcon, HomeIcon, BoxIcon, ShoppingCartIcon, LogoSMAWarna, ListIconR, RequisitionIcon, ListIconP, UserTake, DeliveryIcon} from './Icons';
+import { PartnerIcon, HomeIcon, BoxIcon, ShoppingCartIcon, LogoSMAWarna, ListIconR, RequisitionIcon, ListIconP, UserTake, DeliveryIcon, ListIconG} from './Icons';
 import { useAccess } from '../context/AccessContext';
 import '../css/Sidebar.css';
 
@@ -18,7 +18,7 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }) {
 
   // Track section mana yang di-collapse-ke-atas — keyed by sectionLabel.
   // Default: semua section terbuka (object kosong = tidak ada yang collapsed).
-  const [collapsedSections, setCollapsedSections] = useState({});
+  //const [collapsedSections, setCollapsedSections] = useState({});
 
   const toggleSection = (label) => {
     setCollapsedSections(prev => ({ ...prev, [label]: !prev[label] }));
@@ -38,17 +38,26 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }) {
       ]
     },
     {
-      sectionLabel: 'Laporan & Master',
+      sectionLabel: 'Report',
       defaultCollapsed: true,
       items: [
         { key: 'requisition-list', borderTop: true, path: '/requisition-list',  label: 'Requisition List',  icon: <ListIconR /> },
         { key: 'purchasing-list',  path: '/purchasing-list',   label: 'Purchasing List',   icon: <ListIconP /> },
+        { key: 'goodsreceipt-list',  path: '/goodsreceipt-list',   label: 'Goods Receipt List',   icon: <ListIconG /> },
+      ]
+    },
+    {
+      sectionLabel: 'Master',
+      defaultCollapsed: true,
+      items: [
         { key: 'businessPartner',  path: '/business-partner',  label: 'Business Partner', icon: <PartnerIcon /> },
         { key: 'product',          path: '/product',           label: 'Products',         icon: <BoxIcon /> },
       ]
     }
   ];
-
+  const [collapsedSections, setCollapsedSections] = useState(() =>
+    Object.fromEntries(menuSections.map(s => [s.sectionLabel, !!s.defaultCollapsed]))
+  );
   if (loading) {
     return (
       <div className="side-panel-left">
@@ -100,9 +109,7 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }) {
             if (visibleItems.length === 0) return null;
 
             const isSectionCollapsed = !!collapsedSections[section.sectionLabel];
-            const [collapsedSections, setCollapsedSections] = useState(() =>
-            Object.fromEntries(menuSections.map(s => [s.sectionLabel, !!s.defaultCollapsed]))
-            );
+            
             return (
               <div key={index} className="sidebar-section">
                 {index > 0 && <hr className="sidebar-divider" />}
