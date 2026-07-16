@@ -175,3 +175,29 @@
       display: none;
     }
   }
+  .header-dropdown {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    background: #222935;
+    border: 1px solid #21262d;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    min-width: 140px;
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .header-dropdown button {
+    padding: 8px 14px;
+    text-align: left;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 0.9rem;
+  }
+  
+  .header-dropdown button:hover {
+    background: #f5f5f5;
+  }

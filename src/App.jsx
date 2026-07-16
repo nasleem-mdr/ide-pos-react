@@ -62,7 +62,12 @@ export default function App() {
                 <div className={`app-layout ${isSidebarCollapsed ? "sidebar-collapsed" : ""}`}>
                   <Sidebar isCollapsed={isSidebarCollapsed} setIsCollapsed={setIsSidebarCollapsed} />
                   <div className="main-wrapper">
-                    <Header session={session} onLogout={handleLogout} />
+                   <Header
+                      session={session}
+                      onLogout={handleLogout}
+                      onSessionUpdate={(updated) => setSession((prev) => ({ ...prev, ...updated }))}
+                    />
+          
                     <main className="content">
                       <Routes>
                         <Route path="/" element={<Navigate to="/dashboard" replace />} />
