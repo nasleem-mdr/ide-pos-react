@@ -74,7 +74,8 @@ ide-pos-react/
 
 <img width="1479" height="703" alt="image" src="https://github.com/user-attachments/assets/05f80e1f-2092-438c-ad0c-7e28a16de2df" />
 
-##Login dan Role Access
+🔑 Login dan Role Access
+
 Login system menggunakan 2 step authentification sebagaimana yang digunakan pada IDempiere.
 Pengguna login — data sesi (Client, Role, Organisasi, Gudang) otomatis terisi berdasarkan hak akses pengguna.
 
