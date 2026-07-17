@@ -1,16 +1,20 @@
 # POS application (Now convert to Procurement Module)
-Ini awalnya adalah aplikasi Point of Sales,dibangun dengan REACT(vite) dan terhubung ke IDempiere REST API. Karena adanya pertimbangan kebutuhan, akhirnya Aplikasi ini dirubah/ditambah ke arah Module Procurement, mulai dari Requisition, Purchase Order, Penerimaan Barang dan nantinya juga pemakaian sendiri/internal use.
+Aplikasi ini awalnya dibangun untuk Point of Sales, dengan pertimbangan kebutuhan, aplikasi ini dikembagkan untuk module Procurement.
+
+Aplikasi ini dibangun dengan REACT(vite) dan terhubung ke IDempiere REST API. Adapun module Procurement yang dimaksud disini adalah mulai dari Requisition, Purchase Order, Penerimaan Barang(Material Receipt/Goods Receipt) dan pemakaian sendiri/internal use(incentory Decrease/Increase)
 
 Untuk aplikasi POS masih bisa diakses, anda cukup menambahkan Link/route di App.js, Sidebar maupun Dasboard yang mengarah ke POSContainer.jsx, untuk POS App ini masih sangat sederhana, silahkan dikembangkan, terutama untuk pembayaran mix (cash, qris dll).
 
-Untuk pengembangan module procurement ada 4 menu utama (Requisition, PO, Goods Receipt dan Internal Use) dengan beberapa fitur diantaranya :
-1. Scan barcode
+Untuk pengembangan module procurement ada 4 menu utama (Requisition, PO, Material Receipt dan Internal Use) dan dan juga laporan-laporan atau daftar transakai.
+Berikut adalah beberapa fitur yang tersedia:
+1. Scan barcode/qrcode untuk input transaksi/barang.
 2. Import dari transaksi sebelumnya (Misal pada menu Purchasing kita bisa Import dari Requisition)
 3. Form dibuat menyerupai Shopping Cart pada marketplace sehingga user lebih familiar.
    
-Aplikasi ini free dengan resiko anda sendiri (masih banyak ekspose console.log untuk pengetesan, kalau untuk production silahan dihapus)
+Aplikasi ini free open source dengan resiko anda sendiri (masih banyak ekspose console.log untuk pengetesan, kalau untuk production silahan dihapus)
 
-# Mulai menggunakan aplikasi ini
+# Mulai mengembangkan dan menggunakan aplikasi ini
+### Prerequisition
 
 * Clone pada local server anda
 * Jalankan `npm install`
