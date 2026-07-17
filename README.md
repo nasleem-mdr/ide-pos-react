@@ -46,13 +46,16 @@ npm install recharts jspdf jspdf-autotable qrcode react-router-dom
    ```
 3. Konfigurasi Proksi API:
    Buka file vite.config.js atau package.json Anda, lalu arahkan konfigurasi proxy ke URL endpoint iDempiere REST API asli milik perusahaan Anda. Untuk keperluan pengujian awal, Anda dapat memanfaatkan server demo di    www.demo.globalqss.com.
+4. Jalankan server
+   ```
+   npm run dev
+   ```
+5. Akses antarmuka aplikasi melalui alamat lokal yang tertera pada terminal Anda (biasanya di http://localhost:5173).
    
-* Jalankan `npm run dev` atau `npx vite`
-* Buka browser  [http://localhost:3000](http://localhost:5171) atau yang muncul di terminal anda.
+📁 Struktur Folder Proyek
 
-### Struktur Folder 
-
-``` ide-pos-react/
+```
+ide-pos-react/
 ├── public/              # Aset statis (index.html, favicon, dll.)
 ├── src/
 │   ├── assets/          # Gambar, logo, dan file font global
@@ -66,12 +69,16 @@ npm install recharts jspdf jspdf-autotable qrcode react-router-dom
 │   └── index.js         # Entry point aplikasi
 ├── .gitignore
 ├── package.json
+├── vite.config.json
 └── README.md
 ```
 
-### Fungsionalitas Aplikasi
-Saat ini pengembang memfokuskan pada module procurement dengan menu utama (Requisition, Purchasing, Material Receipt dan Internal Use)
+🔄 Alur Fungsionalitas Modul Procurement
+
 <img width="1479" height="703" alt="image" src="https://github.com/user-attachments/assets/05f80e1f-2092-438c-ad0c-7e28a16de2df" />
+Login :
+Pengguna login — data sesi (Client, Role, Organisasi, Gudang) otomatis terisi berdasarkan hak akses pengguna.
+
 1. Menu Requisition
    Deskripsi
    Modul ini digunakan oleh staf/unit kerja untuk mengajukan permintaan barang secara digital, menggantikan formulir kertas. Setiap FPB berisi daftar produk beserta jumlah yang diminta, dan akan melalui proses persetujuan    berjenjang sebelum dapat diproses lebih lanjut (dibelikan atau diambil dari gudang).
