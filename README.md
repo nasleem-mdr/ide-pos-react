@@ -30,7 +30,8 @@ jika anda membutuhkan validasi document anda bisa menggunakan express.js sebagai
 * Buka browser  [http://localhost:3000](http://localhost:5171) atau yang muncul di terminal anda.
 
 ### Struktur Folder 
-ide-pos-react/
+
+``` ide-pos-react/
 ├── public/              # Aset statis (index.html, favicon, dll.)
 ├── src/
 │   ├── assets/          # Gambar, logo, dan file font global
@@ -45,3 +46,4 @@ ide-pos-react/
 ├── .gitignore
 ├── package.json
 └── README.md
+```
