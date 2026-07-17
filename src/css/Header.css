@@ -11,7 +11,7 @@
     position: sticky;
     top: 0;
     margin-top: 18px;
-    z-index: 10;
+    z-index: 100;
   }
   .header-purchasing {
     display: flex;
@@ -185,11 +185,6 @@
     .header-info-item {
       padding: 4px; /* perbesar area tap agar tetap mudah disentuh */
     }
-  }
-
-  .header {
-    position: relative;
-    z-index: 1000;
   }
   
   .header-dropdown {
