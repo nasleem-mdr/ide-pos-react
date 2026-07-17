@@ -49,7 +49,9 @@ npm install jspdf jspdf-autotable qrcode
 └── README.md
 ```
 
-
+### Fungsionalitas Aplikasi
+Saat ini pengembang memfokuskan pada module procurement dengan menu utama (Requisition, Purchasing, Material Receipt dan Internal Use)
+<img width="1479" height="703" alt="image" src="https://github.com/user-attachments/assets/05f80e1f-2092-438c-ad0c-7e28a16de2df" />
 
 ## 🔄 Alur Kerja Verifikasi & Validasi Dokumen (Procurement Workflow)
 
