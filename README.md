@@ -71,7 +71,7 @@ Untuk kebutuhan legalitas formal hukum, alur verifikasi akan ditingkatkan dengan
 * **Embedded Signing:** Pada halaman publik React POS, akan ditambahkan tombol "Tanda Tangani Dokumen".
 * **Automated Webhook:** Setelah Vendor menandatangani dokumen di platform DocuSign, Servlet Express akan menerima notifikasi Webhook (`Envelope: Completed`) dan otomatis mengubah *DocStatus* di iDempiere ERP menjadi `Signed / Closed`.
 ```text
-┌────────────────────────┐
+                                 ┌────────────────────────┐
                                  │    iDempiere ERP       │
                                  │  (Sistem Core & DB)    │
                                  └───────────▲────────────┘
