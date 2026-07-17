@@ -64,6 +64,7 @@ Saat ini pengembang memfokuskan pada module procurement dengan menu utama (Requi
    6.	Ulangi untuk setiap produk yang dibutuhkan hingga daftar permintaan lengkap.
    7.	Submit/Kirim Requisition/FPB — dokumen tersimpan mengikuti alur Workflow Engine IDempiere dengan status InProgress (complete dari sisi Invoker), kemudian dokumen masuk ke antrian approval.
    8.	Approval masih diproses melalui Workflow Activities di Windows iDempiere. 
+<img width="1056" height="500" alt="image" src="https://github.com/user-attachments/assets/0d939a69-25c8-474c-8c62-4ee25103f8d2" />
 
 3. Menu Purchasing
 ## 🔄 Alur Kerja Verifikasi & Validasi Dokumen (Procurement Workflow)
