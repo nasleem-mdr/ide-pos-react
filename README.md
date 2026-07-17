@@ -47,3 +47,53 @@ jika anda membutuhkan validasi document anda bisa menggunakan express.js sebagai
 ├── package.json
 └── README.md
 ```
+
+
+
+## 🔄 Alur Kerja Verifikasi & Validasi Dokumen (Procurement Workflow)
+
+Sistem verifikasi dokumen untuk Vendor (Requisition & Purchasing) dibagi menjadi dua fase pengembangan:
+
+### 🟢 FASE 1: Verifikasi Status Dokumen Bersih (Status Saat Ini - Produksi)
+Saat ini, sistem berfungsi sebagai alat **Verifikasi Validitas Mandiri (Read-Only Verification)**:
+1. Staff Internal mencetak Purchase Order (PO) / Requisition yang dilengkapi QR Code berisi URL publik unik berbasis UUID.
+2. Vendor menerima dokumen (fisik/PDF) dan memindai QR Code menggunakan ponsel.
+3. Browser membuka halaman publik React POS (`/view/order/:uuid`) tanpa perlu login.
+4. Aplikasi memanggil Servlet Express untuk mencocokkan UUID dengan database iDempiere ERP.
+5. Layar menampilkan data validitas: Nama Barang, Kuantitas, Tanggal, dan Status Terkini dokumen di ERP (apakah *Approved*, *Void*, atau *Draft*) untuk memastikan dokumen tidak dipalsukan.
+
+---
+
+### 🔵 FASE 2: Legalitas Tanda Tangan Digital Bersama DocuSign (Rencana Pengembangan / Roadmap)
+*Catatan: Fitur ini sedang dalam tahap perancangan teknis dan belum diimplementasikan di lingkungan produksi.*
+
+Untuk kebutuhan legalitas formal hukum, alur verifikasi akan ditingkatkan dengan integrasi **DocuSign API**:
+* **Embedded Signing:** Pada halaman publik React POS, akan ditambahkan tombol "Tanda Tangani Dokumen".
+* **Automated Webhook:** Setelah Vendor menandatangani dokumen di platform DocuSign, Servlet Express akan menerima notifikasi Webhook (`Envelope: Completed`) dan otomatis mengubah *DocStatus* di iDempiere ERP menjadi `Signed / Closed`.
+
+┌────────────────────────┐
+                                 │    iDempiere ERP       │
+                                 │  (Sistem Core & DB)    │
+                                 └───────────▲────────────┘
+                                             │
+                       (1) REST API          │ (3) Ambil & Update Status
+                       Transaksi             │     Dokumen ERP
+                                             │
+  ┌────────────────────────┐     (2) QR Code │     ┌────────────────────────┐
+  │      React POS         ├─────────────────┼─────►    Servlet Express     │
+  │ (Aplikasi Internal)    │     URL Link    │     │  (Validasi & Webhook)  │
+  └────────────────────────┘                 │     └───────────▲────────────┘
+                                             │                 │
+                                             │                 │ (4) Kirim Envelope /
+                                             │                 │     Status Webhook
+                                             │     ┌───────────┴────────────┐
+                                             └─────┤    DocuSign API        │
+                                                   │   (Legalitas TTD)      │
+                                                   └───────────▲────────────┘
+                                                               │
+                                                               │ (5) Tanda Tangan
+                                                               │     Digital
+                                                   ┌───────────┴────────────┐
+                                                   │     External Vendor    │
+                                                   │  (Penerima Order/PO)   │
+                                                   └────────────────────────┘
