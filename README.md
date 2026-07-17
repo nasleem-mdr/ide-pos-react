@@ -29,15 +29,24 @@ Aplikasi ini bersifat *free & open-source*.
 ### Dependencies Utama Proyek
 ```bash
 npm install recharts jspdf jspdf-autotable qrcode react-router-dom
+```
 
 
 
 
-
-### Mulai menggunakan 
-* Clone pada local server anda
-* Jalankan `npm install`
-* Edit vite.config.js/Package.json rubah proxy ke real IDempiere Rest API anda, atau anda bisa gunakan www.demo.globalqss.com untuk testing.
+### Langkah Instalasi
+1. Clone pada local server anda
+   ```text
+   git clone [https://github.com/nasleem-mdr/ide-pos-react.git](https://github.com/nasleem-mdr/ide-pos-react.git)
+   cd ide-pos-react
+   ```
+2. Install paket dependency
+   ```bash
+   npm install
+   ```
+3. Konfigurasi Proksi API:
+   Buka file vite.config.js atau package.json Anda, lalu arahkan konfigurasi proxy ke URL endpoint iDempiere REST API asli milik perusahaan Anda. Untuk keperluan pengujian awal, Anda dapat memanfaatkan server demo di    www.demo.globalqss.com.
+   
 * Jalankan `npm run dev` atau `npx vite`
 * Buka browser  [http://localhost:3000](http://localhost:5171) atau yang muncul di terminal anda.
 
