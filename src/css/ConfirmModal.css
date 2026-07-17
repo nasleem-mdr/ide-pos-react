@@ -22,8 +22,8 @@
 /* ── Modal card ── */
 .modal-card {
   position: relative;
-  width: 380px;
-  background: #ffffff; /* Diubah dari #2c3e50 ke Putih murni */
+  width: 400px;
+  background: #0d1117; /* Diubah dari #2c3e50 ke Putih murni */
   border: 1px solid rgba(0, 0, 0, 0.08); /* Border digelapkan sedikit agar kontras */
   border-radius: 14px;
   overflow: hidden;
@@ -32,6 +32,16 @@
     0 0 0 1px rgba(0, 209, 178, 0.04);
   animation: modalIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.349);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
 
 @keyframes modalIn {
   from { opacity: 0; transform: translateY(16px) scale(0.96); }

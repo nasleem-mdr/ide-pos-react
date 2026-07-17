@@ -8,32 +8,18 @@ import '../../css/Dashboard.css';
 import { useAccess } from '../../context/AccessContext';
 import LineChart from './LineChart';
 import { Link, useLocation } from 'react-router-dom';
-import { PartnerIcon, HomeIcon, BoxIcon, ShoppingCartIcon, LogoSMAWarna, ListIconR, ListIconG, RequisitionIcon, ListIconP, UserTake, DeliveryIcon} from '../Icons';
+import { ShoppingCartIcon, RequisitionIcon } from '../Icons';
+import { getMenuSections } from '../../config/menuConfig';
 
 const COLOR_DR = '#f57c00';
 const COLOR_CO = '#00d1b2';   // teal — sama dengan welcome-card-icon
 const COLOR_IP = '#6366f1';   // indigo — sama dengan welcome-title gradient
 
 const STATUS_LABEL = { CO: 'Completed', IP: 'In Progress', DR: 'Draft' };
-const menuSections = [
-    {
-          sectionLabel: 'Report',
-          defaultCollapsed: true,
-          items: [
-            { key: 'requisition-list', borderTop: true, path: '/requisition-list',  label: 'Requisition List',  icon: <ListIconR /> },
-            { key: 'purchasing-list',  path: '/purchasing-list',   label: 'Purchasing List',   icon: <ListIconP /> },
-            { key: 'goodsreceipt-list',  path: '/goodsreceipt-list',   label: 'Goods Receipt List',   icon: <ListIconG /> },
-          ]
-        },
-        {
-          sectionLabel: 'Master',
-          defaultCollapsed: true,
-          items: [
-            { key: 'businessPartner',  path: '/business-partner',  label: 'Business Partner', icon: <PartnerIcon /> },
-            { key: 'product',          path: '/product',           label: 'Products',         icon: <BoxIcon /> },
-          ]
-        }
-  ];
+
+// Hanya section 'report' dan 'master' yang ditampilkan di dashboard
+const dashboardSections = getMenuSections(['report', 'master']);
+
 // ── Requisition: summary card saja ──────────────────────────────────────────
 function RequisitionCard({ createdByList, loadingSubs }) {
   const { stats, loading } = useGenericStats({
@@ -218,15 +204,15 @@ function ChartCard({ title, model, dateField, totalField, baseFilter, createdByL
 // ── List/daftar ────────────────────────────────────────────────────────
 function ListReport() {
   const { canView, loading } = useAccess();
-  const location = useLocation(); // ← sebelumnya hilang, menyebabkan error saat render
+  const location = useLocation();
 
   // Filter dulu section yang punya minimal 1 item visible, baru render grid-nya —
   // supaya jumlah kolom CSS grid (via --section-count) sesuai jumlah section
-  // yang BENAR-BENAR tampil, bukan jumlah section mentah di menuSections.
-  const visibleSections = menuSections
+  // yang BENAR-BENAR tampil, bukan jumlah section mentah di dashboardSections.
+  const visibleSections = dashboardSections
     .map(section => ({
       ...section,
-      visibleItems: section.items.filter(item => !item.key || canView(item.key)),
+      visibleItems: section.items.filter(item => !item.windowKey || canView(item.windowKey)),
     }))
     .filter(section => section.visibleItems.length > 0);
 
@@ -237,8 +223,8 @@ function ListReport() {
       className="ds-menu-grid"
       style={{ '--section-count': Math.min(visibleSections.length, 3) }}
     >
-      {visibleSections.map((section, index) => (
-        <div key={index} className="ds-menu-column">
+      {visibleSections.map((section) => (
+        <div key={section.sectionKey} className="ds-menu-column">
           <span className="ds-menu-section-title">{section.sectionLabel}</span>
           {section.visibleItems.map((item) => (
             <Link
@@ -306,4 +292,3 @@ function formatNum(val, short = false) {
   if (short && val >= 1_000)     return `${(val / 1_000).toFixed(0)}K`;
   return Number(val).toLocaleString('id-ID');
 }
-

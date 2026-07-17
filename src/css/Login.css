@@ -200,7 +200,28 @@
     font-weight: 300;
     line-height: 1.5;
   }
-
+  .modal-card {
+    position: relative;
+    width: 400px;
+    background: #0d1117; /* Diubah dari #2c3e50 ke Putih murni */
+    border: 1px solid rgba(0, 0, 0, 0.08); /* Border digelapkan sedikit agar kontras */
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow:
+      0 24px 64px rgba(0, 0, 0, 0.1), /* Shadow dibuat lebih halus/tipis */
+      0 0 0 1px rgba(0, 209, 178, 0.04);
+    animation: modalIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.349);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+  }
+  
   .field {
     display: flex;
     flex-direction: row;  /* ← ubah dari column ke row */
@@ -587,19 +608,4 @@
   .login-panel-left {
     display: block; /* atau display: flex; sesuai kebutuhan layout */
   }
-}
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-
-.card .modal-card {
-  max-width: 420px;
-  width: 90%;
-  background: #0d1117;
 }

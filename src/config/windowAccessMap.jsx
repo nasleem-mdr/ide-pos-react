@@ -10,16 +10,22 @@
 // jadi pastikan semua halaman yang ingin dibatasi role didaftarkan.
 // ─────────────────────────────────────────────────────────────────────────────
 export const WINDOW_ACCESS_MAP = {
-  dashboard:            null,   // null = selalu boleh diakses (tidak dicek ke AD_Window_Access)
-  businessPartner:      117,    // contoh AD_Window_ID untuk window Business Partner (ganti sesuai instance Anda)
-  businessPartnerEdit:  117,    // window sama dengan list, tapi action 'edit' yang dicek readwrite-nya
+  dashboard:            null,
+  businessPartner:      117,
+  businessPartnerEdit:  117,
   pos:                  167,
-  salesOrder:           167,    // contoh: Sales Order standar iDempiere
+  salesOrder:           167,
   product:              null,
-  requisition:          null, // contoh: window Purchase Requisition custom Anda
+  requisition:          null,
   goodsReceipt:         null,
   purchasing:           null,
   internalUse:          null,
+
+  // ===== List / Report =====
+  requisitionList:      null, 
+  purchasingList:       null,
+  goodsReceiptList:     null,
+  internalUseList:      null,
 };
 
 // Helper: ambil AD_Window_ID dari key, atau null kalau tidak terdaftar/tidak dibatasi.

@@ -41,9 +41,11 @@ export default function Header({ session, onLogout, onSessionUpdate }) {
           {menuOpen && (
             <div className="header-dropdown">
               <button onClick={() => { setShowChangeRole(true); setMenuOpen(false); }}>
-                Ganti Role
+                <RoleIcon />Change Role
               </button>
-              <button onClick={onLogout}>Logout</button>
+              <button onClick={onLogout}>
+                <LogoutIcon />Logout
+              </button>
             </div>
           )}
         </div>

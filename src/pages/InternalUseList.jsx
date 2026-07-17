@@ -11,15 +11,15 @@ import { idempiereApi } from "../utils/idempiereApi";
 import "../App.css";
 
 
-const GoodsReceiptList = () => {
+const InternalUseList = () => {
     const todayStr = new Date().toISOString().split("T")[0];
     
-    const [goodsreceipts, setGoodsReceipts]             = useState([]);
+    const [internaluses, setInternalUses]             = useState([]);
     const [loading, setLoading]           = useState(false);
     const [search, setSearch]             = useState("");
     const [offset, setOffset]             = useState(0);
     const [totalRecords, setTotalRecords] = useState(0);
-    const [chargeAmtAll, setChargeAmtAll] = useState(null);
+    const [approvalAmtAll, setApprovalAmtAll] = useState(null);
     const [downloadingId, setDownloadingId] = useState(null);
     const [startDate, setStartDate]       = useState(todayStr);
     const [endDate, setEndDate]           = useState(todayStr);
@@ -54,7 +54,7 @@ const GoodsReceiptList = () => {
         return map[status] || "#555";
     };
 
-    const fetchGoodsReceipts = useCallback(async () => {
+    const fetchInternalUses = useCallback(async () => {
         const loginUserId = localStorage.getItem("AD_User_ID");
         if (!loginUserId) return;
 
@@ -70,18 +70,18 @@ const GoodsReceiptList = () => {
             }
 
             const res = await idempiereApi(
-                `/models/m_inout` +
+                `/models/m_inventory` +
                 `?$filter=${filterClause}` +
-                `&$select=M_InOut_ID,DocumentNo,MovementDate,M_Warehouse_ID,ChargeAmt,DocStatus,C_DocType_ID` +
+                `&$select=M_Inventory_ID,DocumentNo,MovementDate,ApprovalAmt, M_Warehouse_ID,DocStatus,C_DocType_ID` +
                 `&$orderby=DocumentNo desc` +
                 `&$top=${pageSize}` +
                 `&$skip=${offset}`
             );
 
-            setGoodsReceipts(Array.isArray(res.records) ? res.records : []);
+            setInternalUses(Array.isArray(res.records) ? res.records : []);
             setTotalRecords(res["row-count"] || res.totalRecords || 0);
         } catch (err) {
-            console.error("Gagal fetch Goods receipt:", err.message);
+            console.error("Gagal fetch Internal Use:", err.message);
         } finally {
             setLoading(false);
         }
@@ -93,7 +93,7 @@ const GoodsReceiptList = () => {
             const img = new Image();
             img.onload = () => {
                 const canvas = document.createElement("canvas");
-                canvas.width = width * 2;  // 2x untuk hasil lebih tajam di PDF
+                canvas.width = width * 2;  
                 canvas.height = height * 2;
                 const ctx = canvas.getContext("2d");
                 ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
@@ -105,11 +105,11 @@ const GoodsReceiptList = () => {
         });
     };
     // Fetch total GrandTotal seluruh halaman — hanya dipicu saat filter berubah (bukan saat ganti halaman)
-    const fetchChargeAmts = useCallback(async () => {
+    const fetchApprovalAmts = useCallback(async () => {
         const loginUserId = localStorage.getItem("AD_User_ID");
         if (!loginUserId) return;
 
-        setChargeAmtAll(null); // reset saat filter berubah
+        setApprovalAmtAll(null); // reset saat filter berubah
         try {
             let filterClause =
                 ` CreatedBy eq ${loginUserId}` +
@@ -120,50 +120,50 @@ const GoodsReceiptList = () => {
                 filterClause += ` and contains(tolower(DocumentNo),'${search.toLowerCase()}')`;
             }
 
-            // Ambil hanya kolom GrandTotal tanpa pagination untuk dijumlahkan
+            // Ambil hanya kolom ApprovalAmt tanpa pagination untuk dijumlahkan
             const res = await idempiereApi(
-                `/models/m_inout` +
+                `/models/m_inventory` +
                 `?$filter=${filterClause}` +
-                `&$select=ChargeAmt`
+                `&$select=ApprovalAmt`
             );
 
             const records = Array.isArray(res.records) ? res.records : [];
-            const total   = records.reduce((sum, r) => sum + parseFloat(r.ChargeAmt || 0), 0);
-            setChargeAmtAll(total);
+            const total   = records.reduce((sum, r) => sum + parseFloat(r.ApprovalAmt || 0), 0);
+            setApprovalAmtAll(total);
         } catch (err) {
             console.error("Gagal fetch total lines:", err.message);
-            setChargeAmtAll(0);
+            setApprovalAmtAll(0);
         }
     }, [search, startDate, endDate]); // search + date range
 
     useEffect(() => {
-        fetchGoodsReceipts();
-    }, [fetchGoodsReceipts]);
+        fetchInternalUses();
+    }, [fetchInternalUses]);
 
     useEffect(() => {
-        fetchChargeAmts();
-    }, [fetchChargeAmts]);
+        fetchApprovalAmts();
+    }, [fetchApprovalAmts]);
 
-    const handleEdit = (goodsreceipt) => {
+    const handleEdit = (internaluse) => {
         // Gunakan _raw (data asli sebelum di-overwrite tableData) agar field
         // seperti M_Warehouse_ID tetap berupa object {id, identifier}, bukan string.
         // Di-bersihkan via JSON round-trip karena history.pushState (dipakai navigate)
         // memerlukan structured-clone-safe object — record API kadang menyertakan
         // referensi/getter yang tidak bisa di-clone langsung.
-        const raw = goodsreceipt._raw ?? goodsreceipt;
-        let cleanGoodsReceipt;
+        const raw = internaluse._raw ?? internaluse;
+        let cleanInternalUse;
         try {
-            cleanGoodsReceipt = JSON.parse(JSON.stringify(raw));
+            cleanInternalUse = JSON.parse(JSON.stringify(raw));
         } catch {
-            cleanGoodsReceipt = raw;
+            cleanInternalUse = raw;
         }
-        navigate("/goodsreceipt", { state: { editGoodsReceipt: cleanGoodsReceipt } });
+        navigate("/internaluse", { state: { editInternalUse: cleanInternalUse } });
     };
 
     // Format total seluruh halaman dari state (null = sedang loading)
-    const chargeAmtFormatted = chargeAmtAll === null
+    const approvalAmtFormatted = approvalAmtAll === null
         ? "Menghitung..."
-        : ` ${chargeAmtAll.toLocaleString("id-ID")}`;
+        : ` ${approvalAmtAll.toLocaleString("id-ID")}`;
 
     const columns = [
         { key: "DocumentNo",    label: "No. Dokumen" },
@@ -174,7 +174,7 @@ const GoodsReceiptList = () => {
     ];
     
 
-    const generateGoodsReceiptPDF = async (goodsReceiptId, documentNo, token) => {
+    const generateInternalUsePDF = async (internaluseId, documentNo, token) => {
         // const API_BASE = "/api/v1";
         // const customFetch = async (url) => {
         //     const res = await fetch(`${API_BASE}${url}`, {
@@ -185,15 +185,15 @@ const GoodsReceiptList = () => {
     
         // 1. Fetch header data
         const header = await idempiereApi(
-            `/models/m_inout/${goodsreceiptId}` +
-            `?$select=DocumentNo,MovementDate,Description,DocStatus,AD_Org_ID,CreatedBy,M_Warehouse_ID,M_InOut_UU`
+            `/models/m_inventory/${internaluseId}` +
+            `?$select=DocumentNo,MovementDate,Description,DocStatus,AD_Org_ID,CreatedBy,M_Warehouse_ID,M_Inventory_UU`
         );
         
         // 2. Fetch line items
         const linesRes = await idempiereApi(
-            `/models/m_inoutline` +
-            `?$filter=M_InOut_ID eq ${goodsreceiptId}` +
-            `&$select=Line,M_Product_ID,MovementQty,C_UOM_ID,Description` +
+            `/models/m_inventoryline` +
+            `?$filter=M_Inventory_ID eq ${internaluseId}` +
+            `&$select=Line,M_Product_ID,QtyInternalUse,Description` +
             `&$orderby=Line`
         );
         const lines = linesRes.records || [];
@@ -201,7 +201,7 @@ const GoodsReceiptList = () => {
         // 3. Fetch workflow history (AD_Table_ID 702 = M_Requisition)
         const historyRes = await idempiereApi(
             `/models/ad_wf_eventaudit` +
-            `?$filter=AD_Table_ID eq 319 and Record_ID eq ${goodsreceiptId}` +
+            `?$filter=AD_Table_ID eq 321 and Record_ID eq ${internaluseId}` +
             `&$select=AD_WF_Node_ID,AD_User_ID,Updated` +
             `&$orderby=Updated asc`
         );
@@ -216,10 +216,10 @@ const GoodsReceiptList = () => {
         });
     
         // 4. Generate QR code as data URL
-        const qrUrl = `https://192.168.0.126:8432/view/goodsreceipt/${header.uid}`;
+        const qrUrl = `https://192.168.0.126:8432/view/internaluse/${header.uid}`;
         const qrDataUrl = await QRCode.toDataURL(qrUrl, { margin: 1, width: 200 });
     
-        // 5. Status label mapping (sama seperti di GoodsReceiptList.jsx)
+        // 5. Status label mapping (sama seperti di InternalUseList.jsx)
         const statusMap = { DR: "Draft", IP: "Dalam Proses Approval", CO: "Selesai / Disetujui", CL: "Ditutup", VO: "Dibatalkan", RE: "Ditolak" };
         const statusCode = header.DocStatus?.id ?? header.DocStatus;
     
@@ -233,9 +233,9 @@ const GoodsReceiptList = () => {
         // Header
         doc.addImage(logoDataUrl, "PNG", 20, 5, 70, 42);
         doc.setFontSize(14).setFont(undefined, "bold");
-        doc.text("FORMULIR PENEREIMAAN BARANG DI GUDANG", pageWidth / 2, 30, { align: "center" });
+        doc.text("FORMULIR PENGAMBILAN BARANG DI GUDANG", pageWidth / 2, 30, { align: "center" });
         doc.setFontSize(9).setFont(undefined, "italic");
-        doc.text("Penerimaan Barang - Dokumen ini sah dengan histori approval terlampir", pageWidth / 2, 44, { align: "center" });
+        doc.text("Pengambilan Barang - Dokumen ini sah dengan histori approval terlampir", pageWidth / 2, 44, { align: "center" });
         doc.line(20, 55, pageWidth - 20, 55);
     
         // Info fields
@@ -244,7 +244,7 @@ const GoodsReceiptList = () => {
         const infoLeft = [
             ["No. Dokumen", ": "+header.DocumentNo],
             ["Pemohon", ": "+header.CreatedBy?.identifier || "-"],
-            ["Gudang Tujuan", ": "+header.M_Warehouse_ID?.identifier || "-"],
+            ["Gudang ", ": "+header.M_Warehouse_ID?.identifier || "-"],
             ["Keterangan", ": "+header.Description || "-"],
         ];
         const infoRight = [
@@ -264,12 +264,11 @@ const GoodsReceiptList = () => {
         // Table item
         autoTable(doc, {
             startY: y + infoLeft.length * 16 + 20,
-            head: [["No", "Nama Barang", "Qty", "UOM", "Keterangan"]],
+            head: [["No", "Nama Barang", "Qty", "Keterangan"]],
             body: lines.map((l, idx) => [
                 idx + 1,
                 l.M_Product_ID?.identifier || "-",
-                l.MovementQty,
-                l.C_UOM_ID?.identifier || "-",
+                l.QtyInternalUse,
                 l.Description || "",
             ]),
             theme: "grid",
@@ -375,12 +374,12 @@ const GoodsReceiptList = () => {
         doc.save(`Penermiaan-${documentNo}.pdf`);
     };
 
-    const handleDownload = async (goodsreceipt) => {
-        const goodsreceiptId = goodsreceipt._goodsreceiptId ?? goodsreceipt.id;
-        setDownloadingId(goodsreceiptId);
+    const handleDownload = async (internaluse) => {
+        const internaluseId = internaluse._internaluseId ?? internaluse.id;
+        setDownloadingId(internaluseId);
         try {
             const token = localStorage.getItem("token");
-            await generateGoodsReceiptPDF(goodsreceiptId, goodsreceipt.DocumentNo, token);
+            await generateInternalUsePDF(internaluseId, internaluse.DocumentNo, token);
         } catch (err) {
             console.error("Gagal generate PDF:", err.message);
             alert("Gagal membuat dokumen PDF.");
@@ -388,23 +387,23 @@ const GoodsReceiptList = () => {
             setDownloadingId(null);
         }
     };
-    const tableData = goodsreceipts.map((goodsreceipt) => {
-        const goodsreceiptId = goodsreceipt.id ?? goodsreceipt.M_InOut_ID;
-        const status  = goodsreceipt.DocStatus?.id ?? goodsreceipt.DocStatus ?? "DR";
+    const tableData = internaluses.map((internaluse) => {
+        const internaluseId = internaluse.id ?? internaluse.M_InOut_ID;
+        const status  = internaluse.DocStatus?.id ?? internaluse.DocStatus ?? "DR";
 
         return {
-            ...goodsreceipt,
-            _raw:        goodsreceipt, 
-            _goodsreceiptId:    goodsreceiptId,
+            ...internaluse,
+            _raw:        internaluse, 
+            _internaluseId:    internaluseId,
             _status:     status,
-            DocumentNo:  goodsreceipt.DocumentNo || `#${goodsreceiptId}`,
-            DateDoc: goodsreceipt.DateDoc
-                ? new Date(goodsreceipt.DateDoc).toLocaleDateString("id-ID")
+            DocumentNo:  internaluse.DocumentNo || `#${internaluseId}`,
+            DateDoc: internaluse.DateDoc
+                ? new Date(internaluse.DateDoc).toLocaleDateString("id-ID")
                 : "-",
-            "M_Warehouse_ID": goodsreceipt.M_Warehouse_ID?.identifier
-                || goodsreceipt.M_Warehouse_ID?.Name
+            "M_Warehouse_ID": internaluse.M_Warehouse_ID?.identifier
+                || internaluse.M_Warehouse_ID?.Name
                 || "-",
-            TotalLines: ` ${parseFloat(goodsreceipt.TotalLines || 0).toLocaleString("id-ID")}`,
+            TotalLines: ` ${parseFloat(internaluse.TotalLines || 0).toLocaleString("id-ID")}`,
             DocStatus: (
                 <span style={{
                     ...styles.badge,
@@ -420,7 +419,7 @@ const GoodsReceiptList = () => {
         const editTitle = item._status === "NA"
             ? "Revisi & ajukan ulang untuk approval"
             : "Edit Dokumen";
-        const isDownloading = downloadingId === item._goodsreceiptId;
+        const isDownloading = downloadingId === item._internaluseId;
         const isDownloadDisabled = item._status !== "CO" || isDownloading; // ⬅️ hanya aktif saat Completed
     
         return (
@@ -475,11 +474,11 @@ const GoodsReceiptList = () => {
             
             <PageHeader
                 
-                title="goodsreceipt"
+                title="internaluse"
                 onSearch={(val) => { setSearch(val); setOffset(0); }}
                 extraAction={
                     <button
-                        onClick={() => navigate("/goodsreceipt")}
+                        onClick={() => navigate("/internaluse")}
                         style={styles.newBtn}
                     >
                         + Transaksi Baru
@@ -519,7 +518,7 @@ const GoodsReceiptList = () => {
                 totalRecords={totalRecords}
                 onPageChange={(newOffset) => setOffset(newOffset)}
                 renderActions={actionRenderer}
-                summaryRow={{ columnKey: "TotalLines", value: chargeAmtFormatted, label: "Total Semua" }}
+                summaryRow={{ columnKey: "TotalLines", value: approvalAmtFormatted, label: "Total Semua" }}
             />
         </div>
     );
@@ -535,4 +534,4 @@ const styles = {
     dateInput:      { padding: "8px 10px", borderRadius: "6px", border: "1px solid #ccc", fontSize: "13px" },
 };
 
-export default GoodsReceiptList;
+export default InternalUseList;

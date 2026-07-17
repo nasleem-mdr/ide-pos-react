@@ -175,6 +175,11 @@
       display: none;
     }
   }
+  .header {
+    position: relative;
+    z-index: 1000;
+  }
+  
   .header-dropdown {
     position: absolute;
     top: 100%;
@@ -183,21 +188,25 @@
     border: 1px solid #21262d;
     border-radius: 6px;
     box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    min-width: 140px;
-    z-index: 100;
+    min-width: 160px;
+    z-index: 9999;
     display: flex;
     flex-direction: column;
+    color:#fff;
   }
   
   .header-dropdown button {
+    display: flex;
+    align-items: center;
+    gap: 8px;
     padding: 8px 14px;
     text-align: left;
     background: none;
     border: none;
     cursor: pointer;
     font-size: 0.9rem;
+    color:white;
   }
-  
   .header-dropdown button:hover {
-    background: #f5f5f5;
+    background: #0a042c;
   }

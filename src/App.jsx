@@ -14,6 +14,7 @@ import { AccessProvider } from './context/AccessContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import RequisitionList from "./pages/RequisitionList";
 import GoodsReceiptList from "./pages/GoodsReceiptList";
+import InternalUseList from "./pages/InternalUseList";
 import PurchasingList from "./pages/PurchasingList";
 import RequisitionView from "./pages/RequisitionView";
 import PurchasingView from "./pages/PurchasingView";
@@ -72,6 +73,7 @@ export default function App() {
                       <Routes>
                         <Route path="/" element={<Navigate to="/dashboard" replace />} />
                         <Route path="/dashboard" element={<Dashboard session={session} />} />
+                         {/* ===== Master ===== */}
                         <Route path="/business-partner" element={
                           <ProtectedRoute windowKey="businessPartner">
                             <BusinessPartner />
@@ -87,27 +89,26 @@ export default function App() {
                             <BusinessPartnerDetail />
                           </ProtectedRoute>
                         } />
-                        <Route path="/pos-order" element={
-                          <ProtectedRoute windowKey="pos">
-                            <POSContainer />
-                          </ProtectedRoute>
-                        } />
-                        <Route path="/sales-order" element={
-                          <ProtectedRoute windowKey="salesOrder">
-                            <SalesOrderPage />
-                          </ProtectedRoute>
-                        } />
+                                                
                         <Route path="/product" element={
                           <ProtectedRoute windowKey="product">
                             <ProductList />
                           </ProtectedRoute>
                         } />
-                        <Route path="/requisition-list" element={<RequisitionList />} />
-                        <Route path="/goodsreceipt-list" element={<GoodsReceiptList />} />
-                        <Route path="/requisition" element={<RequisitionContainer />} />
-                        <Route path="/goods-receipt" element={
-                          <ProtectedRoute windowKey="goodsReceipt">
-                            <GoodsReceiptContainer />
+                        {/* ===== Transaksi ===== */}
+                        <Route path="/sales-order" element={
+                          <ProtectedRoute windowKey="salesOrder">
+                            <SalesOrderPage />
+                          </ProtectedRoute>
+                        } />
+                        <Route path="/pos-order" element={
+                          <ProtectedRoute windowKey="pos">
+                            <POSContainer />
+                          </ProtectedRoute>
+                        } />                        
+                        <Route path="/requisition" element={
+                          <ProtectedRoute windowKey="requisition">
+                            <RequisitionContainer />
                           </ProtectedRoute>
                         } />
                         <Route path="/purchasing" element={
@@ -115,10 +116,35 @@ export default function App() {
                             <PurchasingContainer />
                           </ProtectedRoute>
                         } />
-                        <Route path="/purchasing-list" element={<PurchasingList />} />
-                          <Route path="/internal-use" element={
+                        <Route path="/goods-receipt" element={
+                          <ProtectedRoute windowKey="goodsReceipt">
+                            <GoodsReceiptContainer />
+                          </ProtectedRoute>
+                        } />
+                        <Route path="/internal-use" element={
                           <ProtectedRoute windowKey="internalUse">
                             <InternalUseContainer />
+                          </ProtectedRoute>
+                        } />
+                        {/* ===== List atau report ===== */}
+                        <Route path="/requisition-list" element={
+                          <ProtectedRoute windowKey="requisitionList">
+                            <RequisitionList />
+                          </ProtectedRoute>
+                        } />
+                        <Route path="/purchasing-list" element={
+                          <ProtectedRoute windowKey="purchasingList">
+                            <PurchasingList />
+                          </ProtectedRoute>
+                        } />
+                        <Route path="/goodsreceipt-list" element={
+                          <ProtectedRoute windowKey="goodsReceiptList">
+                            <GoodsReceiptList />
+                          </ProtectedRoute>
+                        } />
+                        <Route path="/internaluse-list" element={
+                          <ProtectedRoute windowKey="internalUseList">
+                            <InternalUseList />
                           </ProtectedRoute>
                         } />
                       </Routes>

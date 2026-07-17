@@ -342,7 +342,7 @@ export default function IDempiereAuth({ onLoginSuccess }) {
                   className="field-input"
                   value={selectedClientId}
                   onChange={(e) => handleClientChange(e.target.value)}
-                  disabled={loading}
+                  disabled={loading || clients.length === 1}
                 >
                   <option value="">— Pilih Client —</option>
                   {clients.map((c) => (
@@ -358,7 +358,7 @@ export default function IDempiereAuth({ onLoginSuccess }) {
                   className="field-input"
                   value={selectedRoleId}
                   onChange={(e) => handleRoleChange(e.target.value)}
-                  disabled={!selectedClientId || loading}
+                  disabled={!selectedClientId || loading || roles.length === 1}
                 >
                   <option value="">
                     {!selectedClientId ? "— Pilih Client dulu —" : "— Pilih Role —"}
@@ -376,7 +376,7 @@ export default function IDempiereAuth({ onLoginSuccess }) {
                   className="field-input"
                   value={selectedOrgId}
                   onChange={(e) => handleOrgChange(e.target.value)}
-                  disabled={!selectedRoleId || loading}
+                  disabled={!selectedRoleId || loading || orgs.length === 1}
                 >
                   <option value="">
                     {!selectedRoleId ? "— Pilih Role dulu —" : "— Pilih Organisasi —"}
@@ -399,7 +399,7 @@ export default function IDempiereAuth({ onLoginSuccess }) {
                   className="field-input"
                   value={selectedWarehouseId}
                   onChange={(e) => setSelectedWarehouseId(e.target.value)}
-                  disabled={!selectedOrgId || loading}
+                  disabled={!selectedOrgId || loading || warehouses.length === 1}
                 >
                   <option value="">— Tidak ada / Semua —</option>
                   {warehouses.map((w) => (
