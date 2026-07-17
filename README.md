@@ -52,7 +52,18 @@ npm install jspdf jspdf-autotable qrcode
 ### Fungsionalitas Aplikasi
 Saat ini pengembang memfokuskan pada module procurement dengan menu utama (Requisition, Purchasing, Material Receipt dan Internal Use)
 <img width="1479" height="703" alt="image" src="https://github.com/user-attachments/assets/05f80e1f-2092-438c-ad0c-7e28a16de2df" />
+1. Menu Requisition
+   Deskripsi
+   Modul ini digunakan oleh staf/unit kerja untuk mengajukan permintaan barang secara digital, menggantikan formulir kertas. Setiap FPB berisi daftar produk beserta jumlah yang diminta, dan akan melalui proses persetujuan    berjenjang sebelum dapat diproses lebih lanjut (dibelikan atau diambil dari gudang).
+   Alur Pengisian Formulir
+   1.	Pengguna login — data sesi (Client, Role, Organisasi, Gudang) otomatis terisi berdasarkan hak akses pengguna.
+   2.	Pilih produk yang ingin diminta — daftar produk otomatis difilter berdasarkan gudang (M_Locator_ID) tempat pengguna bertugas.
+   3.	Tentukan jumlah (Qty) dan satuan (UOM) — sistem mendukung konversi satuan (mis. Dus ↔ Pcs) menggunakan tabel konversi UOM di iDempiere.
+   4.	Ulangi untuk setiap produk yang dibutuhkan hingga daftar permintaan lengkap.
+   5.	Submit FPB — dokumen tersimpan dengan status awal Draft, kemudian dokumen di-Complete sehingga masuk ke antrian approval.
+   6.	Approval — permintaan diproses melalui Workflow Approval iDempiere 
 
+3. Menu Purchasing
 ## 🔄 Alur Kerja Verifikasi & Validasi Dokumen (Procurement Workflow)
 
 Sistem verifikasi dokumen untuk Vendor (Requisition & Purchasing) dibagi menjadi dua fase pengembangan:
