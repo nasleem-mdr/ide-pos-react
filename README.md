@@ -69,7 +69,13 @@ Saat ini pengembang memfokuskan pada module procurement dengan menu utama (Requi
 <img width="1056" height="415" alt="image" src="https://github.com/user-attachments/assets/400ba59a-3aca-4cd1-baa0-3e1a7fe0645f" />
 
 
-3. Menu Purchasing
+2. Menu Purchasing
+   Secara tampilan hampir sama dengan formulir requisition, perbedaannya, ada tambahan menu import (dari requisition complete/approved) disebelah input search dan scan
+3. Menu Material Receipt/Goods Receipt
+   Sama seperti formulir Purchasing, penambahan cart bisa diambil dari PO Complete
+4. Menu Internal Use
+   Yang membedakan Formulir ini adalah adanya tambahan Field Charge pada cart panel, karena c_charge_id adalah field mandatory pada m_inventoryline, yang secara default diisi menggunakan Custom field di table M_Product (tambahkan c_charge_id melalui Aplication Dictionary).
+     
 ## 🔄 Alur Kerja Verifikasi & Validasi Dokumen (Procurement Workflow)
 
 Sistem verifikasi dokumen untuk Vendor (Requisition & Purchasing) dibagi menjadi dua fase pengembangan:
