@@ -66,6 +66,9 @@ Saat ini pengembang memfokuskan pada module procurement dengan menu utama (Requi
    8.	Approval masih diproses melalui Workflow Activities di Windows iDempiere. 
 <img width="1056" height="500" alt="image" src="https://github.com/user-attachments/assets/0d939a69-25c8-474c-8c62-4ee25103f8d2" />
 
+<img width="1056" height="415" alt="image" src="https://github.com/user-attachments/assets/400ba59a-3aca-4cd1-baa0-3e1a7fe0645f" />
+
+
 3. Menu Purchasing
 ## 🔄 Alur Kerja Verifikasi & Validasi Dokumen (Procurement Workflow)
 
