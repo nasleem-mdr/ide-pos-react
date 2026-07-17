@@ -31,9 +31,6 @@ Aplikasi ini bersifat *free & open-source*.
 npm install recharts jspdf jspdf-autotable qrcode react-router-dom
 ```
 
-
-
-
 ### Langkah Instalasi
 1. Clone pada local server anda
    ```text
@@ -76,21 +73,23 @@ ide-pos-react/
 🔄 Alur Fungsionalitas Modul Procurement
 
 <img width="1479" height="703" alt="image" src="https://github.com/user-attachments/assets/05f80e1f-2092-438c-ad0c-7e28a16de2df" />
-Login :
+
+##Login dan Role Access
+Login system menggunakan 2 step authentification sebagaimana yang digunakan pada IDempiere.
 Pengguna login — data sesi (Client, Role, Organisasi, Gudang) otomatis terisi berdasarkan hak akses pengguna.
 
 1. Menu Requisition
    Deskripsi
    Modul ini digunakan oleh staf/unit kerja untuk mengajukan permintaan barang secara digital, menggantikan formulir kertas. Setiap FPB berisi daftar produk beserta jumlah yang diminta, dan akan melalui proses persetujuan    berjenjang sebelum dapat diproses lebih lanjut (dibelikan atau diambil dari gudang).
    Alur Pengisian Formulir
-   1.	Pengguna login — data sesi (Client, Role, Organisasi, Gudang) otomatis terisi berdasarkan hak akses pengguna.
-   2.	Pilih menu Requisition pada Dashboard atau Sidebar
-   3.	Pilih (scan atau search) produk yang ingin diminta — daftar produk otomatis difilter berdasarkan gudang (M_Locator_ID) tempat pengguna bertugas.
-   4.	Pilihan produk akan disimpan pada Cart Panel disisi kanan(desktop) atau tersembunyi/mengambang dibawah untuk versi mobile.
-   5.	Tentukan jumlah (Qty) dan satuan (UOM) — sistem mendukung konversi satuan (mis. Dus ↔ Pcs) menggunakan tabel konversi UOM di iDempiere.
-   6.	Ulangi untuk setiap produk yang dibutuhkan hingga daftar permintaan lengkap.
-   7.	Submit/Kirim Requisition/FPB — dokumen tersimpan mengikuti alur Workflow Engine IDempiere dengan status InProgress (complete dari sisi Invoker), kemudian dokumen masuk ke antrian approval.
-   8.	Approval masih diproses melalui Workflow Activities di Windows iDempiere. 
+   a.	Pengguna login — data sesi (Client, Role, Organisasi, Gudang) otomatis terisi berdasarkan hak akses pengguna.
+   b.	Pilih menu Requisition pada Dashboard atau Sidebar
+   c.	Pilih (scan atau search) produk yang ingin diminta — daftar produk otomatis difilter berdasarkan gudang (M_Locator_ID) tempat pengguna bertugas.
+   d.	Pilihan produk akan disimpan pada Cart Panel disisi kanan(desktop) atau tersembunyi/mengambang dibawah untuk versi mobile.
+   e.	Tentukan jumlah (Qty) dan satuan (UOM) — sistem mendukung konversi satuan (mis. Dus ↔ Pcs) menggunakan tabel konversi UOM di iDempiere.
+   f.	Ulangi untuk setiap produk yang dibutuhkan hingga daftar permintaan lengkap.
+   g.	Submit/Kirim Requisition/FPB — dokumen tersimpan mengikuti alur Workflow Engine IDempiere dengan status InProgress (complete dari sisi Invoker), kemudian dokumen masuk ke antrian approval.
+   h.	Approval masih diproses melalui Workflow Activities di Windows iDempiere. 
 <img width="1056" height="500" alt="image" src="https://github.com/user-attachments/assets/0d939a69-25c8-474c-8c62-4ee25103f8d2" />
 
 <img width="1056" height="415" alt="image" src="https://github.com/user-attachments/assets/400ba59a-3aca-4cd1-baa0-3e1a7fe0645f" />
@@ -102,7 +101,8 @@ Pengguna login — data sesi (Client, Role, Organisasi, Gudang) otomatis terisi 
    Sama seperti formulir Purchasing, penambahan cart bisa diambil dari PO Complete
 4. Menu Internal Use
    Yang membedakan Formulir ini adalah adanya tambahan Field Charge pada cart panel, karena c_charge_id adalah field mandatory pada m_inventoryline, yang secara default diisi menggunakan Custom field di table M_Product (tambahkan c_charge_id melalui Aplication Dictionary).
-     
+   Tips Konfigurasi ERP: Pengembang disarankan menambahkan custom field c_charge_id pada tabel M_Product melalui menu Application Dictionary (AD) di iDempiere agar nilai default-nya dapat dimuat secara otomatis.
+   
 ## 🔄 Alur Kerja Verifikasi & Validasi Dokumen (Procurement Workflow)
 
 Sistem verifikasi dokumen untuk Vendor (Requisition & Purchasing) dibagi menjadi dua fase pengembangan:
