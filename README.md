@@ -15,36 +15,33 @@ Aplikasi ini free open source dengan resiko anda sendiri (masih banyak ekspose c
 
 # Mulai mengembangkan dan menggunakan aplikasi ini
 ### Prerequisition
+* React/Vite versi 8
+* Dependency:
+npm install recharts
+npm install jspdf jspdf-autotable qrcode
 
+jika anda membutuhkan validasi document anda bisa menggunakan express.js sebagai servlet melayani validasi ini (ada pada project berbeda)
+
+### Mulai menggunakan 
 * Clone pada local server anda
 * Jalankan `npm install`
-* Jalankan `npm install recharts` dependency untuk chart
 * Edit vite.config.js/Package.json rubah proxy ke real IDempiere Rest API anda, atau anda bisa gunakan www.demo.globalqss.com untuk testing.
 * Jalankan `npm run dev` atau `npx vite`
-* Buka browser  [http://localhost:3000](http://localhost:3000) 
+* Buka browser  [http://localhost:3000](http://localhost:5171) atau yang muncul di terminal anda.
 
-* Setup Pos Terminal, product, business partner dan laporan2 masih menggunakan Aplikasi IDempiere, kedepan akan dikembangkan untuk setup melalui aplikasi ini 
-
-### Fitur yang tersedia pada menu POS:
-* POINT OF SALES (menu utama)
-* List Sales Order harian (dengan total sales)
-* Edit Sales Order saat dokumen status masih draft / belum dibayar /belum complete
-* Dashboard (Sementara masih sederhana)
-* List Business Partner (Belum bisa diedit bro)
-
-### Fitur yang tersedia pada menu Requisition:
-* Scan Barcode
-* Search dari Value, Name dan Description
-* Cart Item - Mobile Friendly
-
-### Fitur yang tersedia pada menu Purchasing:
-* Scan Barcode
-* Import dari Requisition (sehingga tidak entry manual)
-* Search dari Value, Name dan Description
-* Cart Item - Mobile Friendly
-* 
-### Fitur yang tersedia pada menu Goods Receipt:
-* Scan Barcode
-* Import dari Purchasing (sehingga tidak entry manual)
-* Search dari Value, Name dan Description
-* Cart Item - Mobile Friendly
+### Struktur Folder 
+ide-pos-react/
+├── public/              # Aset statis (index.html, favicon, dll.)
+├── src/
+│   ├── assets/          # Gambar, logo, dan file font global
+│   ├── components/      # Komponen UI yang reusable (Button, Modal, Input)
+│   ├── context/         # State management global (jika menggunakan React Context)
+│   ├── hooks/           # Custom React Hooks (misal: useCart, useAuth)
+│   ├── pages/           # Komponen halaman utama (Dashboard, Kasir/POS, Laporan)
+│   ├── services/        # Integrasi API / Axios HTTP Requests
+│   ├── utils/           # Fungsi pembantu / helper (format mata uang, enkripsi data)
+│   ├── App.js           # Komponen root dan konfigurasi routing
+│   └── index.js         # Entry point aplikasi
+├── .gitignore
+├── package.json
+└── README.md
