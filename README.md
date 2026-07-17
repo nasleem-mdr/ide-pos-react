@@ -1,26 +1,37 @@
-# POS application (Now convert to Procurement Module)
-Aplikasi ini awalnya dibangun untuk Point of Sales, dengan pertimbangan kebutuhan, aplikasi ini dikembagkan untuk module Procurement.
+# IDE Procurement & POS System (React + iDempiere REST Integration)
 
-Aplikasi ini dibangun dengan REACT(vite) dan terhubung ke IDempiere REST API. Adapun module Procurement yang dimaksud disini adalah mulai dari Requisition, Purchase Order, Penerimaan Barang(Material Receipt/Goods Receipt) dan pemakaian sendiri/internal use(incentory Decrease/Increase)
+Aplikasi klien berbasis React yang awalnya dibangun untuk sistem Kasir (*Point of Sale*), kini telah dikembangkan menjadi modul **Procurement (Pengadaan Barang)** ujung-ke-ujung yang terintegrasi langsung dengan **iDempiere ERP REST API**.
 
-Untuk aplikasi POS masih bisa diakses, anda cukup menambahkan Link/route di App.js, Sidebar maupun Dasboard yang mengarah ke POSContainer.jsx, untuk POS App ini masih sangat sederhana, silahkan dikembangkan, terutama untuk pembayaran mix (cash, qris dll).
+Aplikasi ini bersifat *free & open-source*. 
+*(Catatan Produksi: Masih banyak baris `console.log` aktif untuk keperluan debugging/pengujian lokal. Pastikan untuk membersihkannya sebelum naik ke lingkungan production).*
 
-Untuk pengembangan module procurement ada 4 menu utama (Requisition, PO, Material Receipt dan Internal Use) dan dan juga laporan-laporan atau daftar transakai.
-Berikut adalah beberapa fitur yang tersedia:
-1. Scan barcode/qrcode untuk input transaksi/barang.
-2. Import dari transaksi sebelumnya (Misal pada menu Purchasing kita bisa Import dari Requisition)
-3. Form dibuat menyerupai Shopping Cart pada marketplace sehingga user lebih familiar.
-4. Jika anda membutuhkan validasi document anda bisa menggunakan express.js sebagai servlet melayani validasi ini (penjelasan detail lihat pada alur kerja verifikasi data)
+---
 
-   
-Aplikasi ini free open source dengan resiko anda sendiri (masih banyak ekspose console.log untuk pengetesan, kalau untuk production silahan dihapus)
+## 🚀 Fitur Utama
 
-# Mulai mengembangkan dan menggunakan aplikasi ini
-### Prerequisition
-* React/Vite versi 8
-* Dependency:
-npm install recharts
-npm install jspdf jspdf-autotable qrcode
+1. **Modul Pengadaan Lengkap:** Mendukung alur kerja dari *Requisition*, *Purchase Order*, *Material/Goods Receipt*, hingga *Internal Use (Inventory Decrease/Increase)*.
+2. **Scan Barcode & QR Code:** Input entri barang/transaksi secara instan menggunakan perangkat pemindai.
+3. **Alur Kerja Interaktif (Shopping Cart Style):** Panel formulir transaksi dirancang menyerupai keranjang belanja *marketplace* agar ramah pengguna (*user-friendly*).
+4. **Impor Transaksi Berjenjang:** Mempercepat proses entri dengan fitur tarik data dari dokumen sebelumnya (contoh: membuat PO langsung dari data Requisition yang telah disetujui).
+5. **Validasi Dokumen Publik (Tanpa Login):** Menyediakan gerbang verifikasi status dokumen bagi pihak luar (vendor) melalui pemindaian QR Code (didukung oleh Servlet Express).
+
+> 💡 **Informasi untuk Sistem POS:**
+> Fitur POS utama masih aktif dan dapat digunakan. Anda cukup mendaftarkan ulang komponen `POSContainer.jsx` ke dalam berkas `App.js`, `Sidebar.jsx`, atau `Dashboard.jsx`. Fitur POS ini masih sangat dasar dan terbuka untuk dikembangkan lebih lanjut (misalnya penambahan metode pembayaran *mixed-cash* atau QRIS).
+
+---
+
+## 🛠️ Panduan Memulai & Pengembangan Lokal
+
+### Prasyarat (Prerequisites)
+* **Node.js & NPM** (Direkomendasikan versi LTS terbaru)
+* **React / Vite v5.x ke atas** *(Catatan: Pastikan versi runtime Node Anda mendukung Vite terbaru)*
+
+### Dependencies Utama Proyek
+```bash
+npm install recharts jspdf jspdf-autotable qrcode react-router-dom
+
+
+
 
 
 ### Mulai menggunakan 
