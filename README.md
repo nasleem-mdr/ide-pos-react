@@ -70,7 +70,7 @@ Saat ini, sistem berfungsi sebagai alat **Verifikasi Validitas Mandiri (Read-Onl
 Untuk kebutuhan legalitas formal hukum, alur verifikasi akan ditingkatkan dengan integrasi **DocuSign API**:
 * **Embedded Signing:** Pada halaman publik React POS, akan ditambahkan tombol "Tanda Tangani Dokumen".
 * **Automated Webhook:** Setelah Vendor menandatangani dokumen di platform DocuSign, Servlet Express akan menerima notifikasi Webhook (`Envelope: Completed`) dan otomatis mengubah *DocStatus* di iDempiere ERP menjadi `Signed / Closed`.
-```
+```text
 ┌────────────────────────┐
                                  │    iDempiere ERP       │
                                  │  (Sistem Core & DB)    │
@@ -96,4 +96,5 @@ Untuk kebutuhan legalitas formal hukum, alur verifikasi akan ditingkatkan dengan
                                                    ┌───────────┴────────────┐
                                                    │     External Vendor    │
                                                    │  (Penerima Order/PO)   │
-                                                   └────────────────────────┘```
+                                                   └────────────────────────┘
+```
