@@ -10,6 +10,8 @@ Berikut adalah beberapa fitur yang tersedia:
 1. Scan barcode/qrcode untuk input transaksi/barang.
 2. Import dari transaksi sebelumnya (Misal pada menu Purchasing kita bisa Import dari Requisition)
 3. Form dibuat menyerupai Shopping Cart pada marketplace sehingga user lebih familiar.
+4. Jika anda membutuhkan validasi document anda bisa menggunakan express.js sebagai servlet melayani validasi ini (penjelasan detail lihat pada alur kerja verifikasi data)
+
    
 Aplikasi ini free open source dengan resiko anda sendiri (masih banyak ekspose console.log untuk pengetesan, kalau untuk production silahan dihapus)
 
@@ -20,7 +22,6 @@ Aplikasi ini free open source dengan resiko anda sendiri (masih banyak ekspose c
 npm install recharts
 npm install jspdf jspdf-autotable qrcode
 
-jika anda membutuhkan validasi document anda bisa menggunakan express.js sebagai servlet melayani validasi ini (ada pada project berbeda)
 
 ### Mulai menggunakan 
 * Clone pada local server anda
