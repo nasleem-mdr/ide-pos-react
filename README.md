@@ -57,11 +57,13 @@ Saat ini pengembang memfokuskan pada module procurement dengan menu utama (Requi
    Modul ini digunakan oleh staf/unit kerja untuk mengajukan permintaan barang secara digital, menggantikan formulir kertas. Setiap FPB berisi daftar produk beserta jumlah yang diminta, dan akan melalui proses persetujuan    berjenjang sebelum dapat diproses lebih lanjut (dibelikan atau diambil dari gudang).
    Alur Pengisian Formulir
    1.	Pengguna login — data sesi (Client, Role, Organisasi, Gudang) otomatis terisi berdasarkan hak akses pengguna.
-   2.	Pilih produk yang ingin diminta — daftar produk otomatis difilter berdasarkan gudang (M_Locator_ID) tempat pengguna bertugas.
-   3.	Tentukan jumlah (Qty) dan satuan (UOM) — sistem mendukung konversi satuan (mis. Dus ↔ Pcs) menggunakan tabel konversi UOM di iDempiere.
-   4.	Ulangi untuk setiap produk yang dibutuhkan hingga daftar permintaan lengkap.
-   5.	Submit FPB — dokumen tersimpan dengan status awal Draft, kemudian dokumen di-Complete sehingga masuk ke antrian approval.
-   6.	Approval — permintaan diproses melalui Workflow Approval iDempiere 
+   2.	Pilih menu Requisition pada Dashboard atau Sidebar
+   3.	Pilih (scan atau search) produk yang ingin diminta — daftar produk otomatis difilter berdasarkan gudang (M_Locator_ID) tempat pengguna bertugas.
+   4.	Pilihan produk akan disimpan pada Cart Panel disisi kanan(desktop) atau tersembunyi/mengambang dibawah untuk versi mobile.
+   5.	Tentukan jumlah (Qty) dan satuan (UOM) — sistem mendukung konversi satuan (mis. Dus ↔ Pcs) menggunakan tabel konversi UOM di iDempiere.
+   6.	Ulangi untuk setiap produk yang dibutuhkan hingga daftar permintaan lengkap.
+   7.	Submit/Kirim Requisition/FPB — dokumen tersimpan mengikuti alur Workflow Engine IDempiere dengan status InProgress (complete dari sisi Invoker), kemudian dokumen masuk ke antrian approval.
+   8.	Approval masih diproses melalui Workflow Activities di Windows iDempiere. 
 
 3. Menu Purchasing
 ## 🔄 Alur Kerja Verifikasi & Validasi Dokumen (Procurement Workflow)
