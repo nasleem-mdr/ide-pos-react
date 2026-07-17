@@ -174,7 +174,19 @@
     .header-brand-name {
       display: none;
     }
+    .header-hide-mobile {
+      display: none;
+    }
+
+    .header-session {
+      gap: 8px; /* rapatkan jarak antar ikon karena teks hilang */
+    }
+
+    .header-info-item {
+      padding: 4px; /* perbesar area tap agar tetap mudah disentuh */
+    }
   }
+
   .header {
     position: relative;
     z-index: 1000;
@@ -210,3 +222,5 @@
   .header-dropdown button:hover {
     background: #0a042c;
   }
+  /* Sembunyikan label/teks di header saat mobile, sisakan hanya ikon */
+  

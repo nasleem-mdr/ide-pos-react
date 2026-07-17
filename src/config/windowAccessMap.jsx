@@ -15,17 +15,17 @@ export const WINDOW_ACCESS_MAP = {
   businessPartnerEdit:  117,
   pos:                  167,
   salesOrder:           167,
-  product:              null,
-  requisition:          null,
-  goodsReceipt:         null,
-  purchasing:           null,
-  internalUse:          null,
+  product:              140,
+  requisition:          322,
+  goodsReceipt:         184,
+  purchasing:           181,
+  internalUse:          341,
 
   // ===== List / Report =====
-  requisitionList:      null, 
-  purchasingList:       null,
-  goodsReceiptList:     null,
-  internalUseList:      null,
+  requisitionList:      322, 
+  purchasingList:       181,
+  goodsReceiptList:     184,
+  internalUseList:      341,
 };
 
 // Helper: ambil AD_Window_ID dari key, atau null kalau tidak terdaftar/tidak dibatasi.

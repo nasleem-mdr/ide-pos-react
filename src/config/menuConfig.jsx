@@ -6,11 +6,11 @@ export const menuSections = [
         sectionLabel: 'Transaksi',
         defaultCollapsed: false,
         items: [
-            { key: 'dashboard',       path: '/dashboard',        label: 'Dashboard',        icon: <HomeIcon /> },
-            { key: 'requisition',     path: '/requisition',      label: 'Requisition',      icon: <RequisitionIcon /> },
-            { key: 'purchasing',      path: '/purchasing',       label: 'Purchasing',       icon: <ShoppingCartIcon /> },
-            { key: 'goodsReceipt',   path: '/goods-receipt',    label: 'Goods Receipt',    icon: <DeliveryIcon /> },
-            { key: 'internalUse',   path: '/internal-use',    label: 'Internal Use',    icon: <UserTake /> },
+            { key: 'dashboard',     windowKey: 'dashboard',    path: '/dashboard',      label: 'Dashboard',     icon: <HomeIcon /> },
+            { key: 'requisition',   windowKey: 'requisition',  path: '/requisition',    label: 'Requisition',   icon: <RequisitionIcon /> },
+            { key: 'purchasing',    windowKey: 'purchasing',   path: '/purchasing',     label: 'Purchasing',    icon: <ShoppingCartIcon /> },
+            { key: 'goodsReceipt',  windowKey: 'goodsReceipt', path: '/goods-receipt', label: 'Goods Receipt', icon: <DeliveryIcon /> },
+            { key: 'internalUse',   windowKey: 'internalUse',  path: '/internal-use',  label: 'Internal Use',  icon: <UserTake /> },
         ]
     },
     {
