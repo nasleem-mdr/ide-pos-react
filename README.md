@@ -36,11 +36,11 @@ jika anda membutuhkan validasi document anda bisa menggunakan express.js sebagai
 ├── src/
 │   ├── assets/          # Gambar, logo, dan file font global
 │   ├── components/      # Komponen UI yang reusable (Button, Modal, Input)
+│   ├── config/  
 │   ├── context/         # State management global (jika menggunakan React Context)
 │   ├── hooks/           # Custom React Hooks (misal: useCart, useAuth)
-│   ├── pages/           # Komponen halaman utama (Dashboard, Kasir/POS, Laporan)
-│   ├── services/        # Integrasi API / Axios HTTP Requests
-│   ├── utils/           # Fungsi pembantu / helper (format mata uang, enkripsi data)
+│   ├── pages/           # Komponen halaman utama (Dashboard, Kasir/POS, Laporan) 
+│   ├── utils/           # Fungsi Api IDempiere dan pembantu / helper
 │   ├── App.js           # Komponen root dan konfigurasi routing
 │   └── index.js         # Entry point aplikasi
 ├── .gitignore
