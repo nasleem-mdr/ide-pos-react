@@ -9,10 +9,18 @@ import { useState, useCallback, useMemo } from 'react';
 // karena itu key baris di sini adalah kombinasi produk+vendor, bukan cuma
 // produk seperti di useCart.jsx.
 //
+// ── FIX: UOM ikut jadi bagian lineKey ───────────────────────────────────────
+// Sebelumnya key cuma produk+vendor — kalau produk yang sama ditambahkan dua
+// kali dengan UOM BERBEDA (mis. "5 Dus" lalu "3 pcs"), baris digabung jadi
+// Qty: 5+3=8 tanpa peduli unitnya beda (bug: 8 apa? Dus? pcs?). C_UOM_ID
+// sekarang ikut jadi bagian key, jadi UOM berbeda = baris terpisah — sesuai
+// realita 1 C_OrderLine cuma boleh 1 UOM. Kalau UOM-nya SAMA, tetap
+// digabung/di-merge seperti biasa (Qty dijumlahkan, aman karena unitnya sama).
+//
 // vendorGroups (dihitung via useMemo) adalah representasi "PO yang akan
 // terbentuk saat submit" — satu grup = satu C_Order yang akan dibuat.
 // ─────────────────────────────────────────────────────────────────────────────
-export const lineKey = (item) => `${item.M_Product_ID}_${item.C_BPartner_ID || 'none'}`;
+export const lineKey = (item) => `${item.M_Product_ID}_${item.C_BPartner_ID || 'none'}_${item.C_UOM_ID || 'nouom'}`;
 
 export function usePOCart(initialItems = []) {
   const [cart, setCart] = useState(initialItems);
@@ -27,7 +35,7 @@ export function usePOCart(initialItems = []) {
   }, []);
 
   // Import banyak baris sekaligus (dari FPB) — tetap merge kalau ada
-  // kombinasi produk+vendor yang sudah ada di cart sebelumnya.
+  // kombinasi produk+vendor+UOM yang sudah ada di cart sebelumnya.
   const addItems = useCallback((items) => {
     setCart(prev => {
       const next = [...prev];
@@ -56,7 +64,7 @@ export function usePOCart(initialItems = []) {
 
   // Ganti vendor sebuah baris. Karena vendor adalah bagian dari lineKey,
   // baris lama dihapus & digantikan baris baru — kalau ternyata sudah ada
-  // baris lain dengan kombinasi produk+vendor baru yang sama, keduanya
+  // baris lain dengan kombinasi produk+vendor+UOM baru yang sama, keduanya
   // digabung (qty dijumlahkan) supaya tidak ada baris duplikat di cart.
   const updateVendor = useCallback((key, vendor) => {
     setCart(prev => {

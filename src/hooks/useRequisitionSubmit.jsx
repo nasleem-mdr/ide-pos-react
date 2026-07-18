@@ -1,9 +1,11 @@
 import { useState, useCallback } from 'react';
 import { idempiereApi } from '../utils/idempiereApi';
 import { getLoginInfo } from './useLoginInfo';
+import { useUomConversion } from './useUomConversion';
 
 export function useRequisitionSubmit({ docTypeId, description: defaultDescription, onError }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { toBaseQty } = useUomConversion();
 
   // warehouseId sekarang diterima dari caller (RequisitionContainer),
   // bukan lagi hardcode dari session — supaya ikut warehouse yang dipilih user.
@@ -15,6 +17,22 @@ export function useRequisitionSubmit({ docTypeId, description: defaultDescriptio
   // description (opsional, param ke-5): diisi manual oleh user lewat textarea
   // di CartSidebar/CartPanel. Kalau kosong/tidak diisi, fallback ke
   // defaultDescription dari config awal (REQUISITION_CONFIG.DESCRIPTION).
+  //
+  // ── UOM ENTERED vs BASE + FALLBACK SEMENTARA ────────────────────────────
+  // M_RequisitionLine idealnya punya kolom custom QtyEntered + C_UOM_ID
+  // (diaktifkan) untuk menyimpan qty SEBAGAIMANA diinput user (mis. 5 Dus),
+  // sedangkan Qty (native) TETAP diisi qty dalam UOM DASAR produk.
+  //
+  // SELAMA kolom QtyEntered belum tersedia di server (lihat diskusi:
+  // Synchronize Column di demo.globalqss.com gagal execute ALTER TABLE
+  // fisiknya, kemungkinan karena privilege DB dibatasi di server demo
+  // publik) — insertRequisitionLine() di bawah akan otomatis FALLBACK:
+  // coba kirim dengan QtyEntered dulu, kalau ditolak server karena kolom
+  // tidak ada, kirim ulang TANPA field itu. Qty (base) yang dikirim tetap
+  // hasil konversi yang benar di kedua jalur — jadi tidak ada bug data,
+  // cuma histori "user input dalam UOM apa" belum tersimpan sampai kolom
+  // itu benar-benar ada. Begitu kolomnya sudah dibuat di server Anda
+  // sendiri, jalur utama akan otomatis "menyala" tanpa perlu ubah kode ini.
   const submit = useCallback(async (cart, requesterName, warehouseId, editRequisitionId = null, description = null) => {
     if (cart.length === 0) {
       onError?.('Daftar permintaan masih kosong!');
@@ -35,6 +53,45 @@ export function useRequisitionSubmit({ docTypeId, description: defaultDescriptio
     setIsSubmitting(true);
     try {
       const todayISO = new Date().toISOString().split('T')[0];
+
+      // Insert 1 baris FPB, dengan fallback otomatis kalau kolom QtyEntered
+      // belum ada di server (lihat catatan panjang di atas).
+      const insertRequisitionLine = async (reqId, item) => {
+        const uomId      = item.selectedUom?.C_UOM_ID || item.C_UOM_ID;
+        const qtyEntered = parseFloat(item.Qty);
+        const qtyBase    = toBaseQty(qtyEntered, item.selectedUom); // selalu benar, terlepas dari fallback atau tidak
+
+        const basePayload = {
+          AD_Org_ID:        { id: orgId },
+          M_Requisition_ID: { id: reqId },
+          M_Product_ID:     { id: parseInt(item.M_Product_ID) },
+          C_UOM_ID:         { id: parseInt(uomId) },
+          Qty:              qtyBase,
+          ...(item.VendorId ? { C_BPartner_ID: { id: parseInt(item.VendorId) } } : {}),
+        };
+
+        try {
+          // Jalur UTAMA — pakai ini kalau kolom QtyEntered sudah ada di server.
+          return await idempiereApi('/models/m_requisitionline', {
+            method: 'POST',
+            body: JSON.stringify({ ...basePayload, QtyEntered: qtyEntered }),
+          });
+        } catch (err) {
+          const msg = String(err?.message || '');
+          const looksLikeMissingColumn = /qtyentered/i.test(msg);
+          if (!looksLikeMissingColumn) throw err; // error lain (bukan soal kolom) — jangan ditelan, lempar ke atas
+
+          console.warn(
+            '[useRequisitionSubmit] Kolom QtyEntered belum tersedia di server ini — ' +
+            'insert ulang TANPA field itu (fallback sementara). Qty (base) tetap terkirim benar. ' +
+            'Buat kolom QtyEntered di M_RequisitionLine untuk mengaktifkan histori UOM entered.'
+          );
+          return await idempiereApi('/models/m_requisitionline', {
+            method: 'POST',
+            body: JSON.stringify(basePayload),
+          });
+        }
+      };
 
       let reqId;
       let headerRes;
@@ -74,18 +131,7 @@ export function useRequisitionSubmit({ docTypeId, description: defaultDescriptio
         // dalam kondisi kosong (0 lines) saat workflow di-reset. Beberapa
         // konfigurasi iDempiere menolak Prepare/Complete pada dokumen tanpa lines.
         for (const item of cart) {
-          const uomId = item.selectedUom?.C_UOM_ID || item.C_UOM_ID;
-          await idempiereApi('/models/m_requisitionline', {
-            method: 'POST',
-            body: JSON.stringify({
-              AD_Org_ID:        { id: orgId },
-              M_Requisition_ID: { id: reqId },
-              M_Product_ID:     { id: parseInt(item.M_Product_ID) },
-              C_UOM_ID:         { id: parseInt(uomId) },
-              Qty:              parseFloat(item.Qty),
-              ...(item.VendorId ? { C_BPartner_ID: { id: parseInt(item.VendorId) } } : {}),
-            }),
-          });
+          await insertRequisitionLine(reqId, item);
         }
 
         if (currentStatus === 'NA') {
@@ -117,18 +163,7 @@ export function useRequisitionSubmit({ docTypeId, description: defaultDescriptio
 
         // Insert lines untuk dokumen baru
         for (const item of cart) {
-          const uomId = item.selectedUom?.C_UOM_ID || item.C_UOM_ID;
-          await idempiereApi('/models/m_requisitionline', {
-            method: 'POST',
-            body: JSON.stringify({
-              AD_Org_ID:        { id: orgId },
-              M_Requisition_ID: { id: reqId },
-              M_Product_ID:     { id: parseInt(item.M_Product_ID) },
-              C_UOM_ID:         { id: parseInt(uomId) },
-              Qty:              parseFloat(item.Qty),
-              ...(item.VendorId ? { C_BPartner_ID: { id: parseInt(item.VendorId) } } : {}),
-            }),
-          });
+          await insertRequisitionLine(reqId, item);
         }
       }
 
@@ -151,7 +186,7 @@ export function useRequisitionSubmit({ docTypeId, description: defaultDescriptio
     } finally {
       setIsSubmitting(false);
     }
-  }, [docTypeId, defaultDescription, onError]);
+  }, [docTypeId, defaultDescription, onError, toBaseQty]);
 
   return { submit, isSubmitting };
 }

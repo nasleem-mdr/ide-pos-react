@@ -19,6 +19,22 @@ const fmtRp = (n) => `Rp ${Math.round(n || 0).toLocaleString('id-ID')}`;
 //      Import akan mengelompokkan baris per vendor — kalau ada >1 vendor,
 //      nanti otomatis jadi >1 Purchase Order terpisah saat submit
 //      (lihat usePurchaseOrderSubmit.jsx).
+//
+// ── UOM ENTERED vs BASE ──────────────────────────────────────────────────
+// Baris FPB sekarang membawa QtyEntered + C_UOM_ID (UOM yang DIPILIH USER
+// saat bikin FPB, mis. "Dus"), terpisah dari Qty (base, UOM dasar produk,
+// dipakai proses native). Saat import ke PO, kita SENGAJA bawa qty+UOM
+// entered itu apa adanya ke cart PO (bukan qty base) — sesuai keputusan:
+// "UOM di PO ikut UOM yang dipilih user di FPB". Konversi ke QtyOrdered
+// (base) dilakukan belakangan di usePurchaseOrderSubmit.jsx, bukan di sini.
+//
+// PENTING — dependency ke useRequisitionsForPO.jsx:
+// Hook itu WAJIB menyertakan field berikut per baris supaya kode di bawah
+// ini bekerja benar (lihat catatan di bagian akhir file ini kalau hook
+// tersebut belum di-update):
+//   • l.QtyEntered   — qty sebagaimana diinput user di FPB
+//   • l.BaseUOM_ID   — UOM dasar produk (M_Product.C_UOM_ID), dibutuhkan
+//                       usePurchaseOrderSubmit untuk hitung QtyOrdered
 // ─────────────────────────────────────────────────────────────────────────────
 const RequisitionToPOImportModal = ({ isOpen, onClose, onImport }) => {
   const {
@@ -53,6 +69,11 @@ const RequisitionToPOImportModal = ({ isOpen, onClose, onImport }) => {
     setEditableLines(lines);
   };
 
+  // Qty yang ditampilkan & dipakai untuk edit harga/kalkulasi di modal ini
+  // SELALU qty entered (bukan base) — fallback ke l.Qty untuk kompatibilitas
+  // kalau useRequisitionsForPO belum sempat di-update menyertakan QtyEntered.
+  const enteredQty = (l) => (l.QtyEntered ?? l.Qty);
+
   const updateLine = (idx, patch) => {
     setEditableLines(prev => prev.map((l, i) => i === idx ? { ...l, ...patch } : l));
   };
@@ -83,9 +104,10 @@ const RequisitionToPOImportModal = ({ isOpen, onClose, onImport }) => {
     const cartItems = editableLines.map(l => ({
       M_Product_ID: l.M_Product_ID,
       Name:         l.ProductName,
-      C_UOM_ID:     l.C_UOM_ID,
+      C_UOM_ID:     l.C_UOM_ID,       // UOM yang dipilih user di FPB (entered) — dibawa apa adanya ke PO
       UomName:      l.UomName,
-      Qty:          l.Qty,
+      BaseUOM_ID:   l.BaseUOM_ID,     // UOM dasar produk — dipakai usePurchaseOrderSubmit utk hitung QtyOrdered
+      Qty:          enteredQty(l),    // qty DALAM UOM entered di atas — BUKAN qty base
       Price:        l.Price,
       C_BPartner_ID: l.C_BPartner_ID,
       VendorName:    l.VendorName,
@@ -101,12 +123,12 @@ const RequisitionToPOImportModal = ({ isOpen, onClose, onImport }) => {
     name: l.ProductName.length > 14 ? l.ProductName.slice(0, 14) + '…' : l.ProductName,
     fullName: l.ProductName,
     price: l.Price,
-    lineAmount: l.Qty * (l.Price || 0),
+    lineAmount: enteredQty(l) * (l.Price || 0),
   }));
 
   const distinctVendors = new Set(editableLines.filter(l => l.C_BPartner_ID).map(l => l.C_BPartner_ID));
   const missingVendorCount = editableLines.filter(l => !l.C_BPartner_ID).length;
-  const grandTotal = editableLines.reduce((s, l) => s + l.Qty * (l.Price || 0), 0);
+  const grandTotal = editableLines.reduce((s, l) => s + enteredQty(l) * (l.Price || 0), 0);
   const statusLabel = (s) => ({ CO: 'Completed' }[s] || s);
 
   return (
@@ -249,7 +271,7 @@ const RequisitionToPOImportModal = ({ isOpen, onClose, onImport }) => {
                       }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
                           <span style={{ fontSize: '13px', fontWeight: 600, color: COLOR.textDk }}>{l.ProductName}</span>
-                          <span style={{ fontSize: '12px', color: COLOR.textLt }}>{l.Qty} {l.UomName}</span>
+                          <span style={{ fontSize: '12px', color: COLOR.textLt }}>{enteredQty(l)} {l.UomName}</span>
                         </div>
 
                         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
@@ -306,7 +328,7 @@ const RequisitionToPOImportModal = ({ isOpen, onClose, onImport }) => {
                         </div>
 
                         <div style={{ textAlign: 'right', marginTop: '6px', fontSize: '12px', fontWeight: 700, color: COLOR.textDk }}>
-                          = {fmtRp(l.Qty * (l.Price || 0))}
+                          = {fmtRp(enteredQty(l) * (l.Price || 0))}
                         </div>
                       </div>
                     ))}
@@ -360,3 +382,14 @@ const RequisitionToPOImportModal = ({ isOpen, onClose, onImport }) => {
 };
 
 export default RequisitionToPOImportModal;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TODO — dependency yang perlu dicek di useRequisitionsForPO.jsx:
+// $select pada fetchRequisitionLines wajib menyertakan QtyEntered (kolom
+// custom baru) dan UOM dasar produk. Kalau M_Product sudah di-join/fetch
+// terpisah untuk suggestion vendor, tambahkan field:
+//   BaseUOM_ID: fkId(product.C_UOM_ID)   // dari M_Product, BUKAN dari M_RequisitionLine.C_UOM_ID
+// ke setiap objek baris yang dikembalikan fetchRequisitionLines(), supaya
+// enteredQty()/handleImport() di atas mendapat data yang benar. Kirim file
+// itu kalau mau saya patch langsung.
+// ─────────────────────────────────────────────────────────────────────────────

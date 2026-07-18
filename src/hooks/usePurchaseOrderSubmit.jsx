@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { idempiereApi, fkId } from '../utils/idempiereApi';
 import { getLoginInfo } from './useLoginInfo';
+import { useUomConversion } from './useUomConversion';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // usePurchaseOrderSubmit.jsx
@@ -23,10 +24,22 @@ import { getLoginInfo } from './useLoginInfo';
 //     akumulasi qty — proses native pun cuma cek `== 0` untuk skip baris
 //     yang sudah pernah diproses, tidak ada tracking qty parsial sama sekali).
 //
-// Update match-table ini SENGAJA tidak boleh menggagalkan pembuatan PO
-// secara keseluruhan — PO yang sudah dibuat & di-Complete adalah nilai
-// bisnis utama; kalau update field gagal (mis. versi iDempiere lama yang
-// belum punya kolom ini), cukup di-log, tidak throw ke atas.
+// ── UOM ENTERED vs BASE (C_OrderLine) ───────────────────────────────────────
+// item.Qty  = qty SEBAGAIMANA diinput/dibawa (dalam item.C_UOM_ID, "entered")
+// item.C_UOM_ID   = UOM entered (dari cart manual ATAU dari FPB, lihat
+//                    PurchasingContainer.jsx & RequisitionToPOImportModal.jsx)
+// item.BaseUOM_ID = UOM DASAR produk (M_Product.C_UOM_ID) — WAJIB ada di
+//                    setiap cart item supaya konversi di bawah benar. Kalau
+//                    tidak ada (cart item lama/kompatibilitas), fallback ke
+//                    item.C_UOM_ID sendiri (dianggap tidak perlu konversi).
+//
+// C_OrderLine punya pasangan field serupa (QtyEntered/QtyOrdered +
+// PriceEntered/PriceActual), jadi konversinya SIMETRIS:
+//   QtyOrdered  = QtyEntered  × MultiplyRate   (mis. 5 Dus → 60 pcs)
+//   PriceActual = PriceEntered ÷ MultiplyRate  (harga per pcs, bukan per Dus)
+// — pola pembagian harga ini sudah dikonfirmasi & dipakai di modul Internal
+// Use (useUomConversion.toBaseQty rekannya, di sisi harga dilakukan manual
+// di bawah karena arahnya kebalikan dari qty).
 //
 // RETURN CONTRACT — PENTING:
 // submit() SEKARANG mengembalikan { results, hadError }, BUKAN array
@@ -39,6 +52,7 @@ import { getLoginInfo } from './useLoginInfo';
 // ─────────────────────────────────────────────────────────────────────────────
 export function usePurchaseOrderSubmit({ docTypeId, defaultDescription, onError }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { fetchUomOptions } = useUomConversion();
 
   const markRequisitionLineOrdered = useCallback(async (requisitionLineId, orderLineId) => {
     try {
@@ -53,7 +67,27 @@ export function usePurchaseOrderSubmit({ docTypeId, defaultDescription, onError 
     }
   }, []);
 
-  const submit = useCallback(async (cart, { warehouseId } = {}) => {
+  // Cari MultiplyRate untuk 1 item cart — dari UOM entered ke UOM dasar
+  // produk. Kalau entered == base (atau BaseUOM_ID tidak ada / tidak
+  // valid), rate = 1 (tidak perlu fetch, tidak perlu konversi).
+  const resolveMultiplyRate = useCallback(async (item) => {
+    const enteredUomId = parseInt(item.C_UOM_ID);
+    const baseUomId    = parseInt(item.BaseUOM_ID || item.C_UOM_ID);
+    if (!baseUomId || enteredUomId === baseUomId) return 1;
+
+    const options = await fetchUomOptions(item.M_Product_ID, baseUomId, null);
+    const match = options.find(o => o.C_UOM_ID === enteredUomId);
+    if (!match) {
+      console.warn(
+        `[usePurchaseOrderSubmit] tidak ditemukan C_UOM_Conversion untuk produk #${item.M_Product_ID} ` +
+        `(UOM entered ${enteredUomId} → base ${baseUomId}). MultiplyRate dianggap 1 — CEK MANUAL PO ini.`
+      );
+      return 1;
+    }
+    return match.multiplyRate;
+  }, [fetchUomOptions]);
+
+  const submit = useCallback(async (cart, { warehouseId, description } = {}) => {
     if (cart.length === 0) {
       onError?.('Daftar Purchase Order masih kosong!');
       return { results: null, hadError: true };
@@ -138,17 +172,24 @@ export function usePurchaseOrderSubmit({ docTypeId, defaultDescription, onError 
 
         // ── Lines C_OrderLine ─────────────────────────────────────────────
         for (const item of items) {
-          const price = parseFloat(item.Price || 0);
+          const qtyEntered   = parseFloat(item.Qty || 0);
+          const priceEntered = parseFloat(item.Price || 0);
+          const multiplyRate = await resolveMultiplyRate(item);
+
+          const qtyOrdered  = qtyEntered * multiplyRate;
+          const priceActual = multiplyRate ? priceEntered / multiplyRate : priceEntered;
+
           const lineRes = await idempiereApi('/models/c_orderline', {
             method: 'POST',
             body: JSON.stringify({
               AD_Org_ID:      { id: orgId },
               C_Order_ID:     { id: orderId },
               M_Product_ID:   { id: parseInt(item.M_Product_ID) },
-              C_UOM_ID:       { id: parseInt(item.C_UOM_ID) },
-              QtyOrdered:     parseFloat(item.Qty),
-              PriceEntered:   price,
-              PriceActual:    price,
+              C_UOM_ID:       { id: parseInt(item.C_UOM_ID) }, // UOM entered — bukan base
+              QtyEntered:     qtyEntered,
+              QtyOrdered:     qtyOrdered,   // ← dikonversi ke UOM dasar produk
+              PriceEntered:   priceEntered,
+              PriceActual:    priceActual,  // ← dikonversi jadi harga per UOM dasar
               ...(item.sourceRequisitionLineId
                 ? { Description: `Ref. FPB Line #${item.sourceRequisitionLineId}` }
                 : {}),
@@ -189,6 +230,9 @@ export function usePurchaseOrderSubmit({ docTypeId, defaultDescription, onError 
           vendorName,
           date: new Date().toLocaleString('id-ID'),
           items,
+          // Total di sini pakai qty & harga ENTERED (item.Qty × item.Price) —
+          // ini benar apa adanya karena entered×entered = total yang sama
+          // terlepas dari UOM apa pun dipakai (tidak perlu ikut dikonversi).
           total: items.reduce((s, i) => s + i.Qty * (i.Price || 0), 0),
         });
       }
@@ -222,7 +266,7 @@ export function usePurchaseOrderSubmit({ docTypeId, defaultDescription, onError 
     } finally {
       setIsSubmitting(false);
     }
-  }, [docTypeId, defaultDescription, onError, markRequisitionLineOrdered]);
+  }, [docTypeId, defaultDescription, onError, markRequisitionLineOrdered, resolveMultiplyRate]);
 
   return { submit, isSubmitting };
 }

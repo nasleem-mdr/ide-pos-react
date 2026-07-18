@@ -115,6 +115,11 @@ const PurchasingContainer = () => {
   // Tambah produk manual — vendor & harga di-suggest otomatis dari
   // M_Product_PO kalau ada; kalau tidak ada, item masuk cart tanpa vendor
   // dan ditandai perlu dilengkapi (lihat badge merah di POCartItem).
+  //
+  // BaseUOM_ID: SELALU product.C_UOM_ID (UOM dasar produk di M_Product),
+  // terlepas dari UOM apa yang dipilih user (`uom`). Field ini dibutuhkan
+  // usePurchaseOrderSubmit.jsx untuk menghitung QtyOrdered/PriceActual via
+  // konversi UOM — tanpa ini, hook itu tidak tahu harus konversi ke UOM apa.
   const handleConfirmAddToCart = useCallback(async (product, qty, uom) => {
     closeProductDetail();
     const suggestion = await fetchDefaultVendor(product.M_Product_ID);
@@ -123,6 +128,7 @@ const PurchasingContainer = () => {
       Name:         product.Name,
       C_UOM_ID:     uom?.C_UOM_ID || product.C_UOM_ID,
       UomName:      uom?.Name || product.C_UOM_Name,
+      BaseUOM_ID:   product.C_UOM_ID, // ← UOM dasar produk, untuk konversi saat submit PO
       Qty:          qty,
       Price:        suggestion.default?.Price ?? 0,
       C_BPartner_ID: suggestion.default?.C_BPartner_ID ?? null,
@@ -140,6 +146,7 @@ const PurchasingContainer = () => {
         Name:         found.Name,
         C_UOM_ID:     found.C_UOM_ID,
         UomName:      found.C_UOM_Name,
+        BaseUOM_ID:   found.C_UOM_ID, // ← barcode selalu tambah dalam UOM dasar produk (tidak ada picker UOM di jalur ini)
         Qty:          1,
         Price:        suggestion.default?.Price ?? 0,
         C_BPartner_ID: suggestion.default?.C_BPartner_ID ?? null,
