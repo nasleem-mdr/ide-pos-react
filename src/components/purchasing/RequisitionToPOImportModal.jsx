@@ -10,31 +10,20 @@ const fmtRp = (n) => `Rp ${Math.round(n || 0).toLocaleString('id-ID')}`;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // RequisitionToPOImportModal.jsx
-// Alur 2 langkah:
-//   1. Daftar FPB (M_Requisition) Completed/Approved
-//   2. Pilih satu → tiap baris sudah dilengkapi suggestion vendor & harga
-//      (dari M_Product_PO, lihat useRequisitionsForPO). User bisa EDIT
-//      vendor/harga/qty per baris di sini sebelum diimport ke cart.
-//      Chart menampilkan Harga Satuan & Line Amount (Qty×Harga) per produk.
-//      Import akan mengelompokkan baris per vendor — kalau ada >1 vendor,
-//      nanti otomatis jadi >1 Purchase Order terpisah saat submit
-//      (lihat usePurchaseOrderSubmit.jsx).
+// Alur 2 langkah: (1) daftar FPB Completed, (2) pilih satu → tiap baris
+// dilengkapi suggestion vendor & harga, user bisa edit vendor/harga sebelum
+// import ke cart PO (qty TIDAK diedit di modal ini).
 //
-// ── UOM ENTERED vs BASE ──────────────────────────────────────────────────
-// Baris FPB sekarang membawa QtyEntered + C_UOM_ID (UOM yang DIPILIH USER
-// saat bikin FPB, mis. "Dus"), terpisah dari Qty (base, UOM dasar produk,
-// dipakai proses native). Saat import ke PO, kita SENGAJA bawa qty+UOM
-// entered itu apa adanya ke cart PO (bukan qty base) — sesuai keputusan:
-// "UOM di PO ikut UOM yang dipilih user di FPB". Konversi ke QtyOrdered
-// (base) dilakukan belakangan di usePurchaseOrderSubmit.jsx, bukan di sini.
-//
-// PENTING — dependency ke useRequisitionsForPO.jsx:
-// Hook itu WAJIB menyertakan field berikut per baris supaya kode di bawah
-// ini bekerja benar (lihat catatan di bagian akhir file ini kalau hook
-// tersebut belum di-update):
-//   • l.QtyEntered   — qty sebagaimana diinput user di FPB
-//   • l.BaseUOM_ID   — UOM dasar produk (M_Product.C_UOM_ID), dibutuhkan
-//                       usePurchaseOrderSubmit untuk hitung QtyOrdered
+// ── UOM ENTERED vs BASE ────────────────────────────────────────────────────
+// Qty = qty entered (UOM dari FPB) → jadi QtyEntered di C_OrderLine.
+// BaseQty = qty base dari FPB (M_RequisitionLine.Qty) → jadi QtyOrdered di
+//           C_OrderLine LANGSUNG, tanpa dihitung ulang (lihat
+//           usePurchaseOrderSubmit.jsx).
+// UnitsPerBaseUom = RASIO (BaseQty ÷ Qty entered) — dipakai HANYA untuk
+//           preview di cart ("≈ 6 pcs"), supaya preview tetap akurat kalau
+//           user mengubah Qty lagi di cart PO SEBELUM submit (POCartItem.jsx).
+//           Beda dari BaseQty yang nilainya tetap/snapshot.
+// BaseUOMName = nama UOM dasar produk, untuk teks preview itu.
 // ─────────────────────────────────────────────────────────────────────────────
 const RequisitionToPOImportModal = ({ isOpen, onClose, onImport }) => {
   const {
@@ -69,9 +58,6 @@ const RequisitionToPOImportModal = ({ isOpen, onClose, onImport }) => {
     setEditableLines(lines);
   };
 
-  // Qty yang ditampilkan & dipakai untuk edit harga/kalkulasi di modal ini
-  // SELALU qty entered (bukan base) — fallback ke l.Qty untuk kompatibilitas
-  // kalau useRequisitionsForPO belum sempat di-update menyertakan QtyEntered.
   const enteredQty = (l) => (l.QtyEntered ?? l.Qty);
 
   const updateLine = (idx, patch) => {
@@ -101,20 +87,26 @@ const RequisitionToPOImportModal = ({ isOpen, onClose, onImport }) => {
   };
 
   const handleImport = () => {
-    const cartItems = editableLines.map(l => ({
-      M_Product_ID: l.M_Product_ID,
-      Name:         l.ProductName,
-      C_UOM_ID:     l.C_UOM_ID,       // UOM yang dipilih user di FPB (entered) — dibawa apa adanya ke PO
-      UomName:      l.UomName,
-      BaseUOM_ID:   l.BaseUOM_ID,     // UOM dasar produk — dipakai usePurchaseOrderSubmit utk hitung QtyOrdered
-      Qty:          enteredQty(l),    // qty DALAM UOM entered di atas — BUKAN qty base
-      Price:        l.Price,
-      C_BPartner_ID: l.C_BPartner_ID,
-      VendorName:    l.VendorName,
-      C_BPartner_Location_ID: l.C_BPartner_Location_ID ?? null,
-      sourceRequisitionLineId: l.M_RequisitionLine_ID,
-      sourceRequisitionId:     activeRequisition.M_Requisition_ID,
-    }));
+    const cartItems = editableLines.map(l => {
+      const qEntered = enteredQty(l);
+      return {
+        M_Product_ID: l.M_Product_ID,
+        Name:         l.ProductName,
+        C_UOM_ID:     l.C_UOM_ID,       // UOM entered dari FPB — dibawa apa adanya ke PO
+        UomName:      l.UomName,
+        BaseUOM_ID:   l.BaseUOM_ID,
+        BaseUOMName:  l.BaseUOMName,    // ← BARU: untuk teks preview di cart
+        Qty:          qEntered,         // qty entered → jadi QtyEntered di C_OrderLine
+        BaseQty:      l.Qty,            // qty base FPB → jadi QtyOrdered di C_OrderLine, apa adanya
+        UnitsPerBaseUom: qEntered > 0 ? (l.Qty / qEntered) : 1, // ← BARU: rasio untuk preview live
+        Price:        l.Price,
+        C_BPartner_ID: l.C_BPartner_ID,
+        VendorName:    l.VendorName,
+        C_BPartner_Location_ID: l.C_BPartner_Location_ID ?? null,
+        sourceRequisitionLineId: l.M_RequisitionLine_ID,
+        sourceRequisitionId:     activeRequisition.M_Requisition_ID,
+      };
+    });
     onImport(cartItems, activeRequisition);
     onClose();
   };
@@ -382,14 +374,3 @@ const RequisitionToPOImportModal = ({ isOpen, onClose, onImport }) => {
 };
 
 export default RequisitionToPOImportModal;
-
-// ─────────────────────────────────────────────────────────────────────────────
-// TODO — dependency yang perlu dicek di useRequisitionsForPO.jsx:
-// $select pada fetchRequisitionLines wajib menyertakan QtyEntered (kolom
-// custom baru) dan UOM dasar produk. Kalau M_Product sudah di-join/fetch
-// terpisah untuk suggestion vendor, tambahkan field:
-//   BaseUOM_ID: fkId(product.C_UOM_ID)   // dari M_Product, BUKAN dari M_RequisitionLine.C_UOM_ID
-// ke setiap objek baris yang dikembalikan fetchRequisitionLines(), supaya
-// enteredQty()/handleImport() di atas mendapat data yang benar. Kirim file
-// itu kalau mau saya patch langsung.
-// ─────────────────────────────────────────────────────────────────────────────

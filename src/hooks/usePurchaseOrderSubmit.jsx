@@ -8,51 +8,40 @@ import { useUomConversion } from './useUomConversion';
 // Inti dari requirement "kalau 1 FPB punya lebih dari 1 vendor, buat PO
 // terpisah": cart di-groupBy C_BPartner_ID di sini, lalu untuk SETIAP
 // vendor dibuatkan satu C_Order (header) + C_OrderLine (detail) SENDIRI,
-// masing-masing langsung di-Complete. Kalau cart cuma punya 1 vendor,
-// hasilnya ya cuma 1 PO seperti biasa — logic-nya sama, cuma loop 1x.
+// masing-masing langsung di-Complete.
 //
 // MATCHING M_RequisitionLine ↔ C_OrderLine — FIELD NATIVE (iDempiere 13+):
 // Link-nya SATU ARAH SAJA: M_RequisitionLine.C_OrderLine_ID → C_OrderLine.
-// TIDAK ADA kolom M_RequisitionLine_ID di tabel C_OrderLine — tab "Purchase
-// Order" di window Requisition sebenarnya query terbalik (cari C_OrderLine
-// yang C_OrderLine_ID-nya cocok dengan M_RequisitionLine.C_OrderLine_ID),
-// bukan lewat FK di sisi C_OrderLine. Jadi cukup update
-// M_RequisitionLine.C_OrderLine_ID saja (lihat markRequisitionLineOrdered)
-// — TIDAK perlu (dan TIDAK BISA) kirim field balik di payload C_OrderLine.
-//   • M_RequisitionLine.C_OrderLine_ID — diisi begitu baris FPB dipakai
-//     bikin 1 C_OrderLine. NULL = belum pernah di-PO-kan (biner, BUKAN
-//     akumulasi qty — proses native pun cuma cek `== 0` untuk skip baris
-//     yang sudah pernah diproses, tidak ada tracking qty parsial sama sekali).
+// Cukup update M_RequisitionLine.C_OrderLine_ID saja (lihat
+// markRequisitionLineOrdered).
 //
-// ── UOM ENTERED vs BASE (C_OrderLine) ───────────────────────────────────────
-// item.Qty  = qty SEBAGAIMANA diinput/dibawa (dalam item.C_UOM_ID, "entered")
-// item.C_UOM_ID   = UOM entered (dari cart manual ATAU dari FPB, lihat
-//                    PurchasingContainer.jsx & RequisitionToPOImportModal.jsx)
-// item.BaseUOM_ID = UOM DASAR produk (M_Product.C_UOM_ID) — WAJIB ada di
-//                    setiap cart item supaya konversi di bawah benar. Kalau
-//                    tidak ada (cart item lama/kompatibilitas), fallback ke
-//                    item.C_UOM_ID sendiri (dianggap tidak perlu konversi).
+// ── UOM ENTERED vs BASE — 2 SUMBER, TERGANTUNG ASAL ITEM ──────────────────
+// A) Item dari IMPORT FPB (item.sourceRequisitionLineId ada):
+//    QtyOrdered diambil LANGSUNG dari item.BaseQty (= M_RequisitionLine.Qty,
+//    sudah dikonversi dengan benar sekali saat FPB disubmit — lihat
+//    useRequisitionSubmit.jsx & RequisitionToPOImportModal.jsx). TIDAK
+//    dihitung ulang lewat C_UOM_Conversion di sini — menghindari 2 titik
+//    hitung konversi yang bisa beda hasil kalau data C_UOM_Conversion
+//    berubah di antara FPB dibuat dan PO disubmit.
 //
-// C_OrderLine punya pasangan field serupa (QtyEntered/QtyOrdered +
-// PriceEntered/PriceActual), jadi konversinya SIMETRIS:
-//   QtyOrdered  = QtyEntered  × MultiplyRate   (mis. 5 Dus → 60 pcs)
-//   PriceActual = PriceEntered ÷ MultiplyRate  (harga per pcs, bukan per Dus)
-// — pola pembagian harga ini sudah dikonfirmasi & dipakai di modul Internal
-// Use (useUomConversion.toBaseQty rekannya, di sisi harga dilakukan manual
-// di bawah karena arahnya kebalikan dari qty).
+// B) Item ditambah MANUAL ke cart PO (search produk langsung di Purchasing,
+//    tanpa lewat FPB — tidak ada sourceRequisitionLineId, tidak ada
+//    BaseQty): QtyOrdered dihitung via toBaseQty() dari useUomConversion,
+//    persis seperti sebelumnya — karena item ini tidak punya qty base
+//    yang sudah dihitung di tempat lain.
 //
-// RETURN CONTRACT — PENTING:
-// submit() SEKARANG mengembalikan { results, hadError }, BUKAN array
-// langsung. Ini supaya pemanggil (PurchasingContainer) bisa membedakan
-// "semua vendor berhasil" vs "sebagian vendor gagal, tapi ada PO yang
-// terlanjur berhasil dibuat sebelum errornya" — sebelumnya kedua kasus ini
-// SAMA-SAMA cuma mengembalikan array hasil, sehingga UI salah kira semuanya
-// sukses walau ada error di tengah proses (Dialog error jadi ketutup oleh
-// Success Modal). Lihat PurchasingContainer.jsx untuk cara pemakaiannya.
+// PriceActual, di KEDUA kasus, diturunkan dari rasio qty — BUKAN dari rate
+// terpisah — supaya Line Amount selalu konsisten (PriceEntered×QtyEntered
+// == PriceActual×QtyOrdered) apa pun sumber qty-nya:
+//     PriceActual = (PriceEntered × QtyEntered) ÷ QtyOrdered
+//
+// RETURN CONTRACT: submit() mengembalikan { results, hadError } — supaya
+// pemanggil (PurchasingContainer) bisa membedakan "semua vendor berhasil"
+// vs "sebagian gagal, tapi ada PO yang terlanjur berhasil dibuat".
 // ─────────────────────────────────────────────────────────────────────────────
 export function usePurchaseOrderSubmit({ docTypeId, defaultDescription, onError }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { fetchUomOptions } = useUomConversion();
+  const { fetchUomOptions, toBaseQty } = useUomConversion();
 
   const markRequisitionLineOrdered = useCallback(async (requisitionLineId, orderLineId) => {
     try {
@@ -67,25 +56,36 @@ export function usePurchaseOrderSubmit({ docTypeId, defaultDescription, onError 
     }
   }, []);
 
-  // Cari MultiplyRate untuk 1 item cart — dari UOM entered ke UOM dasar
-  // produk. Kalau entered == base (atau BaseUOM_ID tidak ada / tidak
-  // valid), rate = 1 (tidak perlu fetch, tidak perlu konversi).
-  const resolveMultiplyRate = useCallback(async (item) => {
+  // Cari objek UOM (untuk toBaseQty) — HANYA dipakai untuk item MANUAL
+  // (tanpa BaseQty siap pakai dari FPB). Return null kalau entered == base
+  // (atau BaseUOM_ID tidak ada/valid) — toBaseQty pakai rate default 1.
+  const resolveSelectedUom = useCallback(async (item) => {
     const enteredUomId = parseInt(item.C_UOM_ID);
     const baseUomId    = parseInt(item.BaseUOM_ID || item.C_UOM_ID);
-    if (!baseUomId || enteredUomId === baseUomId) return 1;
+    if (!baseUomId || enteredUomId === baseUomId) return null;
 
     const options = await fetchUomOptions(item.M_Product_ID, baseUomId, null);
     const match = options.find(o => o.C_UOM_ID === enteredUomId);
     if (!match) {
       console.warn(
         `[usePurchaseOrderSubmit] tidak ditemukan C_UOM_Conversion untuk produk #${item.M_Product_ID} ` +
-        `(UOM entered ${enteredUomId} → base ${baseUomId}). MultiplyRate dianggap 1 — CEK MANUAL PO ini.`
+        `(UOM entered ${enteredUomId} → base ${baseUomId}). Qty tidak dikonversi — CEK MANUAL PO ini.`
       );
-      return 1;
+      return null;
     }
-    return match.multiplyRate;
+    return match;
   }, [fetchUomOptions]);
+
+  // QtyOrdered untuk 1 item cart — cabang A (dari FPB, pakai BaseQty apa
+  // adanya) atau cabang B (manual, hitung via toBaseQty).
+  const resolveQtyOrdered = useCallback(async (item, qtyEntered) => {
+    const hasPrecomputedBaseQty = item.sourceRequisitionLineId && item.BaseQty != null && !isNaN(parseFloat(item.BaseQty));
+    if (hasPrecomputedBaseQty) {
+      return parseFloat(item.BaseQty); // ← dari FPB, apa adanya, tidak dihitung ulang
+    }
+    const selectedUom = await resolveSelectedUom(item);
+    return toBaseQty(qtyEntered, selectedUom); // ← item manual, hitung via konversi
+  }, [resolveSelectedUom, toBaseQty]);
 
   const submit = useCallback(async (cart, { warehouseId, description } = {}) => {
     if (cart.length === 0) {
@@ -162,8 +162,6 @@ export function usePurchaseOrderSubmit({ docTypeId, defaultDescription, onError 
             IsActive:               true,
             // "Company Agent" di window Purchase Order = kolom SalesRep_ID
             // (FK ke AD_User) — mandatory di sebagian setup iDempiere.
-            // Cukup diisi user yang sedang login, tidak perlu setup
-            // "Sales Rep" khusus di window User.
             ...(userId ? { SalesRep_ID: { id: parseInt(userId) } } : {}),
           }),
         });
@@ -174,10 +172,9 @@ export function usePurchaseOrderSubmit({ docTypeId, defaultDescription, onError 
         for (const item of items) {
           const qtyEntered   = parseFloat(item.Qty || 0);
           const priceEntered = parseFloat(item.Price || 0);
-          const multiplyRate = await resolveMultiplyRate(item);
 
-          const qtyOrdered  = qtyEntered * multiplyRate;
-          const priceActual = multiplyRate ? priceEntered / multiplyRate : priceEntered;
+          const qtyOrdered  = await resolveQtyOrdered(item, qtyEntered);
+          const priceActual = qtyOrdered > 0 ? (priceEntered * qtyEntered) / qtyOrdered : priceEntered;
 
           const lineRes = await idempiereApi('/models/c_orderline', {
             method: 'POST',
@@ -187,9 +184,9 @@ export function usePurchaseOrderSubmit({ docTypeId, defaultDescription, onError 
               M_Product_ID:   { id: parseInt(item.M_Product_ID) },
               C_UOM_ID:       { id: parseInt(item.C_UOM_ID) }, // UOM entered — bukan base
               QtyEntered:     qtyEntered,
-              QtyOrdered:     qtyOrdered,   // ← dikonversi ke UOM dasar produk
+              QtyOrdered:     qtyOrdered,   // ← dari BaseQty (FPB) atau toBaseQty (manual)
               PriceEntered:   priceEntered,
-              PriceActual:    priceActual,  // ← dikonversi jadi harga per UOM dasar
+              PriceActual:    priceActual,  // ← diturunkan dari rasio qty, konsisten otomatis
               ...(item.sourceRequisitionLineId
                 ? { Description: `Ref. FPB Line #${item.sourceRequisitionLineId}` }
                 : {}),
@@ -210,12 +207,6 @@ export function usePurchaseOrderSubmit({ docTypeId, defaultDescription, onError 
           body: JSON.stringify({ 'doc-action': 'CO' }),
         });
 
-        // iDempiere REST kadang mengembalikan HTTP 200 walau dokumen GAGAL
-        // divalidasi saat Complete (mis. field mandatory kosong) — body-nya
-        // tetap berisi DocStatus lama (bukan 'CO') tanpa melempar HTTP error.
-        // Tanpa pengecekan ini, baris ini akan dianggap "berhasil" padahal
-        // dokumennya masih Draft/In Progress — sumber bug "PO jadi draft
-        // tanpa error yang kelihatan".
         const finalStatus = completedRes.DocStatus?.id ?? completedRes.DocStatus;
         if (finalStatus !== 'CO' && finalStatus !== 'CL') {
           throw new Error(
@@ -230,9 +221,6 @@ export function usePurchaseOrderSubmit({ docTypeId, defaultDescription, onError 
           vendorName,
           date: new Date().toLocaleString('id-ID'),
           items,
-          // Total di sini pakai qty & harga ENTERED (item.Qty × item.Price) —
-          // ini benar apa adanya karena entered×entered = total yang sama
-          // terlepas dari UOM apa pun dipakai (tidak perlu ikut dikonversi).
           total: items.reduce((s, i) => s + i.Qty * (i.Price || 0), 0),
         });
       }
@@ -241,8 +229,7 @@ export function usePurchaseOrderSubmit({ docTypeId, defaultDescription, onError 
         onError?.(
           `PO berhasil dibuat, tapi ${matchFailures.length} baris gagal ter-update status "sudah di-PO" di FPB asal:\n` +
           matchFailures.map(n => `• ${n}`).join('\n') +
-          `\n\nIni tidak mempengaruhi PO yang sudah dibuat, tapi FPB terkait mungkin masih muncul lagi di daftar import (perlu dicek manual). ` +
-          `Kemungkinan penyebab: versi iDempiere Anda belum punya kolom M_RequisitionLine.C_OrderLine_ID (field ini baru ada di iDempiere 13+).`,
+          `\n\nIni tidak mempengaruhi PO yang sudah dibuat, tapi FPB terkait mungkin masih muncul lagi di daftar import (perlu dicek manual).`,
           'Peringatan: Update Status FPB Gagal'
         );
         return { results, hadError: true };
@@ -258,15 +245,11 @@ export function usePurchaseOrderSubmit({ docTypeId, defaultDescription, onError 
           : ''),
         'Error'
       );
-      // Kembalikan hasil yang sudah berhasil (kalau ada) SEKALIGUS tandai
-      // hadError:true — supaya UI tahu harus menampilkan Dialog error
-      // TERLEBIH DAHULU sebelum (atau selain) success modal, bukan malah
-      // langsung menganggap semuanya sukses.
       return { results: results.length > 0 ? results : null, hadError: true };
     } finally {
       setIsSubmitting(false);
     }
-  }, [docTypeId, defaultDescription, onError, markRequisitionLineOrdered, resolveMultiplyRate]);
+  }, [docTypeId, defaultDescription, onError, markRequisitionLineOrdered, resolveQtyOrdered]);
 
   return { submit, isSubmitting };
 }

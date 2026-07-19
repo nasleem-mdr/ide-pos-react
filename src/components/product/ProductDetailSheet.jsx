@@ -3,6 +3,7 @@ import BottomSheet from '../common/BottomSheet';
 import QtyStepper from '../common/QtyStepper';
 import { COLOR, RADIUS } from '../../utils/styleTokens';
 import { getProductImageBlobUrls, getProductAvailability } from '../../utils/idempiereApi';
+import { useUomConversion } from '../../hooks/useUomConversion';
 import '../../css/ProductDetailSheet.css';
 
 const ProductDetailSheet = ({
@@ -14,6 +15,7 @@ const ProductDetailSheet = ({
 }) => {
   const [qty, setQty]                   = useState(1);
   const [uom, setUom]                   = useState(null);
+  const [uomOptions, setUomOptions]     = useState([]); // ← BARU: hasil fetchUomOptions, bukan product.uomOptions (yang tidak pernah terisi)
   const [images, setImages]             = useState([]);
   const [activeIdx, setActiveIdx]       = useState(0);
   const [imageLoading, setImageLoading] = useState(false);
@@ -21,13 +23,31 @@ const ProductDetailSheet = ({
   const [stockLoading, setStockLoading] = useState(false);
   const touchStartX                     = useRef(null);
 
+  const { fetchUomOptions } = useUomConversion();
+
   // ── Reset qty & uom saat produk berganti ──────────────────────────────────
   useEffect(() => {
     if (product) {
       setQty(1);
       setUom({ C_UOM_ID: product.C_UOM_ID, Name: product.C_UOM_Name, multiplyRate: 1 });
+      setUomOptions([]); // reset dulu — diisi ulang oleh effect fetch di bawah
     }
   }, [product]);
+
+  // ── Fetch pilihan UOM (base + semua konversi produk ini) ──────────────────
+  // SEBELUMNYA komponen ini baca `product.uomOptions`, yang TIDAK PERNAH
+  // diisi di mana pun — jadi dropdown UOM selalu dead code (user tidak
+  // pernah bisa pilih UOM selain dasar). Sekarang fetch langsung di sini,
+  // lazy per-produk saat sheet dibuka (bukan di list pencarian, supaya
+  // tidak query C_UOM_Conversion untuk SETIAP baris hasil pencarian).
+  useEffect(() => {
+    let cancelled = false;
+    if (isOpen && product?.M_Product_ID && product?.C_UOM_ID) {
+      fetchUomOptions(product.M_Product_ID, product.C_UOM_ID, product.C_UOM_Name)
+        .then(options => { if (!cancelled) setUomOptions(options); });
+    }
+    return () => { cancelled = true; };
+  }, [isOpen, product?.M_Product_ID, product?.C_UOM_ID, product?.C_UOM_Name, fetchUomOptions]);
 
   // ── Fetch semua image attachment ──────────────────────────────────────────
   useEffect(() => {
@@ -88,7 +108,7 @@ const ProductDetailSheet = ({
 
   if (!product) return null;
 
-  const hasMultiUom = product.uomOptions && product.uomOptions.length > 1;
+  const hasMultiUom = uomOptions.length > 1;
 
   return (
     <BottomSheet isOpen={isOpen} onClose={onClose} maxHeight="90dvh">
@@ -232,14 +252,14 @@ const ProductDetailSheet = ({
                   className="pds-uom-select"
                   value={uom?.C_UOM_ID}
                   onChange={e => {
-                    const chosen = product.uomOptions.find(
+                    const chosen = uomOptions.find(
                       u => String(u.C_UOM_ID) === e.target.value
                     );
                     if (chosen) setUom(chosen);
                   }}
                   style={{ color: COLOR.textDk, background: COLOR.bg, borderColor: COLOR.border }}
                 >
-                  {product.uomOptions
+                  {uomOptions
                     .filter(u => u.C_UOM_ID != null)
                     .map(u => (
                       <option key={u.C_UOM_ID} value={String(u.C_UOM_ID)}>{u.Name}</option>

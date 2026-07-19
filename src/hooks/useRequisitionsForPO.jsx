@@ -5,22 +5,16 @@ import { useProductVendorInfo } from './useProductVendorInfo';
 // ─────────────────────────────────────────────────────────────────────────────
 // useRequisitionsForPO.jsx (REVISI — selaras dengan RequisitionPOCreate.java)
 // Sumber import untuk modul Purchasing: FPB (M_Requisition) berstatus
-// Completed. Setelah membaca source resmi iDempiere
-// (org.compiere.process.RequisitionPOCreate), 2 penyesuaian dilakukan:
+// Completed.
 //
-// 1. FILTER "sudah di-PO-kan" pakai C_OrderLine_ID IS NULL — field NATIVE
-//    (ada sejak iDempiere 13), BINER (bukan akumulasi qty). Proses resmi
-//    iDempiere sendiri cuma cek `getC_OrderLine_ID() == 0` untuk skip baris
-//    yang sudah diproses — tidak ada tracking qty parsial sama sekali, jadi
-//    kita ikuti pola yang sama persis (lebih simpel dari desain awal kita).
-//
-// 2. PRIORITAS VENDOR per baris — persis urutan di method newLine() proses
-//    resmi:
-//      a. M_RequisitionLine.C_BPartner_ID kalau baris FPB itu SENDIRI sudah
-//         py vendor spesifik (field native, prioritas TERTINGGI)
-//      b. M_Product_PO yang ditandai IsCurrentVendor
-//      c. M_Product_PO pertama yang ditemukan (fallback)
-//      d. Tidak ada apa pun → user wajib pilih manual
+// 1. FILTER "sudah di-PO-kan" pakai C_OrderLine_ID IS NULL — field NATIVE.
+// 2. PRIORITAS VENDOR per baris — persis urutan resmi RequisitionPOCreate.java.
+// 3. QtyEntered & Qty (base) dibawa APA ADANYA dari FPB (tidak dihitung
+//    ulang) — lihat catatan panjang di fetchRequisitionLines.
+// 4. (BARU) BaseUOMName — nama UOM dasar produk, dibutuhkan
+//    RequisitionToPOImportModal.jsx untuk menampilkan preview hasil
+//    konversi ("≈ 6 pcs") di cart PO. BaseUOM_ID saja tidak cukup untuk
+//    ditampilkan ke user, perlu nama-nya juga.
 // ─────────────────────────────────────────────────────────────────────────────
 const APPROVED_STATUSES = ['CO'];
 
@@ -37,8 +31,6 @@ export function useRequisitionsForPO() {
     setLoadingList(true);
     try {
       const statusFilter = APPROVED_STATUSES.map(s => `DocStatus eq '${s}'`).join(' or ');
-      // TIDAK difilter per warehouse — Purchasing bersifat sentral (staf
-      // pengadaan bisa memproses FPB dari gudang manapun).
       let filter = `(${statusFilter})`;
       if (search) {
         const safeQ = search.replace(/'/g, "''");
@@ -50,7 +42,7 @@ export function useRequisitionsForPO() {
         `&$filter=${filter}&$orderby=DateDoc desc&$top=50`
       );
       const records = Array.isArray(res.records) ? res.records : [];
-      
+
       let list = records.map(r => ({
         M_Requisition_ID: fkId(r.M_Requisition_ID) ?? r.id,
         DocumentNo:       r.DocumentNo,
@@ -61,12 +53,6 @@ export function useRequisitionsForPO() {
         Description:      r.Description || '',
       }));
 
-      // ── Sembunyikan FPB yang SEMUA line-nya sudah C_OrderLine_ID terisi ──
-      // Query per-FPB secara paralel (bukan 1 filter besar) — pola yang
-      // sama dipakai di modul Goods Receipt untuk menghindari filter OData
-      // yang terlalu panjang. Kalau query gagal untuk 1 FPB tertentu (mis.
-      // versi iDempiere lama yang belum punya kolom ini), FPB itu tetap
-      // ditampilkan (fail-safe), bukan malah hilang dari daftar.
       if (list.length > 0) {
         const results = await Promise.all(list.map(async (req) => {
           try {
@@ -96,15 +82,59 @@ export function useRequisitionsForPO() {
     }
   }, []);
 
+  const fetchLinesRaw = useCallback(async (requisitionId) => {
+    const baseSelect = 'M_RequisitionLine_ID,Line,M_Product_ID,C_UOM_ID,Qty,C_BPartner_ID,C_OrderLine_ID,Description';
+    try {
+      const res = await idempiereApi(
+        `/models/m_requisitionline?$filter=M_Requisition_ID eq ${requisitionId}` +
+        `&$select=${baseSelect},QtyEntered&$orderby=Line`
+      );
+      return { records: Array.isArray(res.records) ? res.records : [], hasQtyEntered: true };
+    } catch (err) {
+      const msg = String(err?.message || '');
+      if (!/qtyentered/i.test(msg)) throw err;
+
+      console.warn(
+        '[useRequisitionsForPO] Kolom QtyEntered belum tersedia di server ini — ' +
+        'fetch ulang TANPA field itu (fallback sementara).'
+      );
+      const res = await idempiereApi(
+        `/models/m_requisitionline?$filter=M_Requisition_ID eq ${requisitionId}` +
+        `&$select=${baseSelect}&$orderby=Line`
+      );
+      return { records: Array.isArray(res.records) ? res.records : [], hasQtyEntered: false };
+    }
+  }, []);
+
+  // Fetch UOM dasar (ID + NAMA) untuk sekumpulan produk sekaligus. Nama
+  // dibutuhkan untuk preview konversi di RequisitionToPOImportModal.jsx
+  // (mis. "≈ 6 pcs") — BaseUOM_ID saja tidak cukup untuk ditampilkan.
+  const fetchProductBaseUoms = useCallback(async (productIds) => {
+    const uniqueIds = [...new Set(productIds)].filter(Boolean);
+    if (uniqueIds.length === 0) return {};
+    try {
+      const filter = uniqueIds.map(id => `M_Product_ID eq ${id}`).join(' or ');
+      const res = await idempiereApi(
+        `/models/m_product?$filter=${filter}&$select=M_Product_ID,C_UOM_ID`
+      );
+      const records = Array.isArray(res.records) ? res.records : [];
+      const map = {};
+      records.forEach(r => {
+        const pid = fkId(r.M_Product_ID) ?? r.id;
+        map[pid] = { id: fkId(r.C_UOM_ID), name: fkLabel(r.C_UOM_ID) };
+      });
+      return map;
+    } catch (err) {
+      console.error('[useRequisitionsForPO] gagal fetch UOM dasar produk:', err);
+      return {};
+    }
+  }, []);
+
   const fetchRequisitionLines = useCallback(async (requisitionId) => {
     if (!requisitionId) return [];
     setLoadingLines(true);
     try {
-      const res = await idempiereApi(
-        `/models/m_requisitionline?$filter=M_Requisition_ID eq ${requisitionId}` +
-        `&$select=M_RequisitionLine_ID,Line,M_Product_ID,C_UOM_ID,Qty,C_BPartner_ID,C_OrderLine_ID,Description&$orderby=Line`
-      );
-      const records = Array.isArray(res.records) ? res.records : [];
+      const { records, hasQtyEntered } = await fetchLinesRaw(requisitionId);
 
       const allLines = records.map(l => ({
         M_RequisitionLine_ID: fkId(l.M_RequisitionLine_ID) ?? l.id,
@@ -113,29 +143,28 @@ export function useRequisitionsForPO() {
         C_UOM_ID:      fkId(l.C_UOM_ID),
         UomName:       fkLabel(l.C_UOM_ID) || 'EA',
         Qty:           parseFloat(l.Qty || 0),
-        // Vendor yang SUDAH ditentukan di level FPB line itu sendiri
-        // (kalau ada) — prioritas tertinggi, persis urutan resolusi vendor
-        // di RequisitionPOCreate.java.
+        QtyEntered:    hasQtyEntered ? parseFloat(l.QtyEntered ?? l.Qty ?? 0) : null,
         LineBPartnerId:   fkId(l.C_BPartner_ID),
         LineBPartnerName: fkLabel(l.C_BPartner_ID),
-        isOrdered:        !!fkId(l.C_OrderLine_ID), // sudah pernah di-PO-kan?
+        isOrdered:        !!fkId(l.C_OrderLine_ID),
       }));
 
-      // Baris yang sudah punya C_OrderLine_ID (sudah di-PO-kan) disembunyikan
-      // dari daftar import — cegah baris yang sama di-PO-kan dua kali.
-      const openLines = allLines.filter(l => !l.isOrdered);
+      const openLinesRaw = allLines.filter(l => !l.isOrdered);
 
-      // Untuk baris yang FPB line-nya SENDIRI belum punya vendor spesifik,
-      // baru cari suggestion dari M_Product_PO.
+      const baseUomMap = await fetchProductBaseUoms(openLinesRaw.map(l => l.M_Product_ID));
+      const openLines = openLinesRaw.map(l => {
+        const baseUom = baseUomMap[l.M_Product_ID];
+        return {
+          ...l,
+          BaseUOM_ID:   baseUom?.id ?? l.C_UOM_ID,   // fallback: dianggap C_UOM_ID sudah base
+          BaseUOMName:  baseUom?.name ?? l.UomName,  // idem, untuk preview
+        };
+      });
+
       const needVendorLookup = openLines.filter(l => !l.LineBPartnerId);
       const vendorMap = await fetchVendorOptionsBatch(needVendorLookup.map(l => l.M_Product_ID));
 
       const enriched = await Promise.all(openLines.map(async (line) => {
-        // Prioritas 1: vendor yang sudah di-set di M_RequisitionLine itu sendiri.
-        // Vendor sudah pasti, tapi M_Product_PO tidak selalu punya entry untuk
-        // kombinasi ini — harga tetap diambil dari M_PriceList (via
-        // PO_PriceList_ID vendor, fallback ke Purchase Price List default),
-        // BUKAN di-hardcode 0.
         if (line.LineBPartnerId) {
           const price = await fetchListPrice(line.M_Product_ID, line.LineBPartnerId);
           return {
@@ -146,8 +175,6 @@ export function useRequisitionsForPO() {
             Price:         price,
           };
         }
-        // Prioritas 2 & 3: suggestion dari M_Product_PO (IsCurrentVendor dulu, lalu fallback pertama)
-        // — harga tiap opsi vendor sudah dilengkapi lewat M_PriceList di useProductVendorInfo.
         const vendorOptions = vendorMap[line.M_Product_ID] || [];
         const def = vendorOptions.find(v => v.isCurrent) || vendorOptions[0] || null;
         return {
@@ -168,7 +195,7 @@ export function useRequisitionsForPO() {
     } finally {
       setLoadingLines(false);
     }
-  }, [fetchVendorOptionsBatch, fetchListPrice]);
+  }, [fetchVendorOptionsBatch, fetchListPrice, fetchLinesRaw, fetchProductBaseUoms]);
 
   return {
     requisitions, loadingList, fetchApprovedRequisitions,

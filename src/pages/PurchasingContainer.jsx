@@ -14,6 +14,7 @@ import POCartPanel from '../components/purchasing/POCartPanel';
 import { usePOCart, lineKey } from '../hooks/usePOCart';
 import { usePurchaseOrderSubmit } from '../hooks/usePurchaseOrderSubmit';
 import { useProductVendorInfo } from '../hooks/useProductVendorInfo';
+import { useUomConversion } from '../hooks/useUomConversion';
 import { useAccess } from '../context/AccessContext';
 import { useProductSearch } from '../hooks/useProductSearch';
 import { useIsDesktop } from '../hooks/useIsDesktop';
@@ -63,6 +64,7 @@ const PurchasingContainer = () => {
     clearCart, totalItems, totalAmount, vendorGroups,
   } = usePOCart();
   const { fetchDefaultVendor } = useProductVendorInfo();
+  const { toBaseQty } = useUomConversion();
   const { submit, isSubmitting } = usePurchaseOrderSubmit({
     docTypeId,
     defaultDescription: PURCHASING_CONFIG.DESCRIPTION,
@@ -113,40 +115,61 @@ const PurchasingContainer = () => {
   }, []);
 
   // Tambah produk manual — vendor & harga di-suggest otomatis dari
-  // M_Product_PO kalau ada; kalau tidak ada, item masuk cart tanpa vendor
-  // dan ditandai perlu dilengkapi (lihat badge merah di POCartItem).
+  // M_Product_PO/M_PriceList kalau ada; kalau tidak ada, item masuk cart
+  // tanpa vendor dan ditandai perlu dilengkapi (lihat badge merah di
+  // POCartItem).
   //
-  // BaseUOM_ID: SELALU product.C_UOM_ID (UOM dasar produk di M_Product),
-  // terlepas dari UOM apa yang dipilih user (`uom`). Field ini dibutuhkan
-  // usePurchaseOrderSubmit.jsx untuk menghitung QtyOrdered/PriceActual via
-  // konversi UOM — tanpa ini, hook itu tidak tahu harus konversi ke UOM apa.
+  // ── HARGA HARUS DI-SCALE KE UOM YANG DIPILIH USER ──────────────────────
+  // suggestion.default.Price dari useProductVendorInfo SELALU harga per UOM
+  // DASAR produk. toBaseQty(1, uom) dipakai untuk dapat "berapa base unit
+  // per 1 entered unit", dipakai ulang untuk scale harga (rumus sama yang
+  // sudah terbukti benar untuk qty).
+  //
+  // UnitsPerBaseUom disimpan di item (= unitsPerEntered) supaya POCartItem
+  // bisa tampilkan preview hasil konversi ("≈ 6 pcs") yang tetap akurat
+  // walau Qty diedit lagi di cart. BaseUOMName untuk teks preview itu.
+  //
+  // BaseUOM_ID: SELALU product.C_UOM_ID (UOM dasar produk), dibutuhkan
+  // usePurchaseOrderSubmit.jsx untuk konversi saat submit PO.
   const handleConfirmAddToCart = useCallback(async (product, qty, uom) => {
     closeProductDetail();
     const suggestion = await fetchDefaultVendor(product.M_Product_ID);
+    const basePrice = suggestion.default?.Price ?? 0;
+    const unitsPerEntered = toBaseQty(1, uom); // 1 6-Pack → 6 (base unit per 1 entered unit)
+    const priceForEnteredUom = unitsPerEntered > 0 ? basePrice * unitsPerEntered : basePrice;
+
     addItem({
       M_Product_ID: product.M_Product_ID,
       Name:         product.Name,
       C_UOM_ID:     uom?.C_UOM_ID || product.C_UOM_ID,
       UomName:      uom?.Name || product.C_UOM_Name,
-      BaseUOM_ID:   product.C_UOM_ID, // ← UOM dasar produk, untuk konversi saat submit PO
+      BaseUOM_ID:   product.C_UOM_ID,   // ← UOM dasar produk, untuk konversi saat submit PO
+      BaseUOMName:  product.C_UOM_Name, // ← untuk teks preview konversi di cart
+      UnitsPerBaseUom: unitsPerEntered, // ← untuk preview konversi di cart, live walau Qty diedit
       Qty:          qty,
-      Price:        suggestion.default?.Price ?? 0,
+      Price:        priceForEnteredUom, // ← sudah di-scale ke UOM yang dipilih user
       C_BPartner_ID: suggestion.default?.C_BPartner_ID ?? null,
       VendorName:    suggestion.default?.VendorName ?? '',
     });
-  }, [addItem, fetchDefaultVendor, closeProductDetail]);
+  }, [addItem, fetchDefaultVendor, closeProductDetail, toBaseQty]);
 
   const handleBarcodeDetected = useCallback(async (code) => {
     const found = products.find(p => p.Value?.toUpperCase() === code.toUpperCase());
     setScannerOpen(false);
     if (found) {
       const suggestion = await fetchDefaultVendor(found.M_Product_ID);
+      // Barcode selalu tambah dalam UOM DASAR produk (tidak ada langkah
+      // pilih UOM di alur scan cepat ini) — jadi harga TIDAK perlu
+      // di-scale, dan UnitsPerBaseUom = 1 (tidak ada konversi, tidak perlu
+      // preview di cart).
       addItem({
         M_Product_ID: found.M_Product_ID,
         Name:         found.Name,
         C_UOM_ID:     found.C_UOM_ID,
         UomName:      found.C_UOM_Name,
-        BaseUOM_ID:   found.C_UOM_ID, // ← barcode selalu tambah dalam UOM dasar produk (tidak ada picker UOM di jalur ini)
+        BaseUOM_ID:   found.C_UOM_ID,
+        BaseUOMName:  found.C_UOM_Name,
+        UnitsPerBaseUom: 1,
         Qty:          1,
         Price:        suggestion.default?.Price ?? 0,
         C_BPartner_ID: suggestion.default?.C_BPartner_ID ?? null,

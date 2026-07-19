@@ -4,16 +4,36 @@ import { COLOR, RADIUS } from '../../utils/styleTokens';
 
 const fmtRp = (n) => `Rp ${Math.round(n).toLocaleString('id-ID')}`;
 
+// Format qty untuk preview konversi — buang residu floating point (mis.
+// 5.999999999998 → 6) tanpa memaksa semua angka jadi bilangan bulat (qty
+// pecahan yang memang valid, mis. 2.5, tetap tampil apa adanya).
+const fmtQty = (n) => {
+  const rounded = Math.round(n * 1000) / 1000;
+  return rounded % 1 === 0 ? String(rounded) : String(rounded);
+};
+
 // ─────────────────────────────────────────────────────────────────────────────
 // POCartItem.jsx
 // Padanan CartItem.jsx untuk modul Purchasing — ditambah 2 kontrol yang tidak
 // ada di modul lain: badge vendor (klik untuk ganti) dan input harga satuan.
 // Line Amount dihitung langsung di render (Qty × Price), tidak disimpan
 // terpisah supaya tidak pernah stale saat qty/harga diubah.
+//
+// ── PREVIEW KONVERSI UOM ────────────────────────────────────────────────────
+// Kalau item pakai UOM yang BUKAN UOM dasar produk (mis. "6-Pack" bukan
+// "pcs"), tampilkan preview "≈ 6 pcs" di bawah nama UOM — dihitung dari
+// item.Qty × item.UnitsPerBaseUom (rasio yang sudah dilekatkan saat item
+// ditambahkan, lihat PurchasingContainer.jsx & RequisitionToPOImportModal.jsx).
+// Dihitung dari Qty SAAT INI (bukan angka statis), jadi tetap akurat kalau
+// user mengubah Qty lewat QtyStepper di bawah — preview ikut update live.
 // ─────────────────────────────────────────────────────────────────────────────
 const POCartItem = ({ item, itemKey, onRemove, onQtyChange, onPriceChange, onVendorClick }) => {
   const lineAmount = item.Qty * (item.Price || 0);
   const hasVendor = !!item.C_BPartner_ID;
+
+  const isConverted = item.BaseUOM_ID && item.C_UOM_ID !== item.BaseUOM_ID
+    && item.UnitsPerBaseUom && item.UnitsPerBaseUom !== 1;
+  const convertedQty = isConverted ? item.Qty * item.UnitsPerBaseUom : null;
 
   return (
     <div style={{
@@ -27,6 +47,11 @@ const POCartItem = ({ item, itemKey, onRemove, onQtyChange, onPriceChange, onVen
             overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
           }}>{item.Name}</div>
           <div style={{ fontSize: '11px', color: COLOR.textLt }}>{item.UomName || item.C_UOM_Name}</div>
+          {isConverted && (
+            <div style={{ fontSize: '10px', color: COLOR.vendor, fontWeight: 600, marginTop: '1px' }}>
+              ≈ {fmtQty(convertedQty)} {item.BaseUOMName || 'unit dasar'}
+            </div>
+          )}
         </div>
         <button
           onClick={() => onRemove(itemKey)}
