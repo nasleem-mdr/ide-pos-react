@@ -109,29 +109,45 @@ export function useApprovedPurchaseOrders() {
     try {
       const res = await idempiereApi(
         `/models/c_orderline?$filter=C_Order_ID eq ${orderId}` +
-        `&$select=C_OrderLine_ID,Line,M_Product_ID,C_UOM_ID,QtyOrdered,QtyDelivered,Description` +
+        `&$select=C_OrderLine_ID,Line,M_Product_ID,C_UOM_ID,QtyEntered,QtyOrdered,QtyDelivered,Description` +
         `&$orderby=Line`
       );
       const records = Array.isArray(res.records) ? res.records : [];
 
       const allLines = records.map(l => {
-        const qtyOrdered  = parseFloat(l.QtyOrdered || 0);
-        const qtyDelivered = parseFloat(l.QtyDelivered || 0);
+        // QtyOrdered & QtyDelivered SELALU base UOM produk (mis. Liter).
+        // QtyEntered & C_UOM_ID adalah UOM yang dipakai saat PO dibuat
+        // (mis. Drum) — bisa beda dari base UOM.
+        const qtyOrderedBase   = parseFloat(l.QtyOrdered   || 0);
+        const qtyDeliveredBase = parseFloat(l.QtyDelivered || 0);
+        const qtyEntered       = parseFloat(l.QtyEntered   || 0);
+
+        // Rate = berapa base-unit per 1 entered-unit (mis. 200 Liter / Drum).
+        // Fallback ke 1 kalau QtyEntered 0/kosong (anggap sama dengan base).
+        const rate = qtyEntered > 0 ? (qtyOrderedBase / qtyEntered) : 1;
+
+        const qtyRemainingBase = Math.max(qtyOrderedBase - qtyDeliveredBase, 0);
+        // Sisa dikonversi balik ke UOM entered supaya konsisten dengan
+        // UomName yang ditampilkan (Drum), bukan base (Liter).
+        const qtyRemainingEntered = rate > 0 ? qtyRemainingBase / rate : qtyRemainingBase;
+
         return {
           C_OrderLine_ID: fkId(l.C_OrderLine_ID) ?? l.id,
           M_Product_ID:   fkId(l.M_Product_ID),
           ProductName:    fkLabel(l.M_Product_ID) || `Produk #${fkId(l.M_Product_ID)}`,
           C_UOM_ID:       fkId(l.C_UOM_ID),
           UomName:        fkLabel(l.C_UOM_ID) || 'EA',
-          QtyOrdered:     qtyOrdered,
-          QtyDelivered:   qtyDelivered,
-          QtyRemaining:   Math.max(qtyOrdered - qtyDelivered, 0),
+          ConversionRate: rate,              // base-per-entered, dipakai lagi saat submit GR
+          QtyOrdered:        qtyOrderedBase,     // base — untuk referensi/laporan
+          QtyDelivered:      qtyDeliveredBase,   // base
+          QtyRemaining:      qtyRemainingBase,   // base — dipertahankan utk kalkulasi backend
+          QtyRemainingEntered: qtyRemainingEntered, // ← dipakai untuk tampilan & default cart
           Description:    l.Description || '',
         };
       });
 
-      // Line yang sudah fully-received (sisa 0) tidak ditampilkan untuk
-      // diimport — tapi tetap dihitung untuk info "X line sudah lengkap".
+      // Line fully-received: cek pakai base qty (lebih akurat / bebas
+      // dari pembulatan rate), bukan qty entered.
       const receivableLines = allLines.filter(l => l.QtyRemaining > 0);
 
       setSelectedLines(receivableLines);
@@ -151,15 +167,14 @@ export function useApprovedPurchaseOrders() {
     return (lines || []).map(l => ({
       name: l.ProductName.length > 14 ? l.ProductName.slice(0, 14) + '…' : l.ProductName,
       fullName: l.ProductName,
-      delivered: l.QtyDelivered,
-      remaining: l.QtyRemaining,
+      // Ditampilkan dalam UOM entered supaya sesuai dengan angka yg
+      // dilihat user di form (Drum), bukan base (Liter).
+      delivered: l.ConversionRate > 0 ? l.QtyDelivered / l.ConversionRate : l.QtyDelivered,
+      remaining: l.QtyRemainingEntered,
       uom: l.UomName,
     }));
   }, []);
 
-  // Ubah lines PO menjadi bentuk item cart — default Qty = sisa yang belum
-  // diterima (bukan qty order penuh), supaya tidak over-receipt secara default.
-  // User tetap bisa koreksi turun di cart kalau barang datang partial.
   const linesToCartItems = useCallback((lines, orderId) => {
     return (lines || []).map(l => ({
       M_Product_ID: l.M_Product_ID,
@@ -167,9 +182,9 @@ export function useApprovedPurchaseOrders() {
       Value:        '',
       C_UOM_ID:     l.C_UOM_ID,
       C_UOM_Name:   l.UomName,
-      Qty:          l.QtyRemaining,
-      selectedUom:  { C_UOM_ID: l.C_UOM_ID, Name: l.UomName, multiplyRate: 1 },
-      uomOptions:   [{ C_UOM_ID: l.C_UOM_ID, Name: l.UomName, multiplyRate: 1 }],
+      Qty:          l.QtyRemainingEntered,  // ← default qty dalam UOM entered (Drum), bukan base
+      selectedUom:  { C_UOM_ID: l.C_UOM_ID, Name: l.UomName, multiplyRate: l.ConversionRate },
+      uomOptions:   [{ C_UOM_ID: l.C_UOM_ID, Name: l.UomName, multiplyRate: l.ConversionRate }],
       sourceOrderLineId: l.C_OrderLine_ID, // → dipakai isi M_InOutLine.C_OrderLine_ID
       sourceOrderId: orderId,              // → dipakai isi header M_InOut.C_Order_ID (kalau seragam)
     }));

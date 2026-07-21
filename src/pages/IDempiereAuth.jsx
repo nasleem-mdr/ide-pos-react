@@ -204,9 +204,9 @@ export default function IDempiereAuth({ onLoginSuccess }) {
   }
 
   const stepConfig = [
-    { num: 1, label: "Credensial", desc: "Username & password" },
-    { num: 2, label: "Role Acces", desc: "Client, role & organisasi" },
-    { num: 3, label: "Berhasil", desc: "Sesi aktif & siap digunakan" },
+    { num: 1, label: "Credential", desc: "Username & password" },
+    { num: 2, label: "Role Acces", desc: "Client, role & organization" },
+    { num: 3, label: "Success", desc: "Active session & ready to use" },
   ];
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -220,7 +220,7 @@ export default function IDempiereAuth({ onLoginSuccess }) {
             <div className="brand">
               <div className="logo-container"><LogoSMAWarna /></div>
               <div className="brand-text">
-                <div className="brand-name">SMA App</div>
+                <div className="brand-name">Procure App</div>
                 <div className="brand-sub">IDePlatform</div>
               </div>
               <button className="hamburger-btn" onClick={() => setLeftOpen(!leftOpen)}>
@@ -252,8 +252,7 @@ export default function IDempiereAuth({ onLoginSuccess }) {
           {/* Footer Left */}
           <div className="auth-footer">
             <div className="footer-text">
-              Autentikasi REST API IDempiere v13+.<br />
-              Sesi token berlaku sesuai konfigurasi server.
+              REST API IDempiere v13+.<br />
             </div>
           </div>
         </div>
@@ -267,11 +266,11 @@ export default function IDempiereAuth({ onLoginSuccess }) {
             <div className="brand">
               <div><LogoSMA /></div>
               <div>
-                <div className="brand-name">SMA Application</div>
-                <div className="brand-sub">IDempiere Platform</div>
+                <div className="brand-name">Procure Application</div>
+                <div className="brand-sub">Part of IDempiere</div>
               </div>
             </div>
-            <div className="card-sub"><em>Masukkan username dan password akun Anda untuk melanjutkan.</em></div>
+            <div className="card-sub"><em>Enter your username and passwoer to continue.</em></div>
 
             {error && <div className="error-box"><AlertIcon />{error}</div>}
 
@@ -314,7 +313,7 @@ export default function IDempiereAuth({ onLoginSuccess }) {
               <button className="btn-primary" type="submit" disabled={loading}>
                 {loading
                   ? <><div className="spinner" />Memverifikasi...</>
-                  : <>Lanjutkan <ArrowIcon /></>}
+                  : <>Continue <ArrowIcon /></>}
               </button>
             </form>
           </div>
@@ -323,8 +322,8 @@ export default function IDempiereAuth({ onLoginSuccess }) {
         {/* ── Step 2 ── */}
         {step === 2 && (
           <div className="card slide-enter">
-            <div className="card-title">Pilih <em>Acces Role</em></div>
-            <div className="card-sub">Role Acces sesi anda.</div>
+            <div className="card-title">Choose <em>Acces Role</em></div>
+            <div className="card-sub">Your Role Acces.</div>
             {/*
             <div className="info-box">
               <InfoIcon />
@@ -371,7 +370,7 @@ export default function IDempiereAuth({ onLoginSuccess }) {
 
               {/* ORGANISASI */}
               <div className="field">
-                <label className="field-label">Organisasi</label>
+                <label className="field-label">Organization</label>
                 <select
                   className="field-input"
                   value={selectedOrgId}
@@ -379,7 +378,7 @@ export default function IDempiereAuth({ onLoginSuccess }) {
                   disabled={!selectedRoleId || loading || orgs.length === 1}
                 >
                   <option value="">
-                    {!selectedRoleId ? "— Pilih Role dulu —" : "— Pilih Organisasi —"}
+                    {!selectedRoleId ? "— Choose Role first —" : "— Choose Organization —"}
                   </option>
                   {orgs.map((o) => (
                     <option key={o.id} value={o.id}>{o.name}</option>
@@ -401,7 +400,7 @@ export default function IDempiereAuth({ onLoginSuccess }) {
                   onChange={(e) => setSelectedWarehouseId(e.target.value)}
                   disabled={!selectedOrgId || loading || warehouses.length === 1}
                 >
-                  <option value="">— Tidak ada / Semua —</option>
+                  <option value="">— Not Available / All —</option>
                   {warehouses.map((w) => (
                     <option key={w.id} value={w.id}>{w.name}</option>
                   ))}
@@ -410,7 +409,7 @@ export default function IDempiereAuth({ onLoginSuccess }) {
 
               {/* BAHASA */}
               <div className="field">
-                <label className="field-label">Bahasa Antarmuka</label>
+                <label className="field-label">FrontEnd Language</label>
                 <select
                   className="field-input"
                   value={language}
@@ -425,7 +424,7 @@ export default function IDempiereAuth({ onLoginSuccess }) {
 
               <div className="btn-row">
                 <button type="button" className="btn-secondary" onClick={handleBack} disabled={loading}>
-                  <ArrowIcon left /> Kembali
+                  <ArrowIcon left /> Back
                 </button>
                 <button
                   className="btn-primary"
@@ -433,8 +432,8 @@ export default function IDempiereAuth({ onLoginSuccess }) {
                   disabled={loading || !selectedClientId || !selectedRoleId || !selectedOrgId}
                 >
                   {loading
-                    ? <><div className="spinner" />Memproses...</>
-                    : <>Masuk <ArrowIcon /></>}
+                    ? <><div className="spinner" />Processing...</>
+                    : <>Enter <ArrowIcon /></>}
                 </button>
               </div>
             </form>

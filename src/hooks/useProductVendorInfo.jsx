@@ -79,30 +79,38 @@ export function useProductVendorInfo() {
     }
   }, []);
 
-  // Ambil harga M_ProductPrice.PriceList untuk 1 produk pada 1 price list
-  // version tertentu.
+  // Ambil harga M_ProductPrice untuk 1 produk pada 1 price list version
+  // tertentu. Mengembalikan { priceStd, priceList } — PriceStd dipakai
+  // sebagai suggestion utama (konsisten dengan window PO native, yang
+  // mengisi PriceEntered/PriceActual dari PriceStd), PriceList hanya info
+  // referensi/pembanding.
   const getProductListPrice = useCallback(async (productId, priceListVersionId) => {
-    if (!priceListVersionId) return 0;
+    if (!priceListVersionId) return { priceStd: 0, priceList: 0 };
     try {
       const res = await idempiereApi(
         `/models/m_productprice?$filter=M_Product_ID eq ${productId} and M_PriceList_Version_ID eq ${priceListVersionId}` +
-        `&$select=PriceList&$top=1`
+        `&$select=PriceStd,PriceList&$top=1`
       );
       const records = Array.isArray(res.records) ? res.records : [];
-      return records.length ? parseFloat(records[0].PriceList || 0) : 0;
+      if (!records.length) return { priceStd: 0, priceList: 0 };
+      return {
+        priceStd:  parseFloat(records[0].PriceStd  || 0),
+        priceList: parseFloat(records[0].PriceList || 0),
+      };
     } catch (err) {
       console.error(`[useProductVendorInfo] gagal ambil harga produk #${productId}:`, err);
-      return 0;
+      return { priceStd: 0, priceList: 0 };
     }
   }, []);
 
-  // Helper publik: ambil harga PriceList untuk 1 produk + 1 vendor tertentu.
-  // Dipakai saat user pilih vendor manual lewat VendorPickerModal, supaya
-  // harga ikut ter-suggest ulang sesuai price list vendor yang baru dipilih.
+  // Helper publik: ambil harga (PriceStd + PriceList) untuk 1 produk +
+  // 1 vendor tertentu. Dipakai saat user pilih vendor manual lewat
+  // VendorPickerModal, supaya harga ikut ter-suggest ulang sesuai price
+  // list vendor yang baru dipilih.
   const fetchListPrice = useCallback(async (productId, bpartnerId) => {
     const priceListId = await getVendorPriceListId(bpartnerId);
     const versionId = await getActivePriceListVersion(priceListId);
-    return getProductListPrice(productId, versionId);
+    return getProductListPrice(productId, versionId); // { priceStd, priceList }
   }, [getVendorPriceListId, getActivePriceListVersion, getProductListPrice]);
 
   const fetchVendorOptions = useCallback(async (productId) => {
@@ -113,15 +121,14 @@ export function useProductVendorInfo() {
       );
       const records = Array.isArray(res.records) ? res.records : [];
 
-      // Harga di-fetch per-vendor (bukan dari M_Product_PO lagi), jadi harus
-      // paralel per baris supaya tidak terlalu lambat kalau vendornya banyak.
       const options = await Promise.all(records.map(async (v) => {
         const bpartnerId = fkId(v.C_BPartner_ID);
-        const price = await fetchListPrice(productId, bpartnerId);
+        const { priceStd, priceList } = await fetchListPrice(productId, bpartnerId);
         return {
           C_BPartner_ID: bpartnerId,
           VendorName:    fkLabel(v.C_BPartner_ID),
-          Price:         price,
+          Price:         priceStd,   // suggestion utama → sama seperti window PO native
+          PriceListRef:  priceList,  // info referensi/pembanding, opsional ditampilkan
           isCurrent:     !!v.IsCurrentVendor,
         };
       }));

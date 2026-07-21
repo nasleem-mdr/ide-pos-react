@@ -16,16 +16,16 @@ export const WINDOW_ACCESS_MAP = {
   pos:                  167,
   salesOrder:           167,
   product:              140,
-  requisition:          322,
-  goodsReceipt:         184,
+  requisition:          null,
+  goodsReceipt:         null,
   purchasing:           181,
-  internalUse:          341,
+  internalUse:          null,
 
   // ===== List / Report =====
-  requisitionList:      322, 
+  requisitionList:      null, 
   purchasingList:       181,
-  goodsReceiptList:     184,
-  internalUseList:      341,
+  goodsReceiptList:     null,
+  internalUseList:      null,
 };
 
 // Helper: ambil AD_Window_ID dari key, atau null kalau tidak terdaftar/tidak dibatasi.

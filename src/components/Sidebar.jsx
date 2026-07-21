@@ -32,7 +32,7 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }) {
           <div className="sidebar-header">
             <div className={`sidebar-brand ${isCollapsed ? 'collapsed' : ''}`}>
               <div className="brand-icon">iD</div>
-              {!isCollapsed && <span>SMA <em>App</em></span>}
+              {!isCollapsed && <span>Procure <em>App</em></span>}
             </div>
             <button
               className="hamburger-btn"
@@ -58,7 +58,7 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }) {
         <div className="sidebar-header">
           <div className={`sidebar-brand ${isCollapsed ? 'collapsed' : ''}`}>
             <div className="brand-icon"><LogoSMAWarna /></div>
-            {!isCollapsed && <span>SMA <em>app</em></span>}
+            {!isCollapsed && <span>Procure <em>App</em></span>}
           </div>
 
           <button

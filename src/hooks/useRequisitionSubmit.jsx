@@ -92,7 +92,7 @@ export function useRequisitionSubmit({ docTypeId, description: defaultDescriptio
           });
         }
       };
-
+      
       let reqId;
       let headerRes;
 
@@ -160,7 +160,6 @@ export function useRequisitionSubmit({ docTypeId, description: defaultDescriptio
 
         reqId = headerRes.id ?? headerRes.M_Requisition_ID;
         if (!reqId) throw new Error('Gagal mendapatkan M_Requisition_ID dari server.');
-
         // Insert lines untuk dokumen baru
         for (const item of cart) {
           await insertRequisitionLine(reqId, item);

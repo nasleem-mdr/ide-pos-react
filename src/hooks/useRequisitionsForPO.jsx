@@ -165,17 +165,40 @@ export function useRequisitionsForPO() {
       const vendorMap = await fetchVendorOptionsBatch(needVendorLookup.map(l => l.M_Product_ID));
 
       const enriched = await Promise.all(openLines.map(async (line) => {
+        const qEntered = line.QtyEntered ?? line.Qty;
+        // Rate konversi base→entered, mis. 200 (1 Drum = 200 Liter).
+        // Dipakai untuk menyesuaikan harga, karena M_ProductPrice selalu
+        // dalam base UOM produk sedangkan baris FPB bisa pakai UOM lain.
+        const rate = qEntered > 0 ? (line.Qty / qEntered) : 1;
+      
         if (line.LineBPartnerId) {
-          const price = await fetchListPrice(line.M_Product_ID, line.LineBPartnerId);
+          const { priceStd, priceList } = await fetchListPrice(line.M_Product_ID, line.LineBPartnerId);
+          const priceEntered = priceStd * rate;
           return {
             ...line,
-            vendorOptions: [{ C_BPartner_ID: line.LineBPartnerId, VendorName: line.LineBPartnerName, Price: price, isCurrent: true }],
+            vendorOptions: [{
+              C_BPartner_ID: line.LineBPartnerId,
+              VendorName:    line.LineBPartnerName,
+              Price:         priceEntered,
+              PriceListRef:  priceList * rate,
+              isCurrent:     true,
+            }],
             C_BPartner_ID: line.LineBPartnerId,
             VendorName:    line.LineBPartnerName,
-            Price:         price,
+            Price:         priceEntered,
+            PriceListRef:  priceList * rate,
           };
         }
-        const vendorOptions = vendorMap[line.M_Product_ID] || [];
+      
+        const rawVendorOptions = vendorMap[line.M_Product_ID] || [];
+        // Sesuaikan harga TIAP opsi vendor ke UOM entered baris ini juga —
+        // supaya kalau user ganti vendor lewat dropdown, harga yang terpasang
+        // tetap dalam UOM yang benar (lihat handleVendorSelectChange di modal).
+        const vendorOptions = rawVendorOptions.map(v => ({
+          ...v,
+          Price:        (v.Price ?? 0) * rate,
+          PriceListRef: (v.PriceListRef ?? 0) * rate,
+        }));
         const def = vendorOptions.find(v => v.isCurrent) || vendorOptions[0] || null;
         return {
           ...line,
@@ -183,6 +206,7 @@ export function useRequisitionsForPO() {
           C_BPartner_ID: def?.C_BPartner_ID ?? null,
           VendorName:    def?.VendorName ?? '',
           Price:         def?.Price ?? 0,
+          PriceListRef:  def?.PriceListRef ?? 0,
         };
       }));
 

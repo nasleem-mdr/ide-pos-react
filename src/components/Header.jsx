@@ -54,7 +54,7 @@ export default function Header({ session, onLogout, onSessionUpdate }) {
       <div className="header-session">
         <div className="header-info-item">
           <LogoSMA20 />
-          <span className="header-info-value header-hide-mobile">SMA <em>App</em></span>
+          <span className="header-info-value header-hide-mobile">Procure <em>App</em></span>
         </div>
         <div className="header-divider header-hide-mobile" />
  
