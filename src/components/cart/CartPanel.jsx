@@ -7,8 +7,10 @@ const CartPanel = ({
   cart, onRemove, onQtyChange, onUomChange, onClearCart,
   totalItems, totalQty,
   summaryRight,
-  submitLabel = 'KIRIM',
+  submitDraftLabel = 'DRAFT',
+  submitCompletetLabel = 'COMPLETE',
   onSubmit, isSubmitting = false,
+  onSubmitDraft, onSubmitComplete,
   title = 'Keranjang',
   emptyLabel = 'Belum ada produk dipilih.',
   // Description manual — opsional, sama seperti di CartSidebar.jsx.
@@ -129,9 +131,8 @@ const CartPanel = ({
               </div>
               {summaryRight && <div style={{ fontSize: '12px', color: COLOR.textLt }}>{summaryRight}</div>}
             </div>
-
             <button
-              onClick={onSubmit}
+              onClick={onSubmitDraft}
               disabled={isSubmitting}
               style={{
                 background: isSubmitting ? '#9ca3af' : COLOR.primary,
@@ -143,7 +144,22 @@ const CartPanel = ({
                 WebkitTapHighlightColor: 'transparent',
               }}
             >
-              {isSubmitting ? '⏳ Memproses...' : submitLabel}
+              {isSubmitting ? '⏳ Memproses...' : submitDraftLabel}
+            </button>
+            <button
+              onClick={onSubmitComplete}
+              disabled={isSubmitting}
+              style={{
+                background: isSubmitting ? '#9ca3af' : COLOR.primary,
+                color: '#fff', border: 'none',
+                padding: '15px', width: '100%',
+                borderRadius: RADIUS.md, fontWeight: 700,
+                fontSize: '16px', cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                letterSpacing: '0.02em', transition: 'background 0.15s',
+                WebkitTapHighlightColor: 'transparent',
+              }}
+            >
+              {isSubmitting ? '⏳ Memproses...' : submitCompleteLabel}
             </button>
           </div>
         )}
