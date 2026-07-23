@@ -33,10 +33,12 @@ const RequisitionSuccessModal = ({ isOpen, data, onClose }) => {
         >✕</button>
         <div style={{ fontSize: '52px', marginBottom: '8px' }}>✅</div>
         <div style={{ fontSize: '19px', fontWeight: 700, color: COLOR.success, marginBottom: '4px' }}>
-          Requisition Berhasil!
+          {data.status === 'Draft' ? 'Draft Tersimpan!' : 'Requisition Berhasil!'}
         </div>
         <div style={{ fontSize: '13px', color: COLOR.textMd, marginBottom: '18px' }}>
-          Dokumen telah di-<em>Complete</em> dan diteruskan ke workflow pembelian.
+          {data.status === 'Draft'
+            ? 'Dokumen disimpan sebagai draft dan belum masuk ke workflow. Anda bisa membukanya lagi lewat daftar Requisition untuk melengkapi atau submit.'
+            : (<>Dokumen telah di-<em>Complete</em> dan diteruskan ke workflow pembelian.</>)}
         </div>
 
         <div style={{
