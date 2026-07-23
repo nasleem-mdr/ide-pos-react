@@ -18,12 +18,12 @@ export const WINDOW_ACCESS_MAP = {
   product:              140,
   requisition:          null,
   goodsReceipt:         null,
-  purchasing:           181,
+  purchasing:           null,
   internalUse:          null,
 
   // ===== List / Report =====
   requisitionList:      null, 
-  purchasingList:       181,
+  purchasingList:       null,
   goodsReceiptList:     null,
   internalUseList:      null,
 };

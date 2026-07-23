@@ -18,6 +18,12 @@ export function useRequisitionSubmit({ docTypeId, description: defaultDescriptio
   // di CartSidebar/CartPanel. Kalau kosong/tidak diisi, fallback ke
   // defaultDescription dari config awal (REQUISITION_CONFIG.DESCRIPTION).
   //
+  // submitMode (opsional, param ke-6): 'draft' | 'complete' (default 'complete').
+  // - 'draft'    -> header + lines disimpan, dokumen TETAP di status Drafted
+  //                 (tidak memicu workflow engine sama sekali).
+  // - 'complete' -> setelah header + lines tersimpan, doc-action 'CO' dipanggil
+  //                 sehingga workflow (approval, dsb.) langsung berjalan.
+  //
   // ── UOM ENTERED vs BASE + FALLBACK SEMENTARA ────────────────────────────
   // M_RequisitionLine idealnya punya kolom custom QtyEntered + C_UOM_ID
   // (diaktifkan) untuk menyimpan qty SEBAGAIMANA diinput user (mis. 5 Dus),
@@ -33,7 +39,14 @@ export function useRequisitionSubmit({ docTypeId, description: defaultDescriptio
   // cuma histori "user input dalam UOM apa" belum tersimpan sampai kolom
   // itu benar-benar ada. Begitu kolomnya sudah dibuat di server Anda
   // sendiri, jalur utama akan otomatis "menyala" tanpa perlu ubah kode ini.
-  const submit = useCallback(async (cart, requesterName, warehouseId, editRequisitionId = null, description = null) => {
+  const submit = useCallback(async (
+    cart,
+    requesterName,
+    warehouseId,
+    editRequisitionId = null,
+    description = null,
+    submitMode = 'complete', // 'draft' | 'complete'
+  ) => {
     if (cart.length === 0) {
       onError?.('Daftar permintaan masih kosong!');
       return null;
@@ -92,7 +105,7 @@ export function useRequisitionSubmit({ docTypeId, description: defaultDescriptio
           });
         }
       };
-      
+
       let reqId;
       let headerRes;
 
@@ -134,7 +147,11 @@ export function useRequisitionSubmit({ docTypeId, description: defaultDescriptio
           await insertRequisitionLine(reqId, item);
         }
 
-        if (currentStatus === 'NA') {
+        // NA-reset hanya relevan kalau kita memang mau menjalankan workflow
+        // (submitMode 'complete'). Kalau user memilih 'draft', biarkan status
+        // NA apa adanya — jangan paksa 'PR' karena itu akan memindahkan
+        // dokumen keluar dari kondisi draft/NA tanpa diminta.
+        if (currentStatus === 'NA' && submitMode === 'complete') {
           // Reset workflow dari nol — Prepare dulu sebelum Complete lagi,
           // mengikuti perilaku Document Action di iDempiere untuk status NA.
           await idempiereApi(`/models/m_requisition/${reqId}`, {
@@ -166,21 +183,40 @@ export function useRequisitionSubmit({ docTypeId, description: defaultDescriptio
         }
       }
 
-      const completedRes = await idempiereApi(`/models/m_requisition/${reqId}`, {
-        method: 'PUT',
-        body: JSON.stringify({ 'doc-action': 'CO' }),
-      });
+      let docNo;
+      let finalStatusLabel;
 
-      const docNo = completedRes.DocumentNo || `REQ-${reqId}`;
+      if (submitMode === 'complete') {
+        // ── SUBMIT COMPLETE: jalankan workflow engine (doc-action CO) ───────
+        const completedRes = await idempiereApi(`/models/m_requisition/${reqId}`, {
+          method: 'PUT',
+          body: JSON.stringify({ 'doc-action': 'CO' }),
+        });
+        docNo = completedRes.DocumentNo || `REQ-${reqId}`;
+        finalStatusLabel = 'Completed';
+      } else {
+        // ── SUBMIT DRAFT: TIDAK memanggil doc-action apa pun.
+        // Header + lines sudah tersimpan di atas; dokumen tetap Drafted
+        // dan bisa dibuka lagi lewat editRequisitionId untuk dilengkapi
+        // atau di-complete kemudian.
+        const draftRes = await idempiereApi(
+          `/models/m_requisition/${reqId}?$select=DocumentNo,DocStatus`
+        );
+        docNo = draftRes.DocumentNo || `REQ-${reqId}`;
+        finalStatusLabel = 'Draft';
+      }
+
       return {
         documentNo:    docNo,
+        status:        finalStatusLabel, // 'Draft' | 'Completed' — dipakai modal sukses utk bedakan pesan
         date:          new Date().toLocaleString('id-ID'),
         requesterName,
         warehouseName: null, // diisi dari caller kalau perlu di modal sukses
         items:         [...cart],
       };
     } catch (err) {
-      onError?.('Gagal membuat Requisition:\n\n' + err.message, 'Error');
+      const action = submitMode === 'complete' ? 'menyelesaikan' : 'menyimpan draft';
+      onError?.(`Gagal ${action} Requisition:\n\n` + err.message, 'Error');
       return null;
     } finally {
       setIsSubmitting(false);

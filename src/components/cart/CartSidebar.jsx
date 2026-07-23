@@ -27,7 +27,7 @@ const CartSidebar = ({
   totalItems, totalQty,
   summaryRight,
   submitDraftLabel = 'DRAFT',
-  submitCompletetLabel = 'COMPLETE',
+  submitCompleteLabel = 'COMPLETE',
   onSubmit, isSubmitting = false,
   onSubmitDraft, onSubmitComplete,
   title = 'Keranjang',
@@ -115,7 +115,8 @@ const CartSidebar = ({
       </div>
 
       {/* Summary + submit */}
-      {cart.length > 0 && onSubmit && (
+      
+      {cart.length > 0 && (onSubmitDraft || onSubmitComplete || onSubmit ) && (
         <div style={{ borderTop: `1px solid ${COLOR.border}`, padding: '14px 16px', flexShrink: 0 }}>
           <div style={{
             background: '#f0f4ff', borderRadius: RADIUS.md,
@@ -130,35 +131,49 @@ const CartSidebar = ({
             {summaryRight && <div style={{ fontSize: '12px', color: COLOR.textLt }}>{summaryRight}</div>}
           </div>
 
-          <button
-            onClick={onSubmitDraft}
-            disabled={isSubmitting}
-            style={{
-              background: isSubmitting ? '#9ca3af' : COLOR.primary,
-              color: '#fff', border: 'none',
-              padding: '14px', width: '100%',
-              borderRadius: RADIUS.md, fontWeight: 700,
-              fontSize: '15px', cursor: isSubmitting ? 'not-allowed' : 'pointer',
-              letterSpacing: '0.02em', transition: 'background 0.15s',
-            }}
-          >
-            {isSubmitting ? '⏳ Memproses...' : submitDraftLabel}
-          </button>
-          
-          <button
-            onClick={onSubmitComplete}
-            disabled={isSubmitting}
-            style={{
-              background: isSubmitting ? '#9ca3af' : COLOR.primary,
-              color: '#fff', border: 'none',
-              padding: '14px', width: '100%',
-              borderRadius: RADIUS.md, fontWeight: 700,
-              fontSize: '15px', cursor: isSubmitting ? 'not-allowed' : 'pointer',
-              letterSpacing: '0.02em', transition: 'background 0.15s',
-            }}
-          >
-            {isSubmitting ? '⏳ Memproses...' : submitCompleteLabel}
-          </button>
+          <div style={{ display: 'flex', gap: '10px' }}>
+      {/* Tombol DRAFT (Style Secondary / Outline) */}
+      <button
+        onClick={onSubmitDraft}
+        disabled={isSubmitting}
+        style={{
+          flex: 1,
+          background: isSubmitting ? '#e5e7eb' : (COLOR.surface || '#fff'),
+          color: isSubmitting ? '#9ca3af' : (COLOR.primary || '#2563eb'),
+          border: `1.5px solid ${isSubmitting ? '#d1d5db' : (COLOR.primary || '#2563eb')}`,
+          padding: '12px 8px',
+          borderRadius: RADIUS.md,
+          fontWeight: 700,
+          fontSize: '14px',
+          cursor: isSubmitting ? 'not-allowed' : 'pointer',
+          letterSpacing: '0.02em',
+          transition: 'all 0.15s',
+        }}
+      >
+        {isSubmitting ? '⏳...' : submitDraftLabel}
+      </button>
+      
+      {/* Tombol COMPLETE (Style Primary / Solid) */}
+      <button
+        onClick={onSubmitComplete}
+        disabled={isSubmitting}
+        style={{
+          flex: 1,
+          background: isSubmitting ? '#9ca3af' : (COLOR.primary || '#2563eb'),
+          color: '#fff',
+          border: 'none',
+          padding: '12px 8px',
+          borderRadius: RADIUS.md,
+          fontWeight: 700,
+          fontSize: '14px',
+          cursor: isSubmitting ? 'not-allowed' : 'pointer',
+          letterSpacing: '0.02em',
+          transition: 'all 0.15s',
+        }}
+      >
+        {isSubmitting ? '⏳...' : submitCompleteLabel}
+      </button>
+    </div>
         </div>
       )}
     </div>

@@ -14,7 +14,8 @@ const POCartPanel = ({
   vendorGroups, onRemove, onQtyChange, onPriceChange, onVendorClick, onClearCart,
   totalItems, totalAmount, summaryRight,
   title = '🧾 Daftar Purchase Order',
-  onSubmit, isSubmitting = false,
+  onSubmitDraft, onSubmitComplete, 
+  isSubmitting = false,
   emptyLabel = 'Belum ada produk dipilih.',
   description = '',
   onDescriptionChange,
@@ -125,7 +126,7 @@ const POCartPanel = ({
           )}
         </div>
 
-        {totalItems > 0 && onSubmit && (
+        {totalItems > 0 && (onSubmitDraft || onSubmitComplete ) && (
           <div style={{
             borderTop: `1px solid ${COLOR.border}`, padding: '12px 14px', flexShrink: 0,
             paddingBottom: 'max(14px, env(safe-area-inset-bottom))',
@@ -153,9 +154,9 @@ const POCartPanel = ({
                 ⚠ Masih ada item tanpa vendor. Ketuk badge 🚚 pada item untuk memilih vendor.
               </div>
             )}
-
+            <div style={{ display: 'flex', gap: '10px' }}>
             <button
-              onClick={onSubmit}
+              onClick={onSubmitDraft}
               disabled={isSubmitting || hasIncompleteVendor}
               style={{
                 background: (isSubmitting || hasIncompleteVendor) ? '#9ca3af' : COLOR.primary,
@@ -166,8 +167,23 @@ const POCartPanel = ({
             >
               {isSubmitting
                 ? '⏳ Memproses...'
-                : `✅ BUAT ${vendorCount} PURCHASE ORDER${vendorCount > 1 ? ' (terpisah)' : ''}`}
+                : `✅ DRAFT ${vendorCount} PO${vendorCount > 1 ? ' (terpisah)' : ''}`}
             </button>
+            <button
+              onClick={onSubmitComplete}
+              disabled={isSubmitting || hasIncompleteVendor}
+              style={{
+                background: (isSubmitting || hasIncompleteVendor) ? '#9ca3af' : COLOR.primary,
+                color: '#fff', border: 'none', padding: '14px', width: '100%',
+                borderRadius: RADIUS.md, fontWeight: 700, fontSize: '14px',
+                cursor: (isSubmitting || hasIncompleteVendor) ? 'not-allowed' : 'pointer',
+              }}
+            >
+              {isSubmitting
+                ? '⏳ Memproses...'
+                : `✅ COMPLETE ${vendorCount} PO${vendorCount > 1 ? ' (terpisah)' : ''}`}
+            </button>
+            </div>
           </div>
         )}
       </div>

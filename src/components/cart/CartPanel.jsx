@@ -114,7 +114,7 @@ const CartPanel = ({
           )}
         </div>
 
-        {cart.length > 0 && onSubmit && (
+        {cart.length > 0 && (onSubmitDraft || onSubmitComplete || onSubmit ) && (
           <div style={{
             borderTop: `1px solid ${COLOR.border}`, padding: '12px 14px', flexShrink: 0,
             paddingBottom: 'max(14px, env(safe-area-inset-bottom))',
@@ -131,6 +131,7 @@ const CartPanel = ({
               </div>
               {summaryRight && <div style={{ fontSize: '12px', color: COLOR.textLt }}>{summaryRight}</div>}
             </div>
+            <div style={{ display: 'flex', gap: '10px' }}>
             <button
               onClick={onSubmitDraft}
               disabled={isSubmitting}
@@ -161,6 +162,7 @@ const CartPanel = ({
             >
               {isSubmitting ? '⏳ Memproses...' : submitCompleteLabel}
             </button>
+            </div>
           </div>
         )}
       </div>

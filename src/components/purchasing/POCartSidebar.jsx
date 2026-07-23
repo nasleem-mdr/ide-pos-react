@@ -20,7 +20,8 @@ const POCartSidebar = ({
   vendorGroups, onRemove, onQtyChange, onPriceChange, onVendorClick,
   onClearCart, totalItems, totalAmount, summaryRight,
   title = '🧾 Daftar Purchase Order',
-  onSubmit, isSubmitting = false,
+  onSubmitDraft, onSubmitComplete, 
+  isSubmitting = false,
   emptyLabel = 'Belum ada produk dipilih.',
   width = '380px',
   description = '',
@@ -115,8 +116,7 @@ const POCartSidebar = ({
           ))
         )}
       </div>
-
-      {totalItems > 0 && onSubmit && (
+      {totalItems > 0 && (onSubmitDraft || onSubmitComplete ) && (
         <div style={{ borderTop: `1px solid ${COLOR.border}`, padding: '14px 16px', flexShrink: 0 }}>
           <div style={{
             background: '#f0f4ff', borderRadius: RADIUS.md, padding: '10px 14px',
@@ -141,9 +141,24 @@ const POCartSidebar = ({
               ⚠ Masih ada item tanpa vendor. Klik badge 🚚 pada item untuk memilih vendor sebelum submit.
             </div>
           )}
-
+          <div style={{ display: 'flex', gap: '10px' }}>
           <button
-            onClick={onSubmit}
+            onClick={onSubmitDraft}
+            disabled={isSubmitting || hasIncompleteVendor}
+            style={{
+              background: (isSubmitting || hasIncompleteVendor) ? '#9ca3af' : COLOR.border,
+              color: '#0423ce', border: 'none', padding: '14px', width: '100%',
+              borderRadius: RADIUS.md, fontWeight: 700, fontSize: '14px',
+              cursor: (isSubmitting || hasIncompleteVendor) ? 'not-allowed' : 'pointer',
+              letterSpacing: '0.02em',
+            }}
+          >
+            {isSubmitting
+              ? '⏳ Memproses...'
+              : `✅ DRAFT ${vendorCount} PO${vendorCount > 1 ? ' (terpisah)' : ''}`}
+          </button>
+          <button
+            onClick={onSubmitComplete}
             disabled={isSubmitting || hasIncompleteVendor}
             style={{
               background: (isSubmitting || hasIncompleteVendor) ? '#9ca3af' : COLOR.primary,
@@ -155,8 +170,9 @@ const POCartSidebar = ({
           >
             {isSubmitting
               ? '⏳ Memproses...'
-              : `✅ BUAT ${vendorCount} PURCHASE ORDER${vendorCount > 1 ? ' (terpisah)' : ''}`}
+              : `✅ COMPLETE ${vendorCount} PO${vendorCount > 1 ? ' (terpisah)' : ''}`}
           </button>
+          </div>
         </div>
       )}
     </div>

@@ -205,11 +205,10 @@ const PurchasingContainer = () => {
     if (vendorPickerTarget) updateVendor(vendorPickerTarget, vendor);
     setVendorPickerTarget(null);
   }, [vendorPickerTarget, updateVendor]);
-
-  const handleSubmit = async () => {
+  const handleSubmit = async (mode = 'complete') => {
     const { results, hadError } = await submit(cart, {
       warehouseId: warehouseInfo?.id,
-      description,
+      description, mode,
     });
     if (!results || results.length === 0) return;
   
@@ -414,7 +413,8 @@ const PurchasingContainer = () => {
             totalItems={totalItems}
             totalAmount={totalAmount}
             summaryRight={cartSummaryRight}
-            onSubmit={canSubmitPO ? handleSubmit : undefined}
+            onSubmitDraft={canSubmitPO ? handleSubmit : undefined}
+            onSubmitComplete={canSubmitPO ? handleSubmit : undefined}
             isSubmitting={isSubmitting}
             description={description}
             onDescriptionChange={canSubmitPO ? setDescription : undefined}
@@ -440,7 +440,8 @@ const PurchasingContainer = () => {
           totalItems={totalItems}
           totalAmount={totalAmount}
           summaryRight={cartSummaryRight}
-          onSubmit={canSubmitPO ? handleSubmit : undefined}
+          onSubmitDraft={canSubmitPO ? handleSubmit : undefined}
+          nSubmitComplete={canSubmitPO ? handleSubmit : undefined}
           isSubmitting={isSubmitting}
         />
       )}
