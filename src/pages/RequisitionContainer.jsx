@@ -532,7 +532,8 @@ const RequisitionContainer = () => {
             summaryRight={cartSummaryRight}
             title={isEditMode ? '📝 Edit Permintaan' : '📝 Daftar Permintaan'}
             submitLabel={isEditMode ? '💾 SIMPAN PERUBAHAN' : '📤 KIRIM FPB'}
-            onSubmit={canSubmitRequisition ? handleSubmit : undefined}
+            onSubmitDraft={canSubmitRequisition ? () => handleSubmit('draft') : undefined}
+            onSubmitComplete={canSubmitRequisition ? () => handleSubmit('complete') : undefined}
             isSubmitting={isSubmitting}
             description={description}
             onDescriptionChange={canSubmitRequisition ? setDescription : undefined}
@@ -559,7 +560,8 @@ const RequisitionContainer = () => {
           summaryRight={cartSummaryRight}
           title={isEditMode ? '📝 Edit Permintaan' : '📝 Daftar Permintaan'}
           submitLabel={isEditMode ? '💾 SIMPAN PERUBAHAN' : '📤 KIRIM FPB'}
-          onSubmit={canSubmitRequisition ? handleSubmit : undefined}
+          onSubmitDraft={canSubmitRequisition ? () => handleSubmit('draft') : undefined}
+          onSubmitComplete={canSubmitRequisition ? () => handleSubmit('complete') : undefined}
           isSubmitting={isSubmitting}
           description={description}
           onDescriptionChange={canSubmitRequisition ? setDescription : undefined}
