@@ -271,9 +271,11 @@ const RequisitionContainer = () => {
   }, [products, addToCart, fetchProducts, setSearchValue, searchByUPC, selectedWarehouse]);
 
   // ── submit ────────────────────────────────────────────────────────────────
-  const handleSubmit = async () => {
-    // description manual (dari textarea di cart) diteruskan sebagai param ke-5
-    const result = await submit(cart, requesterName, selectedWarehouse?.id, editRequisitionId, description);
+  // ── submit ────────────────────────────────────────────────────────────────
+  const handleSubmit = async (mode = 'complete') => {
+    // description manual (dari textarea di cart) diteruskan sebagai param ke-5,
+    // mode ('draft' | 'complete') sebagai param ke-6
+    const result = await submit(cart, requesterName, selectedWarehouse?.id, editRequisitionId, description, mode);
     if (result) {
       setSuccessData({ ...result, warehouseName: selectedWarehouse?.name });
       clearCart();
@@ -285,7 +287,7 @@ const RequisitionContainer = () => {
       navigate('/requisition', { replace: true, state: {} });
     }
   };
-
+  
   const cartSummaryRight = `📦 ${selectedWarehouse?.name || '...'}`;
 
   // ── render ────────────────────────────────────────────────────────────────
