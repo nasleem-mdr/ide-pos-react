@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { UserIcon, ClientIcon, RoleIcon, LogoutIcon, LogoSMA20 } from './Icons';
+import { UserIcon, RoleIcon, LogoutIcon, LogoIconP } from './Icons';
 import ChangeRoleModal from './ChangeRoleModal';
 import '../css/Header.css';
  
@@ -53,8 +53,8 @@ export default function Header({ session, onLogout, onSessionUpdate }) {
       {/* Session Info */}
       <div className="header-session">
         <div className="header-info-item">
-          <LogoSMA20 />
-          <span className="header-info-value header-hide-mobile">Procure <em>App</em></span>
+          <LogoIconP size={20}/>
+          <span className="header-info-value header-hide-mobile">Procure <em>Grid</em></span>
         </div>
         <div className="header-divider header-hide-mobile" />
  

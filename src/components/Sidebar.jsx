@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LogoSMAWarna } from './Icons';
+import { LogoIconP } from './Icons';
 import { useAccess } from '../context/AccessContext';
 import '../css/Sidebar.css';
 import { getMenuSections } from '../config/menuConfig';
@@ -32,7 +32,7 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }) {
           <div className="sidebar-header">
             <div className={`sidebar-brand ${isCollapsed ? 'collapsed' : ''}`}>
               <div className="brand-icon">iD</div>
-              {!isCollapsed && <span>Procure <em>App</em></span>}
+              {!isCollapsed && <span>Procure<em>Grid</em></span>}
             </div>
             <button
               className="hamburger-btn"
@@ -57,8 +57,8 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }) {
       <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''}`}>
         <div className="sidebar-header">
           <div className={`sidebar-brand ${isCollapsed ? 'collapsed' : ''}`}>
-            <div className="brand-icon"><LogoSMAWarna /></div>
-            {!isCollapsed && <span>Procure <em>App</em></span>}
+            <div className="brand-icon"><LogoIconP size={40}/></div>
+            {!isCollapsed && <span>Procure <em>Grid</em></span>}
           </div>
 
           <button

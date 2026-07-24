@@ -440,7 +440,8 @@ const InternalUseContainer = () => {
             totalQty={totalQty}
             missingChargeCount={missingChargeCount}
             summaryRight={cartSummaryRight}
-            onSubmit={canSubmitIU ? handleSubmit : undefined}
+            onSubmitDraft={canSubmitIU ? handleSubmit : undefined}
+            onSubmitComplete={canSubmitIU ? handleSubmit : undefined} 
             isSubmitting={isSubmitting}
           />
         )}
@@ -466,7 +467,8 @@ const InternalUseContainer = () => {
           totalQty={totalQty}
           missingChargeCount={missingChargeCount}
           summaryRight={cartSummaryRight}
-          onSubmit={canSubmitIU ? handleSubmit : undefined}
+          onSubmitDraft={canSubmitIU ? handleSubmit : undefined}
+          onSubmitComplete={canSubmitIU ? handleSubmit : undefined}
           isSubmitting={isSubmitting}
         />
       )}

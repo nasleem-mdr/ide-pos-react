@@ -104,39 +104,67 @@ export function usePurchaseOrderSubmit({ docTypeId, defaultDescription, onError 
     return toBaseQty(qtyEntered, selectedUom);
   }, [resolveSelectedUom, toBaseQty]);
 
-  // Insert 1 C_OrderLine untuk 1 item cart — dipakai baik di mode normal
-  // (loop per vendor) maupun mode edit (1 order saja). Mengembalikan
-  // { ok, name } untuk pelaporan matchFailures kalau linking FPB gagal.
-  const insertOrderLine = useCallback(async (orderId, orgId, item, submitMode) => {
+  // Hitung payload C_OrderLine dari 1 item cart — dipakai baik utk INSERT
+  // (baris baru) maupun UPDATE (baris lama yang produknya masih sama, cuma
+  // qty/harga/uom yang mungkin berubah).
+  const buildLinePayload = useCallback(async (item) => {
     const qtyEntered   = parseFloat(item.Qty || 0);
     const priceEntered = parseFloat(item.Price || 0);
     const qtyOrdered   = await resolveQtyOrdered(item, qtyEntered);
     const priceActual  = qtyOrdered > 0 ? (priceEntered * qtyEntered) / qtyOrdered : priceEntered;
+    return {
+      C_UOM_ID:     { id: parseInt(item.C_UOM_ID) },
+      QtyEntered:   qtyEntered,
+      QtyOrdered:   qtyOrdered,
+      PriceEntered: priceEntered,
+      PriceActual:  priceActual,
+      ...(item.sourceRequisitionLineId
+        ? { Description: `Ref. FPB Line #${item.sourceRequisitionLineId}` }
+        : {}),
+    };
+  }, [resolveQtyOrdered]);
 
+  // Link 1 C_OrderLine (baru ATAU hasil update) ke FPB asalnya — HANYA
+  // kalau submitMode === 'complete' (supaya FPB tidak dianggap selesai
+  // selama PO masih draft). Dipakai baik oleh insertOrderLine maupun
+  // updateOrderLine. Mengembalikan { ok, name } utk pelaporan matchFailures.
+  const linkFpbIfNeeded = useCallback(async (item, orderLineId, submitMode) => {
+    if (item.sourceRequisitionLineId && submitMode === 'complete') {
+      const ok = await markRequisitionLineOrdered(item.sourceRequisitionLineId, orderLineId);
+      return { ok, name: item.Name };
+    }
+    return { ok: true, name: item.Name };
+  }, [markRequisitionLineOrdered]);
+
+  // Insert 1 C_OrderLine BARU utk 1 item cart — dipakai di mode normal
+  // (loop per vendor) dan mode edit (utk produk yang belum ada di PO ini).
+  const insertOrderLine = useCallback(async (orderId, orgId, item, submitMode) => {
+    const payload = await buildLinePayload(item);
     const lineRes = await idempiereApi('/models/c_orderline', {
       method: 'POST',
       body: JSON.stringify({
         AD_Org_ID:    { id: orgId },
         C_Order_ID:   { id: orderId },
         M_Product_ID: { id: parseInt(item.M_Product_ID) },
-        C_UOM_ID:     { id: parseInt(item.C_UOM_ID) },
-        QtyEntered:   qtyEntered,
-        QtyOrdered:   qtyOrdered,
-        PriceEntered: priceEntered,
-        PriceActual:  priceActual,
-        ...(item.sourceRequisitionLineId
-          ? { Description: `Ref. FPB Line #${item.sourceRequisitionLineId}` }
-          : {}),
+        ...payload,
       }),
     });
+    const orderLineId = lineRes.id ?? lineRes.C_OrderLine_ID;
+    return linkFpbIfNeeded(item, orderLineId, submitMode);
+  }, [buildLinePayload, linkFpbIfNeeded]);
 
-    if (item.sourceRequisitionLineId && submitMode === 'complete') {
-      const orderLineId = lineRes.id ?? lineRes.C_OrderLine_ID;
-      const ok = await markRequisitionLineOrdered(item.sourceRequisitionLineId, orderLineId);
-      return { ok, name: item.Name };
-    }
-    return { ok: true, name: item.Name };
-  }, [resolveQtyOrdered, markRequisitionLineOrdered]);
+  // Update 1 C_OrderLine YANG SUDAH ADA (dipakai HANYA di mode edit, utk
+  // produk yang sama persis dengan baris lama — jadi line-nya tidak pernah
+  // di-delete sama sekali, menghindari error dependent-record mis. MRP
+  // untuk baris yang sebenarnya tidak perlu diubah struktural-nya).
+  const updateOrderLine = useCallback(async (lineId, item, submitMode) => {
+    const payload = await buildLinePayload(item);
+    await idempiereApi(`/models/c_orderline/${lineId}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+    return linkFpbIfNeeded(item, lineId, submitMode);
+  }, [buildLinePayload, linkFpbIfNeeded]);
 
   // Jalankan doc-action (atau tidak) sesuai submitMode, kembalikan {docNo, status}.
   const finalizeOrder = useCallback(async (orderId, submitMode, vendorName) => {
@@ -237,6 +265,45 @@ export function usePurchaseOrderSubmit({ docTypeId, defaultDescription, onError 
           throw new Error(`Vendor "${vendorName}" tidak memiliki alamat aktif (C_BPartner_Location).\nTambahkan alamat vendor terlebih dahulu di Business Partner.`);
         }
 
+        // ── Ambil lines lama (dengan detail lengkap, utk matching & compare) ─
+        const oldLinesRes = await idempiereApi(
+          `/models/c_orderline?$filter=C_Order_ID eq ${editOrderId}` +
+          `&$select=C_OrderLine_ID,M_Product_ID,C_UOM_ID,QtyEntered,QtyOrdered,PriceEntered,PriceActual`
+        );
+        const oldLines = Array.isArray(oldLinesRes.records) ? oldLinesRes.records : [];
+
+        // Map productId -> lineId lama, dipakai utk cocokkan tiap item cart
+        // ke baris lama (matching BY PRODUK). Baris yang produknya masih
+        // sama di-UPDATE DI TEMPAT — TIDAK PERNAH kena DELETE — sehingga
+        // baris yang sebenarnya tidak berubah (atau cuma qty/harga yang
+        // beda) tidak akan pernah tersandung dependent-record error (mis.
+        // Material Requirement Planning) sama sekali.
+        const oldLineByProduct = new Map();
+        const oldLineDataById  = new Map();
+        oldLines.forEach(l => {
+          const lineId    = l.id ?? l.C_OrderLine_ID;
+          const productId = fkId(l.M_Product_ID) ?? l.M_Product_ID?.id;
+          if (productId != null) oldLineByProduct.set(String(productId), lineId);
+          oldLineDataById.set(String(lineId), l);
+        });
+
+        // FPB yang ter-link ke MASING-MASING baris lama (per-line, bukan
+        // cuma daftar) — dipakai supaya unmark hanya terjadi utk baris yang
+        // BENAR-BENAR dibuang dari cart baru, bukan baris yang dipertahankan.
+        let reqLineByOrderLine = new Map();
+        if (oldLines.length > 0) {
+          const oldLineIds = oldLines.map(l => l.id ?? l.C_OrderLine_ID);
+          const filterStr = oldLineIds.map(id => `C_OrderLine_ID eq ${id}`).join(' or ');
+          const linkedRes = await idempiereApi(
+            `/models/m_requisitionline?$filter=${filterStr}&$select=M_RequisitionLine_ID,C_OrderLine_ID`
+          );
+          const linkedReqLines = Array.isArray(linkedRes.records) ? linkedRes.records : [];
+          linkedReqLines.forEach(rl => {
+            const olId = fkId(rl.C_OrderLine_ID) ?? rl.C_OrderLine_ID?.id;
+            if (olId != null) reqLineByOrderLine.set(String(olId), rl.id ?? rl.M_RequisitionLine_ID);
+          });
+        }
+
         // ── Update header ──────────────────────────────────────────────
         await idempiereApi(`/models/c_order/${editOrderId}`, {
           method: 'PUT',
@@ -248,43 +315,96 @@ export function usePurchaseOrderSubmit({ docTypeId, defaultDescription, onError 
           }),
         });
 
-        // ── Ambil lines lama + FPB yang masih ter-link ke lines itu ─────
-        const oldLinesRes = await idempiereApi(
-          `/models/c_orderline?$filter=C_Order_ID eq ${editOrderId}&$select=C_OrderLine_ID`
-        );
-        const oldLines   = Array.isArray(oldLinesRes.records) ? oldLinesRes.records : [];
-        const oldLineIds = oldLines.map(l => l.id ?? l.C_OrderLine_ID);
+        // ── Proses tiap item cart: UPDATE baris lama yg produknya cocok,
+        //    INSERT baris baru kalau produknya belum ada di PO ini ───────
+        const matchedOldLineIds = new Set();
+        for (const item of cart) {
+          const productKey     = String(parseInt(item.M_Product_ID));
+          const existingLineId = oldLineByProduct.get(productKey);
 
-        let oldLinkedReqLines = [];
-        if (oldLineIds.length > 0) {
-          const filterStr = oldLineIds.map(id => `C_OrderLine_ID eq ${id}`).join(' or ');
-          const linkedRes = await idempiereApi(
-            `/models/m_requisitionline?$filter=${filterStr}&$select=M_RequisitionLine_ID,C_OrderLine_ID`
-          );
-          oldLinkedReqLines = Array.isArray(linkedRes.records) ? linkedRes.records : [];
-        }
+          if (existingLineId != null && !matchedOldLineIds.has(existingLineId)) {
+            matchedOldLineIds.add(existingLineId);
 
-        // ── Hapus semua line lama ────────────────────────────────────────
-        for (const lineId of oldLineIds) {
-          await idempiereApi(`/models/c_orderline/${lineId}`, { method: 'DELETE' });
-        }
+            // Kalau baris ini sebelumnya ter-link ke FPB LAIN (bukan yang
+            // sekarang dibawa item cart ini), unmark dulu FPB lama sebelum
+            // update — supaya tidak ada 2 FPB nunjuk ke 1 baris yang sama.
+            // Dicek TERLEPAS dari apakah qty/harga berubah atau tidak.
+            const oldReqLineId = reqLineByOrderLine.get(String(existingLineId));
+            if (oldReqLineId && String(oldReqLineId) !== String(item.sourceRequisitionLineId || '')) {
+              const ok = await unmarkRequisitionLineOrdered(oldReqLineId);
+              if (!ok) matchFailures.push(`(unmark) FPB line #${oldReqLineId}`);
+            }
 
-        // ── Unmark FPB line lama yang TIDAK ada lagi di cart baru ───────
-        const keptReqLineIds = new Set(
-          cart.filter(i => i.sourceRequisitionLineId).map(i => String(i.sourceRequisitionLineId))
-        );
-        for (const reqLine of oldLinkedReqLines) {
-          const reqLineId = reqLine.id ?? reqLine.M_RequisitionLine_ID;
-          if (!keptReqLineIds.has(String(reqLineId))) {
-            const ok = await unmarkRequisitionLineOrdered(reqLineId);
-            if (!ok) matchFailures.push(`(unmark) FPB line #${reqLineId}`);
+            // ── Bandingkan dgn data lama — SKIP PUT sama sekali kalau persis
+            // sama (qty/uom/harga tidak berubah). Ini yang dimaksud "delete/
+            // update baru jalan kalau memang ada perubahan" — baris yang
+            // benar-benar tidak diapa-apakan user TIDAK disentuh sama sekali.
+            const oldData         = oldLineDataById.get(String(existingLineId));
+            const newQtyEntered   = parseFloat(item.Qty || 0);
+            const newUomId        = parseInt(item.C_UOM_ID);
+            const newPriceEntered = parseFloat(item.Price || 0);
+            const oldQtyEntered   = parseFloat(oldData?.QtyEntered ?? oldData?.QtyOrdered ?? 0);
+            const oldUomId        = fkId(oldData?.C_UOM_ID) ?? oldData?.C_UOM_ID?.id;
+            const oldPriceEntered = parseFloat(oldData?.PriceEntered ?? oldData?.PriceActual ?? 0);
+
+            const isUnchanged =
+              Math.abs(oldQtyEntered - newQtyEntered) < 0.0001 &&
+              Number(oldUomId) === Number(newUomId) &&
+              Math.abs(oldPriceEntered - newPriceEntered) < 1; // toleransi kecil pembulatan rupiah
+
+            if (isUnchanged) {
+              // Tidak ada PUT ke C_OrderLine sama sekali. Tetap pastikan
+              // link FPB benar kalau submitMode 'complete' (mis. PO
+              // sebelumnya draft & FPB belum sempat di-mark) — ini hanya
+              // sentuh M_RequisitionLine, tidak sentuh C_OrderLine.
+              const { ok, name } = await linkFpbIfNeeded(item, existingLineId, submitMode);
+              if (!ok) matchFailures.push(name);
+            } else {
+              const { ok, name } = await updateOrderLine(existingLineId, item, submitMode);
+              if (!ok) matchFailures.push(name);
+            }
+          } else {
+            const { ok, name } = await insertOrderLine(editOrderId, orgId, item, submitMode);
+            if (!ok) matchFailures.push(name);
           }
         }
 
-        // ── Insert lines baru ────────────────────────────────────────────
-        for (const item of cart) {
-          const { ok, name } = await insertOrderLine(editOrderId, orgId, item, submitMode);
-          if (!ok) matchFailures.push(name);
+        // ── Baris lama yang produknya SUDAH TIDAK ADA di cart baru ───────
+        // → coba dihapus. Kalau gagal (dependent record, mis. MRP), FALLBACK
+        // nonaktifkan & nolkan qty-nya (bukan abort seluruh proses edit) —
+        // supaya 1 baris bermasalah tidak memblokir seluruh perubahan lain.
+        const linesToRemove = oldLines
+          .map(l => l.id ?? l.C_OrderLine_ID)
+          .filter(id => !matchedOldLineIds.has(id));
+
+        for (const lineId of linesToRemove) {
+          const reqLineId = reqLineByOrderLine.get(String(lineId));
+          let removed = false;
+          try {
+            await idempiereApi(`/models/c_orderline/${lineId}`, { method: 'DELETE' });
+            removed = true;
+          } catch (err) {
+            console.error(`[usePurchaseOrderSubmit] gagal hapus C_OrderLine #${lineId}, coba nonaktifkan:`, err);
+            try {
+              await idempiereApi(`/models/c_orderline/${lineId}`, {
+                method: 'PUT',
+                body: JSON.stringify({
+                  IsActive:    false,
+                  QtyEntered:  0,
+                  QtyOrdered:  0,
+                  Description: 'Dihapus dari edit (baris dipertahankan sistem krn ada data terkait, mis. MRP, yg mencegah delete)',
+                }),
+              });
+              removed = true;
+            } catch (err2) {
+              console.error(`[usePurchaseOrderSubmit] gagal nonaktifkan C_OrderLine #${lineId} juga:`, err2);
+              matchFailures.push(`(gagal dihapus) Line ID #${lineId} — perlu dicek manual di iDempiere`);
+            }
+          }
+          if (removed && reqLineId) {
+            const ok = await unmarkRequisitionLineOrdered(reqLineId);
+            if (!ok) matchFailures.push(`(unmark) FPB line #${reqLineId}`);
+          }
         }
 
         // ── Reset workflow kalau status lama NA (hanya relevan utk complete) ──
@@ -373,10 +493,11 @@ export function usePurchaseOrderSubmit({ docTypeId, defaultDescription, onError 
 
       if (matchFailures.length > 0) {
         onError?.(
-          `PO berhasil diproses, tapi ${matchFailures.length} baris gagal ter-update link FPB:\n` +
+          `PO berhasil diproses, tapi ada ${matchFailures.length} peringatan yang perlu dicek manual:\n` +
           matchFailures.map(n => `• ${n}`).join('\n') +
-          `\n\nIni tidak mempengaruhi PO yang sudah dibuat/diupdate, tapi status FPB terkait mungkin tidak akurat (perlu dicek manual).`,
-          'Peringatan: Update Status FPB Gagal'
+          `\n\nIni tidak mempengaruhi baris PO lain yang sudah berhasil dibuat/diupdate, tapi bagian yang ` +
+          `disebutkan di atas (link status FPB dan/atau baris yang gagal dihapus) perlu dicek manual di iDempiere.`,
+          'Peringatan: Ada Baris Perlu Dicek Manual'
         );
         return { results, hadError: true };
       }
@@ -395,7 +516,7 @@ export function usePurchaseOrderSubmit({ docTypeId, defaultDescription, onError 
     } finally {
       setIsSubmitting(false);
     }
-  }, [docTypeId, defaultDescription, onError, insertOrderLine, finalizeOrder, unmarkRequisitionLineOrdered]);
+  }, [docTypeId, defaultDescription, onError, insertOrderLine, updateOrderLine, linkFpbIfNeeded, finalizeOrder, unmarkRequisitionLineOrdered]);
 
   return { submit, isSubmitting };
 }

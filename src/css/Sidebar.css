@@ -94,8 +94,8 @@
   align-items: center;
   gap: 12px;
   padding: 6px;
-  border-bottom: 0x solid rgba(255, 255, 255, 0.1);
-  background-color: #1a252f;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+  background-color: #6366f1;
 }
 
 /* Desain Tombol Hamburger */

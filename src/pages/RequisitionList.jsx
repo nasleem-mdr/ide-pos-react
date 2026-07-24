@@ -9,6 +9,15 @@ import QRCode from "qrcode";
 import { LogoSMAMerahHitam} from "../components/Icons";
 import "../App.css";
 
+// Filter status ala Shopee — value 'ALL' berarti tanpa filter DocStatus sama
+// sekali. Urutan di sini menentukan urutan tab yang tampil di PageHeader.
+const STATUS_FILTERS = [
+    { value: "ALL", label: "Semua" },
+    { value: "DR",  label: "Draft" },
+    { value: "IP",  label: "Diproses" },
+    { value: "NA",  label: "Ditolak" },
+    { value: "CO",  label: "Selesai" },
+];
 
 const RequisitionList = () => {
     const todayStr = new Date().toISOString().split("T")[0];
@@ -16,6 +25,7 @@ const RequisitionList = () => {
     const [requisitions, setRequisitions]             = useState([]);
     const [loading, setLoading]           = useState(false);
     const [search, setSearch]             = useState("");
+    const [statusFilter, setStatusFilter] = useState("ALL");
     const [offset, setOffset]             = useState(0);
     const [totalRecords, setTotalRecords] = useState(0);
     const [totalLinesAll, setTotalLinesAll] = useState(null);
@@ -53,20 +63,31 @@ const RequisitionList = () => {
         return map[status] || "#555";
     };
 
+    // Filter dasar (tanggal + owner + search) — dipakai bareng oleh
+    // fetchRequisitions & fetchTotalLines supaya konsisten. statusFilter
+    // ditambahkan terpisah karena 'ALL' berarti TIDAK ada klausa DocStatus.
+    const buildFilterClause = useCallback((loginUserId) => {
+        let filterClause =
+            ` CreatedBy eq ${loginUserId}` +
+            ` and Created ge ${startDate}T00:00:00Z` +
+            ` and Created le ${endDate}T23:59:59Z`;
+
+        if (search) {
+            filterClause += ` and contains(tolower(DocumentNo),'${search.toLowerCase()}')`;
+        }
+        if (statusFilter && statusFilter !== "ALL") {
+            filterClause += ` and DocStatus eq '${statusFilter}'`;
+        }
+        return filterClause;
+    }, [search, startDate, endDate, statusFilter]);
+
     const fetchRequisitions = useCallback(async () => {
         const loginUserId = localStorage.getItem("AD_User_ID");
         if (!loginUserId) return;
 
         setLoading(true);
         try {
-            let filterClause =
-                ` CreatedBy eq ${loginUserId}` +
-                ` and Created ge ${startDate}T00:00:00Z` +
-                ` and Created le ${endDate}T23:59:59Z`;
-
-            if (search) {
-                filterClause += ` and contains(tolower(DocumentNo),'${search.toLowerCase()}')`;
-            }
+            const filterClause = buildFilterClause(loginUserId);
 
             const res = await customFetch(
                 `/models/m_requisition` +
@@ -84,7 +105,7 @@ const RequisitionList = () => {
         } finally {
             setLoading(false);
         }
-    }, [offset, search, startDate, endDate]);
+    }, [offset, buildFilterClause]);
     const svgToPngDataUrl = (svgString, width, height) => {
         return new Promise((resolve, reject) => {
             const svgBlob = new Blob([svgString], { type: "image/svg+xml;charset=utf-8" });
@@ -110,14 +131,7 @@ const RequisitionList = () => {
 
         setTotalLinesAll(null); // reset saat filter berubah
         try {
-            let filterClause =
-                ` CreatedBy eq ${loginUserId}` +
-                ` and Created ge ${startDate}T00:00:00Z` +
-                ` and Created le ${endDate}T23:59:59Z`;
-
-            if (search) {
-                filterClause += ` and contains(tolower(DocumentNo),'${search.toLowerCase()}')`;
-            }
+            const filterClause = buildFilterClause(loginUserId);
 
             // Ambil hanya kolom GrandTotal tanpa pagination untuk dijumlahkan
             const res = await customFetch(
@@ -133,7 +147,7 @@ const RequisitionList = () => {
             console.error("Gagal fetch total lines:", err.message);
             setTotalLinesAll(0);
         }
-    }, [search, startDate, endDate]); // search + date range
+    }, [buildFilterClause]);
 
     useEffect(() => {
         fetchRequisitions();
@@ -469,13 +483,20 @@ const RequisitionList = () => {
         setOffset(0);
     };
 
+    const handleFilterChange = (val) => {
+        setStatusFilter(val);
+        setOffset(0);
+    };
+
     return (
         <div className="card-container">
             
             <PageHeader
-                
                 title="Requisition"
                 onSearch={(val) => { setSearch(val); setOffset(0); }}
+                filters={STATUS_FILTERS}
+                activeFilter={statusFilter}
+                onFilterChange={handleFilterChange}
                 extraAction={
                     <button
                         onClick={() => navigate("/requisition")}

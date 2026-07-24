@@ -8,7 +8,7 @@ const CartPanel = ({
   totalItems, totalQty,
   summaryRight,
   submitDraftLabel = 'DRAFT',
-  submitCompletetLabel = 'COMPLETE',
+  submitCompleteLabel = 'COMPLETE',
   onSubmit, isSubmitting = false,
   onSubmitDraft, onSubmitComplete,
   title = 'Keranjang',

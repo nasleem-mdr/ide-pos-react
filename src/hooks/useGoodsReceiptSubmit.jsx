@@ -14,6 +14,16 @@ import { getLoginInfo } from './useLoginInfo';
 //      C_Order_ID. Kalau campuran (beberapa PO / ada item manual), header
 //      C_Order_ID dibiarkan kosong — relasi tetap tercatat per-line lewat
 //      C_OrderLine_ID, jadi tidak ada data yang hilang.
+//
+// submitMode ('draft' | 'complete', default 'complete') — SAMA pola dengan
+// useRequisitionSubmit.jsx / usePurchaseOrderSubmit.jsx:
+//   - 'complete' -> doc-action 'CO' dipanggil setelah lines tersimpan
+//                   (workflow jalan, QtyDelivered di C_OrderLine ter-update).
+//   - 'draft'    -> TIDAK ada doc-action yang dipanggil -> M_InOut tetap
+//                   Drafted. PENTING: karena 3-way matching (update
+//                   QtyDelivered) baru terjadi saat dokumen di-Complete,
+//                   draft di sini murni "simpan dulu" — belum ada efek apa
+//                   pun ke C_OrderLine terkait sampai nanti di-Complete.
 // ─────────────────────────────────────────────────────────────────────────────
 export function useGoodsReceiptSubmit({ docTypeId, description, onError }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -24,6 +34,7 @@ export function useGoodsReceiptSubmit({ docTypeId, description, onError }) {
     vendorId,
     vendorLocationId,
     vendorName,
+    submitMode = 'complete',
   } = {}) => {
     if (cart.length === 0) {
       onError?.('Daftar penerimaan masih kosong!');
@@ -102,21 +113,37 @@ export function useGoodsReceiptSubmit({ docTypeId, description, onError }) {
         });
       }
 
-      // ── 3. Complete dokumen ────────────────────────────────────────────
-      const completedRes = await idempiereApi(`/models/m_inout/${inOutId}`, {
-        method: 'PUT',
-        body: JSON.stringify({ 'doc-action': 'CO' }),
-      });
+      // ── 3. Complete / biarkan Draft ─────────────────────────────────────
+      let docNo;
+      let statusLabel;
 
-      const docNo = completedRes.DocumentNo || `RCPT-${inOutId}`;
+      if (submitMode === 'complete') {
+        const completedRes = await idempiereApi(`/models/m_inout/${inOutId}`, {
+          method: 'PUT',
+          body: JSON.stringify({ 'doc-action': 'CO' }),
+        });
+        docNo = completedRes.DocumentNo || `RCPT-${inOutId}`;
+        statusLabel = 'Completed';
+      } else {
+        // submitMode === 'draft' — TIDAK memanggil doc-action apa pun.
+        // Header + lines sudah tersimpan di atas; dokumen tetap Drafted,
+        // QtyDelivered di C_OrderLine terkait BELUM ter-update sampai
+        // dokumen ini di-Complete nanti.
+        const draftRes = await idempiereApi(`/models/m_inout/${inOutId}?$select=DocumentNo,DocStatus`);
+        docNo = draftRes.DocumentNo || `RCPT-${inOutId}`;
+        statusLabel = 'Draft';
+      }
+
       return {
         documentNo:  docNo,
+        status:      statusLabel, // 'Draft' | 'Completed'
         date:        new Date().toLocaleString('id-ID'),
         vendorName:  vendorName || `#${vendorId}`,
         items:       [...cart],
       };
     } catch (err) {
-      onError?.('Gagal membuat Penerimaan Barang:\n\n' + err.message, 'Error');
+      const action = submitMode === 'complete' ? 'membuat' : 'menyimpan draft';
+      onError?.(`Gagal ${action} Penerimaan Barang:\n\n` + err.message, 'Error');
       return null;
     } finally {
       setIsSubmitting(false);

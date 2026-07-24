@@ -29,24 +29,33 @@ import { getLoginInfo } from './useLoginInfo';
 // sistem), karena bukan proses opname dan tidak menghasilkan variance.
 // Jangan resolve/fetch QtyOnHand untuk transaksi ini — cukup hardcode 0.
 //
-// ⚠️ MULTI-WAREHOUSE (baru): 1 dokumen M_Inventory (header) cuma boleh punya
+// ⚠️ MULTI-WAREHOUSE: 1 dokumen M_Inventory (header) cuma boleh punya
 // 1 M_Warehouse_ID, dan M_Locator_ID tiap line HARUS berada di dalam
-// warehouse header itu. Karena user sekarang bisa pilih gudang berbeda per
-// item di cart (lihat InternalUseCartItem → onWarehouseChange), submit()
-// di sini MENGELOMPOKKAN cart per item.M_Warehouse_ID dan membuat SATU
-// dokumen M_Inventory terpisah untuk tiap kelompok gudang.
+// warehouse header itu. Karena user bisa pilih gudang berbeda per item di
+// cart (lihat InternalUseCartItem → onWarehouseChange), submit() di sini
+// MENGELOMPOKKAN cart per item.M_Warehouse_ID dan membuat SATU dokumen
+// M_Inventory terpisah untuk tiap kelompok gudang.
+//
+// submitMode ('draft' | 'complete', default 'complete') — SAMA pola dengan
+// useRequisitionSubmit.jsx / usePurchaseOrderSubmit.jsx / useGoodsReceiptSubmit.jsx:
+//   - 'complete' -> doc-action 'CO' dipanggil utk SETIAP dokumen per-gudang.
+//   - 'draft'    -> TIDAK ada doc-action yang dipanggil sama sekali untuk
+//                   dokumen manapun -> semua dokumen per-gudang tetap
+//                   Drafted. Karena ini per-klik-tombol, submitMode berlaku
+//                   SAMA untuk semua kelompok gudang dalam 1 submit (tidak
+//                   bisa sebagian draft sebagian complete dalam 1 klik).
 //
 // Partial success: kalau salah satu kelompok gagal (mis. error validasi di
 // tengah proses Complete), kelompok gudang lain yang SUDAH berhasil
-// Complete TETAP dianggap sukses — proses tidak dihentikan di tengah jalan.
-// Item pada kelompok yang gagal dikembalikan lewat field `failed` supaya
-// Container bisa membiarkannya tetap di cart untuk di-retry, alih-alih
-// menghapus semuanya begitu saja.
+// diproses (draft ATAU complete) TETAP dianggap sukses — proses tidak
+// dihentikan di tengah jalan. Item pada kelompok yang gagal dikembalikan
+// lewat field `failed` supaya Container bisa membiarkannya tetap di cart
+// untuk di-retry, alih-alih menghapus semuanya begitu saja.
 // ─────────────────────────────────────────────────────────────────────────────
 export function useInternalUseSubmit({ docTypeId, description, onError }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const submit = useCallback(async (cart, { warehouseId: fallbackWarehouseId } = {}) => {
+  const submit = useCallback(async (cart, { warehouseId: fallbackWarehouseId, submitMode = 'complete' } = {}) => {
     if (cart.length === 0) {
       onError?.('Daftar pengambilan barang masih kosong!');
       return null;
@@ -159,14 +168,28 @@ export function useInternalUseSubmit({ docTypeId, description, onError }) {
           });
         }
 
-        // ── 3. Complete dokumen ─────────────────────────────────────
-        const completedRes = await idempiereApi(`/models/m_inventory/${inventoryId}`, {
-          method: 'PUT',
-          body: JSON.stringify({ 'doc-action': 'CO' }),
-        });
+        // ── 3. Complete / biarkan Draft ─────────────────────────────
+        let docNo;
+        let statusLabel;
+
+        if (submitMode === 'complete') {
+          const completedRes = await idempiereApi(`/models/m_inventory/${inventoryId}`, {
+            method: 'PUT',
+            body: JSON.stringify({ 'doc-action': 'CO' }),
+          });
+          docNo = completedRes.DocumentNo || `IU-${inventoryId}`;
+          statusLabel = 'Completed';
+        } else {
+          // submitMode === 'draft' — TIDAK memanggil doc-action apa pun.
+          // Header + lines sudah tersimpan; dokumen gudang ini tetap Drafted.
+          const draftRes = await idempiereApi(`/models/m_inventory/${inventoryId}?$select=DocumentNo,DocStatus`);
+          docNo = draftRes.DocumentNo || `IU-${inventoryId}`;
+          statusLabel = 'Draft';
+        }
 
         documents.push({
-          documentNo:    completedRes.DocumentNo || `IU-${inventoryId}`,
+          documentNo:    docNo,
+          status:        statusLabel, // 'Draft' | 'Completed'
           warehouseId:   group.warehouseId,
           warehouseName: group.warehouseName,
           date:          new Date().toLocaleString('id-ID'),
@@ -175,7 +198,7 @@ export function useInternalUseSubmit({ docTypeId, description, onError }) {
       } catch (err) {
         // Kelompok gudang ini gagal — LANJUT ke kelompok berikutnya,
         // jangan hentikan seluruh proses (partial success, bukan
-        // all-or-nothing), supaya dokumen yang sudah ter-Complete di
+        // all-or-nothing), supaya dokumen yang sudah berhasil diproses di
         // kelompok lain tidak "hilang" dari sisi user.
         failed.push({
           warehouseId:   group.warehouseId,
@@ -190,8 +213,9 @@ export function useInternalUseSubmit({ docTypeId, description, onError }) {
 
     if (documents.length === 0) {
       // Semua kelompok gagal.
+      const action = submitMode === 'complete' ? 'membuat' : 'menyimpan draft';
       onError?.(
-        'Gagal membuat dokumen Internal Use:\n\n' +
+        `Gagal ${action} dokumen Internal Use:\n\n` +
         failed.map(f => `• Gudang ${f.warehouseName || f.warehouseId}: ${f.error}`).join('\n'),
         'Error'
       );
@@ -200,7 +224,7 @@ export function useInternalUseSubmit({ docTypeId, description, onError }) {
 
     if (failed.length > 0) {
       onError?.(
-        `${failed.length} dari ${groups.size} dokumen gagal dibuat, sisanya berhasil:\n\n` +
+        `${failed.length} dari ${groups.size} dokumen gagal diproses, sisanya berhasil:\n\n` +
         failed.map(f =>
           `• Gudang ${f.warehouseName || f.warehouseId}: ${f.error}\n  Produk: ${f.items.map(i => i.Name).join(', ')}`
         ).join('\n\n') +

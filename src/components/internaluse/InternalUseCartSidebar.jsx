@@ -5,8 +5,10 @@ import { COLOR, RADIUS } from '../../utils/styleTokens';
 const InternalUseCartSidebar = ({
   cart, warehouses = [], onRemove, onQtyChange, onChargeClick, onUomChange, onWarehouseChange, onClearCart,
   totalItems, totalQty, missingChargeCount, summaryRight,
-  title = '📤 Daftar Pengambilan', submitLabel = '✅ AMBIL BARANG',
-  onSubmit, isSubmitting = false,
+  title = '📤 Daftar Pengambilan', 
+  submitLabelDraft = '✅ DRAFT', submitLabelComplete = '✅ COMPLETE',
+  onSubmitDraft, onSubmitComplete, 
+   isSubmitting = false,
   emptyLabel = 'Belum ada produk dipilih.',
   width = '380px',
 }) => {
@@ -64,7 +66,7 @@ const InternalUseCartSidebar = ({
         )}
       </div>
 
-      {totalItems > 0 && onSubmit && (
+      {totalItems > 0 && (onSubmitDraft || onSubmitComplete || onSubmit) && (
         <div style={{ borderTop: `1px solid ${COLOR.border}`, padding: '14px 16px', flexShrink: 0 }}>
           <div style={{
             background: '#f0f4ff', borderRadius: RADIUS.md, padding: '10px 14px',
@@ -89,18 +91,32 @@ const InternalUseCartSidebar = ({
             </div>
           )}
 
-          <button
-            onClick={onSubmit}
-            disabled={isSubmitting || missingChargeCount > 0}
-            style={{
-              background: (isSubmitting || missingChargeCount > 0) ? '#9ca3af' : COLOR.primary,
-              color: '#fff', border: 'none', padding: '14px', width: '100%',
-              borderRadius: RADIUS.md, fontWeight: 700, fontSize: '14px',
-              cursor: (isSubmitting || missingChargeCount > 0) ? 'not-allowed' : 'pointer',
-            }}
-          >
-            {isSubmitting ? '⏳ Memproses...' : submitLabel}
-          </button>
+            <div style={{ display: 'flex', gap: '10px' }}>
+            <button
+                onClick={onSubmitDraft}
+                disabled={isSubmitting || missingChargeCount > 0}
+                style={{
+                    background: (isSubmitting || missingChargeCount > 0) ? '#9ca3af' : COLOR.success,
+                    color: '#fff', border: 'none', padding: '14px', width: '100%',
+                    borderRadius: RADIUS.md, fontWeight: 700, fontSize: '14px',
+                    cursor: (isSubmitting || missingChargeCount > 0) ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {isSubmitting ? '⏳ Memproses...' : submitLabelDraft}
+              </button>
+              <button
+                    onClick={onSubmitComplete}
+                  disabled={isSubmitting || missingChargeCount > 0}
+                style={{
+                  background: (isSubmitting || missingChargeCount > 0) ? '#9ca3af' : COLOR.primary,
+                  color: '#fff', border: 'none', padding: '14px', width: '100%',
+                  borderRadius: RADIUS.md, fontWeight: 700, fontSize: '14px',
+                  cursor: (isSubmitting || missingChargeCount > 0) ? 'not-allowed' : 'pointer',
+                }}
+                >
+                {isSubmitting ? '⏳ Memproses...' : submitLabelComplete}
+              </button>
+            </div>
         </div>
       )}
     </div>

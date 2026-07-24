@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 import Dialog from '../components/common/Dialog';
 import CartFab from '../components/cart/CartFab';
@@ -20,7 +20,7 @@ import { useProductSearch } from '../hooks/useProductSearch';
 import { useIsDesktop } from '../hooks/useIsDesktop';
 import { getLoginInfo, getMissingSessionFields } from '../hooks/useLoginInfo';
 import { resolveDocTypeId, DOC_BASE_TYPE } from '../utils/docTypeResolver';
-import { idempiereApi } from '../utils/idempiereApi';
+import { idempiereApi, fkId } from '../utils/idempiereApi';
 
 import { COLOR, RADIUS } from '../utils/styleTokens';
 import '../css/Header.css';
@@ -36,6 +36,7 @@ const PURCHASING_CONFIG = {
 
 const PurchasingContainer = () => {
   const navigate  = useNavigate();
+  const location  = useLocation();
   const isDesktop = useIsDesktop();
 
   const [warehouseInfo, setWarehouseInfo] = useState(null);
@@ -54,6 +55,15 @@ const PurchasingContainer = () => {
   // Vendor picker per-baris cart — vendorPickerTarget = itemKey baris yang
   // sedang diganti vendornya (null = modal tertutup).
   const [vendorPickerTarget, setVendorPickerTarget] = useState(null);
+
+  // ── Mode edit PO (dikirim dari PurchasingList.jsx via navigate state) ──
+  // editOrder di sana SELALU 1 vendor / 1 DocumentNo (hasil split per
+  // vendor saat submit normal), jadi tidak perlu handling multi-vendor
+  // di sisi loader ini.
+  const [editOrderId, setEditOrderId]         = useState(null);
+  const [editOrderDocNo, setEditOrderDocNo]   = useState(null);
+  const [editOrderStatus, setEditOrderStatus] = useState(null);
+  const [loadingEditOrder, setLoadingEditOrder] = useState(false);
 
   const searchRef = useRef(null);
   const alert = (message, title = 'Perhatian') => setDialog({ isOpen: true, title, message });
@@ -104,6 +114,131 @@ const PurchasingContainer = () => {
     init();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // ── Load PO untuk mode edit (dikirim dari PurchasingList.jsx) ──────────
+  // editOrder yang dikirim HANYA berisi field header C_Order (lihat
+  // handleEdit() di PurchasingList.jsx) — TIDAK ada line item-nya. Jadi di
+  // sini kita fetch C_OrderLine + cari M_RequisitionLine yang masih
+  // ter-link (kalau ada) supaya link FPB tidak hilang saat di-submit ulang.
+  useEffect(() => {
+    const editOrder = location.state?.editOrder;
+    if (!editOrder) return;
+
+    const loadEditOrder = async () => {
+      setLoadingEditOrder(true);
+      try {
+        const orderId    = editOrder.id ?? editOrder.C_Order_ID;
+        const vendorId    = fkId(editOrder.C_BPartner_ID) ?? editOrder.C_BPartner_ID?.id;
+        const vendorName  = editOrder.C_BPartner_ID?.identifier || editOrder.C_BPartner_ID?.Name || '';
+        const vendorLocId = fkId(editOrder.C_BPartner_Location_ID) ?? editOrder.C_BPartner_Location_ID?.id ?? null;
+
+        if (!orderId || !vendorId) {
+          throw new Error('Data PO tidak lengkap (ID atau vendor tidak ditemukan).');
+        }
+
+        // ── Ambil semua line PO ini ──────────────────────────────────────
+        const linesRes = await idempiereApi(
+          `/models/c_orderline?$filter=C_Order_ID eq ${orderId}` +
+          `&$select=C_OrderLine_ID,M_Product_ID,C_UOM_ID,QtyEntered,QtyOrdered,PriceEntered,PriceActual`
+        );
+        const lines = Array.isArray(linesRes.records) ? linesRes.records : [];
+        if (lines.length === 0) {
+          throw new Error('PO ini tidak memiliki baris item — tidak bisa diedit dari sini.');
+        }
+
+        // ── Cari FPB (M_RequisitionLine) yang masih ter-link ke line² ini ─
+        // supaya kalau nanti disubmit ulang, link-nya tidak hilang begitu
+        // saja (lihat usePurchaseOrderSubmit.jsx mode edit).
+        const lineIds = lines.map(l => l.id ?? l.C_OrderLine_ID);
+        const filterStr = lineIds.map(id => `C_OrderLine_ID eq ${id}`).join(' or ');
+        const linkedRes = await idempiereApi(
+          `/models/m_requisitionline?$filter=${filterStr}&$select=M_RequisitionLine_ID,C_OrderLine_ID`
+        );
+        const linkedReqLines = Array.isArray(linkedRes.records) ? linkedRes.records : [];
+        const reqLineByOrderLine = new Map();
+        linkedReqLines.forEach(rl => {
+          const olId = fkId(rl.C_OrderLine_ID) ?? rl.C_OrderLine_ID?.id;
+          if (olId != null) reqLineByOrderLine.set(String(olId), rl.id ?? rl.M_RequisitionLine_ID);
+        });
+
+        // ── Detail produk (Name, UOM dasar) per produk unik di line² ini ─
+        const productIds = [...new Set(lines.map(l => fkId(l.M_Product_ID) ?? l.M_Product_ID?.id))];
+        const productMap = new Map();
+        await Promise.all(productIds.map(async (pid) => {
+          try {
+            const p = await idempiereApi(`/models/m_product/${pid}?$select=M_Product_ID,Name,C_UOM_ID`);
+            productMap.set(String(pid), p);
+          } catch { /* fallback pakai identifier dari line kalau gagal */ }
+        }));
+
+        const cartItems = lines.map(line => {
+          const lineId     = line.id ?? line.C_OrderLine_ID;
+          const productId  = fkId(line.M_Product_ID) ?? line.M_Product_ID?.id;
+          const product    = productMap.get(String(productId));
+          const uomId       = fkId(line.C_UOM_ID) ?? line.C_UOM_ID?.id;
+          const baseUomId   = product?.C_UOM_ID ? (fkId(product.C_UOM_ID) ?? product.C_UOM_ID?.id) : uomId;
+          const qtyEntered  = parseFloat(line.QtyEntered ?? line.QtyOrdered ?? 0);
+          const qtyOrdered  = parseFloat(line.QtyOrdered ?? qtyEntered);
+          const reqLineId   = reqLineByOrderLine.get(String(lineId)) || null;
+
+          return {
+            M_Product_ID: productId,
+            Name:         product?.Name || line.M_Product_ID?.identifier || `Produk #${productId}`,
+            C_UOM_ID:     uomId,
+            UomName:      line.C_UOM_ID?.identifier || '',
+            BaseUOM_ID:   baseUomId,
+            BaseUOMName:  '',
+            UnitsPerBaseUom: (qtyEntered > 0 && qtyOrdered > 0) ? (qtyOrdered / qtyEntered) : 1,
+            Qty:          qtyEntered,
+            Price:        parseFloat(line.PriceEntered ?? line.PriceActual ?? 0),
+            C_BPartner_ID: vendorId,
+            VendorName:    vendorName,
+            C_BPartner_Location_ID: vendorLocId,
+            // Kalau line ini masih ter-link ke FPB, bawa referensinya supaya
+            // usePurchaseOrderSubmit.jsx bisa re-link/re-mark saat submit ulang.
+            ...(reqLineId ? { sourceRequisitionLineId: reqLineId, BaseQty: qtyOrdered } : {}),
+          };
+        });
+
+        clearCart();
+        addItems(cartItems);
+        setDescription(editOrder.Description || '');
+        setEditOrderId(orderId);
+        setEditOrderDocNo(editOrder.DocumentNo || `#${orderId}`);
+        setEditOrderStatus(editOrder.DocStatus?.id ?? editOrder.DocStatus ?? null);
+
+        // PO yang diedit mengikat ke gudangnya sendiri (M_Warehouse_ID) —
+        // pakai itu, bukan gudang default user login, supaya konsisten.
+        const orderWarehouseId = fkId(editOrder.M_Warehouse_ID) ?? editOrder.M_Warehouse_ID?.id;
+        if (orderWarehouseId) {
+          try {
+            const wh = await idempiereApi(`/models/m_warehouse/${orderWarehouseId}?$select=M_Warehouse_ID,Name`);
+            setWarehouseInfo({ id: orderWarehouseId, name: wh.Name || `WH #${orderWarehouseId}` });
+          } catch {
+            setWarehouseInfo({ id: orderWarehouseId, name: `WH #${orderWarehouseId}` });
+          }
+        }
+
+        // Bersihkan location.state supaya refresh/back tidak reload ulang.
+        navigate(location.pathname, { replace: true, state: {} });
+      } catch (err) {
+        alert('Gagal memuat data PO untuk diedit:\n' + err.message, 'Error');
+      } finally {
+        setLoadingEditOrder(false);
+      }
+    };
+
+    loadEditOrder();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.state]);
+
+  const handleCancelEdit = useCallback(() => {
+    clearCart();
+    setDescription('');
+    setEditOrderId(null);
+    setEditOrderDocNo(null);
+    setEditOrderStatus(null);
+  }, [clearCart]);
 
   const openProductDetail = useCallback((product) => {
     setSelectedProduct(product);
@@ -198,30 +333,43 @@ const PurchasingContainer = () => {
   }, [addItems]);
 
   const handleVendorClick = useCallback((item, itemKey) => {
+    if (editOrderId) {
+      alert(
+        'Vendor tidak bisa diganti saat mode edit PO.\nBatalkan edit dulu (tombol "Batalkan Edit") kalau memang perlu vendor lain.',
+        'Mode Edit'
+      );
+      return;
+    }
     setVendorPickerTarget(itemKey);
-  }, []);
+  }, [editOrderId]);
 
   const handleVendorPicked = useCallback((vendor) => {
     if (vendorPickerTarget) updateVendor(vendorPickerTarget, vendor);
     setVendorPickerTarget(null);
   }, [vendorPickerTarget, updateVendor]);
-  const handleSubmit = async (mode = 'complete') => {
+
+  const handleSubmit = async (submitMode = 'complete') => {
     const { results, hadError } = await submit(cart, {
       warehouseId: warehouseInfo?.id,
-      description, mode,
+      description,
+      submitMode,
+      editOrderId,   // ← null di mode normal, terisi di mode edit
     });
     if (!results || results.length === 0) return;
   
     setSuccessData(results);
     clearCart();
     setCartOpen(false);
+    setEditOrderId(null);
+    setEditOrderDocNo(null);
+    setEditOrderStatus(null);
   
-    if (hadError) {
-      setPendingSuccessOpen(true);
-    } else {
-      setSuccessOpen(true);
-    }
+    if (hadError) setPendingSuccessOpen(true);
+    else setSuccessOpen(true);
   };
+  
+  const handleSubmitDraft    = () => handleSubmit('draft');
+  const handleSubmitComplete = () => handleSubmit('complete');
 
   const cartSummaryRight = `📦 ${warehouseInfo?.name || '...'}`;
 
@@ -303,6 +451,36 @@ const PurchasingContainer = () => {
         </span>
       </div>
 
+      {loadingEditOrder && (
+        <div style={{
+          background: '#e0f2fe', color: '#075985', fontSize: '12px', fontWeight: 600,
+          padding: '8px 14px', textAlign: 'center', flexShrink: 0,
+        }}>
+          ⏳ Memuat data PO untuk diedit...
+        </div>
+      )}
+
+      {editOrderId && !loadingEditOrder && (
+        <div style={{
+          background: '#fff3cd', color: '#856404', fontSize: '12px', fontWeight: 600,
+          padding: '8px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          gap: '8px', flexWrap: 'wrap', borderBottom: '1px solid #ffe69c', flexShrink: 0,
+        }}>
+          <span>
+            ✏️ Mode Edit — PO {editOrderDocNo}
+            {editOrderStatus === 'NA' ? ' (Revisi dokumen ditolak)' : ''}
+          </span>
+          <button
+            onClick={handleCancelEdit}
+            style={{
+              background: 'transparent', border: '1px solid #856404', color: '#856404',
+              borderRadius: RADIUS.sm, padding: '4px 10px', fontSize: '11px',
+              cursor: 'pointer', fontWeight: 700, WebkitTapHighlightColor: 'transparent',
+            }}
+          >Batalkan Edit</button>
+        </div>
+      )}
+
       {/* Body */}
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0 }}>
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
@@ -356,12 +534,17 @@ const PurchasingContainer = () => {
             </button>
 
             <button
-              onClick={() => setImportOpen(true)}
-              title="Import dari FPB yang sudah Approved"
+              onClick={() => { if (!editOrderId) setImportOpen(true); }}
+              disabled={!!editOrderId}
+              title={editOrderId
+                ? 'Import FPB tidak tersedia saat mode edit PO (batalkan edit dulu)'
+                : 'Import dari FPB yang sudah Approved'}
               style={{
-                background: COLOR.success, border: 'none', color: '#fff',
-                borderRadius: RADIUS.md, padding: '10px 14px', cursor: 'pointer',
+                background: editOrderId ? '#9ca3af' : COLOR.success, border: 'none', color: '#fff',
+                borderRadius: RADIUS.md, padding: '10px 14px',
+                cursor: editOrderId ? 'not-allowed' : 'pointer',
                 fontSize: '18px', lineHeight: 1, flexShrink: 0, WebkitTapHighlightColor: 'transparent',
+                opacity: editOrderId ? 0.7 : 1,
               }}
             >📥</button>
           </div>
@@ -404,6 +587,7 @@ const PurchasingContainer = () => {
           <POCartSidebar
             isOpen={cartOpen}
             onClose={() => setCartOpen(false)}
+            title={editOrderId ? `✏️ Edit PO ${editOrderDocNo}` : '🧾 Daftar Purchase Order'}
             vendorGroups={vendorGroups}
             onRemove={removeItem}
             onQtyChange={updateQty}
@@ -413,8 +597,8 @@ const PurchasingContainer = () => {
             totalItems={totalItems}
             totalAmount={totalAmount}
             summaryRight={cartSummaryRight}
-            onSubmitDraft={canSubmitPO ? handleSubmit : undefined}
-            onSubmitComplete={canSubmitPO ? handleSubmit : undefined}
+            onSubmitDraft={canSubmitPO ? handleSubmitDraft : undefined}
+            onSubmitComplete={canSubmitPO ? handleSubmitComplete : undefined}
             isSubmitting={isSubmitting}
             description={description}
             onDescriptionChange={canSubmitPO ? setDescription : undefined}
@@ -431,6 +615,7 @@ const PurchasingContainer = () => {
         <POCartPanel
           isOpen={cartOpen}
           onClose={() => setCartOpen(false)}
+          title={editOrderId ? `✏️ Edit PO ${editOrderDocNo}` : '🧾 Daftar Purchase Order'}
           vendorGroups={vendorGroups}
           onRemove={removeItem}
           onQtyChange={updateQty}
@@ -440,8 +625,8 @@ const PurchasingContainer = () => {
           totalItems={totalItems}
           totalAmount={totalAmount}
           summaryRight={cartSummaryRight}
-          onSubmitDraft={canSubmitPO ? handleSubmit : undefined}
-          nSubmitComplete={canSubmitPO ? handleSubmit : undefined}
+          onSubmitDraft={canSubmitPO ? handleSubmitDraft : undefined}
+          onSubmitComplete={canSubmitPO ? handleSubmitComplete : undefined}
           isSubmitting={isSubmitting}
         />
       )}

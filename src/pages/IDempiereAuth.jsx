@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { ArrowIcon, EyeIcon, CheckIcon, AlertIcon, LogoIconW, LogoSMA, LogoSMAWarna, LogoIconP } from '../components/Icons';
+import { ArrowIcon, EyeIcon, CheckIcon, AlertIcon, LogoIconW } from '../components/Icons';
 import { useNavigate } from 'react-router-dom';
 import { apiLogin, apiGetRoles, apiGetOrganizations, normaliseList, apiGetWarehouses, apiSetSession, sortById} from '../utils/idempiereAuth';
 import '../css/Login.css';
@@ -218,9 +218,9 @@ export default function IDempiereAuth({ onLoginSuccess }) {
           <div className="left-content">
             {/* Brand / Logo */}
             <div className="brand">
-              <div className="logo-container"><LogoIconP /></div>
+              <div className="logo-container"><LogoIconW size={40} /></div>
               <div className="brand-text">
-                <div className="brand-name">ProcureGrid</div>
+                <div className="brand-name">Procure<em>Grid</em></div>
                 <div className="brand-sub">Part of IDempiere</div>
               </div>
               <button className="hamburger-btn" onClick={() => setLeftOpen(!leftOpen)}>
@@ -264,9 +264,9 @@ export default function IDempiereAuth({ onLoginSuccess }) {
         {step === 1 && (
           <div className="card slide-enter">
             <div className="brand">
-              <div><LogoIconP /></div>
+              <div><LogoIconW size={40}/></div>
               <div>
-                <div className="brand-name">ProcureGrid</div>
+                <div className="brand-name">Procure<em>Grid</em></div>
                 <div className="brand-sub">Procurement Application</div>
               </div>
             </div>

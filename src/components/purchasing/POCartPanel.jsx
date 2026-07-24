@@ -155,34 +155,36 @@ const POCartPanel = ({
               </div>
             )}
             <div style={{ display: 'flex', gap: '10px' }}>
-            <button
-              onClick={onSubmitDraft}
-              disabled={isSubmitting || hasIncompleteVendor}
-              style={{
-                background: (isSubmitting || hasIncompleteVendor) ? '#9ca3af' : COLOR.primary,
-                color: '#fff', border: 'none', padding: '14px', width: '100%',
-                borderRadius: RADIUS.md, fontWeight: 700, fontSize: '14px',
-                cursor: (isSubmitting || hasIncompleteVendor) ? 'not-allowed' : 'pointer',
-              }}
-            >
-              {isSubmitting
-                ? '⏳ Memproses...'
-                : `✅ DRAFT ${vendorCount} PO${vendorCount > 1 ? ' (terpisah)' : ''}`}
-            </button>
-            <button
-              onClick={onSubmitComplete}
-              disabled={isSubmitting || hasIncompleteVendor}
-              style={{
-                background: (isSubmitting || hasIncompleteVendor) ? '#9ca3af' : COLOR.primary,
-                color: '#fff', border: 'none', padding: '14px', width: '100%',
-                borderRadius: RADIUS.md, fontWeight: 700, fontSize: '14px',
-                cursor: (isSubmitting || hasIncompleteVendor) ? 'not-allowed' : 'pointer',
-              }}
-            >
-              {isSubmitting
-                ? '⏳ Memproses...'
-                : `✅ COMPLETE ${vendorCount} PO${vendorCount > 1 ? ' (terpisah)' : ''}`}
-            </button>
+              <button
+                onClick={onSubmitDraft}
+                disabled={isSubmitting || hasIncompleteVendor}
+                style={{
+                  background: (isSubmitting || hasIncompleteVendor) ? '#f3f4f6' : '#fff',
+                  color: (isSubmitting || hasIncompleteVendor) ? '#9ca3af' : COLOR.primary,
+                  border: `1.5px solid ${(isSubmitting || hasIncompleteVendor) ? '#d1d5db' : COLOR.primary}`,
+                  padding: '14px', width: '100%',
+                  borderRadius: RADIUS.md, fontWeight: 700, fontSize: '14px',
+                  cursor: (isSubmitting || hasIncompleteVendor) ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {isSubmitting
+                  ? '⏳ Memproses...'
+                  : `📝 DRAFT ${vendorCount} PO${vendorCount > 1 ? ' (terpisah)' : ''}`}
+              </button>
+              <button
+                onClick={onSubmitComplete}
+                disabled={isSubmitting || hasIncompleteVendor}
+                style={{
+                  background: (isSubmitting || hasIncompleteVendor) ? '#9ca3af' : '#16a34a',
+                  color: '#fff', border: 'none', padding: '14px', width: '100%',
+                  borderRadius: RADIUS.md, fontWeight: 700, fontSize: '14px',
+                  cursor: (isSubmitting || hasIncompleteVendor) ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {isSubmitting
+                  ? '⏳ Memproses...'
+                  : `✅ COMPLETE ${vendorCount} PO${vendorCount > 1 ? ' (terpisah)' : ''}`}
+              </button>
             </div>
           </div>
         )}

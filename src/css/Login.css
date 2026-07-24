@@ -66,7 +66,11 @@
     color: #e6edf3;
     letter-spacing: 0.2px;
   }
-
+  .brand-name em {
+    font-size: 22px;
+    color: #1f6feb;
+    letter-spacing: 0.2px;
+  }
   .brand-sub {
     font-size: 11px;
     color: #8b949e;
