@@ -1,4 +1,4 @@
-# IDE Procurement & POS System (React + iDempiere REST Integration)
+# ProcureGrid & POS System (React + iDempiere REST Integration)
 
 Aplikasi klien berbasis React yang awalnya dibangun untuk sistem Kasir (*Point of Sale*), kini telah dikembangkan menjadi modul **Procurement (Pengadaan Barang)** ujung-ke-ujung yang terintegrasi langsung dengan **iDempiere ERP REST API**.
 
