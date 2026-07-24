@@ -22,6 +22,7 @@ import ProductList from "./pages/ProductList";
 import GoodsReceiptContainer from './pages/GoodsReceiptContainer';
 import PurchasingContainer from './pages/PurchasingContainer';
 import InternalUseContainer from './pages/InternalUseContainer';
+import BookingTimeline from './pages/BookingTimeline';
 import './css/AppLayout.css'; // Pastikan mengimpor file CSS layout Anda
 
 export default function App() {
@@ -73,6 +74,7 @@ export default function App() {
                       <Routes>
                         <Route path="/" element={<Navigate to="/dashboard" replace />} />
                         <Route path="/dashboard" element={<Dashboard session={session} />} />
+                        <Route path="/booking" element={<BookingTimeline session={session} resourceTypeId={1000000} docTypeTargetId={1000210}/> } />
                          {/* ===== Master ===== */}
                         <Route path="/business-partner" element={
                           <ProtectedRoute windowKey="businessPartner">

@@ -8,6 +8,9 @@
 // Kalau sebuah halaman TIDAK terdaftar di sini, defaultnya dianggap
 // "tidak butuh AD_Window_Access" (lihat hasAccess() di AccessContext) —
 // jadi pastikan semua halaman yang ingin dibatasi role didaftarkan.
+
+import BookingTimeline from "../pages/BookingTimeline";
+
 // ─────────────────────────────────────────────────────────────────────────────
 export const WINDOW_ACCESS_MAP = {
   dashboard:            null,
@@ -20,6 +23,7 @@ export const WINDOW_ACCESS_MAP = {
   goodsReceipt:         null,
   purchasing:           null,
   internalUse:          null,
+  booking:              null,
 
   // ===== List / Report =====
   requisitionList:      null, 

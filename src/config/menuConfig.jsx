@@ -11,6 +11,7 @@ export const menuSections = [
             { key: 'purchasing',    windowKey: 'purchasing',   path: '/purchasing',     label: 'Purchasing',    icon: <ShoppingCartIcon /> },
             { key: 'goodsReceipt',  windowKey: 'goodsReceipt', path: '/goods-receipt', label: 'Goods Receipt', icon: <DeliveryIcon /> },
             { key: 'internalUse',   windowKey: 'internalUse',  path: '/internal-use',  label: 'Internal Use',  icon: <UserTake /> },
+            { key: 'booking',       windowKey: 'booking', path: '/booking',  label: 'Booking Timeline',  icon: <UserTake /> },
         ]
     },
     {

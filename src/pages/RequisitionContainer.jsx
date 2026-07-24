@@ -21,8 +21,7 @@ import ProductCard from '../components/product/ProductCard';
 import ProductDetailSheet from '../components/product/ProductDetailSheet';
 import BarcodeScanner from '../components/scanner/BarcodeScanner';
 import RequisitionSuccessModal from '../components/requisition/RequisitionSuccessModal';
-import { HomeIcon } from '../components/Icons';
-
+import { HomeIcon, RequisitionIcon} from '../components/Icons'; 
 // 5. Utils
 import { idempiereApi, fkId } from '../utils/idempiereApi';
 import { resolveDocTypeId, DOC_BASE_TYPE } from '../utils/docTypeResolver';
@@ -342,7 +341,7 @@ const RequisitionContainer = () => {
         ><HomeIcon /></button>
 
         <span style={{ color: '#fff', fontWeight: 700, fontSize: '15px', flex: 1 }}>
-          📋 Requisition
+          <RequisitionIcon />Requisition
         </span>
 
         <select
