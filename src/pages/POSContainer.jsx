@@ -7,6 +7,8 @@ import ConfirmModal from '../components/ConfirmModal';
 import PaymentModal from '../components/PaymentModal';
 import ReceiptModal from '../components/ReceiptModal';
 import { useAccess } from '../context/AccessContext';
+import { idempiereApi } from '../utils/idempiereApi';
+import { useIsDesktop } from '../hooks/useIsDesktop';
 
 const POSContainer = () => {
      // 1. State untuk kontrol Loading & Data POS
@@ -73,41 +75,41 @@ const DIALOG_CLOSED = {
     const [searchValue, setSearchValue] = useState(""); // Controlled value untuk input search
 
     // ─── API helper ───────────────────────────────────────────────────────────
-    const customFetch = async (url, options = {}) => {
-        const token    = localStorage.getItem("token");
-        const fullUrl  = `${API_BASE}${url}`;
-        const response = await fetch(fullUrl, {
-            ...options,
-            headers: {
-                ...options.headers,
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json',
-            },
-        });
-        if (!response.ok) {
-            const rawText   = await response.text().catch(() => '');
-            let errorData   = {};
-            try { errorData = JSON.parse(rawText); } catch (_) {}
+    // const customFetch = async (url, options = {}) => {
+    //     const token    = localStorage.getItem("token");
+    //     const fullUrl  = `${API_BASE}${url}`;
+    //     const response = await fetch(fullUrl, {
+    //         ...options,
+    //         headers: {
+    //             ...options.headers,
+    //             'Authorization': `Bearer ${token}`,
+    //             'Content-Type': 'application/json',
+    //         },
+    //     });
+    //     if (!response.ok) {
+    //         const rawText   = await response.text().catch(() => '');
+    //         let errorData   = {};
+    //         try { errorData = JSON.parse(rawText); } catch (_) {}
 
-            const errMsg =
-                errorData.message  ||
-                errorData.Message  ||
-                errorData.error    ||
-                errorData.Error    ||
-                errorData.detail   ||
-                rawText            ||
-                `HTTP ${response.status}`;
+    //         const errMsg =
+    //             errorData.message  ||
+    //             errorData.Message  ||
+    //             errorData.error    ||
+    //             errorData.Error    ||
+    //             errorData.detail   ||
+    //             rawText            ||
+    //             `HTTP ${response.status}`;
 
-            console.error(`❌ API Error [${response.status}] ${options.method || 'GET'} ${fullUrl}`);
-            console.error('Response body:', rawText);
-            if (options.body) {
-                console.error('Request payload:', options.body);
-            }
+    //         console.error(`❌ API Error [${response.status}] ${options.method || 'GET'} ${fullUrl}`);
+    //         console.error('Response body:', rawText);
+    //         if (options.body) {
+    //             console.error('Request payload:', options.body);
+    //         }
 
-            throw new Error(`[${response.status}] ${errMsg}`);
-        }
-        return response.json();
-    };
+    //         throw new Error(`[${response.status}] ${errMsg}`);
+    //     }
+    //     return response.json();
+    // };
 
     // ─── 1. Init (mengambil data C_POS) ──────────────────────────────────────
     useEffect(() => {
@@ -116,7 +118,7 @@ const DIALOG_CLOSED = {
                 const loginUserId = localStorage.getItem("AD_User_ID");
                 if (!loginUserId) { triggerAlert("Sesi user tidak ditemukan."); setLoading(false); return; }
 
-                const data = await customFetch(
+                const data = await idempiereApi(
                     `/models/c_pos?$filter=SalesRep_ID eq ${loginUserId}`
                 );
 
@@ -163,7 +165,11 @@ const DIALOG_CLOSED = {
                 setLoading(false);
             }
         };
-        initPOS();
+        //initPOS();
+        initPOS().catch((err) => {
+        if (err?.name === 'AbortError') return; // abaikan, ini normal (StrictMode dev / unmount)
+        console.error("initPOS gagal:", err.message);
+    });
     }, []);
      // ─── Load draft order jika dari SalesOrderPage ────────────────────────────
      useEffect(() => {
@@ -191,7 +197,7 @@ const DIALOG_CLOSED = {
                  if (plId) setSelectedPriceList({ id: plId, name: plName });
      
                  // Fetch order lines
-                 const linesRes = await customFetch(
+                 const linesRes = await idempiereApi(
                      `/models/c_orderline?$filter=C_Order_ID eq ${orderId}` +
                      `&$select=C_OrderLine_ID,M_Product_ID,QtyEntered,PriceActual,PriceEntered,C_UOM_ID`
                  );
@@ -232,13 +238,24 @@ const DIALOG_CLOSED = {
              }
          };
      
-         loadDraftOrder();
+         //loadDraftOrder();
+         loadDraftOrder().catch((err) => {
+            if (err?.name === 'AbortError') return;
+            console.error("Gagal load draft order:", err.message);
+        });
      }, [posConfig]); // ← trigger setelah posConfig ready
      
+    useEffect(() => {
+        return () => {
+            clearTimeout(debounceRef.current);
+            abortRef.current?.abort();
+        };
+    }, []);
+
     // ─── 1b. Fetch opsi BPartner untuk combobox ──────────────────────────────
     const fetchBPartnerOptions = async () => {
         try {
-            const res = await customFetch(
+            const res = await idempiereApi(
                 `/models/c_bpartner?$filter=IsActive eq true and IsCustomer eq true&$select=C_BPartner_ID,Name&$orderby=Name&$top=100`
             );
             const records = Array.isArray(res.records) ? res.records : [];
@@ -260,7 +277,7 @@ const DIALOG_CLOSED = {
             const filter  = adOrgId
                 ? `IsActive eq true and (AD_Org_ID eq 0 or AD_Org_ID eq ${adOrgId})`
                 : `IsActive eq true`;
-            const res = await customFetch(
+            const res = await idempiereApi(
                 `/models/m_pricelist?$filter=${filter}&$select=M_PriceList_ID,Name&$orderby=Name&$top=50`
             );
             const records = Array.isArray(res.records) ? res.records : [];
@@ -282,15 +299,101 @@ const DIALOG_CLOSED = {
     };
 
     // ─── 1e. Handler ganti PriceList → reload produk ─────────────────────────
+    
     const handlePriceListChange = async (e) => {
         const id   = parseInt(e.target.value, 10);
         const name = e.target.options[e.target.selectedIndex].text;
         setSelectedPriceList({ id, name });
-        await fetchProducts("", id);
+        try {
+            await fetchProducts("", id);
+        } catch (err) {
+            if (err?.name !== 'AbortError') console.error(err);
+        }
     };
+    // Ambil M_PriceList_Version_ID aktif dari sebuah price list
+const fetchActiveVersionId = async (priceListId, signal) => {
+    const versionRes = await idempiereApi(
+        `/models/m_pricelist_version?$filter=M_PriceList_ID eq ${priceListId}` +
+        ` and IsActive eq true&$orderby=ValidFrom desc&$top=1`,
+        { signal }
+    );
+    return versionRes?.records?.[0]?.id
+        || versionRes?.records?.[0]?.M_PriceList_Version_ID?.id
+        || versionRes?.records?.[0]?.M_PriceList_Version_ID
+        || null;
+};
 
+// Ambil produk + harga + stok berdasarkan filter & version yang sudah diketahui.
+// Dipakai oleh fetchProducts (grid awal/search debounce) dan handleSearchEnter (barcode/Enter).
+const resolveProducts = async (productFilter, versionId, config, signal) => {
+    const [priceData, productData] = await Promise.all([
+        idempiereApi(
+            `/models/m_productprice?$filter=M_PriceList_Version_ID eq ${versionId}` +
+            `&$select=M_Product_ID,PriceStd`,
+            { signal }
+        ),
+        idempiereApi(
+            `/models/m_product?$select=M_Product_ID,Name,Value,C_UOM_ID,M_Product_Category_ID,ProductType` +
+            `&$filter=${productFilter}&$top=50`,
+            { signal }
+        ),
+    ]);
+
+    const productRecords = Array.isArray(productData.records)
+        ? productData.records
+        : productData.records ? [productData.records] : [];
+
+    const relevantIds = new Set(
+        productRecords.map(p => p.M_Product_ID?.id ?? p.M_Product_ID ?? p.id)
+    );
+    const rawPriceRecords = Array.isArray(priceData.records)
+        ? priceData.records
+        : priceData.records ? [priceData.records] : [];
+
+    const priceMap = new Map();
+    rawPriceRecords
+        .filter(p => relevantIds.has(p.M_Product_ID?.id ?? p.M_Product_ID))
+        .forEach(p => {
+            const pid = p.M_Product_ID?.id ?? p.M_Product_ID;
+            if (pid != null) priceMap.set(pid, p.PriceStd);
+        });
+
+    const productIds   = [...relevantIds];
+    const qtyOnHandMap = await fetchQtyOnHandBatch(productIds, config);
+
+    return productRecords.map((p) => {
+        const pId  = p.M_Product_ID?.id ?? p.M_Product_ID ?? p.id;
+        const price = priceMap.get(pId);
+        if (price === undefined) return null;
+
+        return {
+            M_Product_ID:    pId,
+            Name:            p.Name,
+            Value:           p.Value,
+            PriceActual:     price ?? 0,
+            basePrice:       price ?? 0,
+            defaultUOM: {
+                id:           p.C_UOM_ID?.id ?? p.C_UOM_ID,
+                name:         p.C_UOM_ID?.Name || p.C_UOM_ID?.identifier || 'EA',
+                multiplyRate: 1,
+            },
+            ProductCategory: {
+                id:   p.M_Product_Category_ID?.id ?? p.M_Product_Category_ID,
+                name: p.M_Product_Category_ID?.Name || p.M_Product_Category_ID?.identifier || 'N/A',
+            },
+            ProductType:  p.ProductType?.id ?? p.ProductType ?? null,
+            QtyOnHand:    qtyOnHandMap.get(pId) ?? 0,
+        };
+    }).filter(Boolean);
+};
     // ─── 2. Fetch products ────────────────────────────────────────────────────
+    const isDesktop = useIsDesktop();
+    const abortRef = useRef(null);
     const fetchProducts = async (query = "", priceListId = null, terminalConfig = null) => {
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     try {
         setLoading(true);
         setVersionMissing(false);
@@ -300,98 +403,29 @@ const DIALOG_CLOSED = {
         const finalPriceListId = typeof rawPriceId === 'object' ? rawPriceId?.id : rawPriceId;
         if (!finalPriceListId) { console.error("PriceList ID tidak ditemukan"); return; }
 
-        // ── Step 1: Ambil version (harus duluan karena jadi dependency) ──────
-        const versionRes = await customFetch(
-            `/models/m_pricelist_version?$filter=M_PriceList_ID eq ${finalPriceListId}` +
-            ` and IsActive eq true&$orderby=ValidFrom desc&$top=1`
-        );
-        const activeVersion = versionRes?.records?.[0];
-        if (!activeVersion) {
+        const versionId = await fetchActiveVersionId(finalPriceListId, controller.signal);
+        if (!versionId) {
             setCurrentVersionId("NOT_FOUND");
             setVersionMissing(true);
             setProducts([]);
             return;
         }
-
-        const versionId = activeVersion.id
-            || activeVersion.M_PriceList_Version_ID?.id
-            || activeVersion.M_PriceList_Version_ID;
         setCurrentVersionId(versionId);
 
-        // ── Step 2: Fetch price + product PARALEL ────────────────────────────
         let productFilter = "IsSold eq true and IsActive eq true";
         if (query) {
             const safeQuery = query.toUpperCase().replace(/'/g, "''");
             productFilter += ` and (contains(toupper(Name),'${safeQuery}') or contains(toupper(Value),'${safeQuery}'))`;
         }
 
-        const [priceData, productData] = await Promise.all([
-            customFetch(
-                `/models/m_productprice?$filter=M_PriceList_Version_ID eq ${versionId}` +
-                `&$select=M_Product_ID,PriceStd`
-            ),
-            customFetch(
-                `/models/m_product?$select=M_Product_ID,Name,Value,C_UOM_ID,M_Product_Category_ID,ProductType` +
-                `&$filter=${productFilter}&$top=50`
-            ),
-        ]);
-
-        const productRecords = Array.isArray(productData.records)
-            ? productData.records
-            : productData.records ? [productData.records] : [];
-
-        // ── Step 3: Build priceMap, filter hanya produk yang relevan ─────────
-        const relevantIds = new Set(
-            productRecords.map(p => p.M_Product_ID?.id ?? p.M_Product_ID ?? p.id)
-        );
-        const rawPriceRecords = Array.isArray(priceData.records)
-            ? priceData.records
-            : priceData.records ? [priceData.records] : [];
-
-        const priceMap = new Map();
-        rawPriceRecords
-            .filter(p => relevantIds.has(p.M_Product_ID?.id ?? p.M_Product_ID))
-            .forEach(p => {
-                const pid = p.M_Product_ID?.id ?? p.M_Product_ID;
-                if (pid != null) priceMap.set(pid, p.PriceStd);
-            });
-
-        // ── Step 4: Batch fetch QtyOnHand (1 request, bukan N) ───────────────
-        const productIds   = [...relevantIds];
-        const qtyOnHandMap = await fetchQtyOnHandBatch(productIds, config);
-
-        // ── Step 5: Mapping final ─────────────────────────────────────────────
-        const finalProducts = productRecords.map((p) => {
-            const pId  = p.M_Product_ID?.id ?? p.M_Product_ID ?? p.id;
-            const price = priceMap.get(pId);
-            if (price === undefined) return null;
-
-            return {
-                M_Product_ID:    pId,
-                Name:            p.Name,
-                Value:           p.Value,
-                PriceActual:     price ?? 0,
-                basePrice:       price ?? 0,
-                defaultUOM: {
-                    id:           p.C_UOM_ID?.id ?? p.C_UOM_ID,
-                    name:         p.C_UOM_ID?.Name || p.C_UOM_ID?.identifier || 'EA',
-                    multiplyRate: 1,
-                },
-                ProductCategory: {
-                    id:   p.M_Product_Category_ID?.id ?? p.M_Product_Category_ID,
-                    name: p.M_Product_Category_ID?.Name || p.M_Product_Category_ID?.identifier || 'N/A',
-                },
-                ProductType:  p.ProductType?.id ?? p.ProductType ?? null,
-                QtyOnHand:    qtyOnHandMap.get(pId) ?? 0,
-            };
-        }).filter(Boolean);
-
+        const finalProducts = await resolveProducts(productFilter, versionId, config, controller.signal);
         setProducts(finalProducts);
     } catch (err) {
+        if (err.name === 'AbortError') return;
         console.error("Fetch Products Error:", err.message);
         setProducts([]);
     } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
     }
 };
 
@@ -426,7 +460,7 @@ const DIALOG_CLOSED = {
         };
 
         try {
-            const resProduct = await customFetch(
+            const resProduct = await idempiereApi(
                 `/models/c_uom_conversion?$filter=C_UOM_ID eq ${defaultUomId} and M_Product_ID eq ${productId} and IsActive eq true&$select=C_UOM_ID,C_UOM_To_ID,MultiplyRate,M_Product_ID`
             );
             buildOptions(Array.isArray(resProduct.records) ? resProduct.records : []);
@@ -435,7 +469,7 @@ const DIALOG_CLOSED = {
         }
 
         try {
-            const resGlobal = await customFetch(
+            const resGlobal = await idempiereApi(
                 `/models/c_uom_conversion?$filter=C_UOM_ID eq ${defaultUomId} and IsActive eq true&$select=C_UOM_ID,C_UOM_To_ID,MultiplyRate,M_Product_ID&$top=50`
             );
             const globalRecords = (Array.isArray(resGlobal.records) ? resGlobal.records : [])
@@ -451,32 +485,41 @@ const DIALOG_CLOSED = {
 
      // ─── 3b. Fetch QtyOnHand dari M_StorageOnHand ────────────────────────────
 
-     const fetchQtyOnHandBatch = async (productIds, config) => {
-        const cfg         = config || posConfig;
-        const warehouseId = cfg?.M_Warehouse_ID?.id ?? cfg?.M_Warehouse_ID;
-        if (!warehouseId || productIds.length === 0) return new Map();
+  const fetchQtyOnHandBatch = async (productIds, config) => {
+    const cfg         = config || posConfig;
+    const warehouseId = cfg?.M_Warehouse_ID?.id ?? cfg?.M_Warehouse_ID;
+    if (!warehouseId || productIds.length === 0) return new Map();
 
-        const idList = productIds.join(',');
-        const filter = `M_Warehouse_ID eq ${warehouseId} and IsActive eq true` +
-                    ` and M_Product_ID in (${idList})`;
+    try {
+        // Step 1: ambil semua locator milik warehouse ini
+        const locatorRes = await idempiereApi(
+            `/models/m_locator?$filter=M_Warehouse_ID eq ${warehouseId} and IsActive eq true&$select=M_Locator_ID`
+        );
+        const locatorIds = (locatorRes.records || [])
+            .map(l => l.id ?? l.M_Locator_ID)
+            .filter(Boolean);
+        if (locatorIds.length === 0) return new Map();
 
-        try {
-            const res = await customFetch(
-                `/models/m_storage?$filter=${filter}&$select=M_Product_ID,QtyOnHand`
-            );
-            const map = new Map();
-            (res.records || []).forEach(r => {
-                const pid = r.M_Product_ID?.id ?? r.M_Product_ID;
-                const existing = map.get(pid) ?? 0;
-                map.set(pid, existing + parseFloat(r.QtyOnHand || 0));
-            });
-            return map;
-        } catch {
-            return new Map();
-        }
-    };
-        
+        // Step 2: fetch storage berdasarkan locator + produk
+        const productOrClause = productIds.map(pid => `M_Product_ID eq ${pid}`).join(' or ');
+        const locatorOrClause = locatorIds.map(lid => `M_Locator_ID eq ${lid}`).join(' or ');
+        const filter = `(${locatorOrClause}) and IsActive eq true and (${productOrClause})`;
 
+        const res = await idempiereApi(
+            `/models/m_storage?$filter=${filter}&$select=M_Product_ID,QtyOnHand`
+        );
+        const map = new Map();
+        (res.records || []).forEach(r => {
+            const pid = r.M_Product_ID?.id ?? r.M_Product_ID;
+            map.set(pid, (map.get(pid) ?? 0) + parseFloat(r.QtyOnHand || 0));
+        });
+        return map;
+    } catch (err) {
+        if (err.name === 'AbortError') return new Map();
+        console.error("Gagal fetch QtyOnHand batch:", err.message);
+        return new Map();
+    }
+};
 
     const addToCart = async (product) => {
         // Flag untuk mendeteksi apakah produk berupa Jasa/Service ('S')
@@ -567,7 +610,7 @@ const DIALOG_CLOSED = {
     // ─── 6. Cart handlers ─────────────────────────────────────────────────────
     const removeFromCart = (id) => setCart(prev => prev.filter(i => i.M_Product_ID !== id));
 
-    const calculateTotal = () => cart.reduce((s, i) => s + (i.PriceActual * i.QtyEnyrred), 0);
+    const calculateTotal = () => cart.reduce((s, i) => s + (i.PriceActual * i.QtyEntered), 0);
 
     const updateCartQty = (productId, newQty) => {
     setCart(prev => {
@@ -626,49 +669,43 @@ const DIALOG_CLOSED = {
     // 7a. Fetch produk by barcode — cari exact match di field Value (SKU/barcode iDempiere)
     //     Juga coba field UPC/EAN jika tersedia (m_product_gtin atau field UPC).
     const fetchProductByBarcode = async (barcode) => {
-        const priceListId = getActivePriceListId();
-        if (!priceListId) return null;
+    const priceListId = getActivePriceListId();
+    if (!priceListId) return null;
 
-        // Ambil versi aktif price list
-        const versionRes = await customFetch(
-            `/models/m_pricelist_version?$filter=M_PriceList_ID eq ${priceListId} and IsActive eq true&$orderby=ValidFrom desc&$top=1`
-        );
-        const versionId = versionRes?.records?.[0]?.id
-                       || versionRes?.records?.[0]?.M_PriceList_Version_ID?.id
-                       || versionRes?.records?.[0]?.M_PriceList_Version_ID;
-        if (!versionId) return null;
+    const versionId = await fetchActiveVersionId(priceListId); // ⬅️ reuse helper juga di sini
 
-        // Cari produk exact match di field Value (barcode/SKU) — case-insensitive
-        const safeBarcode = barcode.replace(/'/g, "''");
-        const productRes  = await customFetch(
-            `/models/m_product?$select=M_Product_ID,Name,Value,ProductType,C_UOM_ID&$filter=IsSold eq true and IsActive eq true and toupper(Value) eq '${safeBarcode.toUpperCase()}'&$top=1`
-        );
-        const productRec = productRes?.records?.[0];
-        if (!productRec) return null;
+    if (!versionId) return null;
 
-        const pId = productRec.M_Product_ID?.id ?? productRec.M_Product_ID ?? productRec.id;
+    const safeBarcode = barcode.replace(/'/g, "''");
+    const productRes  = await idempiereApi(
+        `/models/m_product?$select=M_Product_ID,Name,Value,ProductType,C_UOM_ID&$filter=IsSold eq true and IsActive eq true and toupper(Value) eq '${safeBarcode.toUpperCase()}'&$top=1`
+    );
+    const productRec = productRes?.records?.[0];
+    if (!productRec) return null;
 
-        // Ambil harga dari price list version
-        const priceRes = await customFetch(
-            `/models/m_productprice?$filter=M_PriceList_Version_ID eq ${versionId} and M_Product_ID eq ${pId}&$select=M_Product_ID,PriceStd&$top=1`
-        );
-        const priceRec = priceRes?.records?.[0];
+    const pId = productRec.M_Product_ID?.id ?? productRec.M_Product_ID ?? productRec.id;
 
-        const defaultUOM = {
-            id:           productRec.C_UOM_ID?.id ?? productRec.C_UOM_ID,
-            name:         productRec.C_UOM_ID?.Name || productRec.C_UOM_ID?.identifier || 'EA',
-            multiplyRate: 1,
-        };
+    const priceRes = await idempiereApi(
+        `/models/m_productprice?$filter=M_PriceList_Version_ID eq ${versionId} and M_Product_ID eq ${pId}&$select=M_Product_ID,PriceStd&$top=1`
+    );
+    const priceRec = priceRes?.records?.[0];
 
-        return {
-            M_Product_ID: pId,
-            Name:         productRec.Name,
-            Value:        productRec.Value,
-            PriceActual:  priceRec?.PriceStd ?? 0,
-            basePrice:    priceRec?.PriceStd ?? 0,
-            defaultUOM,
-        };
+    const defaultUOM = {
+        id:           productRec.C_UOM_ID?.id ?? productRec.C_UOM_ID,
+        name:         productRec.C_UOM_ID?.Name || productRec.C_UOM_ID?.identifier || 'EA',
+        multiplyRate: 1,
     };
+
+    return {
+        M_Product_ID: pId,
+        Name:         productRec.Name,
+        Value:        productRec.Value,
+        PriceActual:  priceRec?.PriceStd ?? 0,
+        basePrice:    priceRec?.PriceStd ?? 0,
+        ProductType:  productRec.ProductType?.id ?? productRec.ProductType ?? null, // ⬅️ ikut ditambahkan, sebelumnya hilang juga di sini
+        defaultUOM,
+    };
+};
 
     // 7b. onChange — debounce biasa untuk pencarian teks (ketik manual)
     const handleSearchChange = (e) => {
@@ -688,100 +725,59 @@ const DIALOG_CLOSED = {
     //       4. > 1 hasil    → tampilkan di grid, biarkan user pilih
     //       5. 0 hasil      → alert "tidak ditemukan"
     const handleSearchEnter = async (e) => {
-        if (e.key !== "Enter") return;
-        e.preventDefault();
+    if (e.key !== "Enter") return;
+    e.preventDefault();
 
-        const val = searchValue.trim();
-        if (!val) return;
+    const val = searchValue.trim();
+    if (!val) return;
 
-        // Batalkan debounce onChange yang mungkin sedang antri
-        clearTimeout(debounceRef.current);
+    clearTimeout(debounceRef.current);
+    const priceListId = getActivePriceListId();
 
-        const priceListId = getActivePriceListId();
-
-        const resetSearch = () => {
-            setSearchValue("");
-            fetchProducts("", priceListId);
-            // Kembalikan fokus ke input agar siap scan berikutnya
-            setTimeout(() => searchRef.current?.focus(), 50);
-        };
-
-        try {
-            // ── Langkah 1: barcode exact match ───────────────────────────────
-            const barcodeProduct = await fetchProductByBarcode(val);
-            if (barcodeProduct) {
-                await addToCart(barcodeProduct);
-                resetSearch();
-                return;
-            }
-
-            // ── Langkah 2: fetch pencarian teks — ambil hasil langsung ───────
-            // Tidak pakai setProducts dulu agar kita bisa cek panjang array
-            // sebelum memutuskan auto-add vs tampilkan grid.
-            const safeQuery = val.toUpperCase().replace(/'/g, "''");
-            const productFilter = `IsSold eq true and IsActive eq true and (contains(toupper(Name),'${safeQuery}') or contains(toupper(Value),'${safeQuery}'))`;
-
-            const versionRes = await customFetch(
-                `/models/m_pricelist_version?$filter=M_PriceList_ID eq ${priceListId} and IsActive eq true&$orderby=ValidFrom desc&$top=1`
-            );
-            const versionId = versionRes?.records?.[0]?.id
-                           || versionRes?.records?.[0]?.M_PriceList_Version_ID?.id
-                           || versionRes?.records?.[0]?.M_PriceList_Version_ID;
-
-            if (!versionId) {
-                triggerAlert("Price List version tidak ditemukan.", "Error");
-                return;
-            }
-
-            const [priceData, productData] = await Promise.all([
-                customFetch(`/models/m_productprice?$filter=M_PriceList_Version_ID eq ${versionId}&$select=M_Product_ID,PriceStd`),
-                customFetch(`/models/m_product?$select=M_Product_ID,Name,Value,C_UOM_ID&$filter=${productFilter}&$top=50`),
-            ]);
-
-            const priceMap = new Map();
-            (Array.isArray(priceData.records) ? priceData.records : []).forEach(p => {
-                const pid = p.M_Product_ID?.id ?? p.M_Product_ID ?? p.id;
-                if (pid != null) priceMap.set(pid, p.PriceStd);
-            });
-
-            const matched = (Array.isArray(productData.records) ? productData.records : [])
-                .map(p => {
-                    const pId   = p.M_Product_ID?.id ?? p.M_Product_ID ?? p.id;
-                    const price = priceMap.get(pId);
-                    if (price === undefined) return null;
-                    return {
-                        M_Product_ID: pId,
-                        Name:         p.Name,
-                        Value:        p.Value,
-                        PriceActual:  price ?? 0,
-                        basePrice:    price ?? 0,
-                        defaultUOM: {
-                            id:           p.C_UOM_ID?.id ?? p.C_UOM_ID,
-                            name:         p.C_UOM_ID?.Name || p.C_UOM_ID?.identifier || 'EA',
-                            multiplyRate: 1,
-                        },
-                    };
-                })
-                .filter(Boolean);
-
-            // ── Langkah 3: keputusan berdasarkan jumlah hasil ─────────────────
-            if (matched.length === 1) {
-                // Tepat 1 → langsung masuk cart + reset input
-                await addToCart(matched[0]);
-                resetSearch();
-            } else if (matched.length === 0) {
-                // Tidak ada → alert, input tetap terisi agar kasir bisa koreksi
-                triggerAlert(`Produk "${val}" tidak ditemukan di Price List aktif.`, "Tidak Ditemukan");
-            } else {
-                // > 1 hasil → tampilkan di grid, biarkan user pilih dengan klik
-                setProducts(matched);
-            }
-
-        } catch (err) {
-            console.error("handleSearchEnter error:", err.message);
-            triggerAlert("Gagal mencari produk: " + err.message, "Error");
-        }
+    const resetSearch = () => {
+        setSearchValue("");
+        fetchProducts("", priceListId);
+        setTimeout(() => searchRef.current?.focus(), 50);
     };
+
+    try {
+        // ── Langkah 1: barcode exact match ───────────────────────────────
+        const barcodeProduct = await fetchProductByBarcode(val);
+        if (barcodeProduct) {
+            await addToCart(barcodeProduct);
+            resetSearch();
+            return;
+        }
+
+        // ── Langkah 2: fetch pencarian teks — reuse helper yang sama ──────
+        const versionId = await fetchActiveVersionId(priceListId);
+        if (!versionId) {
+            triggerAlert("Price List version tidak ditemukan.", "Error");
+            return;
+        }
+
+        const safeQuery = val.toUpperCase().replace(/'/g, "''");
+        const productFilter =
+            `IsSold eq true and IsActive eq true and ` +
+            `(contains(toupper(Name),'${safeQuery}') or contains(toupper(Value),'${safeQuery}'))`;
+
+        const matched = await resolveProducts(productFilter, versionId, posConfig);
+
+        // ── Langkah 3: keputusan berdasarkan jumlah hasil ─────────────────
+        if (matched.length === 1) {
+            await addToCart(matched[0]);
+            resetSearch();
+        } else if (matched.length === 0) {
+            triggerAlert(`Produk "${val}" tidak ditemukan di Price List aktif.`, "Tidak Ditemukan");
+        } else {
+            setProducts(matched);
+        }
+
+    } catch (err) {
+        console.error("handleSearchEnter error:", err.message);
+        triggerAlert("Gagal mencari produk: " + err.message, "Error");
+    }
+};
 
     // ─── 8. Prepare payload ───────────────────────────────────────────────────
     const preparePayloadForIdempiere = () => {
@@ -826,7 +822,7 @@ const DIALOG_CLOSED = {
             const line = {
                 AD_Org_ID:    { id: adOrgId },
                 M_Product_ID: { id: parseInt(item.M_Product_ID?.id ?? item.M_Product_ID) },
-                QtyEntered:   parseFloat(item.QttEntered || 1),
+                QtyEntered:   parseFloat(item.QtyEntered || 1),
                 PriceActual:  parseFloat(item.PriceActual || 0),
                 PriceEntered: parseFloat(item.PriceActual || 0),
             };
@@ -880,7 +876,7 @@ const DIALOG_CLOSED = {
                  console.log(`Mode Edit: Mengupdate Order ID ${editOrderId}...`);
      
                  // Update header order jika BPartner/PriceList berubah
-                 await customFetch(`/models/c_order/${editOrderId}`, {
+                 await idempiereApi(`/models/c_order/${editOrderId}`, {
                      method: "PUT",
                      body: JSON.stringify({
                          C_BPartner_ID:  { id: selectedBPartner?.id },
@@ -889,19 +885,19 @@ const DIALOG_CLOSED = {
                  });
      
                  // Hapus semua order line lama
-                 const oldLinesRes = await customFetch(
+                 const oldLinesRes = await idempiereApi(
                      `/models/c_orderline?$filter=C_Order_ID eq ${editOrderId}&$select=C_OrderLine_ID`
                  );
                  const oldLines = Array.isArray(oldLinesRes.records) ? oldLinesRes.records : [];
                  for (const line of oldLines) {
                      const lineId = line.id ?? line.C_OrderLine_ID;
-                     await customFetch(`/models/c_orderline/${lineId}`, { method: "DELETE" });
+                     await idempiereApi(`/models/c_orderline/${lineId}`, { method: "DELETE" });
                  }
      
                  // Insert ulang order lines dari cart
                  const adOrgId = posConfig?.AD_Org_ID?.id ?? posConfig?.AD_Org_ID;
                  for (const item of cart) {
-                     await customFetch("/models/c_orderline", {
+                     await idempiereApi("/models/c_orderline", {
                          method: "POST",
                          body: JSON.stringify({
                              C_Order_ID:   { id: editOrderId },
@@ -916,12 +912,12 @@ const DIALOG_CLOSED = {
                  }
      
                  orderId      = editOrderId;
-                 createdOrder = await customFetch(`/models/c_order/${editOrderId}`);
+                 createdOrder = await idempiereApi(`/models/c_order/${editOrderId}`);
      
              } else {
                  // ── MODE NORMAL: buat order baru ─────────────────────────────
                  const orderPayload = preparePayloadForIdempiere();
-                 createdOrder       = await customFetch("/models/c_order", {
+                 createdOrder       = await idempiereApi("/models/c_order", {
                      method: "POST",
                      body: JSON.stringify(orderPayload),
                  });
@@ -970,7 +966,7 @@ const DIALOG_CLOSED = {
                 };
 
                 console.log("Mengirim baris pembayaran aman:", JSON.stringify(paymentPayload));
-                await customFetch("/models/c_pospayment", {
+                await idempiereApi("/models/c_pospayment", {
                     method: "POST",
                     body: JSON.stringify(paymentPayload),
                 });
@@ -986,14 +982,14 @@ const DIALOG_CLOSED = {
                 else if (singleTender === "D") finalPaymentRule = "T";
             }
 
-            await customFetch(`/models/c_order/${orderId}`, {
+            await idempiereApi(`/models/c_order/${orderId}`, {
                 method: "PUT",
                 body: JSON.stringify({ PaymentRule: finalPaymentRule }),
             });
 
             console.log(`✅ Aturan pembayaran diset ke [${finalPaymentRule}]. Mengunci transaksi ke Complete...`);
 
-            const completedOrder = await customFetch(`/models/c_order/${orderId}`, {
+            const completedOrder = await idempiereApi(`/models/c_order/${orderId}`, {
                 method: "PUT",
                 body: JSON.stringify({ "doc-action": "CO" }),
             });
@@ -1102,10 +1098,22 @@ const DIALOG_CLOSED = {
             </div>
 
             {/* Main Layout */}
-            <div style={{ display: 'flex', gap: '0px', flex: '1', overflow: 'hidden' }}>
+            <div style={{ 
+                    display: 'flex', 
+                    flexDirection: isDesktop ? 'row' : 'column',  // ⬅️ PINDAH KE SINI
+                    gap: '0px', 
+                    flex: '1', 
+                    overflow: 'hidden' 
+                }}>
 
                 {/* Kiri: Search + Product Grid */}
-                <div style={{ flex: 2, display: 'flex', flexDirection: 'column', paddingRight: '20px', overflow: 'hidden' }}>
+                <div style={{ 
+                    flex: 1, 
+                    display: 'flex', 
+                    flexDirection: 'column', 
+                    gap: '0px', 
+                    overflow: 'hidden' 
+                }}>
                     {/* Banner Edit Mode */}
                     {isEditMode && (
                         <div style={{
@@ -1143,39 +1151,46 @@ const DIALOG_CLOSED = {
                         placeholder="Cari nama / kode produk, atau scan barcode lalu Enter..."
                     />
                     <div style={{ flex: 1, overflowY: 'auto', paddingRight: '4px' }}>
-                        {loading ? (
-                            <p>Memuat produk...</p>
-                        ) : (
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
-                                {products.length > 0
-                                    ? products.map((p, index) => (
-                                        <ProductCard
-                                            key={`${p.M_Product_ID}-${index}`}
-                                            product={p}
-                                            onClick={addToCart}
-                                        />
-                                    ))
-                                    : !versionMissing && (
-                                        <p style={{ gridColumn: 'span 3', textAlign: 'center', color: '#999' }}>
-                                            Tidak ada produk ditemukan dengan harga aktif.
-                                        </p>
-                                    )
-                                }
-                            </div>
-                        )}
-                    </div>
+                    {loading ? (
+                        <p>Memuat produk...</p>
+                    ) : (
+                        <div style={{
+                            display: 'grid',
+                            gridTemplateColumns: isDesktop ? '1fr 1fr 1fr' : '1fr 1fr', // ⬅️ 2 kolom di mobile
+                            gap: isDesktop ? '10px' : '8px',
+                        }}>
+                            {products.length > 0
+                                ? products.map((p, index) => (
+                                    <ProductCard
+                                        key={`${p.M_Product_ID}-${index}`}
+                                        product={p}
+                                        onClick={addToCart}
+                                    />
+                                ))
+                                : !versionMissing && (
+                                    <p style={{ gridColumn: isDesktop ? 'span 3' : 'span 2', textAlign: 'center', color: '#999' }}>
+                                        Tidak ada produk ditemukan dengan harga aktif.
+                                    </p>
+                                )
+                            }
+                        </div>
+                    )}
                 </div>
+                </div>
+                
 
                 {/* CONTAINER UTAMA CART */}
                 <div style={{ 
-                    flex: 1, 
-                    borderLeft: '1px solid #ddd', 
-                    paddingLeft: '20px', 
-                    display: 'flex', 
-                    flexDirection: 'column', 
-                    minWidth: '280px',
+                    flex: 1,
+                    borderLeft: isDesktop ? '1px solid #ddd' : 'none',
+                    borderTop:  isDesktop ? 'none' : '1px solid #ddd',
+                    paddingLeft: isDesktop ? '20px' : '0',
+                    paddingTop:  isDesktop ? '0' : '12px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    minWidth: isDesktop ? '280px' : 'auto',
                     overflow: 'hidden',
-                    minHeight: 0    // Mencegah container utama ikut memanjang ke bawah
+                    minHeight: 0,   // Mencegah container utama ikut memanjang ke bawah
                 }}>
                     <h3 style={{ margin: '0 0 10px 0', flexShrink: 0 }}>🛒 Cart</h3>
                     
@@ -1211,13 +1226,12 @@ const DIALOG_CLOSED = {
                         </div>
                     )}
                 </div>
-
                 <PaymentModal
                     isOpen={isPaymentModalOpen}
                     onClose={() => setIsPaymentModalOpen(false)}
                     totalOrderAmount={calculateTotal()}
                     onSubmitPayment={handleCompletePOSPaymentWorkflow}
-                    customFetch={customFetch}
+                    idempiereApi={idempiereApi}
                 />
                <ReceiptModal
                    isOpen={isReceiptModalOpen}

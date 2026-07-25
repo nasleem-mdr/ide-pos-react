@@ -2,8 +2,8 @@ import { HomeIcon, RequisitionIcon, ShoppingCartIcon, DeliveryIcon, UserTake, Li
 
 export const menuSections = [ 
     {
-        sectionKey: 'transaksi',
-        sectionLabel: 'Transaksi',
+        sectionKey: 'procurement',
+        sectionLabel: 'Procurement',
         defaultCollapsed: false,
         items: [
             { key: 'dashboard',     windowKey: 'dashboard',    path: '/dashboard',      label: 'Dashboard',     icon: <HomeIcon /> },
@@ -13,6 +13,14 @@ export const menuSections = [
             { key: 'internalUse',   windowKey: 'internalUse',  path: '/internal-use',  label: 'Internal Use',  icon: <UserTake /> },
             { key: 'booking',       windowKey: 'booking', path: '/booking',  label: 'Booking Timeline',  icon: <UserTake /> },
         ]
+    },
+    {
+        sectionKey: 'sales',
+        sectionLabel: 'Salses POS',
+        defaultCollapsed: false,
+        items: [
+            { key: 'pos-order',     windowKey: 'pos',    path: '/pos-order',      label: 'Pos Sales',     icon: <ShoppingCartIcon /> },
+            ]
     },
     {
         sectionKey: 'report',

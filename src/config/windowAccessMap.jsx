@@ -16,7 +16,7 @@ export const WINDOW_ACCESS_MAP = {
   dashboard:            null,
   businessPartner:      117,
   businessPartnerEdit:  117,
-  pos:                  167,
+  pos:                  null,
   salesOrder:           167,
   product:              140,
   requisition:          null,
