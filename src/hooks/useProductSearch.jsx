@@ -1,13 +1,24 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { idempiereApi, fkId, fkLabel } from '../utils/idempiereApi';
 
+const PAGE_SIZE = 20;          // jumlah produk per "halaman" infinite scroll
+const NO_WH_TOP = PAGE_SIZE;   // top per fetch saat tanpa filter warehouse (server-paginated asli)
+const WH_POOL_CAP = 150;       // cap total produk yang di-fetch sekali untuk mode warehouse-filtered
+
 export function useProductSearch({ debounceMs = 420 } = {}) {
-  const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [products, setProducts]       = useState([]);
+  const [loading, setLoading]         = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore]         = useState(false);
   const [searchValue, setSearchValue] = useState('');
   const debounceRef = useRef(null);
 
-  // Bersihkan timeout saat komponen unmount untuk menghindari memory leak
+  // Menyimpan parameter pencarian terakhir + state pagination internal
+  const lastParamsRef = useRef({ query: '', warehouseId: null });
+  const skipRef       = useRef(0);        // untuk mode tanpa-warehouse (server-side skip)
+  const poolRef        = useRef([]);      // untuk mode warehouse-filtered (client-side slice pool)
+  const visibleCountRef = useRef(PAGE_SIZE);
+
   useEffect(() => {
     return () => clearTimeout(debounceRef.current);
   }, []);
@@ -70,27 +81,21 @@ export function useProductSearch({ debounceMs = 420 } = {}) {
       });
   }, []);
 
-  // fetchWarehouseLocatorIds
+  // fetchWarehouseLocatorIds — FIXED: dead-code return sebelum fetch dihapus
   const fetchWarehouseLocatorIds = useCallback(async (warehouseId) => {
     if (!warehouseId) return null;
     try {
-      
-      return (data.records || []).map(r => fkId(r.M_Locator_ID)).filter(Boolean);
       const data = await idempiereApi(
         `/models/m_locator?$select=M_Locator_ID&$filter=M_Warehouse_ID eq ${warehouseId} and IsActive eq true&$top=500`
       );
       return (data.records || []).map(r => fkId(r.M_Locator_ID)).filter(Boolean);
     } catch (err) {
       console.warn('[useProductSearch] fetchWarehouseLocatorIds error:', err);
-      return null; 
+      return null;
     }
   }, []);
 
   // ── scoring: prioritas Value/Name di atas UPC/Description ──────────────────
-  // Dipakai untuk sort hasil pencarian client-side, karena OData/iDempiere
-  // REST API tidak punya relevance ranking bawaan — filter server tetap OR
-  // semua field (supaya tidak kehilangan kandidat), tapi urutan tampil
-  // ditentukan di sini berdasarkan field mana yang match dan seberapa "kuat".
   const scoreMatch = useCallback((product, safeQ) => {
     if (!safeQ) return 0;
 
@@ -101,89 +106,26 @@ export function useProductSearch({ debounceMs = 420 } = {}) {
 
     let score = 0;
 
-    // Value: exact match tertinggi, lalu starts-with, lalu contains
     if (value === safeQ) score = Math.max(score, 100);
     else if (value.startsWith(safeQ)) score = Math.max(score, 90);
     else if (value.includes(safeQ)) score = Math.max(score, 70);
 
-    // Name: starts-with sedikit di bawah Value exact, contains di bawahnya
     if (name === safeQ) score = Math.max(score, 95);
     else if (name.startsWith(safeQ)) score = Math.max(score, 80);
     else if (name.includes(safeQ)) score = Math.max(score, 60);
 
-    // UPC: biasanya dicari via scan, exact match cukup tinggi
     if (upc === safeQ) score = Math.max(score, 85);
     else if (upc.includes(safeQ)) score = Math.max(score, 50);
 
-    // Description: prioritas paling rendah, hanya fallback
     if (description.includes(safeQ)) score = Math.max(score, 20);
 
     return score;
   }, []);
 
-  // ── fetch utama (Name / Value / UPC / Description search, debounced) ───────
-const fetchProducts = useCallback(async (query = '', warehouseId = null) => {
-  try {
-    setLoading(true);
-    const safeQ = query.toUpperCase().replace(/'/g, "''");
+  // ── enrich: ambil PO + UOM untuk sekumpulan rawProducts, lalu build+sort ───
+  const enrichAndSort = useCallback(async (rawProducts, query, safeQ) => {
+    if (rawProducts.length === 0) return [];
 
-    let productFilter = 'IsPurchased eq true and IsActive eq true';
-    if (query) {
-      productFilter += ` and (contains(toupper(Name),'${safeQ}') or contains(toupper(Value),'${safeQ}') or contains(toupper(UPC),'${safeQ}') or contains(toupper(Description),'${safeQ}'))`;
-    }
-
-    const locatorIds = await fetchWarehouseLocatorIds(warehouseId);
-    if (locatorIds !== null && locatorIds.length === 0) {
-      setProducts([]);
-      return [];
-    }
-
-    let rawProducts = [];
-
-    if (locatorIds === null) {
-      // Tidak ada warehouse filter — query normal
-      const productData = await idempiereApi(
-        `/models/m_product?$select=M_Product_ID,Name,Value,UPC,C_UOM_ID,M_Locator_ID,Description,Updated` +
-        `&$filter=${productFilter}&$orderby=Updated desc&$top=50`
-      );
-      rawProducts = Array.isArray(productData.records) ? productData.records : [];
-    } else {
-      // Ada warehouse filter — chunking parallel
-      const CHUNK_SIZE = 15;
-      const chunks = [];
-      for (let i = 0; i < locatorIds.length; i += CHUNK_SIZE) {
-        chunks.push(locatorIds.slice(i, i + CHUNK_SIZE));
-      }
-
-      const chunkResults = await Promise.all(
-        chunks.map(chunk => {
-          //const locFilter = chunk.map(id => `M_Locator_ID eq ${id}`).join(' or ');
-          const locFilter = chunk.map(id => `M_Locator_ID/id eq ${id}`).join(' or ');
-          return idempiereApi(
-            `/models/m_product?$select=M_Product_ID,Name,Value,UPC,C_UOM_ID,M_Locator_ID,Description,Updated` +
-            `&$filter=${productFilter} and (${locFilter})&$orderby=Updated desc&$top=50`
-          ).catch(() => ({ records: [] }));
-        })
-      );
-
-      const seen = new Set();
-      rawProducts = chunkResults
-        .flatMap(data => Array.isArray(data.records) ? data.records : [])
-        .filter(p => {
-          const pid = fkId(p.M_Product_ID) ?? p.id;
-          if (seen.has(pid)) return false;
-          seen.add(pid);
-          return true;
-        })
-        .slice(0, 50);
-    }
-
-    if (rawProducts.length === 0) {
-      setProducts([]);
-      return [];
-    }
-
-    // Scope PO & UOM ke produk hasil filter
     const productIds = rawProducts.map(p => fkId(p.M_Product_ID) ?? p.id).filter(Boolean);
     const idScopeFilter = productIds.map(id => `M_Product_ID eq ${id}`).join(' or ');
 
@@ -197,24 +139,137 @@ const fetchProducts = useCallback(async (query = '', warehouseId = null) => {
 
     const finalProducts = buildProducts(rawProducts, poRecords, uomRecords);
 
-    // Urutkan berdasarkan relevansi (Value/Name diprioritaskan di atas
-    // UPC/Description) — hanya berlaku kalau ada query, kalau kosong
-    // (browse semua produk) urutan dari $orderby=Updated desc tetap dipakai.
-    const sortedProducts = query
+    return query
       ? [...finalProducts].sort((a, b) => scoreMatch(b, safeQ) - scoreMatch(a, safeQ))
       : finalProducts;
+  }, [buildProducts, scoreMatch]);
 
-    setProducts(sortedProducts);
-    return sortedProducts;
-  } catch (err) {
-    console.error('[useProductSearch] error:', err);
-    return [];
-  } finally {
-    setLoading(false);
-  }
-}, [buildProducts, fetchWarehouseLocatorIds, scoreMatch]);
+  // ── path A: tanpa filter warehouse — server-side skip/top asli ─────────────
+  const fetchNoWarehousePage = useCallback(async (query, skip) => {
+    const safeQ = query.toUpperCase().replace(/'/g, "''");
+    let productFilter = 'IsPurchased eq true and IsActive eq true';
+    if (query) {
+      productFilter += ` and (contains(toupper(Name),'${safeQ}') or contains(toupper(Value),'${safeQ}') or contains(toupper(UPC),'${safeQ}') or contains(toupper(Description),'${safeQ}'))`;
+    }
 
-  // ── searchByUPC: exact match, tanpa debounce ──────────────────────────────
+    const productData = await idempiereApi(
+      `/models/m_product?$select=M_Product_ID,Name,Value,UPC,C_UOM_ID,M_Locator_ID,Description,Updated` +
+      `&$filter=${productFilter}&$orderby=Updated desc&$top=${NO_WH_TOP}&$skip=${skip}`
+    );
+    const rawProducts = Array.isArray(productData.records) ? productData.records : [];
+    const page = await enrichAndSort(rawProducts, query, safeQ);
+    return { page, rawCount: rawProducts.length };
+  }, [enrichAndSort]);
+
+  // ── path B: dengan filter warehouse — fetch pool sekali, lalu slice ─────────
+  const fetchWarehousePool = useCallback(async (query, warehouseId) => {
+    const safeQ = query.toUpperCase().replace(/'/g, "''");
+    let productFilter = 'IsPurchased eq true and IsActive eq true';
+    if (query) {
+      productFilter += ` and (contains(toupper(Name),'${safeQ}') or contains(toupper(Value),'${safeQ}') or contains(toupper(UPC),'${safeQ}') or contains(toupper(Description),'${safeQ}'))`;
+    }
+
+    const locatorIds = await fetchWarehouseLocatorIds(warehouseId);
+    if (locatorIds !== null && locatorIds.length === 0) return [];
+
+    if (locatorIds === null) {
+      // fallback locator gagal diambil — treat sama seperti path A tapi dengan cap pool
+      const productData = await idempiereApi(
+        `/models/m_product?$select=M_Product_ID,Name,Value,UPC,C_UOM_ID,M_Locator_ID,Description,Updated` +
+        `&$filter=${productFilter}&$orderby=Updated desc&$top=${WH_POOL_CAP}`
+      );
+      const rawProducts = Array.isArray(productData.records) ? productData.records : [];
+      return enrichAndSort(rawProducts, query, safeQ);
+    }
+
+    const CHUNK_SIZE = 15;
+    const chunks = [];
+    for (let i = 0; i < locatorIds.length; i += CHUNK_SIZE) {
+      chunks.push(locatorIds.slice(i, i + CHUNK_SIZE));
+    }
+
+    const chunkResults = await Promise.all(
+      chunks.map(chunk => {
+        const locFilter = chunk.map(id => `M_Locator_ID/id eq ${id}`).join(' or ');
+        return idempiereApi(
+          `/models/m_product?$select=M_Product_ID,Name,Value,UPC,C_UOM_ID,M_Locator_ID,Description,Updated` +
+          `&$filter=${productFilter} and (${locFilter})&$orderby=Updated desc&$top=${WH_POOL_CAP}`
+        ).catch(() => ({ records: [] }));
+      })
+    );
+
+    const seen = new Set();
+    const rawProducts = chunkResults
+      .flatMap(data => Array.isArray(data.records) ? data.records : [])
+      .filter(p => {
+        const pid = fkId(p.M_Product_ID) ?? p.id;
+        if (seen.has(pid)) return false;
+        seen.add(pid);
+        return true;
+      })
+      .slice(0, WH_POOL_CAP);
+
+    return enrichAndSort(rawProducts, query, safeQ);
+  }, [enrichAndSort, fetchWarehouseLocatorIds]);
+
+  // ── fetchProducts: reset ke halaman pertama ─────────────────────────────────
+  const fetchProducts = useCallback(async (query = '', warehouseId = null) => {
+    lastParamsRef.current = { query, warehouseId };
+    setLoading(true);
+    try {
+      if (warehouseId) {
+        const pool = await fetchWarehousePool(query, warehouseId);
+        poolRef.current = pool;
+        visibleCountRef.current = PAGE_SIZE;
+        setProducts(pool.slice(0, PAGE_SIZE));
+        setHasMore(pool.length > PAGE_SIZE);
+      } else {
+        skipRef.current = 0;
+        const { page, rawCount } = await fetchNoWarehousePage(query, 0);
+        skipRef.current = rawCount;
+        poolRef.current = []; // tidak dipakai di path ini
+        setProducts(page);
+        setHasMore(rawCount === NO_WH_TOP);
+      }
+      return true;
+    } catch (err) {
+      console.error('[useProductSearch] fetchProducts error:', err);
+      setProducts([]);
+      setHasMore(false);
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  }, [fetchWarehousePool, fetchNoWarehousePage]);
+
+  // ── loadMore: dipanggil sentinel infinite scroll ────────────────────────────
+  const loadMore = useCallback(async () => {
+    const { query, warehouseId } = lastParamsRef.current;
+
+    if (warehouseId) {
+      // client-side slice, tidak ada network call baru
+      const nextCount = visibleCountRef.current + PAGE_SIZE;
+      visibleCountRef.current = nextCount;
+      setProducts(poolRef.current.slice(0, nextCount));
+      setHasMore(poolRef.current.length > nextCount);
+      return;
+    }
+
+    // path tanpa warehouse: fetch halaman berikut dari server
+    setLoadingMore(true);
+    try {
+      const { page, rawCount } = await fetchNoWarehousePage(query, skipRef.current);
+      skipRef.current += rawCount;
+      setProducts(prev => [...prev, ...page]);
+      setHasMore(rawCount === NO_WH_TOP);
+    } catch (err) {
+      console.error('[useProductSearch] loadMore error:', err);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [fetchNoWarehousePage]);
+
+  // ── searchByUPC: exact match, tanpa debounce, tidak terpengaruh pagination ──
   const searchByUPC = useCallback(async (upc) => {
     if (!upc) return null;
     try {
@@ -225,7 +280,6 @@ const fetchProducts = useCallback(async (query = '', warehouseId = null) => {
       const rawProducts = Array.isArray(productData.records) ? productData.records : [];
       if (rawProducts.length === 0) return null;
 
-      // OPTIMASI: Hanya cari PO & UOM untuk 1 produk spesifik ini
       const targetProductId = fkId(rawProducts[0].M_Product_ID) ?? rawProducts[0].id;
 
       const [productPoData, uomConvData] = await Promise.all([
@@ -240,28 +294,29 @@ const fetchProducts = useCallback(async (query = '', warehouseId = null) => {
       return results[0] ?? null;
     } catch (err) {
       console.error('[useProductSearch] searchByUPC error:', err);
-      return null; // ← daripada throw ke caller
+      return null;
     } finally {
       setLoading(false);
     }
   }, [buildProducts]);
 
-  const search = useCallback((query) => {
+  const search = useCallback((query, warehouseId = null) => {
     setSearchValue(query);
     clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => fetchProducts(query), debounceMs);
+    debounceRef.current = setTimeout(() => fetchProducts(query, warehouseId), debounceMs);
   }, [fetchProducts, debounceMs]);
 
-  const searchImmediate = useCallback((query) => {
+  const searchImmediate = useCallback((query, warehouseId = null) => {
     clearTimeout(debounceRef.current);
     setSearchValue(query);
-    return fetchProducts(query);
+    return fetchProducts(query, warehouseId);
   }, [fetchProducts]);
 
   return {
-    products, loading,
+    products, loading, loadingMore, hasMore,
     searchValue, setSearchValue,
     fetchProducts,
+    loadMore,
     search,
     searchImmediate,
     searchByUPC,

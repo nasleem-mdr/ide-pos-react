@@ -1,13 +1,15 @@
-import { useEffect, useRef, useCallback, useState } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 
 /**
  * useInfiniteScroll
- * @param {function} fetchMore - fungsi async yang fetch halaman berikutnya
- * @param {boolean} hasMore - apakah masih ada data selanjutnya
- * @param {boolean} loading - status loading saat ini (biar tidak double-fetch)
- * @param {string} rootMargin - jarak trigger sebelum sentinel benar-benar terlihat
+ * @param {function} fetchMore
+ * @param {boolean} hasMore
+ * @param {boolean} loading
+ * @param {string} rootMargin
+ * @param {React.RefObject} rootRef - ref ke container yang benar-benar scroll.
+ *        Kosongkan (undefined/null) kalau yang scroll adalah window/document.
  */
-export function useInfiniteScroll({ fetchMore, hasMore, loading, rootMargin = '300px' }) {
+export function useInfiniteScroll({ fetchMore, hasMore, loading, rootMargin = '300px', rootRef = null }) {
   const sentinelRef = useRef(null);
   const observerRef = useRef(null);
 
@@ -22,7 +24,7 @@ export function useInfiniteScroll({ fetchMore, hasMore, loading, rootMargin = '3
     if (observerRef.current) observerRef.current.disconnect();
 
     observerRef.current = new IntersectionObserver(handleIntersect, {
-      root: null, // viewport (atau ganti ke ref container scroll kalau perlu)
+      root: rootRef?.current ?? null, // <- pakai container scroll yang sebenarnya
       rootMargin,
       threshold: 0,
     });
@@ -31,7 +33,7 @@ export function useInfiniteScroll({ fetchMore, hasMore, loading, rootMargin = '3
     if (node) observerRef.current.observe(node);
 
     return () => observerRef.current?.disconnect();
-  }, [handleIntersect, rootMargin]);
+  }, [handleIntersect, rootMargin, rootRef?.current]); // re-attach kalau root berubah
 
   return sentinelRef;
 }

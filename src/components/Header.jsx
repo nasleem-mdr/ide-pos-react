@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { UserIcon, RoleIcon, LogoutIcon, LogoIconP } from './Icons';
+import { UserIcon, RoleIcon, LogoutIcon, LogoIconP, HomeIcon } from './Icons';
 import ChangeRoleModal from './ChangeRoleModal';
+import { useNavigate } from "react-router-dom";
 import '../css/Header.css';
  
 export default function Header({ session, onLogout, onSessionUpdate }) {
@@ -9,6 +10,7 @@ export default function Header({ session, onLogout, onSessionUpdate }) {
   const [showChangeRole, setShowChangeRole] = useState(false);
   const [isTouchDevice, setIsTouchDevice] = useState(false);
   const menuRef = useRef(null);
+  const navigate = useNavigate();
  
   // Deteksi apakah device mendukung hover asli (desktop/mouse) atau tidak
   // (mobile/touch). (hover: hover) + (pointer: fine) hanya true untuk mouse.
@@ -52,9 +54,14 @@ export default function Header({ session, onLogout, onSessionUpdate }) {
  
       {/* Session Info */}
       <div className="header-session">
+        
         <div className="header-info-item">
-          <LogoIconP size={20}/>
-          <span className="header-info-value header-hide-mobile">Procure <em>Grid</em></span>
+        <button 
+          onClick={() => navigate('/dashboard')} 
+          style={{ cursor: 'pointer', background: 'none', border: 'none', padding: 0 }}
+          ><LogoIconP size={20}/>
+          </button>
+          <span className="header-info-value header-hide-mobile">Procure<em>Grid</em></span>
         </div>
         <div className="header-divider header-hide-mobile" />
  

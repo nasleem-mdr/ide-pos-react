@@ -29,6 +29,7 @@ import { COLOR, RADIUS } from '../utils/styleTokens';
 
 // 6. Styles
 import '../css/Header.css';
+import ProductGrid from '../components/product/ProductGrid';
 const REQUISITION_CONFIG = {
   DESCRIPTION:  'Purchase Requisition via REST API',
 };
@@ -64,8 +65,8 @@ const RequisitionContainer = () => {
 
   // ── hooks ─────────────────────────────────────────────────────────────────
   const {
-    products, loading: productsLoading,
-    fetchProducts, search, searchValue, setSearchValue,
+    products, loading: productsLoading, loadingMore, hasMore,
+    fetchProducts, loadMore, search, searchValue, setSearchValue,
     searchByUPC,
   } = useProductSearch();
 
@@ -481,40 +482,17 @@ const RequisitionContainer = () => {
             flex: 1, overflowY: 'auto', padding: '12px 14px',
             paddingBottom: (!isDesktop && cart.length > 0) ? '80px' : '14px',
           }}>
-            {productsLoading ? (
-              <div style={{ textAlign: 'center', padding: '48px 0', color: COLOR.textLt }}>
-                <div style={{ fontSize: '32px', marginBottom: '10px' }}>⏳</div>
-                <p style={{ margin: 0 }}>Memuat produk...</p>
-              </div>
-            ) : products.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '48px 0', color: COLOR.textLt }}>
-                <div style={{ fontSize: '40px', marginBottom: '10px' }}>📦</div>
-                <p style={{ margin: 0 }}>Tidak ada produk ditemukan.</p>
-                <p style={{ margin: '6px 0 0', fontSize: '12px' }}>
-                  {selectedWarehouse
-                    ? `Pastikan produk memiliki Default Locator di gudang "${selectedWarehouse.name}".`
-                    : 'Pastikan produk memiliki vendor aktif di M_ProductPO.'}
-                </p>
-              </div>
-            ) : (
-              <>
-                <div style={{ fontSize: '12px', color: COLOR.textLt, marginBottom: '8px' }}>
-                  {products.length} produk
-                  {selectedWarehouse ? ` di gudang ${selectedWarehouse.name}` : ''}
-                </div>
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: isDesktop
-                    ? 'repeat(auto-fill, minmax(170px, 1fr))'
-                    : 'repeat(2, 1fr)',
-                  gap: '10px',
-                }}>
-                  {products.map((p, idx) => (
-                    <ProductCard key={`${p.M_Product_ID}-${idx}`} product={p} onClick={openProductDetail} />
-                  ))}
-                </div>
-              </>
-            )}
+            <ProductGrid
+              products={products}
+              loading={productsLoading}
+              loadingMore={loadingMore}
+              hasMore={hasMore}
+              fetchMore={loadMore}
+              onProductClick={openProductDetail}
+              isDesktop={isDesktop}
+              selectedWarehouse={selectedWarehouse}
+            />
+
           </div>
         </div>
 

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, {useRef} from 'react';
 import { useIsDesktop } from '../hooks/useIsDesktop';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import '../css/Components.css';
@@ -31,12 +31,13 @@ export default function DataTable({
 
 }) {
   const isDesktop = useIsDesktop();
-
+  const scrollContainerRef = useRef(null);
    const sentinelRef = useInfiniteScroll({
       fetchMore: infiniteScroll?.fetchMore ?? (() => {}),
       hasMore: infiniteScroll?.hasMore ?? false,
       loading: infiniteScroll?.loadingMore ?? false,
       rootMargin: '400px',
+      rootRef: scrollContainerRef,
     });
 
   if (loading) return <div className="loading-state">Loading data iDempiere...</div>;
@@ -87,7 +88,7 @@ export default function DataTable({
   // ── MOBILE — card grid (1 kolom, mirip daftar pesanan Shopee) ───────────
   if (!isDesktop) {
     return (
-      <div className="table-card">
+      <div className="table-card" ref={scrollContainerRef} style={{ overflowY: 'auto', maxHeight: '100vh' }}>
         {summaryRow && (
           <div style={cardStyles.summaryCard}>
             <span style={cardStyles.summaryLabel}>{summaryRow.label || 'Total'}</span>
