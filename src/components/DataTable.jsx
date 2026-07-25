@@ -1,5 +1,6 @@
 import React from 'react';
 import { useIsDesktop } from '../hooks/useIsDesktop';
+import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import '../css/Components.css';
 
 // Komponen Icon Navigasi Internal
@@ -26,8 +27,17 @@ export default function DataTable({
   onPageChange,
   renderActions, // Prop fungsi untuk merender tombol aksi khusus
   summaryRow,    // Opsional: { columnKey: string, value: string, label?: string } untuk summary
+  infiniteScroll, // { fetchMore, hasMore, loadingMore }
+
 }) {
   const isDesktop = useIsDesktop();
+
+   const sentinelRef = useInfiniteScroll({
+      fetchMore: infiniteScroll?.fetchMore ?? (() => {}),
+      hasMore: infiniteScroll?.hasMore ?? false,
+      loading: infiniteScroll?.loadingMore ?? false,
+      rootMargin: '400px',
+    });
 
   if (loading) return <div className="loading-state">Loading data iDempiere...</div>;
 
@@ -107,7 +117,22 @@ export default function DataTable({
           )}
         </div>
 
-        {pagination}
+        {/* Sentinel: elemen tak kasat mata, trigger fetch saat masuk viewport */}
+        {infiniteScroll && infiniteScroll.hasMore && (
+          <div ref={sentinelRef} style={{ height: 1 }} />
+        )}
+
+        {infiniteScroll?.loadingMore && (
+          <div style={{ textAlign: 'center', padding: '12px', color: '#9ca3af', fontSize: '13px' }}>
+            Memuat lagi...
+          </div>
+        )}
+
+        {infiniteScroll && !infiniteScroll.hasMore && data.length > 0 && (
+          <div style={{ textAlign: 'center', padding: '12px', color: '#c1c1c1', fontSize: '12px' }}>
+            — Semua data sudah dimuat —
+          </div>
+        )}
       </div>
     );
   }
