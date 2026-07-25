@@ -81,40 +81,52 @@ function ProductList() {
     { key: 'UPC', label: 'UPC/EAN' },
   ];
 
-  const fetchProduct = useCallback(async (currentOffset, isReset) => {
-    //setLoading(true);
-    if (isReset) setLoading(true);
-    else setLoadingMore(true);
-    
+   const fetchProduct = useCallback(async (currentOffset, mode) => {
+    // mode: 'replace' (desktop pagination / reset filter) atau 'append' (mobile infinite scroll)
+    mode === "append" ? setLoadingMore(true) : setLoading(true);
+  
     try {
       const fields = 'Name,Value,Description,IsPurchased,IsSold,UPC';
-      let url = `/models/m_product?$select=${fields}&$top=${pageSize}&$skip=${offset}`;
+      let url = `/models/m_product?$select=${fields}&$top=${pageSize}&$skip=${currentOffset}`;
       if (search) {
         url += `&$filter=contains(tolower(Name),'${search.toLowerCase()}')`;
       }
       const data = await idempiereApi(url);
-      setProducts(prev => isReset ? data.records || [...prev, ...data.records]);
+      const newRecords = data.records || [];
+  
+      setProducts(prev => mode === "append" ? [...prev, ...newRecords] : newRecords);
       setTotalRecords(data['row-count'] ?? 0);
-      setHasMore(data.records.length === pageSize);
+      setHasMore(newRecords.length === pageSize);
     } catch (err) {
       console.error("Fetch Error:", err.message);
-      setProducts([]);
-      setTotalRecords(0);
+      if (mode !== "append") {
+        setProducts([]);
+        setTotalRecords(0);
+      }
     } finally {
       setLoading(false);
       setLoadingMore(false);
     }
-  }, [offset, search]);
-
+  }, [search]); // ⬅️ HANYA search, offset tidak masuk deps karena selalu dikirim via parameter
+  
+  // Reset & fetch dari awal setiap kali search berubah
   useEffect(() => {
     setOffset(0);
-    fetchProduct(0, true);
+    fetchProduct(0, "replace");
+  }, [fetchProduct]); // aman sekarang karena fetchProduct cuma berubah saat search berubah
+  
+  // Dipanggil onPageChange dari DataTable (desktop)
+  const handlePageChange = useCallback((newOffset) => {
+    setOffset(newOffset);
+    fetchProduct(newOffset, "replace");
   }, [fetchProduct]);
+  
+  // Dipanggil sentinel infinite scroll (mobile)
   const loadMore = useCallback(() => {
     const nextOffset = offset + pageSize;
     setOffset(nextOffset);
-    fetchRequisitions(nextOffset, false);
-  }, [offset, fetchProducts]);
+    fetchProduct(nextOffset, "append");
+  }, [offset, fetchProduct]);
    
   function isYes(val) {
     return val === true || val === 'Y' || val === 'true';
@@ -402,19 +414,19 @@ function ProductList() {
         title="Product / Service"
         onSearch={(val) => { setSearch(val); setOffset(0); }}
       />
-      <DataTable
+     <DataTable
         columns={columns}
         data={tableData}
         loading={loading}
         offset={offset}
         pageSize={pageSize}
         totalRecords={totalRecords}
-        onPageChange={(newOffset) => setOffset(newOffset)}
+        onPageChange={handlePageChange}   // ⬅️ bukan inline setOffset lagi
         renderActions={actionRenderer}
         infiniteScroll={{
-            fetchMore: loadMore,
-            hasMore,
-            loadingMore,
+          fetchMore: loadMore,
+          hasMore,
+          loadingMore,
         }}
       />
     </div>
