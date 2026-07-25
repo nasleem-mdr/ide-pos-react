@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import ReactDOMServer from "react-dom/server";
 import PageHeader from '../components/PageHeader';
 import DataTable from '../components/DataTable';
+import { useInfiniteScroll } from "../hooks/useInfiniteScroll";
 import jsPDF from "jspdf";
 import QRCode from "qrcode";
 import { LogoSMAMerahHitam, LogoSMA20 } from "../components/Icons";
@@ -27,6 +28,8 @@ const thumbBoxStyle = {
 function ProductList() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore]   = useState(false);   // loading nambah data
+  const [hasMore, setHasMore]           = useState(true);
   const [search, setSearch] = useState("");
   const [offset, setOffset] = useState(0);
   const pageSize = 10;
@@ -78,8 +81,11 @@ function ProductList() {
     { key: 'UPC', label: 'UPC/EAN' },
   ];
 
-  const fetchProduct = useCallback(async () => {
-    setLoading(true);
+  const fetchProduct = useCallback(async (currentOffset, isReset) => {
+    //setLoading(true);
+    if (isReset) setLoading(true);
+    else setLoadingMore(true);
+    
     try {
       const fields = 'Name,Value,Description,IsPurchased,IsSold,UPC';
       let url = `/models/m_product?$select=${fields}&$top=${pageSize}&$skip=${offset}`;
@@ -87,21 +93,29 @@ function ProductList() {
         url += `&$filter=contains(tolower(Name),'${search.toLowerCase()}')`;
       }
       const data = await idempiereApi(url);
-      setProducts(data.records || []);
+      setProducts(prev => isReset ? data.records || [...prev, ...data.records]);
       setTotalRecords(data['row-count'] ?? 0);
+      setHasMore(data.records.length === pageSize);
     } catch (err) {
       console.error("Fetch Error:", err.message);
       setProducts([]);
       setTotalRecords(0);
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   }, [offset, search]);
 
   useEffect(() => {
-    fetchProduct();
+    setOffset(0);
+    fetchProduct(0, true);
   }, [fetchProduct]);
-
+  const loadMore = useCallback(() => {
+    const nextOffset = offset + pageSize;
+    setOffset(nextOffset);
+    fetchRequisitions(nextOffset, false);
+  }, [offset, fetchProducts]);
+   
   function isYes(val) {
     return val === true || val === 'Y' || val === 'true';
   }
@@ -397,6 +411,11 @@ function ProductList() {
         totalRecords={totalRecords}
         onPageChange={(newOffset) => setOffset(newOffset)}
         renderActions={actionRenderer}
+        infiniteScroll={{
+            fetchMore: loadMore,
+            hasMore,
+            loadingMore,
+        }}
       />
     </div>
   );
