@@ -21,7 +21,7 @@ import ProductCard from '../components/product/ProductCard';
 import ProductDetailSheet from '../components/product/ProductDetailSheet';
 import BarcodeScanner from '../components/scanner/BarcodeScanner';
 import RequisitionSuccessModal from '../components/requisition/RequisitionSuccessModal';
-import { HomeIcon, RequisitionIcon} from '../components/Icons'; 
+import { HomeIcon, RequisitionIcon,ScanIcon} from '../components/Icons'; 
 // 5. Utils
 import { idempiereApi, fkId } from '../utils/idempiereApi';
 import { resolveDocTypeId, DOC_BASE_TYPE } from '../utils/docTypeResolver';
@@ -468,12 +468,7 @@ const RequisitionContainer = () => {
                 WebkitTapHighlightColor: 'transparent',
               }}
             >
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
-                stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
-                <rect x="3" y="14" width="7" height="7"/>
-                <path d="M14 14h.01M14 17h.01M17 14h.01M17 17h.01M20 14h.01M20 17h.01M20 20h.01M17 20h.01M14 20h.01"/>
-              </svg>
+            <ScanIcon />
             </button>
           </div>
 

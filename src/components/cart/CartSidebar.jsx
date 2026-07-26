@@ -1,5 +1,6 @@
 import React from 'react';
-import CartItem from './CartItem';
+//import CartItem from './CartItem';
+import CartItemDefault from './CartItem';
 import { COLOR, RADIUS } from '../../utils/styleTokens';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -23,9 +24,10 @@ import { COLOR, RADIUS } from '../../utils/styleTokens';
 //   )}
 // ─────────────────────────────────────────────────────────────────────────────
 const CartSidebar = ({
-  cart, onRemove, onQtyChange, onUomChange, onClearCart,
+  cart, onRemove, onQtyChange, onUomChange, onPriceChange, onClearCart,
   totalItems, totalQty,
   summaryRight,
+  submitLabel,                 // ⬅️ baru
   submitDraftLabel = 'DRAFT',
   submitCompleteLabel = 'COMPLETE',
   onSubmit, isSubmitting = false,
@@ -33,13 +35,12 @@ const CartSidebar = ({
   title = 'Keranjang',
   emptyLabel = 'Belum ada produk dipilih.',
   width = '360px',
-  // Description manual — opsional. Kalau onDescriptionChange tidak diisi,
-  // field ini tidak dirender sama sekali (backward-compatible untuk
-  // pemakaian CartSidebar lain yang belum butuh field ini).
   description,
   onDescriptionChange,
   descriptionPlaceholder = 'Catatan / keterangan (opsional)...',
+  CartItemComponent = CartItemDefault, 
 }) => {
+  const isSingleButtonMode = !!onSubmit && !onSubmitDraft && !onSubmitComplete;
   return (
     <div style={{
       width, flexShrink: 0,
@@ -47,7 +48,7 @@ const CartSidebar = ({
       borderLeft: `1px solid ${COLOR.border}`,
       display: 'flex', flexDirection: 'column',
       height: '100%', minHeight: 0,
-    }}>
+     }}>
       {/* Header */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -103,12 +104,13 @@ const CartSidebar = ({
           </div>
         ) : (
           cart.map((item, idx) => (
-            <CartItem
+            <CartItemComponent
               key={`${item.M_Product_ID}-${idx}`}
               item={item}
               onRemove={onRemove}
               onQtyChange={onQtyChange}
-              onUomChange={onUomChange}
+              onUOMChange={onUomChange}
+              onPriceChange={onPriceChange}
             />
           ))
         )}
@@ -132,48 +134,65 @@ const CartSidebar = ({
           </div>
 
           <div style={{ display: 'flex', gap: '10px' }}>
-      {/* Tombol DRAFT (Style Secondary / Outline) */}
-      <button
-        onClick={onSubmitDraft}
-        disabled={isSubmitting}
-        style={{
-          flex: 1,
-          background: isSubmitting ? '#e5e7eb' : (COLOR.surface || '#fff'),
-          color: isSubmitting ? '#9ca3af' : (COLOR.primary || '#2563eb'),
-          border: `1.5px solid ${isSubmitting ? '#d1d5db' : (COLOR.primary || '#2563eb')}`,
-          padding: '12px 8px',
-          borderRadius: RADIUS.md,
-          fontWeight: 700,
-          fontSize: '14px',
-          cursor: isSubmitting ? 'not-allowed' : 'pointer',
-          letterSpacing: '0.02em',
-          transition: 'all 0.15s',
-        }}
-      >
-        {isSubmitting ? '⏳...' : submitDraftLabel}
-      </button>
-      
-      {/* Tombol COMPLETE (Style Primary / Solid) */}
-      <button
-        onClick={onSubmitComplete}
-        disabled={isSubmitting}
-        style={{
-          flex: 1,
-          background: isSubmitting ? '#9ca3af' : (COLOR.primary || '#2563eb'),
-          color: '#fff',
-          border: 'none',
-          padding: '12px 8px',
-          borderRadius: RADIUS.md,
-          fontWeight: 700,
-          fontSize: '14px',
-          cursor: isSubmitting ? 'not-allowed' : 'pointer',
-          letterSpacing: '0.02em',
-          transition: 'all 0.15s',
-        }}
-      >
-        {isSubmitting ? '⏳...' : submitCompleteLabel}
-      </button>
-    </div>
+              {isSingleButtonMode ? (
+                <button
+                  onClick={onSubmit}
+                  disabled={isSubmitting}
+                  style={{
+                    flex: 1,
+                    background: isSubmitting ? '#9ca3af' : (COLOR.primary || '#2563eb'),
+                    color: '#fff', border: 'none',
+                    padding: '12px 8px', borderRadius: RADIUS.md,
+                    fontWeight: 700, fontSize: '14px',
+                    cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  {isSubmitting ? '⏳...' : (submitLabel || 'SUBMIT')}
+                </button>
+              ) : (
+                <>
+            {/* Tombol DRAFT (Style Secondary / Outline) */}
+            <button
+              onClick={onSubmitDraft}
+              disabled={isSubmitting}
+              style={{
+                flex: 1,
+                background: isSubmitting ? '#e5e7eb' : (COLOR.surface || '#fff'),
+                color: isSubmitting ? '#9ca3af' : (COLOR.primary || '#2563eb'),
+                border: `1.5px solid ${isSubmitting ? '#d1d5db' : (COLOR.primary || '#2563eb')}`,
+                padding: '12px 8px',
+                borderRadius: RADIUS.md,
+                fontWeight: 700,
+                fontSize: '14px',
+                cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                letterSpacing: '0.02em',
+                transition: 'all 0.15s',
+              }}
+            >
+              {isSubmitting ? '⏳...' : submitDraftLabel}
+            </button>
+            <button
+              onClick={onSubmitComplete}
+              disabled={isSubmitting}
+              style={{
+                flex: 1,
+                background: isSubmitting ? '#9ca3af' : (COLOR.primary || '#2563eb'),
+                color: '#fff',
+                border: 'none',
+                padding: '12px 8px',
+                borderRadius: RADIUS.md,
+                fontWeight: 700,
+                fontSize: '14px',
+                cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                letterSpacing: '0.02em',
+                transition: 'all 0.15s',
+              }}
+            >
+              {isSubmitting ? '⏳...' : submitCompleteLabel}
+            </button>
+            </>
+              )}
+          </div>
         </div>
       )}
     </div>

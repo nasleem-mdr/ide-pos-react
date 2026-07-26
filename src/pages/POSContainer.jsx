@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback} from 'react';
 import { useNavigate, useLocation } from "react-router-dom";
 import SearchBar from '../components/SearchBar';
 import ProductCard from '../components/ProductCard';
@@ -9,6 +9,11 @@ import ReceiptModal from '../components/ReceiptModal';
 import { useAccess } from '../context/AccessContext';
 import { idempiereApi } from '../utils/idempiereApi';
 import { useIsDesktop } from '../hooks/useIsDesktop';
+import CartPanel from '../components/cart/CartPanel';   // sesuaikan path sebenarnya
+import CartSidebar from '../components/cart/CartSidebar';
+import BarcodeScanner from '../components/scanner/BarcodeScanner'; // sesuaikan path sebenarnya
+import { ScanIcon} from '../components/Icons'; 
+import ProductGrid from '../components/product/ProductGrid';
 
 const POSContainer = () => {
      // 1. State untuk kontrol Loading & Data POS
@@ -23,8 +28,14 @@ const POSContainer = () => {
          const [isEditMode, setIsEditMode]   = useState(false);
          const location = useLocation();
          const navigate = useNavigate();
+         const [isCartOpen, setIsCartOpen] = useState(false);
          const { canEdit } = useAccess();
          const canSubmitRequisition = canEdit('requisition');
+         const [scannerOpen, setScannerOpen] = useState(false);
+         const [offset, setOffset]           = useState(0);
+        const [hasMore, setHasMore]         = useState(true);
+        const [loadingMore, setLoadingMore] = useState(false);
+        const pageSize = 20;
     // ─── Unified Dialog State ─────────────────────────────────────────────────
 // mode: "confirm" → tampilkan tombol onConfirm + onCancel (produk harga 0)
 // mode: "alert"   → tampilkan tombol onClose saja (notifikasi/error)
@@ -130,7 +141,8 @@ const DIALOG_CLOSED = {
                     if (priceListId) {
                         const plName = terminalConfig.M_PriceList_ID?.identifier || terminalConfig.M_PriceList_ID?.Name || `PriceList #${priceListId}`;
                         setSelectedPriceList({ id: priceListId, name: plName });
-                        await fetchProducts("", priceListId, terminalConfig);
+                        setOffset(0);
+                        await fetchProducts("", priceListId, terminalConfig, "replace", 0);
                     } else {
                         triggerAlert("M_PriceList_ID tidak ditemukan pada konfigurasi terminal.");
                     }
@@ -214,13 +226,13 @@ const DIALOG_CLOSED = {
                      const lineId      = line.id ?? line.C_OrderLine_ID;
      
                      const selectedUOM = { id: uomId, name: uomName, multiplyRate: 1 };
-     
+                     
                      return {
                          C_OrderLine_ID: lineId,   // ← simpan untuk update line nanti
                          M_Product_ID:   productId,
                          Name:           productName,
                          Value:          "",
-                         PriceActual:    price,
+                         PriceEntered:    price,
                          basePrice:      price,
                          QtyEntered:     qty,
                          defaultUOM:     selectedUOM,
@@ -300,32 +312,51 @@ const DIALOG_CLOSED = {
 
     // ─── 1e. Handler ganti PriceList → reload produk ─────────────────────────
     
-    const handlePriceListChange = async (e) => {
+   const handlePriceListChange = async (e) => {
         const id   = parseInt(e.target.value, 10);
         const name = e.target.options[e.target.selectedIndex].text;
         setSelectedPriceList({ id, name });
+        setOffset(0);
         try {
-            await fetchProducts("", id);
+            await fetchProducts("", id, null, "replace", 0);
         } catch (err) {
             if (err?.name !== 'AbortError') console.error(err);
         }
     };
     // Ambil M_PriceList_Version_ID aktif dari sebuah price list
-const fetchActiveVersionId = async (priceListId, signal) => {
-    const versionRes = await idempiereApi(
-        `/models/m_pricelist_version?$filter=M_PriceList_ID eq ${priceListId}` +
-        ` and IsActive eq true&$orderby=ValidFrom desc&$top=1`,
-        { signal }
-    );
-    return versionRes?.records?.[0]?.id
-        || versionRes?.records?.[0]?.M_PriceList_Version_ID?.id
-        || versionRes?.records?.[0]?.M_PriceList_Version_ID
-        || null;
-};
-
-// Ambil produk + harga + stok berdasarkan filter & version yang sudah diketahui.
-// Dipakai oleh fetchProducts (grid awal/search debounce) dan handleSearchEnter (barcode/Enter).
-const resolveProducts = async (productFilter, versionId, config, signal) => {
+    const fetchActiveVersionId = async (priceListId, signal) => {
+        const versionRes = await idempiereApi(
+            `/models/m_pricelist_version?$filter=M_PriceList_ID eq ${priceListId}` +
+            ` and IsActive eq true&$orderby=ValidFrom desc&$top=1`,
+            { signal }
+        );
+        return versionRes?.records?.[0]?.id
+            || versionRes?.records?.[0]?.M_PriceList_Version_ID?.id
+            || versionRes?.records?.[0]?.M_PriceList_Version_ID
+            || null;
+    };
+    const handleBarcodeDetected = async (code) => {
+        setScannerOpen(false);
+        try {
+            const found = await fetchProductByBarcode(code);
+            if (found) {
+                await addToCart(found);   // addToCart POS hanya terima 1 arg, beda dari RequisitionContainer
+                setSearchValue("");
+            } else {
+                // Tidak exact match — fallback ke pencarian teks, biar user bisa pilih dari grid
+                setSearchValue(code);
+                setOffset(0);
+                await fetchProducts(code, getActivePriceListId(), null, "replace", 0);
+            }
+        } catch (err) {
+            if (err?.name === 'AbortError') return;
+            console.error("Gagal proses barcode:", err.message);
+            triggerAlert("Gagal memproses barcode: " + err.message, "Error");
+        }
+    };
+    // Ambil produk + harga + stok berdasarkan filter & version yang sudah diketahui.
+    // Dipakai oleh fetchProducts (grid awal/search debounce) dan handleSearchEnter (barcode/Enter).
+    const resolveProducts = async (productFilter, versionId, config, signal, top = 20, skip = 0) => {
     const [priceData, productData] = await Promise.all([
         idempiereApi(
             `/models/m_productprice?$filter=M_PriceList_Version_ID eq ${versionId}` +
@@ -334,7 +365,7 @@ const resolveProducts = async (productFilter, versionId, config, signal) => {
         ),
         idempiereApi(
             `/models/m_product?$select=M_Product_ID,Name,Value,C_UOM_ID,M_Product_Category_ID,ProductType` +
-            `&$filter=${productFilter}&$top=50`,
+            `&$filter=${productFilter}&$top=${top}&$skip=${skip}`,
             { signal }
         ),
     ]);
@@ -343,9 +374,7 @@ const resolveProducts = async (productFilter, versionId, config, signal) => {
         ? productData.records
         : productData.records ? [productData.records] : [];
 
-    const relevantIds = new Set(
-        productRecords.map(p => p.M_Product_ID?.id ?? p.M_Product_ID ?? p.id)
-    );
+    const relevantIds = new Set(productRecords.map(p => p.M_Product_ID?.id ?? p.M_Product_ID ?? p.id));
     const rawPriceRecords = Array.isArray(priceData.records)
         ? priceData.records
         : priceData.records ? [priceData.records] : [];
@@ -361,7 +390,7 @@ const resolveProducts = async (productFilter, versionId, config, signal) => {
     const productIds   = [...relevantIds];
     const qtyOnHandMap = await fetchQtyOnHandBatch(productIds, config);
 
-    return productRecords.map((p) => {
+    const list = productRecords.map((p) => {
         const pId  = p.M_Product_ID?.id ?? p.M_Product_ID ?? p.id;
         const price = priceMap.get(pId);
         if (price === undefined) return null;
@@ -385,17 +414,20 @@ const resolveProducts = async (productFilter, versionId, config, signal) => {
             QtyOnHand:    qtyOnHandMap.get(pId) ?? 0,
         };
     }).filter(Boolean);
+
+    return { list, count: productRecords.length };
 };
     // ─── 2. Fetch products ────────────────────────────────────────────────────
     const isDesktop = useIsDesktop();
     const abortRef = useRef(null);
-    const fetchProducts = async (query = "", priceListId = null, terminalConfig = null) => {
+    const fetchProducts = async (query = "", priceListId = null, terminalConfig = null, mode = "replace", currentOffset = 0) => {
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
 
+    mode === "append" ? setLoadingMore(true) : setLoading(true);
+
     try {
-        setLoading(true);
         setVersionMissing(false);
 
         const config           = terminalConfig || posConfig;
@@ -408,6 +440,7 @@ const resolveProducts = async (productFilter, versionId, config, signal) => {
             setCurrentVersionId("NOT_FOUND");
             setVersionMissing(true);
             setProducts([]);
+            setHasMore(false);
             return;
         }
         setCurrentVersionId(versionId);
@@ -418,16 +451,26 @@ const resolveProducts = async (productFilter, versionId, config, signal) => {
             productFilter += ` and (contains(toupper(Name),'${safeQuery}') or contains(toupper(Value),'${safeQuery}'))`;
         }
 
-        const finalProducts = await resolveProducts(productFilter, versionId, config, controller.signal);
-        setProducts(finalProducts);
+        const { list, count } = await resolveProducts(productFilter, versionId, config, controller.signal, pageSize, currentOffset);
+
+        setProducts(prev => mode === "append" ? [...prev, ...list] : list);
+        setHasMore(count === pageSize);
     } catch (err) {
         if (err.name === 'AbortError') return;
         console.error("Fetch Products Error:", err.message);
-        setProducts([]);
+        if (mode !== "append") setProducts([]);
     } finally {
-        if (!controller.signal.aborted) setLoading(false);
+        setLoading(false);
+        setLoadingMore(false);
     }
 };
+
+const loadMore = useCallback(() => {
+    const nextOffset = offset + pageSize;
+    setOffset(nextOffset);
+    fetchProducts(searchValue, getActivePriceListId(), null, "append", nextOffset);
+}, [offset, searchValue]);
+
 
     // ─── 3a. Fetch UOM options untuk satu produk ───────────────────────────────
     const fetchUOMOptions = async (product) => {
@@ -585,6 +628,8 @@ const resolveProducts = async (productFilter, versionId, config, signal) => {
             setCart(prev => [...prev, {
                 ...product,
                 QtyEntered:  1,
+                PriceEntered: product.PriceActual,  // harga per base UOM (default UOM, multiplyRate=1)
+                basePrice:    product.PriceActual,
                 uomOptions,
                 selectedUOM,
                 QtyOnHand:   isService ? 0 : qtyOnHand,
@@ -610,43 +655,41 @@ const resolveProducts = async (productFilter, versionId, config, signal) => {
     // ─── 6. Cart handlers ─────────────────────────────────────────────────────
     const removeFromCart = (id) => setCart(prev => prev.filter(i => i.M_Product_ID !== id));
 
-    const calculateTotal = () => cart.reduce((s, i) => s + (i.PriceActual * i.QtyEntered), 0);
+    const calculateTotal = () => cart.reduce((s, i) => s + (i.PriceEntered * i.QtyEntered), 0);
 
-    const updateCartQty = (productId, newQty) => {
+    const updateCartQty = (productId, rawQty) => {
+    const newQty = parseFloat(rawQty);
+    if (isNaN(newQty)) return;
+
     setCart(prev => {
         const item = prev.find(i => i.M_Product_ID === productId);
         if (!item) return prev;
 
-        const qtyOnHand = item.QtyOnHand ?? Infinity; // fallback jika tidak tersedia
-     
-             if (newQty > qtyOnHand) {
-                 // Tampilkan alert tapi jangan update state dulu
-                 // Gunakan setTimeout agar setCart selesai dulu baru triggerAlert
-                 setTimeout(() => {
-                     triggerAlert(
-                         `Kuantitas melebihi stok tersedia untuk "${item.Name}". Stok tersedia: ${qtyOnHand}.`,
-                         "Stok Tidak Cukup"
-                     );
-                 }, 0);
-                 return prev; // Batalkan update
-             }
-     
-             if (newQty <= 0) {
-                 return prev.filter(i => i.M_Product_ID !== productId);
-             }
-     
-             return prev.map(i =>
-                 i.M_Product_ID === productId
-                     ? { ...i, QtyEntered: newQty }
-                     : i
-             );
-         });
-     };
+        const multiplyRate  = item.selectedUOM?.multiplyRate || 1;
+        const qtyOnHandBase = item.QtyOnHand ?? Infinity;
+        const qtyOrderedBase = newQty * multiplyRate; // konversi ke base UOM untuk validasi
+
+        if (qtyOrderedBase > qtyOnHandBase) {
+            setTimeout(() => {
+                triggerAlert(
+                    `Kuantitas melebihi stok untuk "${item.Name}". Stok tersedia: ${qtyOnHandBase} ` +
+                    `(setara ${(qtyOnHandBase / multiplyRate).toFixed(2)} ${item.selectedUOM?.name || ''}).`,
+                    "Stok Tidak Cukup"
+                );
+            }, 0);
+            return prev;
+        }
+
+        if (newQty <= 0) return prev.filter(i => i.M_Product_ID !== productId);
+
+        return prev.map(i => i.M_Product_ID === productId ? { ...i, QtyEntered: newQty } : i);
+    });
+};
 
     const updateCartPrice = (id, value) => {
         const price = parseFloat(value);
         if (isNaN(price) || price < 0) return;
-        setCart(prev => prev.map(i => i.M_Product_ID === id ? { ...i, PriceActual: price } : i));
+        setCart(prev => prev.map(i => i.M_Product_ID === id ? { ...i, PriceEntered: price } : i));
     };
 
     const updateCartUOM = (id, uomOption) => {
@@ -654,8 +697,8 @@ const resolveProducts = async (productFilter, versionId, config, signal) => {
             if (item.M_Product_ID !== id) return item;
             return {
                 ...item,
-                selectedUOM: uomOption,
-                PriceActual: item.basePrice / uomOption.multiplyRate,
+                selectedUOM:  uomOption,
+                PriceEntered: item.basePrice * uomOption.multiplyRate,
             };
         }));
     };
@@ -736,7 +779,10 @@ const resolveProducts = async (productFilter, versionId, config, signal) => {
 
     const resetSearch = () => {
         setSearchValue("");
-        fetchProducts("", priceListId);
+        setOffset(0);
+        fetchProducts("", priceListId, null, "replace", 0).catch((err) => {
+            if (err?.name !== 'AbortError') console.error(err);
+        });
         setTimeout(() => searchRef.current?.focus(), 50);
     };
 
@@ -770,7 +816,8 @@ const resolveProducts = async (productFilter, versionId, config, signal) => {
         } else if (matched.length === 0) {
             triggerAlert(`Produk "${val}" tidak ditemukan di Price List aktif.`, "Tidak Ditemukan");
         } else {
-            setProducts(matched);
+            setProducts(matched.list ?? matched); // sesuaikan kalau resolveProducts dipanggil dengan default top/skip di sini
+            setHasMore(false);
         }
 
     } catch (err) {
@@ -819,12 +866,19 @@ const resolveProducts = async (productFilter, versionId, config, signal) => {
         }
 
         const formattedLines = cart.map((item) => {
+            const multiplyRate = item.selectedUOM?.multiplyRate || 1;
+            const qtyEntered   = parseFloat(item.QtyEntered || 1);
+            const priceEntered = parseFloat(item.PriceEntered || 0);
+            const qtyOrdered   = qtyEntered * multiplyRate;
+            const priceOrdered = multiplyRate ? priceEntered / multiplyRate : priceEntered;
+
             const line = {
                 AD_Org_ID:    { id: adOrgId },
                 M_Product_ID: { id: parseInt(item.M_Product_ID?.id ?? item.M_Product_ID) },
-                QtyEntered:   parseFloat(item.QtyEntered || 1),
-                PriceActual:  parseFloat(item.PriceActual || 0),
-                PriceEntered: parseFloat(item.PriceActual || 0),
+                QtyEntered:   qtyEntered,
+                QtyOrdered:   qtyOrdered,
+                PriceEntered: priceEntered,
+                PriceActual:  priceOrdered,  // ⚠️ lihat catatan di bawah soal nama field ini
             };
 
             const uomId = toIdMurni(item.selectedUOM, "C_UOM_ID");
@@ -897,20 +951,26 @@ const resolveProducts = async (productFilter, versionId, config, signal) => {
                  // Insert ulang order lines dari cart
                  const adOrgId = posConfig?.AD_Org_ID?.id ?? posConfig?.AD_Org_ID;
                  for (const item of cart) {
-                     await idempiereApi("/models/c_orderline", {
-                         method: "POST",
-                         body: JSON.stringify({
-                             C_Order_ID:   { id: editOrderId },
-                             AD_Org_ID:    { id: adOrgId },
-                             M_Product_ID: { id: parseInt(item.M_Product_ID) },
-                             QtyEntered:   parseFloat(item.QtyEntered || 1),
-                             PriceActual:  parseFloat(item.PriceActual || 0),
-                             PriceEntered: parseFloat(item.PriceActual || 0),
-                             C_UOM_ID:     { id: item.selectedUOM?.id },
-                         }),
-                     });
-                 }
-     
+                    const multiplyRate = item.selectedUOM?.multiplyRate || 1;
+                    const qtyEntered   = parseFloat(item.QtyEntered || 1);
+                    const priceEntered = parseFloat(item.PriceEntered || 0);
+                    const qtyOrdered   = qtyEntered * multiplyRate;
+                    const priceOrdered = multiplyRate ? priceEntered / multiplyRate : priceEntered;
+
+                    await idempiereApi("/models/c_orderline", {
+                        method: "POST",
+                        body: JSON.stringify({
+                            C_Order_ID:   { id: editOrderId },
+                            AD_Org_ID:    { id: adOrgId },
+                            M_Product_ID: { id: parseInt(item.M_Product_ID) },
+                            QtyEntered:   qtyEntered,
+                            QtyOrdered:   qtyOrdered,
+                            PriceEntered: priceEntered,
+                            PriceActual:  priceOrdered,
+                            C_UOM_ID:     { id: item.selectedUOM?.id },
+                        }),
+                    });
+                }     
                  orderId      = editOrderId;
                  createdOrder = await idempiereApi(`/models/c_order/${editOrderId}`);
      
@@ -1112,7 +1172,8 @@ const resolveProducts = async (productFilter, versionId, config, signal) => {
                     display: 'flex', 
                     flexDirection: 'column', 
                     gap: '0px', 
-                    overflow: 'hidden' 
+                    overflow: 'hidden' ,
+                    paddingRight: isDesktop ? '16px' : '0',
                 }}>
                     {/* Banner Edit Mode */}
                     {isEditMode && (
@@ -1141,16 +1202,31 @@ const resolveProducts = async (productFilter, versionId, config, signal) => {
                             </button>
                         </div>
                     )}
-                    <h3 style={{ margin: '0 0 10px 0' }}>Product Catalog</h3>
-                    <SearchBar
-                        value={searchValue}
-                        onChange={handleSearchChange}
-                        onKeyDown={handleSearchEnter}
-                        inputRef={searchRef}
-                        disabled={versionMissing}
-                        placeholder="Cari nama / kode produk, atau scan barcode lalu Enter..."
-                    />
-                    <div style={{ flex: 1, overflowY: 'auto', paddingRight: '4px' }}>
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'stretch', marginBottom: '10px' }}>
+                        <div style={{ flex: 1, display: 'flex' }}>
+                            <SearchBar
+                                value={searchValue}
+                                onChange={handleSearchChange}
+                                onKeyDown={handleSearchEnter}
+                                inputRef={searchRef}
+                                disabled={versionMissing}
+                                placeholder="Cari nama / kode produk, atau scan barcode lalu Enter..."
+                                style={{ background: '#fff', }}
+                            />
+                        </div>
+                        <button
+                            onClick={() => setScannerOpen(true)}
+                            title="Scan Barcode/QR"
+                            style={{
+                                background: '#1a237e', color: '#fff', border: 'none',
+                                borderRadius: '6px', width: '42px', height: '42px', flexShrink: 0,
+                                fontSize: '18px', cursor: 'pointer',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            }}
+                        ><ScanIcon /></button>
+                    </div>
+
+                    {/* <div style={{ flex: 1, overflowY: 'auto', paddingRight: '4px' }}>
                     {loading ? (
                         <p>Memuat produk...</p>
                     ) : (
@@ -1175,57 +1251,74 @@ const resolveProducts = async (productFilter, versionId, config, signal) => {
                             }
                         </div>
                     )}
-                </div>
+                </div> */}
+                <ProductGrid
+                    products={products}
+                    loading={loading}
+                    loadingMore={loadingMore}
+                    hasMore={hasMore}
+                    fetchMore={loadMore}
+                    onProductClick={addToCart}
+                    isDesktop={isDesktop}
+                    CardComponent={ProductCard}
+                    emptyHint={versionMissing ? null : "Tidak ada produk ditemukan dengan harga aktif."}
+                />
                 </div>
                 
+                    {isDesktop ? (
+                        <CartSidebar
+                            cart={cart}
+                            onRemove={removeFromCart}
+                            onQtyChange={updateCartQty}
+                            onUomChange={updateCartUOM}
+                            onPriceChange={updateCartPrice}
+                            totalItems={cart.length}
+                            totalQty={cart.reduce((s, i) => s + i.QtyEntered, 0)}
+                            summaryRight={`Rp ${calculateTotal().toLocaleString('id-ID')}`}
+                            title="🛒 Cart"
+                            submitLabel={isProcessingCheckout ? 'Memproses...' : 'PROSES BAYAR'}
+                            onSubmit={handleCheckout}
+                            isSubmitting={isProcessingCheckout}
+                            CartItemComponent={CartItem}   // ⬅️ CartItem versi POS (support price)
+                        />
+                    ) : (
+                        <>
+                            {/* Tombol melayang — muncul hanya kalau cart tidak kosong */}
+                            {cart.length > 0 && (
+                                <button
+                                    onClick={() => setIsCartOpen(true)}
+                                    style={{
+                                        position: 'fixed', bottom: '20px', left: '16px', right: '16px',
+                                        zIndex: 200, background: '#28a745', color: '#fff', border: 'none',
+                                        borderRadius: '12px', padding: '14px 18px', fontWeight: 700, fontSize: '15px',
+                                        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                                        boxShadow: '0 4px 16px rgba(0,0,0,0.2)', cursor: 'pointer',
+                                    }}
+                                >
+                                    <span>🛒 {cart.length} item</span>
+                                    <span>Rp {calculateTotal().toLocaleString('id-ID')} · Lihat Cart</span>
+                                </button>
+                            )}
 
-                {/* CONTAINER UTAMA CART */}
-                <div style={{ 
-                    flex: 1,
-                    borderLeft: isDesktop ? '1px solid #ddd' : 'none',
-                    borderTop:  isDesktop ? 'none' : '1px solid #ddd',
-                    paddingLeft: isDesktop ? '20px' : '0',
-                    paddingTop:  isDesktop ? '0' : '12px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    minWidth: isDesktop ? '280px' : 'auto',
-                    overflow: 'hidden',
-                    minHeight: 0,   // Mencegah container utama ikut memanjang ke bawah
-                }}>
-                    <h3 style={{ margin: '0 0 10px 0', flexShrink: 0 }}>🛒 Cart</h3>
-                    
-                    {/* WRAPPER CART ITEM (HANYA BAGIAN INI YANG SCROLL) */}
-                    <div style={{ flex: 1, overflowY: 'auto', paddingRight: '4px', minHeight: 0 }}>
-                        {cart.length === 0 && <p style={{ color: '#999' }}>Keranjang kosong</p>}
-                        {cart.map((item, index) => (
-                            <CartItem
-                                key={`${item.M_Product_ID}-${index}`}
-                                item={item}
+                            <CartPanel
+                                isOpen={isCartOpen}
+                                onClose={() => setIsCartOpen(false)}
+                                cart={cart}
                                 onRemove={removeFromCart}
                                 onQtyChange={updateCartQty}
+                                onUomChange={updateCartUOM}
                                 onPriceChange={updateCartPrice}
-                                onUOMChange={updateCartUOM}
+                                totalItems={cart.length}
+                                totalQty={cart.reduce((s, i) => s + i.QtyEntered, 0)}
+                                summaryRight={`Rp ${calculateTotal().toLocaleString('id-ID')}`}
+                                title="🛒 Cart"
+                                submitLabel={isProcessingCheckout ? 'Memproses...' : 'PROSES BAYAR'}
+                                onSubmit={() => { handleCheckout(); }}
+                                isSubmitting={isProcessingCheckout}
+                                CartItemComponent={CartItem}
                             />
-                        ))}
-                    </div>
-                    
-                    {/* SECTION PEMBAYARAN (FIXED DI BAWAH) */}
-                    {cart.length > 0 && (
-                        <div style={{ borderTop: '1px solid #ddd', paddingTop: '12px', marginTop: '8px', flexShrink: 0 }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px', fontSize: '15px', fontWeight: 'bold' }}>
-                                <span>Total:</span>
-                                <span style={{ color: '#2e7d32' }}>Rp {calculateTotal().toLocaleString('id-ID')}</span>
-                            </div>
-                            <button
-                                onClick={handleCheckout}
-                                disabled={isProcessingCheckout}
-                                style={{ background: isProcessingCheckout ? '#aaa' : '#28a745', color: 'white', border: 'none', padding: '14px', width: '100%', borderRadius: '8px', fontWeight: 'bold', fontSize: '15px', cursor: isProcessingCheckout ? 'not-allowed' : 'pointer' }}
-                            >
-                                {isProcessingCheckout ? 'Memproses...' : 'PROSES BAYAR'}
-                            </button>
-                        </div>
+                        </>
                     )}
-                </div>
                 <PaymentModal
                     isOpen={isPaymentModalOpen}
                     onClose={() => setIsPaymentModalOpen(false)}
@@ -1238,6 +1331,11 @@ const resolveProducts = async (productFilter, versionId, config, signal) => {
                    onClose={() => setIsReceiptModalOpen(false)}
                    receiptData={receiptData}
                />
+               <BarcodeScanner
+                    isOpen={scannerOpen}
+                    onDetected={handleBarcodeDetected}
+                    onClose={() => setScannerOpen(false)}
+                />
             </div>
         </div>
     );

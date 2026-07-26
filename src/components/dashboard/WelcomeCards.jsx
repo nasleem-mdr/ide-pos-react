@@ -41,6 +41,13 @@ export default function WelcomeCards({ session }) {
         <div className="welcome-card-value">Internal Use</div>
       </div>
       </Link>
+      <Link to="/pos-order" className="welcome-card-link">
+      <div className="welcome-card">
+        <div className="welcome-card-icon"><ShoppingCartIcon size={32} /></div>
+        <div className="welcome-card-label">Formulir</div>
+        <div className="welcome-card-value">POS Sales</div>
+      </div>
+      </Link>
       {/* Info: Bahasa 
       <div className="welcome-card">
         <div className="welcome-card-icon"><CashierIcon /></div>

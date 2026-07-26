@@ -21,7 +21,8 @@ import { idempiereApi, fkId } from '../utils/idempiereApi';
 import { resolveDocTypeId, DOC_BASE_TYPE } from '../utils/docTypeResolver';
 import { COLOR, RADIUS } from '../utils/styleTokens';
 import '../css/Header.css';
-import { HomeIcon } from '../components/Icons';
+import { HomeIcon, ScanIcon } from '../components/Icons';
+import ProductGrid from '../components/product/ProductGrid';
 
 // Deskripsi dokumen — tidak client-specific, aman tetap konstan.
 const GOODS_RECEIPT_DESCRIPTION = 'Goods Receipt via Web';
@@ -65,12 +66,15 @@ const GoodsReceiptContainer = () => {
   const [successOpen, setSuccessOpen]   = useState(false);
   const [detailOpen, setDetailOpen]     = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
-
+  const [warehouses, setWarehouses]           = useState([]);         // list semua WH
+  const [selectedWarehouse, setSelectedWarehouse] = useState(null);
   const searchRef = useRef(null);
 
   const alert = (message, title = 'Perhatian') => setDialog({ isOpen: true, title, message });
 
-  const { products, loading: productsLoading, fetchProducts, search, searchValue, setSearchValue } = useProductSearch();
+  const { products, loading: productsLoading, loadingMore, hasMore,
+    fetchProducts, loadMore, search, searchValue, setSearchValue 
+  } = useProductSearch();
   const { cart, setCart, addToCart, removeFromCart, updateQty, updateUom, clearCart, totalQty, totalItems } = useCart();
   const { vendors, loading: vendorLoading, search: searchVendor, getDefaultBPLocation } = useVendorSearch();
   const { submit, isSubmitting } = useGoodsReceiptSubmit({
@@ -225,7 +229,7 @@ const GoodsReceiptContainer = () => {
     clearCart();
   }, [clearCart]);
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (mode= 'complete') => {
     if (!docTypeId) {
       alert('Document Type belum siap (gagal di-resolve). Cek konfigurasi Document Type "MMR" di iDempiere, lalu muat ulang halaman.', 'Error');
       return;
@@ -240,7 +244,7 @@ const GoodsReceiptContainer = () => {
       vendorId:         selectedVendor.C_BPartner_ID,
       vendorLocationId: selectedVendor.locationId,
       vendorName:       selectedVendor.Name,
-    });
+    }, mode);
     if (result) {
       setSuccessData(result);
       handleResetVendor();
@@ -439,11 +443,7 @@ const GoodsReceiptContainer = () => {
                 fontSize: '20px', lineHeight: 1, flexShrink: 0, WebkitTapHighlightColor: 'transparent',
               }}
             >
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
-                <rect x="3" y="14" width="7" height="7"/>
-                <path d="M14 14h.01M14 17h.01M17 14h.01M17 17h.01M20 14h.01M20 17h.01M20 20h.01M17 20h.01M14 20h.01"/>
-              </svg>
+              <ScanIcon />
             </button>
 
             {/* Tombol: Import dari Purchase Order Completed/Approved */}
@@ -463,34 +463,16 @@ const GoodsReceiptContainer = () => {
             flex: 1, overflowY: 'auto', padding: '12px 14px',
             paddingBottom: (!isDesktop && cart.length > 0) ? '80px' : '14px',
           }}>
-            {productsLoading ? (
-              <div style={{ textAlign: 'center', padding: '48px 0', color: COLOR.textLt }}>
-                <div style={{ fontSize: '32px', marginBottom: '10px' }}>⏳</div>
-                <p style={{ margin: 0 }}>Memuat produk...</p>
-              </div>
-            ) : products.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '48px 0', color: COLOR.textLt }}>
-                <div style={{ fontSize: '40px', marginBottom: '10px' }}>📦</div>
-                <p style={{ margin: 0 }}>Tidak ada produk ditemukan.</p>
-              </div>
-            ) : (
-              <>
-                <div style={{ fontSize: '12px', color: COLOR.textLt, marginBottom: '8px' }}>
-                  {products.length} produk ditemukan
-                </div>
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: isDesktop
-                    ? 'repeat(auto-fill, minmax(170px, 1fr))'
-                    : 'repeat(2, 1fr)',
-                  gap: '10px',
-                }}>
-                  {products.map((p, idx) => (
-                    <ProductCard key={`${p.M_Product_ID}-${idx}`} product={p} onClick={openProductDetail} />
-                  ))}
-                </div>
-              </>
-            )}
+            <ProductGrid
+                          products={products}
+                          loading={productsLoading}
+                          loadingMore={loadingMore}
+                          hasMore={hasMore}
+                          fetchMore={loadMore}
+                          onProductClick={openProductDetail}
+                          isDesktop={isDesktop}
+                          selectedWarehouse={selectedWarehouse}
+                        />
           </div>
         </div>
 
@@ -507,7 +489,8 @@ const GoodsReceiptContainer = () => {
             summaryRight={cartSummaryRight}
             title="📦 Daftar Penerimaan"
             submitLabel="✅ TERIMA BARANG"
-            onSubmit={canSubmitReceipt ? handleSubmit : undefined}
+            onSubmitDraft={canSubmitReceipt ? handleSubmit : undefined}
+            onSubmitComplete={canSubmitReceipt ? handleSubmit : undefined}
             isSubmitting={isSubmitting}
           />
         )}
@@ -532,7 +515,8 @@ const GoodsReceiptContainer = () => {
           summaryRight={cartSummaryRight}
           title="📦 Daftar Penerimaan"
           submitLabel="✅ TERIMA BARANG"
-          onSubmit={canSubmitReceipt ? handleSubmit : undefined}
+          onSubmitDraft={canSubmitReceipt ? handleSubmit : undefined}
+          onSubmitComplete={canSubmitReceipt ? handleSubmit : undefined}
           isSubmitting={isSubmitting}
         />
       )}

@@ -16,6 +16,8 @@ import '../css/CartItem.css';
 
   const CartItem = ({ item, onRemove, onQtyChange, onPriceChange, onUOMChange }) => {
   const hasUOMOptions = item.uomOptions && item.uomOptions.length > 1;
+  const qty   = Number.isFinite(item.QtyEntered)   ? item.QtyEntered   : 1;
+  const price = Number.isFinite(item.PriceEntered) ? item.PriceEntered : 0;
 
   return (
     <div className={`cart-item${hasUOMOptions ? ' has-uom' : ''}`}>
@@ -41,19 +43,19 @@ import '../css/CartItem.css';
       <div className="ci-qty">
         <button
           className="ci-qty-btn"
-          onClick={() => onQtyChange(item.M_Product_ID, item.QtyOrdered - 1)}
-          disabled={item.QtyOrdered <= 1}
+          onClick={() => onQtyChange(item.M_Product_ID, qty - 1)}
+          disabled={qty <= 1}
         >−</button>
         <input
           className="ci-qty-input"
           type="number"
           min="1"
-          value={item.QtyOrdered}
+          value={qty}
           onChange={e => onQtyChange(item.M_Product_ID, e.target.value)}
         />
         <button
           className="ci-qty-btn"
-          onClick={() => onQtyChange(item.M_Product_ID, item.QtyOrdered + 1)}
+          onClick={() => onQtyChange(item.M_Product_ID, qty + 1)}
         >+</button>
       </div>
 
@@ -63,7 +65,7 @@ import '../css/CartItem.css';
           className="ci-price-input"
           type="number"
           min="0"
-          value={item.PriceActual}
+          value={price}
           onChange={e => onPriceChange(item.M_Product_ID, e.target.value)}
         />
       </div>

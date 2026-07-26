@@ -1,24 +1,26 @@
 import React from 'react';
-import CartItem from './CartItem';
+import CartItemDefault from './CartItem';
 import { COLOR, RADIUS } from '../../utils/styleTokens';
 
 const CartPanel = ({
   isOpen, onClose,
-  cart, onRemove, onQtyChange, onUomChange, onClearCart,
+  cart, onRemove, onQtyChange, onUomChange, onPriceChange, onClearCart,
   totalItems, totalQty,
   summaryRight,
+  submitLabel,
   submitDraftLabel = 'DRAFT',
   submitCompleteLabel = 'COMPLETE',
   onSubmit, isSubmitting = false,
   onSubmitDraft, onSubmitComplete,
   title = 'Keranjang',
   emptyLabel = 'Belum ada produk dipilih.',
-  // Description manual — opsional, sama seperti di CartSidebar.jsx.
   description,
   onDescriptionChange,
   descriptionPlaceholder = 'Catatan / keterangan (opsional)...',
+  CartItemComponent = CartItemDefault,   // ⬅️ BUG #2 — sebelumnya tidak ada di destructure props
 }) => {
   if (!isOpen) return null;
+  const isSingleButtonMode = !!onSubmit && !onSubmitDraft && !onSubmitComplete;
 
   return (
     <div
@@ -78,7 +80,6 @@ const CartPanel = ({
           </div>
         </div>
 
-        {/* Description manual — di bawah title, di atas list produk */}
         {onDescriptionChange && (
           <div style={{ padding: '8px 16px 12px', borderBottom: `1px solid ${COLOR.border}`, flexShrink: 0 }}>
             <textarea
@@ -103,18 +104,19 @@ const CartPanel = ({
             </p>
           ) : (
             cart.map((item, idx) => (
-              <CartItem
+              <CartItemComponent
                 key={`${item.M_Product_ID}-${idx}`}
                 item={item}
                 onRemove={onRemove}
                 onQtyChange={onQtyChange}
-                onUomChange={onUomChange}
+                onUOMChange={onUomChange}
+                onPriceChange={onPriceChange}
               />
             ))
           )}
         </div>
 
-        {cart.length > 0 && (onSubmitDraft || onSubmitComplete || onSubmit ) && (
+        {cart.length > 0 && (onSubmitDraft || onSubmitComplete || onSubmit) && (
           <div style={{
             borderTop: `1px solid ${COLOR.border}`, padding: '12px 14px', flexShrink: 0,
             paddingBottom: 'max(14px, env(safe-area-inset-bottom))',
@@ -131,37 +133,57 @@ const CartPanel = ({
               </div>
               {summaryRight && <div style={{ fontSize: '12px', color: COLOR.textLt }}>{summaryRight}</div>}
             </div>
+
             <div style={{ display: 'flex', gap: '10px' }}>
-            <button
-              onClick={onSubmitDraft}
-              disabled={isSubmitting}
-              style={{
-                background: isSubmitting ? '#9ca3af' : COLOR.primary,
-                color: '#fff', border: 'none',
-                padding: '15px', width: '100%',
-                borderRadius: RADIUS.md, fontWeight: 700,
-                fontSize: '16px', cursor: isSubmitting ? 'not-allowed' : 'pointer',
-                letterSpacing: '0.02em', transition: 'background 0.15s',
-                WebkitTapHighlightColor: 'transparent',
-              }}
-            >
-              {isSubmitting ? '⏳ Memproses...' : submitDraftLabel}
-            </button>
-            <button
-              onClick={onSubmitComplete}
-              disabled={isSubmitting}
-              style={{
-                background: isSubmitting ? '#9ca3af' : COLOR.primary,
-                color: '#fff', border: 'none',
-                padding: '15px', width: '100%',
-                borderRadius: RADIUS.md, fontWeight: 700,
-                fontSize: '16px', cursor: isSubmitting ? 'not-allowed' : 'pointer',
-                letterSpacing: '0.02em', transition: 'background 0.15s',
-                WebkitTapHighlightColor: 'transparent',
-              }}
-            >
-              {isSubmitting ? '⏳ Memproses...' : submitCompleteLabel}
-            </button>
+              {isSingleButtonMode ? (
+                <button
+                  onClick={onSubmit}
+                  disabled={isSubmitting}
+                  style={{
+                    background: isSubmitting ? '#9ca3af' : COLOR.primary,
+                    color: '#fff', border: 'none',
+                    padding: '15px', width: '100%',
+                    borderRadius: RADIUS.md, fontWeight: 700,
+                    fontSize: '16px', cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                    letterSpacing: '0.02em',
+                  }}
+                >
+                  {isSubmitting ? '⏳ Memproses...' : (submitLabel || 'SUBMIT')}
+                </button>
+              ) : (
+                <>
+                  <button
+                    onClick={onSubmitDraft}
+                    disabled={isSubmitting}
+                    style={{
+                      background: isSubmitting ? '#9ca3af' : COLOR.primary,
+                      color: '#fff', border: 'none',
+                      padding: '15px', width: '100%',
+                      borderRadius: RADIUS.md, fontWeight: 700,
+                      fontSize: '16px', cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                      letterSpacing: '0.02em', transition: 'background 0.15s',
+                      WebkitTapHighlightColor: 'transparent',
+                    }}
+                  >
+                    {isSubmitting ? '⏳ Memproses...' : submitDraftLabel}
+                  </button>
+                  <button
+                    onClick={onSubmitComplete}
+                    disabled={isSubmitting}
+                    style={{
+                      background: isSubmitting ? '#9ca3af' : COLOR.primary,
+                      color: '#fff', border: 'none',
+                      padding: '15px', width: '100%',
+                      borderRadius: RADIUS.md, fontWeight: 700,
+                      fontSize: '16px', cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                      letterSpacing: '0.02em', transition: 'background 0.15s',
+                      WebkitTapHighlightColor: 'transparent',
+                    }}
+                  >
+                    {isSubmitting ? '⏳ Memproses...' : submitCompleteLabel}
+                  </button>
+                </>
+              )}
             </div>
           </div>
         )}
