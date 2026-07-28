@@ -57,6 +57,10 @@ const PurchasingContainer = () => {
   const [docTypeId, setDocTypeId] = useState(null);
   const [defaultLocatorId, setDefaultLocatorId] = useState(null);
   const [description, setDescription]         = useState('');
+  const [poDocTypeId, setPoDocTypeId]           = useState(null);
+  const [receiptDocTypeId, setReceiptDocTypeId] = useState(null);
+  const [invoiceDocTypeId, setInvoiceDocTypeId] = useState(null);
+  const [paymentDocTypeId, setPaymentDocTypeId] = useState(null);
   // Vendor picker per-baris cart — vendorPickerTarget = itemKey baris yang
   // sedang diganti vendornya (null = modal tertutup).
   const [vendorPickerTarget, setVendorPickerTarget] = useState(null);
@@ -163,6 +167,7 @@ const handleModalCashPurchase = async () => {
                 resolveDocTypeId(DOC_BASE_TYPE.AP_PAYMENT,       { orgId: info.orgId }),
             ]);
             setPoDocTypeId(poDt);
+            setDocTypeId(poDt);
             setReceiptDocTypeId(receiptDt);
             setInvoiceDocTypeId(invoiceDt);
             setPaymentDocTypeId(paymentDt);
