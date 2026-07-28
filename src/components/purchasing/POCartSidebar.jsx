@@ -21,6 +21,7 @@ const POCartSidebar = ({
   onClearCart, totalItems, totalAmount, summaryRight,
   title = '🧾 Daftar Purchase Order',
   onSubmitDraft, onSubmitComplete, 
+  onSubmit, submitLabel,  
   isSubmitting = false,
   emptyLabel = 'Belum ada produk dipilih.',
   width = '380px',
@@ -116,7 +117,7 @@ const POCartSidebar = ({
           ))
         )}
       </div>
-      {totalItems > 0 && (onSubmitDraft || onSubmitComplete ) && (
+     {totalItems > 0 && (onSubmitDraft || onSubmitComplete || onSubmit) && (
         <div style={{ borderTop: `1px solid ${COLOR.border}`, padding: '14px 16px', flexShrink: 0 }}>
           <div style={{
             background: '#f0f4ff', borderRadius: RADIUS.md, padding: '10px 14px',
@@ -134,47 +135,57 @@ const POCartSidebar = ({
           )}
 
           {hasIncompleteVendor && (
-            <div style={{
-              fontSize: '11px', color: COLOR.danger, background: COLOR.dangerLt,
-              borderRadius: RADIUS.sm, padding: '8px 10px', marginBottom: '10px',
-            }}>
-              ⚠ Masih ada item tanpa vendor. Klik badge 🚚 pada item untuk memilih vendor sebelum submit.
-            </div>
-          )}
-          <div style={{ display: 'flex', gap: '10px' }}>
-          <button
-            onClick={onSubmitDraft}
-            disabled={isSubmitting || hasIncompleteVendor}
-            style={{
-              background: (isSubmitting || hasIncompleteVendor) ? '#9ca3af' : COLOR.border,
-              color: '#0423ce', border: 'none', padding: '14px', width: '100%',
-              borderRadius: RADIUS.md, fontWeight: 700, fontSize: '14px',
-              cursor: (isSubmitting || hasIncompleteVendor) ? 'not-allowed' : 'pointer',
-              letterSpacing: '0.02em',
-            }}
-          >
-            {isSubmitting
-              ? '⏳ Memproses...'
-              : `✅ DRAFT ${vendorCount} PO${vendorCount > 1 ? ' (terpisah)' : ''}`}
-          </button>
-          <button
-            onClick={onSubmitComplete}
-            disabled={isSubmitting || hasIncompleteVendor}
-            style={{
-              background: (isSubmitting || hasIncompleteVendor) ? '#9ca3af' : COLOR.primary,
-              color: '#fff', border: 'none', padding: '14px', width: '100%',
-              borderRadius: RADIUS.md, fontWeight: 700, fontSize: '14px',
-              cursor: (isSubmitting || hasIncompleteVendor) ? 'not-allowed' : 'pointer',
-              letterSpacing: '0.02em',
-            }}
-          >
-            {isSubmitting
-              ? '⏳ Memproses...'
-              : `✅ COMPLETE ${vendorCount} PO${vendorCount > 1 ? ' (terpisah)' : ''}`}
-          </button>
-          </div>
-        </div>
-      )}
+              <div style={{
+                fontSize: '11px', color: COLOR.danger, background: COLOR.dangerLt,
+                borderRadius: RADIUS.sm, padding: '8px 10px', marginBottom: '10px',
+              }}>
+                ⚠ Masih ada item tanpa vendor. Ketuk badge 🚚 pada item untuk memilih vendor.
+              </div>
+            )}
+
+            {isSingleButtonMode ? (
+              <button
+                onClick={onSubmit}
+                disabled={isSubmitting || hasIncompleteVendor}
+                style={{
+                  background: (isSubmitting || hasIncompleteVendor) ? '#9ca3af' : COLOR.primary,
+                  color: '#fff', border: 'none', padding: '14px', width: '100%',
+                  borderRadius: RADIUS.md, fontWeight: 700, fontSize: '14px',
+                  cursor: (isSubmitting || hasIncompleteVendor) ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {isSubmitting ? '⏳ Memproses...' : (submitLabel || 'Kirim')}
+              </button>
+            ) : (
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button
+                  onClick={onSubmitDraft}
+                  disabled={isSubmitting || hasIncompleteVendor}
+                  style={{
+                    background: (isSubmitting || hasIncompleteVendor) ? '#f3f4f6' : '#fff',
+                    color: (isSubmitting || hasIncompleteVendor) ? '#9ca3af' : COLOR.primary,
+                    border: `1.5px solid ${(isSubmitting || hasIncompleteVendor) ? '#d1d5db' : COLOR.primary}`,
+                    padding: '14px', width: '100%',
+                    borderRadius: RADIUS.md, fontWeight: 700, fontSize: '14px',
+                    cursor: (isSubmitting || hasIncompleteVendor) ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  {isSubmitting ? '⏳ Memproses...' : `📝 DRAFT ${vendorCount} PO${vendorCount > 1 ? ' (terpisah)' : ''}`}
+                </button>
+                <button
+                  onClick={onSubmitComplete}
+                  disabled={isSubmitting || hasIncompleteVendor}
+                  style={{
+                    background: (isSubmitting || hasIncompleteVendor) ? '#9ca3af' : '#16a34a',
+                    color: '#fff', border: 'none', padding: '14px', width: '100%',
+                    borderRadius: RADIUS.md, fontWeight: 700, fontSize: '14px',
+                    cursor: (isSubmitting || hasIncompleteVendor) ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  {isSubmitting ? '⏳ Memproses...' : `✅ COMPLETE ${vendorCount} PO${vendorCount > 1 ? ' (terpisah)' : ''}`}
+                </button>
+              </div>
+            )}
     </div>
   );
 };
