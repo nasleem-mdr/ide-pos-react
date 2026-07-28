@@ -200,6 +200,8 @@ const POCartPanel = ({
               </div>
             )}
       </div>
+       )}
+      </div>
     </div>
   );
 };

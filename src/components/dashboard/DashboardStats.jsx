@@ -8,7 +8,7 @@ import '../../css/Dashboard.css';
 import { useAccess } from '../../context/AccessContext';
 import LineChart from './LineChart';
 import { Link, useLocation } from 'react-router-dom';
-import { ShoppingCartIcon, RequisitionIcon } from '../Icons';
+import { ShoppingCartIcon, RequisitionIcon, ReciprocalIcon } from '../Icons';
 import { getMenuSections } from '../../config/menuConfig';
 
 const COLOR_DR = '#f57c00';
@@ -104,7 +104,7 @@ function RequisitionConversionCard() {
   return (
     <div className="ds-card">
       <div className="ds-card-title">
-        🔄 Requisition → PO <span className="ds-card-period">(bulan ini)</span>
+        <ReciprocalIcon /> Requisition → PO <span className="ds-card-period">(bulan ini)</span>
       </div>
       {loading ? (
         <div className="ds-loading">Memuat...</div>

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { UserIcon, RoleIcon, LogoutIcon, LogoIconP, HomeIcon } from './Icons';
+import { UserIcon, RoleIcon, LogoutIcon, LogoIconW } from './Icons';
 import ChangeRoleModal from './ChangeRoleModal';
 import { useNavigate } from "react-router-dom";
 import '../css/Header.css';
@@ -59,7 +59,7 @@ export default function Header({ session, onLogout, onSessionUpdate }) {
         <button 
           onClick={() => navigate('/dashboard')} 
           style={{ cursor: 'pointer', background: 'none', border: 'none', padding: 0 }}
-          ><LogoIconP size={20}/>
+          ><LogoIconW size={20}/>
           </button>
           <span className="header-info-value header-hide-mobile">Procure<em>Grid</em></span>
         </div>

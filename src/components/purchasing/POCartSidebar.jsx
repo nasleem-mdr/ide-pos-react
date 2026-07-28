@@ -31,6 +31,7 @@ const POCartSidebar = ({
 }) => {
   const vendorCount = vendorGroups.length;
   const hasIncompleteVendor = vendorGroups.some(g => !g.C_BPartner_ID);
+  const isSingleButtonMode = !!onSubmit && !onSubmitDraft && !onSubmitComplete;
 
   return (
     <div style={{
@@ -183,11 +184,12 @@ const POCartSidebar = ({
                   }}
                 >
                   {isSubmitting ? '⏳ Memproses...' : `✅ COMPLETE ${vendorCount} PO${vendorCount > 1 ? ' (terpisah)' : ''}`}
-                </button>
+                  </button>
               </div>
             )}
-    </div>
+      </div>
+       )}
+      </div>
   );
 };
-
 export default POCartSidebar;

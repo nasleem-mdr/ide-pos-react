@@ -22,7 +22,7 @@ import { resolveDocTypeId, DOC_BASE_TYPE, DOC_SUB_TYPE_INV } from '../utils/docT
 import { idempiereApi } from '../utils/idempiereApi';
 import { COLOR, RADIUS } from '../utils/styleTokens';
 import '../css/Header.css';
-import { HomeIcon } from '../components/Icons';
+import { UserTake, ImportIcon } from '../components/Icons';
 
 const INTERNAL_USE_DESCRIPTION = 'Internal Use via Web';
 
@@ -315,15 +315,18 @@ const InternalUseContainer = () => {
       />
 
       <div className='header'>
-        <button
-          onClick={() => navigate('/dashboard')}
-          style={{
-            background: 'rgba(255,255,255,0.15)', border: 'none', color: '#fff',
-            borderRadius: RADIUS.sm, padding: '6px 10px', cursor: 'pointer',
-            fontSize: '13px', fontWeight: 600, WebkitTapHighlightColor: 'transparent',
-          }}
-        ><HomeIcon/></button>
-        <span style={{ color: '#fff', fontWeight: 700, fontSize: '15px', flex: 1 }}>📤 Internal Use</span>
+      <span style={{ 
+                 color: '#fff', 
+                 fontWeight: 700, 
+                 fontSize: '15px', 
+                 flex: 1,
+                 display: 'inline-flex', /* Membuat isi di dalamnya (icon & teks) berjejer ke samping */
+                 alignItems: 'center',    /* Membuat icon dan teks sejajar secara vertikal (tinggi yang sama) */
+                 gap: '6px'              /* Memberikan jarak horizontal antara icon dan tulisan Requisition */
+               }}>
+                 <UserTake />
+                 <span>Internal Use</span>
+               </span>
         <span style={{
           background: 'rgba(255,255,255,0.18)', borderRadius: '20px',
           padding: '3px 10px', fontSize: '11px', color: '#e0eaff', whiteSpace: 'nowrap',
@@ -390,7 +393,7 @@ const InternalUseContainer = () => {
                 borderRadius: RADIUS.md, padding: '10px 14px', cursor: 'pointer',
                 fontSize: '18px', lineHeight: 1, flexShrink: 0, WebkitTapHighlightColor: 'transparent',
               }}
-            >📦</button>
+            ><ImportIcon /></button>
           </div>
 
           <div style={{

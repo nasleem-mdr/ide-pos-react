@@ -28,7 +28,7 @@ import CashPurchaseProgressModal from '../components/purchasing/CashPurchaseProg
 
 import { COLOR, RADIUS } from '../utils/styleTokens';
 import '../css/Header.css';
-import { HomeIcon } from '../components/Icons';
+import { HomeIcon, ImportIcon, ShoppingCartIcon } from '../components/Icons';
 
 // ⚠️ WAJIB DISESUAIKAN: ganti dengan C_DocType_ID Document Type "Purchase
 // Order" di instance Anda.
@@ -552,15 +552,19 @@ useEffect(() => {
 
       {/* Top Bar */}
       <div className='header-purchasing'>
-        <button
-          onClick={() => navigate('/dashboard')}
-          style={{
-            background: 'rgba(255,255,255,0.15)', border: 'none', color: '#fff',
-            borderRadius: RADIUS.sm, padding: '6px 10px', cursor: 'pointer',
-            fontSize: '13px', fontWeight: 600, WebkitTapHighlightColor: 'transparent',
-          }}
-        ><HomeIcon/></button>
-        <span style={{ color: '#fff', fontWeight: 700, fontSize: '15px', flex: 1 }}>🧾 Purchasing</span>
+      <span style={{ 
+                 color: '#fff', 
+                 fontWeight: 700, 
+                 fontSize: '15px', 
+                 flex: 1,
+                 display: 'inline-flex', /* Membuat isi di dalamnya (icon & teks) berjejer ke samping */
+                 alignItems: 'center',    /* Membuat icon dan teks sejajar secara vertikal (tinggi yang sama) */
+                 gap: '6px'              /* Memberikan jarak horizontal antara icon dan tulisan Requisition */
+               }}>
+                 <ShoppingCartIcon />
+                 <span>Purchasing</span>
+               </span>
+               
         <span style={{
           background: 'rgba(255,255,255,0.18)', borderRadius: '20px',
           padding: '3px 10px', fontSize: '11px', color: '#e0eaff', whiteSpace: 'nowrap',
@@ -664,7 +668,7 @@ useEffect(() => {
                 fontSize: '18px', lineHeight: 1, flexShrink: 0, WebkitTapHighlightColor: 'transparent',
                 opacity: editOrderId ? 0.7 : 1,
               }}
-            >📥</button>
+            ><ImportIcon /></button>
           </div>
 
           {/* Product Grid */}

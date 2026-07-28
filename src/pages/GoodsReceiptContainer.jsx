@@ -21,7 +21,7 @@ import { idempiereApi, fkId } from '../utils/idempiereApi';
 import { resolveDocTypeId, DOC_BASE_TYPE, IS_SO_TRX } from '../utils/docTypeResolver';
 import { COLOR, RADIUS } from '../utils/styleTokens';
 import '../css/Header.css';
-import { HomeIcon, ScanIcon } from '../components/Icons';
+import { DeliveryIcon,ScanIcon, ImportIcon } from '../components/Icons';
 import ProductGrid from '../components/product/ProductGrid';
 
 // Deskripsi dokumen — tidak client-specific, aman tetap konstan.
@@ -303,15 +303,19 @@ const GoodsReceiptContainer = () => {
 
       {/* Top Bar */}
       <div className='header'>
-        <button
-          onClick={() => navigate('/dashboard')}
-          style={{
-            background: 'rgba(255,255,255,0.15)', border: 'none', color: '#fff',
-            borderRadius: RADIUS.sm, padding: '6px 10px', cursor: 'pointer',
-            fontSize: '13px', fontWeight: 600, WebkitTapHighlightColor: 'transparent',
-          }}
-        ><HomeIcon/></button>
-        <span style={{ color: '#fff', fontWeight: 700, fontSize: '15px', flex: 1 }}>📦 Penerimaan Barang</span>
+        <span style={{ 
+          color: '#fff', 
+          fontWeight: 700, 
+          fontSize: '15px', 
+          flex: 1,
+          display: 'inline-flex', /* Membuat isi di dalamnya (icon & teks) berjejer ke samping */
+          alignItems: 'center',    /* Membuat icon dan teks sejajar secara vertikal (tinggi yang sama) */
+          gap: '6px'              /* Memberikan jarak horizontal antara icon dan tulisan Requisition */
+        }}>
+        <DeliveryIcon />
+        <span>Material Receipt</span>
+        </span>
+
         <span style={{
           background: 'rgba(255,255,255,0.18)', borderRadius: '20px',
           padding: '3px 10px', fontSize: '11px', color: '#e0eaff', whiteSpace: 'nowrap',
@@ -455,7 +459,7 @@ const GoodsReceiptContainer = () => {
                 borderRadius: RADIUS.md, padding: '10px 14px', cursor: 'pointer',
                 fontSize: '18px', lineHeight: 1, flexShrink: 0, WebkitTapHighlightColor: 'transparent',
               }}
-            >📥</button>
+            ><ImportIcon /></button>
           </div>
 
           {/* Product Grid */}

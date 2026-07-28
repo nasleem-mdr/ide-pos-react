@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { COLOR, RADIUS } from '../../utils/styleTokens';
+import { RequisitionIcon } from '../Icons';
 
 const RequisitionSuccessModal = ({ isOpen, data, onClose }) => {
   const navigate = useNavigate();
@@ -31,7 +32,15 @@ const RequisitionSuccessModal = ({ isOpen, data, onClose }) => {
             lineHeight: 1,
           }}
         >✕</button>
-        <div style={{ fontSize: '52px', marginBottom: '8px' }}>✅</div>
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'center', /* Mengetengahkan secara horizontal */
+          alignItems: 'center',     /* Mengetengahkan secara vertikal */
+          fontSize: '52px', 
+          marginBottom: '8px' 
+        }}>
+          <RequisitionIcon size={42} color={COLOR.success}/>
+        </div>
         <div style={{ fontSize: '19px', fontWeight: 700, color: COLOR.success, marginBottom: '4px' }}>
           {data.status === 'Draft' ? 'Draft Tersimpan!' : 'Requisition Berhasil!'}
         </div>
@@ -42,22 +51,48 @@ const RequisitionSuccessModal = ({ isOpen, data, onClose }) => {
         </div>
 
         <div style={{
-          background: COLOR.successLt, border: `1px solid #bbf7d0`,
-          borderRadius: RADIUS.md, padding: '14px', marginBottom: '16px', textAlign: 'left',
+          background: COLOR.successLt, 
+          border: `1px solid #bbf7d0`,
+          borderRadius: RADIUS.md, 
+          padding: '14px', 
+          marginBottom: '16px', 
+          textAlign: 'left',
         }}>
-          {[
-            ['Document No', data.documentNo, true],
-            ['Tanggal',     data.date,        false],
-            ['Requester',   data.requesterName,false],
-            ['Total Item',  `${data.items.length} produk`, false],
-          ].map(([label, val, bold]) => (
-            <div key={label} style={{ marginBottom: '6px' }}>
-              <span style={{ color: COLOR.textLt, fontSize: '11px' }}>{label}</span>
-              <div style={{ fontSize: bold ? '16px' : '14px', fontWeight: bold ? 700 : 500, color: COLOR.textDk }}>
-                {val}
+          {/* Pembungkus Grid/Flexbox untuk membuat 2 kolom */}
+          <div style={{ 
+            display: 'flex', 
+            flexWrap: 'wrap', 
+            rowGap: '12px' /* Jarak antar baris atas dan bawah */
+          }}>
+            {[
+              ['Nomor',       data.documentNo,          true],
+              ['Tanggal',     data.date,                false],
+              ['Requester',   data.requesterName,       false],
+              ['Total Item',  `${data.items.length} product`, false],
+            ].map(([label, val, bold]) => (
+              <div key={label} style={{ flex: '0 0 50%', boxSizing: 'border-box' }}>
+                <div style={{ display: 'flex', gap: '4px', alignItems: 'baseline' }}>
+                  {/* Label (Nomor, Tanggal, dll) */}
+                  <span style={{ 
+                    color: COLOR.textLt, 
+                    fontSize: '13px', 
+                    fontWeight: 500 
+                  }}>
+                    {label}:
+                  </span>
+                  
+                  {/* Nilai / Value */}
+                  <span style={{ 
+                    fontSize: bold ? '15px' : '13px', 
+                    fontWeight: bold ? 700 : 500, 
+                    color: COLOR.textDk 
+                  }}>
+                    {val}
+                  </span>
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
 
         <div style={{ textAlign: 'left', marginBottom: '20px' }}>
@@ -83,7 +118,7 @@ const RequisitionSuccessModal = ({ isOpen, data, onClose }) => {
           borderRadius: RADIUS.md, padding: '14px', fontWeight: 700,
           fontSize: '15px', cursor: 'pointer', width: '100%',
         }}>
-          Buat Requisition Baru
+          Buat FPB Baru
         </button>
       </div>
     </div>
