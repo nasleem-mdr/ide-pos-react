@@ -11,7 +11,7 @@ import RequisitionToPOImportModal from '../components/purchasing/RequisitionToPO
 import PurchaseOrderSuccessModal from '../components/purchasing/PurchaseOrderSuccessModal';
 import POCartSidebar from '../components/purchasing/POCartSidebar';
 import POCartPanel from '../components/purchasing/POCartPanel';
-import { usePOCart, lineKey } from '../hooks/usePOCart';
+import { usePOCart } from '../hooks/usePOCart';
 import { usePurchaseOrderSubmit } from '../hooks/usePurchaseOrderSubmit';
 import { useProductVendorInfo } from '../hooks/useProductVendorInfo';
 import { useUomConversion } from '../hooks/useUomConversion';
@@ -149,64 +149,67 @@ const handleModalCashPurchase = async () => {
         setSelectedBankAccountId(null);
     }
 };
-  useEffect(() => {
-    const init = async () => {
-      try {
-        const info = getLoginInfo();
-        const missing = getMissingSessionFields(info);
-        if (missing.length) {
-          alert(`Data sesi tidak lengkap:\n${missing.map(k => `• ${k}`).join('\n')}\n\nSilakan login kembali.`, 'Sesi Tidak Valid');
-          return;
-        }
-        // supaya benar untuk client manapun yang login (lihat docTypeResolver.jsx).
-       try {
-            const [poDt, receiptDt, invoiceDt, paymentDt] = await Promise.all([
-                resolveDocTypeId(DOC_BASE_TYPE.PURCHASE_ORDER,   { orgId: info.orgId }),
-                resolveDocTypeId(DOC_BASE_TYPE.MATERIAL_RECEIPT, { orgId: info.orgId }),
-                resolveDocTypeId(DOC_BASE_TYPE.AP_INVOICE,       { orgId: info.orgId }),
-                resolveDocTypeId(DOC_BASE_TYPE.AP_PAYMENT,       { orgId: info.orgId }),
-            ]);
-            setPoDocTypeId(poDt);
-            setDocTypeId(poDt);
-            setReceiptDocTypeId(receiptDt);
-            setInvoiceDocTypeId(invoiceDt);
-            setPaymentDocTypeId(paymentDt);
-        } catch (err) {
-            alert(err.message, 'Document Type Tidak Ditemukan');
-        }
-        
-        try {
-          const wh = await idempiereApi(`/models/m_warehouse/${info.warehouseId}?$select=M_Warehouse_ID,Name`);
-          setWarehouseInfo({ id: info.warehouseId, name: wh.Name || `WH #${info.warehouseId}` });
-        } catch {
-          setWarehouseInfo({ id: info.warehouseId, name: `WH #${info.warehouseId}` });
-        }
-        await fetchProducts('');
-        } catch (err) {
-          alert('Gagal inisialisasi: ' + err.message, 'Error');
-        }
-      
-      try {
-          const defRes = await idempiereApi(
-              `/models/m_locator?$select=M_Locator_ID&$filter=M_Warehouse_ID eq ${info.warehouseId} and IsDefault eq true and IsActive eq true&$top=1`
-          );
-          const defRecords = Array.isArray(defRes.records) ? defRes.records : [];
-          if (defRecords.length > 0) {
-              setDefaultLocatorId(fkId(defRecords[0].M_Locator_ID) ?? defRecords[0].id);
-          } else {
-              const anyRes = await idempiereApi(
-                  `/models/m_locator?$select=M_Locator_ID&$filter=M_Warehouse_ID eq ${info.warehouseId} and IsActive eq true&$top=1`
-              );
-              const anyRecords = Array.isArray(anyRes.records) ? anyRes.records : [];
-              setDefaultLocatorId(anyRecords[0] ? (fkId(anyRecords[0].M_Locator_ID) ?? anyRecords[0].id) : null);
-          }
-      } catch {
-          setDefaultLocatorId(null);
+  
+useEffect(() => {
+  const init = async () => {
+    try {
+      const info = getLoginInfo();
+      const missing = getMissingSessionFields(info);
+      if (missing.length) {
+        alert(`Data sesi tidak lengkap:\n${missing.map(k => `• ${k}`).join('\n')}\n\nSilakan login kembali.`, 'Sesi Tidak Valid');
+        return;
       }
-    };
-    init();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+
+      try {
+        const [poDt, receiptDt, invoiceDt, paymentDt] = await Promise.all([
+          resolveDocTypeId(DOC_BASE_TYPE.PURCHASE_ORDER,   { orgId: info.orgId }),
+          resolveDocTypeId(DOC_BASE_TYPE.MATERIAL_RECEIPT, { orgId: info.orgId }),
+          resolveDocTypeId(DOC_BASE_TYPE.AP_INVOICE,       { orgId: info.orgId }),
+          resolveDocTypeId(DOC_BASE_TYPE.AP_PAYMENT,       { orgId: info.orgId }),
+        ]);
+        setPoDocTypeId(poDt);
+        setDocTypeId(poDt);
+        setReceiptDocTypeId(receiptDt);
+        setInvoiceDocTypeId(invoiceDt);
+        setPaymentDocTypeId(paymentDt);
+      } catch (err) {
+        alert(err.message, 'Document Type Tidak Ditemukan');
+      }
+
+      try {
+        const wh = await idempiereApi(`/models/m_warehouse/${info.warehouseId}?$select=M_Warehouse_ID,Name`);
+        setWarehouseInfo({ id: info.warehouseId, name: wh.Name || `WH #${info.warehouseId}` });
+      } catch {
+        setWarehouseInfo({ id: info.warehouseId, name: `WH #${info.warehouseId}` });
+      }
+
+      // ⬅️ PINDAH KE SINI — masih di dalam try block yang sama, `info` masih in-scope
+      try {
+        const defRes = await idempiereApi(
+          `/models/m_locator?$select=M_Locator_ID&$filter=M_Warehouse_ID eq ${info.warehouseId} and IsDefault eq true and IsActive eq true&$top=1`
+        );
+        const defRecords = Array.isArray(defRes.records) ? defRes.records : [];
+        if (defRecords.length > 0) {
+          setDefaultLocatorId(fkId(defRecords[0].M_Locator_ID) ?? defRecords[0].id);
+        } else {
+          const anyRes = await idempiereApi(
+            `/models/m_locator?$select=M_Locator_ID&$filter=M_Warehouse_ID eq ${info.warehouseId} and IsActive eq true&$top=1`
+          );
+          const anyRecords = Array.isArray(anyRes.records) ? anyRes.records : [];
+          setDefaultLocatorId(anyRecords[0] ? (fkId(anyRecords[0].M_Locator_ID) ?? anyRecords[0].id) : null);
+        }
+      } catch {
+        setDefaultLocatorId(null);
+      }
+
+      await fetchProducts('');
+    } catch (err) {
+      alert('Gagal inisialisasi: ' + err.message, 'Error');
+    }
+  };
+  init();
+// eslint-disable-next-line react-hooks/exhaustive-deps
+}, []);
 
   // ── Load PO untuk mode edit (dikirim dari PurchasingList.jsx) ──────────
   // editOrder yang dikirim HANYA berisi field header C_Order (lihat
