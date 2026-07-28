@@ -21,6 +21,10 @@ import { useIsDesktop } from '../hooks/useIsDesktop';
 import { getLoginInfo, getMissingSessionFields } from '../hooks/useLoginInfo';
 import { resolveDocTypeId, DOC_BASE_TYPE } from '../utils/docTypeResolver';
 import { idempiereApi, fkId } from '../utils/idempiereApi';
+import { useBankAccounts } from '../hooks/useBankAccounts';
+import { useCashPurchaseSubmit } from '../hooks/useCashPurchaseSubmit';
+import PurchaseSubmitModal from '../components/purchasing/PurchaseSubmitModal';
+import CashPurchaseProgressModal from '../components/purchasing/CashPurchaseProgressModal';
 
 import { COLOR, RADIUS } from '../utils/styleTokens';
 import '../css/Header.css';
@@ -51,6 +55,7 @@ const PurchasingContainer = () => {
   const [detailOpen, setDetailOpen]   = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [docTypeId, setDocTypeId] = useState(null);
+  const [defaultLocatorId, setDefaultLocatorId] = useState(null);
   const [description, setDescription]         = useState('');
   // Vendor picker per-baris cart — vendorPickerTarget = itemKey baris yang
   // sedang diganti vendornya (null = modal tertutup).
@@ -82,7 +87,64 @@ const PurchasingContainer = () => {
   });
   const { canEdit } = useAccess();
   const canSubmitPO = canEdit('purchasing');
+  const { bankAccounts } = useBankAccounts();
+const [selectedBankAccountId, setSelectedBankAccountId] = useState(null);
+const [submitModalOpen, setSubmitModalOpen] = useState(false);
+const [progressModalOpen, setProgressModalOpen] = useState(false);
+const [progressSteps, setProgressSteps] = useState({});
+const [progressDone, setProgressDone] = useState(false);
 
+const { submit: submitCashPurchase, isSubmitting: cashPurchaseSubmitting } = useCashPurchaseSubmit({
+    poDocTypeId, receiptDocTypeId, invoiceDocTypeId,
+    description: 'Cash Purchase',
+    onError: alert,
+    onStepUpdate: (stepKey, status, meta) => {
+        setProgressSteps(prev => ({ ...prev, [stepKey]: { status, ...meta } }));
+        if (status === 'error') setProgressDone(true);
+    },
+});
+
+const handleModalDraft = () => {
+    setSubmitModalOpen(false);
+    handleSubmit('draft');   // fungsi submit draft yang sudah ada sebelumnya
+};
+
+const handleModalComplete = () => {
+    setSubmitModalOpen(false);
+    handleSubmit('complete'); // fungsi submit complete yang sudah ada sebelumnya
+};
+
+const handleModalCashPurchase = async () => {
+    if (vendorGroups.length > 1) {
+        alert('Cash Purchase hanya mendukung 1 vendor per transaksi.\nPisahkan item vendor lain ke Draft/Complete biasa.', 'Tidak Didukung');
+        return;
+    }
+    const singleVendorGroup = vendorGroups[0];
+    if (!singleVendorGroup) {
+        alert('Keranjang masih kosong.');
+        return;
+    }
+
+    setSubmitModalOpen(false);
+    setProgressSteps({});
+    setProgressDone(false);
+    setProgressModalOpen(true);
+
+    const result = await submitCashPurchase(singleVendorGroup.items, {
+        warehouseId:      warehouseInfo?.id,
+        locatorId:        defaultLocatorId,
+        vendorId:         singleVendorGroup.C_BPartner_ID,
+        vendorLocationId: singleVendorGroup.C_BPartner_Location_ID, // ⬅️ pastikan field ini ada di struktur vendorGroups; kalau belum, perlu ditambahkan di usePOCart
+        vendorName:       singleVendorGroup.VendorName,
+        bankAccountId:    selectedBankAccountId,
+    });
+
+    setProgressDone(true);
+    if (result) {
+        clearCart();
+        setSelectedBankAccountId(null);
+    }
+};
   useEffect(() => {
     const init = async () => {
       try {
@@ -93,11 +155,19 @@ const PurchasingContainer = () => {
           return;
         }
         // supaya benar untuk client manapun yang login (lihat docTypeResolver.jsx).
-        try {
-          const dt = await resolveDocTypeId(DOC_BASE_TYPE.PURCHASE_ORDER, { orgId: info.orgId });
-            setDocTypeId(dt);
-            } catch (err) {
-             alert(err.message, 'Document Type Tidak Ditemukan');
+       try {
+            const [poDt, receiptDt, invoiceDt, paymentDt] = await Promise.all([
+                resolveDocTypeId(DOC_BASE_TYPE.PURCHASE_ORDER,   { orgId: info.orgId }),
+                resolveDocTypeId(DOC_BASE_TYPE.MATERIAL_RECEIPT, { orgId: info.orgId }),
+                resolveDocTypeId(DOC_BASE_TYPE.AP_INVOICE,       { orgId: info.orgId }),
+                resolveDocTypeId(DOC_BASE_TYPE.AP_PAYMENT,       { orgId: info.orgId }),
+            ]);
+            setPoDocTypeId(poDt);
+            setReceiptDocTypeId(receiptDt);
+            setInvoiceDocTypeId(invoiceDt);
+            setPaymentDocTypeId(paymentDt);
+        } catch (err) {
+            alert(err.message, 'Document Type Tidak Ditemukan');
         }
         
         try {
@@ -582,7 +652,25 @@ const PurchasingContainer = () => {
             )}
           </div>
         </div>
+        <PurchaseSubmitModal
+    isOpen={submitModalOpen}
+    onClose={() => setSubmitModalOpen(false)}
+    onDraft={handleModalDraft}
+    onComplete={handleModalComplete}
+    onCashPurchase={handleModalCashPurchase}
+    bankAccounts={bankAccounts}
+    selectedBankAccountId={selectedBankAccountId}
+    onBankAccountChange={setSelectedBankAccountId}
+    isSubmitting={isSubmitting || cashPurchaseSubmitting}
+    totalAmount={calculateTotal()}
+/>
 
+<CashPurchaseProgressModal
+    isOpen={progressModalOpen}
+    steps={progressSteps}
+    isDone={progressDone}
+    onClose={() => setProgressModalOpen(false)}
+/>
         {isDesktop && (
           <POCartSidebar
             isOpen={cartOpen}
@@ -597,8 +685,7 @@ const PurchasingContainer = () => {
             totalItems={totalItems}
             totalAmount={totalAmount}
             summaryRight={cartSummaryRight}
-            onSubmitDraft={canSubmitPO ? handleSubmitDraft : undefined}
-            onSubmitComplete={canSubmitPO ? handleSubmitComplete : undefined}
+            onSubmit={canSubmitPO ? () => setSubmitModalOpen(true) : undefined}
             isSubmitting={isSubmitting}
             description={description}
             onDescriptionChange={canSubmitPO ? setDescription : undefined}
@@ -625,8 +712,7 @@ const PurchasingContainer = () => {
           totalItems={totalItems}
           totalAmount={totalAmount}
           summaryRight={cartSummaryRight}
-          onSubmitDraft={canSubmitPO ? handleSubmitDraft : undefined}
-          onSubmitComplete={canSubmitPO ? handleSubmitComplete : undefined}
+          onSubmit={canSubmitPO ? () => setSubmitModalOpen(true) : undefined}
           isSubmitting={isSubmitting}
         />
       )}
