@@ -22,7 +22,7 @@ import { getLoginInfo } from './useLoginInfo';
 // tidak ada transaksi "hilang tanpa jejak" dan staff bisa lanjutkan manual
 // dari titik yang gagal (lihat bagian error handling di bawah).
 // ─────────────────────────────────────────────────────────────────────────────
-export function useCashPurchaseSubmit({ poDocTypeId, receiptDocTypeId, invoiceDocTypeId, description, onError }) {
+export function useCashPurchaseSubmit({ poDocTypeId, receiptDocTypeId, invoiceDocTypeId, description, onError, onStepUpdate }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [progressStep, setProgressStep] = useState(null); // 'po' | 'receipt' | 'invoice' | 'payment' | 'allocation'
 
@@ -65,6 +65,7 @@ export function useCashPurchaseSubmit({ poDocTypeId, receiptDocTypeId, invoiceDo
       // TAHAP 1 — Purchase Order
       // ═══════════════════════════════════════════════════════════════════
       setProgressStep('po');
+      onStepUpdate?.('po', 'pending');
       const poRes = await idempiereApi('/models/c_order', {
         method: 'POST',
         body: JSON.stringify({
@@ -116,11 +117,14 @@ export function useCashPurchaseSubmit({ poDocTypeId, receiptDocTypeId, invoiceDo
         method: 'PUT',
         body: JSON.stringify({ 'doc-action': 'CO' }),
       });
-
+      const poStatus = await waitForDocStatus('c_order', poId);
+      if (!poStatus.success) throw new Error(`PO gagal Complete (status: ${poStatus.status})`);
+      onStepUpdate?.('po', 'success', { id: poId, documentNo: poStatus.documentNo });
       // ═══════════════════════════════════════════════════════════════════
       // TAHAP 2 — Material Receipt (link ke C_OrderLine_ID per baris)
       // ═══════════════════════════════════════════════════════════════════
       setProgressStep('receipt');
+      onStepUpdate?.('receipt', 'pending');
       const receiptRes = await idempiereApi('/models/m_inout', {
         method: 'POST',
         body: JSON.stringify({
@@ -166,11 +170,15 @@ export function useCashPurchaseSubmit({ poDocTypeId, receiptDocTypeId, invoiceDo
         method: 'PUT',
         body: JSON.stringify({ 'doc-action': 'CO' }),
       });
-
+      const receiptStatus = await waitForDocStatus('m_inout', receiptId);
+      if (!receiptStatus.success) throw new Error(`Receipt gagal Complete (status: ${receiptStatus.status})`);
+      onStepUpdate?.('receipt', 'success', { id: receiptId, documentNo: receiptStatus.documentNo });
+      
       // ═══════════════════════════════════════════════════════════════════
       // TAHAP 3 — Vendor Invoice (link ke C_OrderLine_ID + M_InOutLine_ID)
       // ═══════════════════════════════════════════════════════════════════
       setProgressStep('invoice');
+      onStepUpdate?.('invoice', 'pending');
       const invoiceRes = await idempiereApi('/models/c_invoice', {
         method: 'POST',
         body: JSON.stringify({
@@ -215,11 +223,13 @@ export function useCashPurchaseSubmit({ poDocTypeId, receiptDocTypeId, invoiceDo
       if (!invoiceGrandTotal) {
         console.warn('GrandTotal invoice tidak terbaca dari response Complete — payment mungkin perlu jumlah manual.');
       }
-
+      onStepUpdate?.('invoice', 'success', { id: invoiceId, documentNo: invoiceStatus.documentNo });
+      
       // ═══════════════════════════════════════════════════════════════════
       // TAHAP 4 — Payment
       // ═══════════════════════════════════════════════════════════════════
       setProgressStep('payment');
+      onStepUpdate?.('payment', 'pending');
       const paymentRes = await idempiereApi('/models/c_payment', {
         method: 'POST',
         body: JSON.stringify({
@@ -243,11 +253,12 @@ export function useCashPurchaseSubmit({ poDocTypeId, receiptDocTypeId, invoiceDo
         method: 'PUT',
         body: JSON.stringify({ 'doc-action': 'CO' }),
       });
-
+      onStepUpdate?.('payment', 'success', { id: paymentId, documentNo: paymentStatus.documentNo });
       // ═══════════════════════════════════════════════════════════════════
       // TAHAP 5 — Allocation (hubungkan Payment ↔ Invoice)
       // ═══════════════════════════════════════════════════════════════════
       setProgressStep('allocation');
+      onStepUpdate?.('allocation', 'pending');
       const allocHdrRes = await idempiereApi('/models/c_allocationhdr', {
         method: 'POST',
         body: JSON.stringify({
@@ -277,7 +288,7 @@ export function useCashPurchaseSubmit({ poDocTypeId, receiptDocTypeId, invoiceDo
         method: 'PUT',
         body: JSON.stringify({ 'doc-action': 'CO' }),
       });
-
+      onStepUpdate?.('allocation', 'success', { id: allocHdrId });
       // ═══════════════════════════════════════════════════════════════════
       return {
         poId, receiptId, invoiceId, paymentId,
@@ -300,12 +311,14 @@ export function useCashPurchaseSubmit({ poDocTypeId, receiptDocTypeId, invoiceDo
         (doneList ? `\n\nDokumen yang SUDAH berhasil dibuat (perlu ditindaklanjuti manual):\n${doneList}` : ''),
         'Proses Terhenti'
       );
+      onStepUpdate?.(progressStep, 'error', { message: err.message });
+      onError?.(`Gagal pada tahap "${progressStep}": ${err.message}`, 'Proses Terhenti');
       return null;
     } finally {
       setIsSubmitting(false);
       setProgressStep(null);
     }
-  }, [poDocTypeId, receiptDocTypeId, invoiceDocTypeId, description, onError, progressStep]);
+  }, [poDocTypeId, receiptDocTypeId, invoiceDocTypeId, description, onError, onStepUpdate, progressStep]);
 
   return { submit, isSubmitting, progressStep };
 }
