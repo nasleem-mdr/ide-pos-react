@@ -128,6 +128,28 @@ const handleModalCashPurchase = async () => {
         alert('Keranjang masih kosong.');
         return;
     }
+    if (!singleVendorGroup.C_BPartner_ID) {
+        alert('Item di cart belum memiliki vendor. Pilih vendor dulu (badge 🚚) sebelum Cash Purchase.', 'Vendor Belum Dipilih');
+        return;
+    }
+
+    // ⬅️ TAMBAHKAN fallback — sama pola seperti usePurchaseOrderSubmit
+    let vendorLocationId = singleVendorGroup.C_BPartner_Location_ID;
+    if (!vendorLocationId) {
+        try {
+            const locRes = await idempiereApi(
+                `/models/c_bpartner_location?$select=C_BPartner_Location_ID&$filter=C_BPartner_ID eq ${singleVendorGroup.C_BPartner_ID} and IsActive eq true&$top=1`
+            );
+            const locRecords = Array.isArray(locRes.records) ? locRes.records : [];
+            vendorLocationId = locRecords[0] ? (fkId(locRecords[0].C_BPartner_Location_ID) ?? locRecords[0].id) : null;
+        } catch (err) {
+            console.error('Gagal fetch lokasi vendor:', err.message);
+        }
+    }
+    if (!vendorLocationId) {
+        alert(`Vendor "${singleVendorGroup.VendorName}" tidak memiliki alamat aktif (C_BPartner_Location).\nTambahkan alamat vendor terlebih dahulu di Business Partner.`, 'Data Tidak Lengkap');
+        return;
+    }
 
     setSubmitModalOpen(false);
     setProgressSteps({});
@@ -138,7 +160,7 @@ const handleModalCashPurchase = async () => {
         warehouseId:      warehouseInfo?.id,
         locatorId:        defaultLocatorId,
         vendorId:         singleVendorGroup.C_BPartner_ID,
-        vendorLocationId: singleVendorGroup.C_BPartner_Location_ID, // ⬅️ pastikan field ini ada di struktur vendorGroups; kalau belum, perlu ditambahkan di usePOCart
+        vendorLocationId, // ⬅️ sekarang sudah pasti terisi (fetched atau dari cart)
         vendorName:       singleVendorGroup.VendorName,
         bankAccountId:    selectedBankAccountId,
     });
