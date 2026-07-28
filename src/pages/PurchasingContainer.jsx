@@ -679,25 +679,25 @@ useEffect(() => {
           </div>
         </div>
         <PurchaseSubmitModal
-    isOpen={submitModalOpen}
-    onClose={() => setSubmitModalOpen(false)}
-    onDraft={handleModalDraft}
-    onComplete={handleModalComplete}
-    onCashPurchase={handleModalCashPurchase}
-    bankAccounts={bankAccounts}
-    selectedBankAccountId={selectedBankAccountId}
-    onBankAccountChange={setSelectedBankAccountId}
-    isSubmitting={isSubmitting || cashPurchaseSubmitting}
-    totalAmount={totalAmount}
-/>
-
-<CashPurchaseProgressModal
-    isOpen={progressModalOpen}
-    steps={progressSteps}
-    isDone={progressDone}
-    onClose={() => setProgressModalOpen(false)}
-/>
-        {isDesktop && (
+          isOpen={submitModalOpen}
+          onClose={() => setSubmitModalOpen(false)}
+          onDraft={handleModalDraft}
+          onComplete={handleModalComplete}
+          onCashPurchase={handleModalCashPurchase}
+          bankAccounts={bankAccounts}
+          selectedBankAccountId={selectedBankAccountId}
+          onBankAccountChange={setSelectedBankAccountId}
+          isSubmitting={isSubmitting || cashPurchaseSubmitting}
+          totalAmount={totalAmount}
+        />
+        <CashPurchaseProgressModal
+           isOpen={progressModalOpen}
+           steps={progressSteps}
+           isDone={progressDone}
+           onClose={() => setProgressModalOpen(false)}
+        />
+            
+          {isDesktop && (
           <POCartSidebar
             isOpen={cartOpen}
             onClose={() => setCartOpen(false)}
