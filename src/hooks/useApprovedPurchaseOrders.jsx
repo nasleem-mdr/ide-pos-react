@@ -1,22 +1,15 @@
 import { useState, useCallback } from 'react';
 import { idempiereApi, fkId, fkLabel } from '../utils/idempiereApi';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// useApprovedPurchaseOrders.jsx
-// REVISI dari useApprovedRequisitions.jsx — sumber import untuk Goods Receipt
-// seharusnya PURCHASE ORDER (C_Order/C_OrderLine), bukan Requisition.
-//
-// Alasan: proses bisnis di sini punya tahap "Requisition → PO" (Requisition
-// dikonversi jadi PO sebelum barang datang). PO adalah komitmen resmi ke
-// vendor (harga, qty, C_BPartner_ID final) — sedangkan Requisition cuma
-// permintaan internal. Menerima barang harus mengacu ke PO supaya:
-//   1. 3-way matching (PO vs Receipt vs Invoice) tetap valid di iDempiere
-//      lewat M_InOutLine.C_OrderLine_ID
-//   2. QtyOrdered vs QtyDelivered di C_OrderLine ter-update otomatis oleh
-//      iDempiere saat M_InOut di-Complete
-//   3. Vendor & lokasi pengiriman ikut header PO — tidak perlu input manual
-// ─────────────────────────────────────────────────────────────────────────────
 const APPROVED_STATUSES = ['CO', 'CL'];
+
+// DocStatus M_InOut yang dianggap "masih terbuka" (belum Complete, belum
+// Void/Reversed) — qty di line-line-nya dianggap "reserved" dan dikurangi
+// dari sisa yang ditawarkan untuk import, supaya PO yang sudah diimport
+// (tapi Receipt-nya belum Complete) tidak bisa diimport dobel.
+// PENTING: kalau workflow approval kamu punya DocStatus tambahan (custom),
+// tambahkan kodenya di sini.
+const OPEN_INOUT_STATUSES = ['DR', 'IP'];
 
 export function useApprovedPurchaseOrders() {
   const [orders, setOrders]           = useState([]);
@@ -25,8 +18,50 @@ export function useApprovedPurchaseOrders() {
   const [selectedLines, setSelectedLines] = useState([]);
   const [loadingLines, setLoadingLines]   = useState(false);
 
-  // Daftar PO pembelian (IsSOTrx=false) yang sudah Completed/Approved.
-  // Opsional filter warehouse tujuan & pencarian DocumentNo.
+  // Helper: build filter OData untuk "M_InOut_ID/DocStatus in OPEN_INOUT_STATUSES"
+  const openStatusFilter = () =>
+    OPEN_INOUT_STATUSES.map(s => `M_InOut_ID/DocStatus eq '${s}'`).join(' or ');
+
+  // Ambil total qty yang "reserved" oleh Receipt lain yang masih terbuka,
+  // untuk SATU PO (dipakai di daftar Step 1).
+  const fetchReservedQtyForOrder = useCallback(async (orderId) => {
+    try {
+      const res = await idempiereApi(
+        `/models/m_inoutline?$select=MovementQty` +
+        `&$filter=C_OrderLine_ID/C_Order_ID eq ${orderId} and (${openStatusFilter()})`
+      );
+      const records = Array.isArray(res.records) ? res.records : [];
+      return records.reduce((sum, r) => sum + parseFloat(r.MovementQty || 0), 0);
+    } catch (err) {
+      console.warn(`[useApprovedPurchaseOrders] gagal cek reserved qty PO ${orderId}:`, err);
+      return 0; // gagal cek → jangan block PO ini (fallback tetap tampil, sama pola dgn _queryOk)
+    }
+  }, []);
+
+  // Ambil reserved qty PER LINE (dipakai di Step 2, saat 1 PO dipilih).
+  // Return: Map<C_OrderLine_ID, reservedQty>
+  const fetchReservedQtyByLine = useCallback(async (orderLineIds) => {
+    if (!orderLineIds || orderLineIds.length === 0) return new Map();
+    try {
+      const lineFilter = orderLineIds.map(id => `C_OrderLine_ID eq ${id}`).join(' or ');
+      const res = await idempiereApi(
+        `/models/m_inoutline?$select=C_OrderLine_ID,MovementQty` +
+        `&$filter=(${lineFilter}) and (${openStatusFilter()})`
+      );
+      const records = Array.isArray(res.records) ? res.records : [];
+      const map = new Map();
+      records.forEach(r => {
+        const lineId = fkId(r.C_OrderLine_ID);
+        if (!lineId) return;
+        map.set(lineId, (map.get(lineId) || 0) + parseFloat(r.MovementQty || 0));
+      });
+      return map;
+    } catch (err) {
+      console.warn('[useApprovedPurchaseOrders] gagal cek reserved qty per line:', err);
+      return new Map(); // gagal cek → treat sebagai 0 reserved (fallback tetap tampil)
+    }
+  }, []);
+
   const fetchApprovedOrders = useCallback(async ({ warehouseId = null, search = '' } = {}) => {
     setLoadingList(true);
     try {
@@ -59,29 +94,28 @@ export function useApprovedPurchaseOrders() {
         GrandTotal:             o.GrandTotal ?? 0,
       }));
 
-      // ── Sembunyikan PO yang seluruh line-nya sudah diterima penuh ───────
-      // Dulu ini dicoba dalam 1 request besar (filter "or" berantai untuk
-      // semua PO sekaligus) — tapi kalau daftar PO banyak, filter-nya jadi
-      // sangat panjang dan bisa gagal/silently fallback (menampilkan PO
-      // yang sebenarnya sudah fully-received). Sekarang tiap PO di-query
-      // TERPISAH secara paralel (Promise.all) — request lebih pendek &
-      // lebih stabil, dan kalau salah satu gagal, hanya PO itu yang
-      // fallback ke "tetap ditampilkan" (bukan seluruh daftar).
+      // ── Sembunyikan PO yang sisa qty-nya sudah habis ────────────────────
+      // Sisa = (QtyOrdered - QtyDelivered) DIKURANGI qty yang sudah
+      // "dipegang" oleh Receipt lain yang masih terbuka (belum Complete/
+      // Void) — supaya PO yang sudah diimport tapi Receipt-nya masih
+      // Draft/In Progress tidak muncul lagi utk diimport dobel.
       if (list.length > 0) {
         const results = await Promise.all(list.map(async (o) => {
           try {
-            const lineRes = await idempiereApi(
-              `/models/c_orderline?$filter=C_Order_ID eq ${o.C_Order_ID}&$select=QtyOrdered,QtyDelivered`
-            );
+            const [lineRes, reservedQty] = await Promise.all([
+              idempiereApi(
+                `/models/c_orderline?$filter=C_Order_ID eq ${o.C_Order_ID}&$select=QtyOrdered,QtyDelivered`
+              ),
+              fetchReservedQtyForOrder(o.C_Order_ID),
+            ]);
             const lineRecords = Array.isArray(lineRes.records) ? lineRes.records : [];
-            const remaining = lineRecords.reduce((sum, l) => {
+            const totalRemaining = lineRecords.reduce((sum, l) => {
               return sum + Math.max(parseFloat(l.QtyOrdered || 0) - parseFloat(l.QtyDelivered || 0), 0);
             }, 0);
+            const remaining = Math.max(totalRemaining - reservedQty, 0);
             return { ...o, TotalQtyRemaining: remaining, _queryOk: true };
           } catch (err) {
             console.error(`[useApprovedPurchaseOrders] gagal cek sisa qty PO ${o.DocumentNo}:`, err);
-            // Query gagal untuk PO ini spesifik → tetap tampilkan (jangan
-            // sampai error jaringan bikin PO valid ikut hilang dari daftar).
             return { ...o, TotalQtyRemaining: null, _queryOk: false };
           }
         }));
@@ -98,11 +132,8 @@ export function useApprovedPurchaseOrders() {
     } finally {
       setLoadingList(false);
     }
-  }, []);
+  }, [fetchReservedQtyForOrder]);
 
-  // Ambil lines PO terpilih, hitung sisa qty yang belum diterima
-  // (QtyOrdered - QtyDelivered). Line yang sudah diterima penuh (sisa <= 0)
-  // di-exclude dari hasil supaya tidak bisa di-import ulang / over-receipt.
   const fetchOrderLines = useCallback(async (orderId) => {
     if (!orderId) return [];
     setLoadingLines(true);
@@ -114,40 +145,38 @@ export function useApprovedPurchaseOrders() {
       );
       const records = Array.isArray(res.records) ? res.records : [];
 
+      const rawLineIds = records.map(l => fkId(l.C_OrderLine_ID) ?? l.id).filter(Boolean);
+      const reservedMap = await fetchReservedQtyByLine(rawLineIds);
+
       const allLines = records.map(l => {
-        // QtyOrdered & QtyDelivered SELALU base UOM produk (mis. Liter).
-        // QtyEntered & C_UOM_ID adalah UOM yang dipakai saat PO dibuat
-        // (mis. Drum) — bisa beda dari base UOM.
+        const lineId           = fkId(l.C_OrderLine_ID) ?? l.id;
         const qtyOrderedBase   = parseFloat(l.QtyOrdered   || 0);
         const qtyDeliveredBase = parseFloat(l.QtyDelivered || 0);
         const qtyEntered       = parseFloat(l.QtyEntered   || 0);
+        const qtyReservedBase  = reservedMap.get(lineId) || 0;
 
-        // Rate = berapa base-unit per 1 entered-unit (mis. 200 Liter / Drum).
-        // Fallback ke 1 kalau QtyEntered 0/kosong (anggap sama dengan base).
         const rate = qtyEntered > 0 ? (qtyOrderedBase / qtyEntered) : 1;
 
-        const qtyRemainingBase = Math.max(qtyOrderedBase - qtyDeliveredBase, 0);
-        // Sisa dikonversi balik ke UOM entered supaya konsisten dengan
-        // UomName yang ditampilkan (Drum), bukan base (Liter).
+        // Sisa = Ordered - Delivered - Reserved(oleh Receipt lain yg masih terbuka)
+        const qtyRemainingBase = Math.max(qtyOrderedBase - qtyDeliveredBase - qtyReservedBase, 0);
         const qtyRemainingEntered = rate > 0 ? qtyRemainingBase / rate : qtyRemainingBase;
 
         return {
-          C_OrderLine_ID: fkId(l.C_OrderLine_ID) ?? l.id,
+          C_OrderLine_ID: lineId,
           M_Product_ID:   fkId(l.M_Product_ID),
           ProductName:    fkLabel(l.M_Product_ID) || `Produk #${fkId(l.M_Product_ID)}`,
           C_UOM_ID:       fkId(l.C_UOM_ID),
           UomName:        fkLabel(l.C_UOM_ID) || 'EA',
-          ConversionRate: rate,              // base-per-entered, dipakai lagi saat submit GR
-          QtyOrdered:        qtyOrderedBase,     // base — untuk referensi/laporan
-          QtyDelivered:      qtyDeliveredBase,   // base
-          QtyRemaining:      qtyRemainingBase,   // base — dipertahankan utk kalkulasi backend
-          QtyRemainingEntered: qtyRemainingEntered, // ← dipakai untuk tampilan & default cart
+          ConversionRate: rate,
+          QtyOrdered:        qtyOrderedBase,
+          QtyDelivered:      qtyDeliveredBase,
+          QtyReserved:       qtyReservedBase,      // ← baru: sedang "dipegang" Receipt lain yg masih open
+          QtyRemaining:      qtyRemainingBase,
+          QtyRemainingEntered: qtyRemainingEntered,
           Description:    l.Description || '',
         };
       });
 
-      // Line fully-received: cek pakai base qty (lebih akurat / bebas
-      // dari pembulatan rate), bukan qty entered.
       const receivableLines = allLines.filter(l => l.QtyRemaining > 0);
 
       setSelectedLines(receivableLines);
@@ -159,17 +188,14 @@ export function useApprovedPurchaseOrders() {
     } finally {
       setLoadingLines(false);
     }
-  }, []);
+  }, [fetchReservedQtyByLine]);
 
-  // Data untuk recharts: stacked bar "Sudah Diterima" vs "Sisa Belum Diterima"
-  // — memberi konteks progres penerimaan, bukan cuma qty flat seperti sebelumnya.
   const buildChartData = useCallback((lines) => {
     return (lines || []).map(l => ({
       name: l.ProductName.length > 14 ? l.ProductName.slice(0, 14) + '…' : l.ProductName,
       fullName: l.ProductName,
-      // Ditampilkan dalam UOM entered supaya sesuai dengan angka yg
-      // dilihat user di form (Drum), bukan base (Liter).
       delivered: l.ConversionRate > 0 ? l.QtyDelivered / l.ConversionRate : l.QtyDelivered,
+      reserved: l.ConversionRate > 0 ? l.QtyReserved / l.ConversionRate : l.QtyReserved,
       remaining: l.QtyRemainingEntered,
       uom: l.UomName,
     }));
@@ -182,11 +208,11 @@ export function useApprovedPurchaseOrders() {
       Value:        '',
       C_UOM_ID:     l.C_UOM_ID,
       C_UOM_Name:   l.UomName,
-      Qty:          l.QtyRemainingEntered,  // ← default qty dalam UOM entered (Drum), bukan base
+      Qty:          l.QtyRemainingEntered,
       selectedUom:  { C_UOM_ID: l.C_UOM_ID, Name: l.UomName, multiplyRate: l.ConversionRate },
       uomOptions:   [{ C_UOM_ID: l.C_UOM_ID, Name: l.UomName, multiplyRate: l.ConversionRate }],
-      sourceOrderLineId: l.C_OrderLine_ID, // → dipakai isi M_InOutLine.C_OrderLine_ID
-      sourceOrderId: orderId,              // → dipakai isi header M_InOut.C_Order_ID (kalau seragam)
+      sourceOrderLineId: l.C_OrderLine_ID,
+      sourceOrderId: orderId,
     }));
   }, []);
 

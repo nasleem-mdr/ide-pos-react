@@ -18,7 +18,7 @@ import { useProductSearch } from '../hooks/useProductSearch';
 import { useIsDesktop } from '../hooks/useIsDesktop';
 import { getLoginInfo, getMissingSessionFields } from '../hooks/useLoginInfo';
 import { idempiereApi, fkId } from '../utils/idempiereApi';
-import { resolveDocTypeId, DOC_BASE_TYPE } from '../utils/docTypeResolver';
+import { resolveDocTypeId, DOC_BASE_TYPE, IS_SO_TRX } from '../utils/docTypeResolver';
 import { COLOR, RADIUS } from '../utils/styleTokens';
 import '../css/Header.css';
 import { HomeIcon, ScanIcon } from '../components/Icons';
@@ -113,7 +113,7 @@ const GoodsReceiptContainer = () => {
         // (Material Receipt) + AD_Client_ID sesi login — BUKAN hardcode,
         // supaya benar untuk client manapun yang login (lihat docTypeResolver.jsx).
         try {
-          const dt = await resolveDocTypeId(DOC_BASE_TYPE.MATERIAL_RECEIPT, { orgId: info.orgId });
+          const dt = await resolveDocTypeId(DOC_BASE_TYPE.MATERIAL_RECEIPT, { orgId: info.orgId, isSOTrx: IS_SO_TRX.PURCHASE,});
           setDocTypeId(dt);
         } catch (err) {
           alert(err.message, 'Document Type Tidak Ditemukan');

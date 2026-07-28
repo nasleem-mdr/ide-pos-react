@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { ShoppingCartIcon, DeliveryIcon, RequisitionIcon, UserTake } from '../Icons';
+import { ShoppingCartIcon, DeliveryIcon, RequisitionIcon, UserTake, CashierIcon } from '../Icons';
 
 /**
  * WelcomeCards — kartu info sesi + shortcut navigasi
@@ -43,7 +43,7 @@ export default function WelcomeCards({ session }) {
       </Link>
       <Link to="/pos-order" className="welcome-card-link">
       <div className="welcome-card">
-        <div className="welcome-card-icon"><ShoppingCartIcon size={32} /></div>
+        <div className="welcome-card-icon"><CashierIcon size={32} /></div>
         <div className="welcome-card-label">Formulir</div>
         <div className="welcome-card-value">POS Sales</div>
       </div>

@@ -1211,7 +1211,6 @@ const loadMore = useCallback(() => {
                                 inputRef={searchRef}
                                 disabled={versionMissing}
                                 placeholder="Cari nama / kode produk, atau scan barcode lalu Enter..."
-                                style={{ background: '#fff', }}
                             />
                         </div>
                         <button

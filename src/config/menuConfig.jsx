@@ -1,4 +1,4 @@
-import { HomeIcon, RequisitionIcon, ShoppingCartIcon, DeliveryIcon, UserTake, ListIconR, ListIconP, ListIconG, ListIconA, PartnerIcon, BoxIcon, } from '../components/Icons'; // sesuaikan path import icon-nya
+import { HomeIcon, RequisitionIcon, ShoppingCartIcon, DeliveryIcon, UserTake, ListIconR, ListIconP, ListIconG, ListIconA, PartnerIcon, BoxIcon, CashierIcon, } from '../components/Icons'; // sesuaikan path import icon-nya
 
 export const menuSections = [ 
     {
@@ -11,7 +11,6 @@ export const menuSections = [
             { key: 'purchasing',    windowKey: 'purchasing',   path: '/purchasing',     label: 'Purchasing',    icon: <ShoppingCartIcon /> },
             { key: 'goodsReceipt',  windowKey: 'goodsReceipt', path: '/goods-receipt', label: 'Goods Receipt', icon: <DeliveryIcon /> },
             { key: 'internalUse',   windowKey: 'internalUse',  path: '/internal-use',  label: 'Internal Use',  icon: <UserTake /> },
-            { key: 'booking',       windowKey: 'booking', path: '/booking',  label: 'Booking Timeline',  icon: <UserTake /> },
         ]
     },
     {
@@ -19,7 +18,8 @@ export const menuSections = [
         sectionLabel: 'Salses POS',
         defaultCollapsed: false,
         items: [
-            { key: 'pos-order',     windowKey: 'pos',    path: '/pos-order',      label: 'Pos Sales',     icon: <ShoppingCartIcon /> },
+            { key: 'pos-order',     windowKey: 'pos',    path: '/pos-order',        label: 'Pos Sales',     icon: <CashierIcon size={20}/> },
+            { key: 'booking',       windowKey: 'booking', path: '/booking',         label: 'Booking Timeline',  icon: <UserTake /> },
             ]
     },
     {

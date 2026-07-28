@@ -174,10 +174,21 @@ const PurchaseOrderImportModal = ({ isOpen, warehouseId, onClose, onImport }) =>
                         <XAxis dataKey="name" tick={{ fontSize: 10 }} interval={0} angle={-20} textAnchor="end" height={50} />
                         <YAxis tick={{ fontSize: 10 }} />
                         <Tooltip
-                          formatter={(value, name, props) => [`${value} ${props.payload.uom}`, name === 'delivered' ? 'Sudah Diterima' : 'Sisa (akan diimport)']}
+                          formatter={(value, name, props) => {
+                            const labels = {
+                            delivered: 'Sudah Diterima',
+                            reserved:  'Sedang di Receipt Lain',
+                            remaining: 'Sisa (akan diimport)',
+                            };
+                            return [`${value} ${props.payload.uom}`, labels[name] || name];
+                            }}
                         />
                         <Legend
-                          formatter={(value) => value === 'delivered' ? 'Sudah Diterima' : 'Sisa (akan diimport)'}
+                            formatter={(value) => ({
+                              delivered: 'Sudah Diterima',
+                              reserved:  'Sedang di Receipt Lain',
+                              remaining: 'Sisa (akan diimport)',
+                              }[value] || value)}
                           wrapperStyle={{ fontSize: '11px' }}
                         />
                         <Bar dataKey="delivered" stackId="a" fill="#9ca3af" radius={[0, 0, 0, 0]} />
@@ -201,7 +212,14 @@ const PurchaseOrderImportModal = ({ isOpen, warehouseId, onClose, onImport }) =>
                       fontSize: '13px', padding: '6px 0',
                       borderBottom: i < selectedLines.length - 1 ? `1px solid #eee` : 'none',
                     }}>
-                      <span style={{ color: '#333', flex: 1, marginRight: '8px' }}>{l.ProductName}</span>
+                      <div style={{ flex: 1, marginRight: '8px' }}>
+                       <span style={{ color: '#333' }}>{l.ProductName}</span>
+                       {l.QtyReserved > 0 && (
+                         <div style={{ fontSize: '10.5px', color: '#b45309', marginTop: '2px' }}>
+                           🔒 {(l.ConversionRate > 0 ? l.QtyReserved / l.ConversionRate : l.QtyReserved).toFixed(2)} {l.UomName} sedang di Receipt lain (belum Complete)
+                         </div>
+                       )}
+                     </div>
                       <span style={{ fontWeight: 700, color: COLOR.textDk, whiteSpace: 'nowrap' }}>
                         {l.QtyRemaining} {l.UomName}
                         <span style={{ fontWeight: 400, color: COLOR.textLt }}> / {l.QtyOrdered} order</span>

@@ -24,7 +24,7 @@ export function useProductSearch({ debounceMs = 420 } = {}) {
   }, []);
 
   // ── shared helper: build product objects dari raw API records ──────────────
-  const buildProducts = useCallback((rawProducts, poRecords, uomRecords) => {
+  const buildProducts = useCallback((rawProducts, poRecords, uomRecords, qtyMap = new Map()) => {
     const vendorMap = new Map();
     poRecords.forEach(po => {
       const pid = fkId(po.M_Product_ID);
@@ -77,6 +77,7 @@ export function useProductSearch({ debounceMs = 420 } = {}) {
           VendorId:     vendor?.vendorId,
           VendorName:   vendor?.vendorName,
           uomOptions:   allUoms,
+          QtyOnHand:    qtyMap.get(pid) ?? 0,
         };
       });
   }, []);
@@ -123,22 +124,38 @@ export function useProductSearch({ debounceMs = 420 } = {}) {
   }, []);
 
   // ── enrich: ambil PO + UOM untuk sekumpulan rawProducts, lalu build+sort ───
-  const enrichAndSort = useCallback(async (rawProducts, query, safeQ) => {
+  const enrichAndSort = useCallback(async (rawProducts, query, safeQ, warehouseId = null) => {
+ 
     if (rawProducts.length === 0) return [];
 
     const productIds = rawProducts.map(p => fkId(p.M_Product_ID) ?? p.id).filter(Boolean);
     const idScopeFilter = productIds.map(id => `M_Product_ID eq ${id}`).join(' or ');
+    let storageFilter = `(${idScopeFilter})`;
+    if (warehouseId) {
+      storageFilter += ` and M_Locator_ID/M_Warehouse_ID eq ${warehouseId}`;
+    }
 
-    const [productPoData, uomConvData] = await Promise.all([
+    const [productPoData, uomConvData, storageData] = await Promise.all([
       idempiereApi(`/models/m_product_po?$select=M_Product_ID,C_BPartner_ID,IsCurrentVendor&$filter=IsActive eq true and IsCurrentVendor eq true and (${idScopeFilter})`),
       idempiereApi(`/models/c_uom_conversion?$select=C_UOM_Conversion_ID,M_Product_ID,C_UOM_ID,C_UOM_To_ID,MultiplyRate,DivideRate&$filter=IsActive eq true and (${idScopeFilter})`),
+      idempiereApi(`/models/m_storage?$select=M_Product_ID,QtyOnHand&$filter=${storageFilter}`),
     ]);
 
     const poRecords  = Array.isArray(productPoData.records) ? productPoData.records : [];
     const uomRecords = Array.isArray(uomConvData.records)   ? uomConvData.records   : [];
+    const storageRecords = Array.isArray(storageData.records) ? storageData.records : [];
 
-    const finalProducts = buildProducts(rawProducts, poRecords, uomRecords);
+    // Agregasi QtyOnHand per produk — 1 produk bisa punya banyak baris
+    // M_Storage (beda locator/lot), dijumlahkan.
+    const qtyMap = new Map();
+    storageRecords.forEach(r => {
+      const pid = fkId(r.M_Product_ID);
+      if (!pid) return;
+      qtyMap.set(pid, (qtyMap.get(pid) || 0) + parseFloat(r.QtyOnHand || 0));
+    });
 
+    const finalProducts = buildProducts(rawProducts, poRecords, uomRecords, qtyMap);
+    
     return query
       ? [...finalProducts].sort((a, b) => scoreMatch(b, safeQ) - scoreMatch(a, safeQ))
       : finalProducts;
@@ -179,7 +196,7 @@ export function useProductSearch({ debounceMs = 420 } = {}) {
         `&$filter=${productFilter}&$orderby=Updated desc&$top=${WH_POOL_CAP}`
       );
       const rawProducts = Array.isArray(productData.records) ? productData.records : [];
-      return enrichAndSort(rawProducts, query, safeQ);
+      return enrichAndSort(rawProducts, query, safeQ, warehouseId);
     }
 
     const CHUNK_SIZE = 15;
@@ -209,7 +226,7 @@ export function useProductSearch({ debounceMs = 420 } = {}) {
       })
       .slice(0, WH_POOL_CAP);
 
-    return enrichAndSort(rawProducts, query, safeQ);
+    return enrichAndSort(rawProducts, query, safeQ, warehouseId);
   }, [enrichAndSort, fetchWarehouseLocatorIds]);
 
   // ── fetchProducts: reset ke halaman pertama ─────────────────────────────────

@@ -42,7 +42,13 @@ export function useGoodsReceiptSubmit({ docTypeId, description, onError }) {
     }
 
     const { orgId, clientId } = getLoginInfo();
-    console.log('DEBUG submit context:', { orgId, clientId, warehouseId, locatorId, vendorId });
+    console.log('DEBUG submit context:', { 
+      orgId, 
+      clientId, 
+      warehouseId, 
+      locatorId, 
+      vendorId 
+    });
 
     if (!vendorId || !vendorLocationId) {
       onError?.('Vendor pengirim barang belum ditentukan.\nImport dari Purchase Order dulu, atau pilih vendor manual.', 'Data Belum Lengkap');

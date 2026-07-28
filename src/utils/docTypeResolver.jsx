@@ -53,18 +53,22 @@ const _cache = new Map();
  *   cukup membedakan Internal Use vs Physical Inventory.
  * @returns {Promise<number>} C_DocType_ID yang sesuai untuk client user login.
  */
-export async function resolveDocTypeId(docBaseType, { orgId = null, docSubTypeInv = null } = {}) {
+export async function resolveDocTypeId(docBaseType, { orgId = null, docSubTypeInv = null, isSOTrx = null } = {}) {
   const { clientId } = getLoginInfo();
   if (!clientId) {
     throw new Error('AD_Client_ID tidak ditemukan di sesi login — silakan login kembali.');
   }
 
-  const cacheKey = `${clientId}_${docBaseType}_${docSubTypeInv ?? '-'}_${orgId ?? 0}`;
+  //const cacheKey = `${clientId}_${docBaseType}_${docSubTypeInv ?? '-'}_${orgId ?? 0}`;
+  const cacheKey = `${clientId}_${docBaseType}_${docSubTypeInv ?? '-'}_${isSOTrx ?? '-'}_${orgId ?? 0}`;
   if (_cache.has(cacheKey)) return _cache.get(cacheKey);
 
   let filter = `DocBaseType eq '${docBaseType}' and AD_Client_ID eq ${clientId} and IsActive eq true`;
   if (docSubTypeInv) {
     filter += ` and DocSubTypeInv eq '${docSubTypeInv}'`;
+  }
+  if (isSOTrx !== null){
+    filter += ` and IsSOTrx eq '${isSOTrx}'`;
   }
 
   const res = await idempiereApi(
@@ -77,6 +81,7 @@ export async function resolveDocTypeId(docBaseType, { orgId = null, docSubTypeIn
     throw new Error(
       `Tidak ditemukan Document Type aktif dengan DocBaseType='${docBaseType}'` +
       (docSubTypeInv ? ` dan DocSubTypeInv='${docSubTypeInv}'` : '') +
+      (isSOTrx !== null ? ` dan IsSOTrx='${isSOTrx}'` : '') +
       ` untuk Client ini (AD_Client_ID=${clientId}).\n` +
       `Buat/aktifkan Document Type-nya dulu di iDempiere: Window "Document Type", ` +
       `set Document Base Type = ${docBaseType}` +
@@ -119,4 +124,9 @@ export const DOC_SUB_TYPE_INV = {
   INTERNAL_USE:       'IU', // Internal Use Inventory — dipakai InternalUseContainer
   PHYSICAL_INVENTORY: 'PI', // Physical Inventory (stock opname)
   COST_ADJUSTMENT:    'CA', // Cost Adjustment
+};
+
+export const IS_SO_TRX = {
+  PURCHASE: 'N',
+  SALES:    'Y',
 };
