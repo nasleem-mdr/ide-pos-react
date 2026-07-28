@@ -182,8 +182,26 @@ const handleModalCashPurchase = async () => {
           setWarehouseInfo({ id: info.warehouseId, name: `WH #${info.warehouseId}` });
         }
         await fetchProducts('');
-      } catch (err) {
-        alert('Gagal inisialisasi: ' + err.message, 'Error');
+        } catch (err) {
+          alert('Gagal inisialisasi: ' + err.message, 'Error');
+        }
+      
+      try {
+          const defRes = await idempiereApi(
+              `/models/m_locator?$select=M_Locator_ID&$filter=M_Warehouse_ID eq ${info.warehouseId} and IsDefault eq true and IsActive eq true&$top=1`
+          );
+          const defRecords = Array.isArray(defRes.records) ? defRes.records : [];
+          if (defRecords.length > 0) {
+              setDefaultLocatorId(fkId(defRecords[0].M_Locator_ID) ?? defRecords[0].id);
+          } else {
+              const anyRes = await idempiereApi(
+                  `/models/m_locator?$select=M_Locator_ID&$filter=M_Warehouse_ID eq ${info.warehouseId} and IsActive eq true&$top=1`
+              );
+              const anyRecords = Array.isArray(anyRes.records) ? anyRes.records : [];
+              setDefaultLocatorId(anyRecords[0] ? (fkId(anyRecords[0].M_Locator_ID) ?? anyRecords[0].id) : null);
+          }
+      } catch {
+          setDefaultLocatorId(null);
       }
     };
     init();
@@ -667,7 +685,7 @@ const handleModalCashPurchase = async () => {
     selectedBankAccountId={selectedBankAccountId}
     onBankAccountChange={setSelectedBankAccountId}
     isSubmitting={isSubmitting || cashPurchaseSubmitting}
-    totalAmount={calculateTotal()}
+    totalAmount={totalAmount}
 />
 
 <CashPurchaseProgressModal
