@@ -678,6 +678,7 @@ useEffect(() => {
             )}
           </div>
         </div>
+        
         <PurchaseSubmitModal
           isOpen={submitModalOpen}
           onClose={() => setSubmitModalOpen(false)}
