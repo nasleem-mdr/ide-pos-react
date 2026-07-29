@@ -1,4 +1,71 @@
-        </tspan>
+          fill: 'currentColor',
+          fillOpacity: 1,
+          stroke: 'currentColor',
+          strokeWidth: 1.65425,
+          strokeLinecap: 'butt',
+          strokeLinejoin: 'round',
+          strokeDasharray: 'none',
+          strokeOpacity: 1,
+        }}
+      />
+      
+      {/* Garis Panjang Tengah-Kanan */}
+      <path
+        id="path8"
+        d="M12.512 9.098h9.806"
+        style={{
+          fill: 'currentColor',
+          fillOpacity: 1,
+          stroke: 'currentColor',
+          strokeWidth: 1.70732,
+          strokeLinecap: 'butt',
+          strokeLinejoin: 'round',
+          strokeDasharray: 'none',
+          strokeOpacity: 1,
+        }}
+      />
+      
+      {/* Karakter "P" */}
+      <text
+        xmlSpace="preserve"
+        id="text8"
+        x="3.821"
+        y="16.295"
+        style={{
+          fontWeight: 700,
+          fontSize: '15.702px',
+          fontFamily: 'Calibri, sans-serif',
+          textAlign: 'start',
+          letterSpacing: '0.0642354px',
+          writingMode: 'lr-tb',
+          direction: 'ltr',
+          textAnchor: 'start',
+          fill: 'currentColor',
+          stroke: 'none',
+          strokeWidth: 1.53187,
+          strokeLinecap: 'round',
+          strokeLinejoin: 'round',
+          strokeDasharray: 'none',
+        }}
+      >
+        <tspan
+          id="tspan8"
+          x="3.821"
+          y="16.295"
+          style={{
+            fontStyle: 'normal',
+            fontVariant: 'normal',
+            fontWeight: 700,
+            fontStretch: 'normal',
+            fontFamily: 'Calibri, sans-serif',
+            fill: 'currentColor',
+            stroke: 'none',
+            strokeWidth: 1.53187,
+            strokeDasharray: 'none',
+          }}
+        >
+          P
+</tspan>
       </text>
       
       {/* Elemen Atas Kanan (Grup) */}
