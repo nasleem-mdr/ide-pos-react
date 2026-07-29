@@ -72,6 +72,7 @@ export function useCashPurchaseSubmit({ poDocTypeId, receiptDocTypeId, invoiceDo
           AD_Client_ID:  { id: clientId },
           AD_Org_ID:     { id: orgId },
           C_DocType_ID:  { id: poDocTypeId },
+          C_DocTypeTarget_ID: { id: poDocTypeId },
           C_BPartner_ID: { id: parseInt(vendorId) },
           C_BPartner_Location_ID: { id: parseInt(vendorLocationId) },
           M_Warehouse_ID: { id: parseInt(warehouseId) },
@@ -185,6 +186,7 @@ export function useCashPurchaseSubmit({ poDocTypeId, receiptDocTypeId, invoiceDo
           AD_Client_ID: { id: clientId },
           AD_Org_ID:    { id: orgId },
           C_DocType_ID: { id: invoiceDocTypeId },
+          C_DocTypeTarget_ID: { id: invoiceDocTypeId },
           C_Order_ID:   { id: poId },
           C_BPartner_ID: { id: parseInt(vendorId) },
           C_BPartner_Location_ID: { id: parseInt(vendorLocationId) },
@@ -236,7 +238,8 @@ export function useCashPurchaseSubmit({ poDocTypeId, receiptDocTypeId, invoiceDo
           AD_Client_ID: { id: clientId },
           AD_Org_ID:    { id: orgId },
           C_BPartner_ID: { id: parseInt(vendorId) },
-          C_DocType_ID:  null, // biarkan default sesuai konfigurasi bank account, atau isi kalau kamu punya docTypeId payment
+           C_DocType_ID:       { id: paymentDocTypeId },   // ⬅️ ganti dari null
+          C_DocTypeTarget_ID: { id: paymentDocTypeId },arkan default sesuai konfigurasi bank account, atau isi kalau kamu punya docTypeId payment
           DateTrx:      todayISO,
           DateAcct:     todayISO,
           IsReceipt:    false, // false = uang KELUAR (kita bayar vendor)
