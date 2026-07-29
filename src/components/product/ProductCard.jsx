@@ -62,19 +62,13 @@ const ProductCard = ({ product, onClick }) => {
       )}
       {/* Stok */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-      <span className="prod-stock" style={{ color: stockColor, fontSize: '11px', fontWeight: 600 }}>
-        <StockIcon size={18}/> Stok: {qty.toLocaleString('id-ID')}
-      </span>
+        <span className="prod-stock" style={{ color: stockColor, fontSize: '11px', fontWeight: 600 }}>
+          <StockIcon size={18}/> Stok: {qty.toLocaleString('id-ID')} {product.C_UOM_Name || 'EA'}
+        </span>
       </div>
       {/* Spacer */}
-      <div className="prod-spacer" />
-
-      {/* Satuan / UOM */}
-      <span className="prod-uom" style={{ color: COLOR.textLt }}>
-        {product.C_UOM_Name || 'EA'}
-      </span>
-    </div>
-  );
-};
+      <div className="prod-spacer" /></div>
+    );
+  };
 
 export default ProductCard;

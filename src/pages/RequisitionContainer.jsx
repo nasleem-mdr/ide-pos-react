@@ -21,7 +21,7 @@ import ProductCard from '../components/product/ProductCard';
 import ProductDetailSheet from '../components/product/ProductDetailSheet';
 import BarcodeScanner from '../components/scanner/BarcodeScanner';
 import RequisitionSuccessModal from '../components/requisition/RequisitionSuccessModal';
-import { HomeIcon, RequisitionIcon,ScanIcon} from '../components/Icons'; 
+import { HomeIcon, RequisitionIcon,ScanIcon, WarehouseIcon} from '../components/Icons'; 
 // 5. Utils
 import { idempiereApi, fkId } from '../utils/idempiereApi';
 import { resolveDocTypeId, DOC_BASE_TYPE } from '../utils/docTypeResolver';
@@ -368,7 +368,7 @@ const RequisitionContainer = () => {
           )}
           {warehouses.map((wh, idx) => (
             <option key={wh.id || `wh-null-${idx}`} value={wh.id ?? ''} style={{ background: '#1e3a5f', color: '#e0eaff' }}>
-              📦 {wh.name}
+              🏭 {wh.name} {/* Menggunakan Emoji Gudang */}
             </option>
           ))}
         </select>

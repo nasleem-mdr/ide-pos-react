@@ -986,15 +986,7 @@ export const ReciprocalIcon = ({ size = 24, color = 'currentColor', ...props }) 
     </svg>
   );
 };
-export const ListIcon32 = () => (
-  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M14 16L16.1 18.5L20 13.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-    <path d="M10 14H3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-    <path d="M10 18H3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-    <path d="M3 6L13.5 6M20 6L17.75 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-    <path d="M20 10L9.5 10M3 10H5.25" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-  </svg>
-);
+
 export const ImportIcon = ({ size = 24, color = 'currentColor', ...props }) => {
   return (
     <svg
@@ -1402,6 +1394,26 @@ export  function RoleIcon() {
       </svg>
     );
   }
+
+  export const BarcodeIcon = ({ size = 24, className = '', ...props}) => {
+    return (
+      <svg 
+        width= {size} 
+        height={size}
+        viewBox="0 0 24 24" 
+        fill="none" 
+        stroke="currentColor" 
+        strokeWidth="2" 
+        strokeLinecap="round" 
+        strokeLinejoin="round">
+      <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+      <rect x="3" y="14" width="7" height="7"/>
+      <path d="M14 14h.01M14 17h.01M17 14h.01M17 17h.01M20 14h.01M20 17h.01M20 20h.01M17 20h.01M14 20h.01"/>
+    </svg>
+    );
+  };
+    
+  
   export const DeliveryIcon = ({ size = 24, className = '', ...props }) => {
     return (
       <svg
@@ -1541,65 +1553,36 @@ export  function RoleIcon() {
       </svg>
     );
   };
-  export function RequisitionIconR() {
-    return (
-      <svg xmlns="http://www.w3.org/2000/svg" xmlSpace="preserve" id="svg12" width="24" height="24" viewBox="0 0 6.35 6.35">
-        <rect 
-          id="rect16" 
-          width=".414" 
-          height="1.09" 
-          x="-.06" 
-          y="4.426" 
-          ry=".024" 
-          fill="currentColor"
-          stroke="none"
-          strokeWidth=".259668"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          transform="matrix(.98666 -.16281 .1194 .99285 0 0)"
-        />
-        <path 
-          id="path16" 
-          d="m1.008 4.356.117.954c.53-.328 1.65-.226 2.46-.158.18.015.3-.005.454-.078.724-.345 1.291-.664 1.886-.988.05-.174-.098-.37-.384-.307l-.414.148-.234.093-.227.046c-.138.008-.228.045-.331.075.106.636-.278.554-1.543.44.045-.04.16-.057.257-.074.257-.045.608-.036.847-.027.096.003.193.024.27-.038a.28.28 0 0 0 .106-.182c.011-.087-.037-.161-.085-.21-.057-.056-.124-.07-.207-.083-.372-.059-.64-.015-1.056-.132-.129-.036-.247-.054-.345-.082-.254-.072-.397-.067-.67.127a3.4 3.4 0 0 1-.901.476" 
-          fill="none"
-          stroke="currentColor"
-          strokeWidth=".2549715"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-        <rect 
-          id="rect27" 
-          width="3.624" 
-          height="2.571" 
-          x="1.327" 
-          y=".9" 
-          ry=".101" 
-          fill="none"
-          stroke="currentColor"
-          strokeWidth=".2549715"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-        <path 
-          id="text27" 
-          d="M4.067 2.873q0 .013-.008.023-.006.01-.024.016t-.047.01-.075.003q-.044 0-.074-.004-.03-.003-.047-.01-.017-.006-.024-.015-.008-.01-.008-.023V1.578h-.002l-.461 1.294q-.005.016-.016.027t-.031.016-.048.008-.071.002q-.042 0-.072-.004-.03-.002-.049-.008-.018-.008-.03-.017-.01-.01-.014-.024L2.52 1.578h-.002v1.295q0 .013-.007.023t-.025.016-.048.01q-.028.003-.074.003-.044 0-.074-.004-.03-.003-.048-.01-.017-.006-.024-.015-.006-.01-.006-.023V1.455q0-.063.033-.096t.088-.033h.212q.057 0 .097.01.04.008.07.03t.05.057.034.086l.344.949h.005l.357-.946q.016-.052.035-.088t.044-.057.06-.031.08-.01h.218q.033 0 .056.009.025.008.04.025.016.016.023.041.009.023.009.054z" 
-          aria-label="M" 
-          fill="none"
-          stroke="currentColor"
-          strokeWidth=".2549715"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          style={{
-            fontWeight: 700,
-            fontSize: '6.82848px',
-            fontFamily: 'Calibri',
-            letterSpacing: '0.0279346px'
-          }}
-        />
-      </svg>
-    );
-  }
-  
+  export const WarehouseIcon = ({ size = 24, color = 'currentColor', ...props }) => {
+  return (
+    <svg
+      width={size}
+      height={size}
+      fill={color}
+      viewBox="0 0 502.56 502.56"
+      xmlns="http://www.w3.org/2000/svg"
+      {...props}
+    >
+      <g>
+        <path d="M467.28,467.496h24v-128h-24V129.328l12.088,3.888l23.192-46.392L251.28,3.064L0,86.824l23.192,46.392l12.088-3.888
+          v354.168h-32v16h32h432h32v-16h-32V467.496z M475.28,355.496v96h-8v-96H475.28z M215.6,483.496H107.28v-216h80v184h-64v16h80v-16
+          v-184v-16v-16h16v180.32c-9.792,8.792-16,21.504-16,35.68C203.28,463.8,207.968,474.992,215.6,483.496z M251.28,483.496
+          c-17.648,0-32-14.352-32-32s14.352-32,32-32s32,14.352,32,32S268.928,483.496,251.28,483.496z M296.936,309.84l-11.312,11.312
+          l10.344,10.344l-31.04,31.04l32.464-119.04h92.256l29.6,82.896l-97.728,45.104h-42.928l28.688-28.688l10.344,10.344
+          l11.312-11.312L296.936,309.84z M236.528,405.84c-0.424,0.136-0.832,0.304-1.248,0.456v-138.8h38.984L236.528,405.84z
+          M286.96,483.496c4.144-4.624,7.4-10.032,9.52-16h77.6c2.12,5.968,5.376,11.376,9.52,16H286.96z M419.28,483.496
+          c-17.648,0-32-14.352-32-32s14.352-32,32-32s32,14.352,32,32S436.928,483.496,419.28,483.496z M451.28,415.816
+          c-8.504-7.632-19.696-12.32-32-12.32c-26.472,0-48,21.528-48,48h-72c0-25.648-20.232-46.592-45.56-47.88l4.4-16.12h66.92
+          l99.608-45.976l4.992,13.976h21.64V415.816z M451.28,339.496h-10.36l-34.288-96h12.648v-16h-152v16h13.528l-2.184,8H235.28v-16
+          h16v-16h-80v16h16v16h-96v232h-40v-288h400V339.496z M451.28,179.496h-400v-55.312l200-64.28l200,64.288V179.496z M251.28,43.088
+          L31.368,113.776L22.56,96.168l228.72-76.24L480,96.168l-8.808,17.608L251.28,43.088z" />
+        <rect x="243.28" y="91.496" width="16" height="16" />
+        <rect x="275.28" y="91.496" width="16" height="16" />
+        <rect x="211.28" y="91.496" width="16" height="16" />
+      </g>
+    </svg>
+  );
+};
   export const RequisitionIcon = ({ size = 24, color = 'currentColor', ...props }) => {
     return (
       <svg
@@ -1693,99 +1676,7 @@ export  function RoleIcon() {
       </svg>
     );
   };
-  export const RequisitionIcon32 = ({ size = 32, color = 'currentColor', ...props }) => {
-    return (
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        width={size}
-        height={size}
-        viewBox="0 0 6.35 6.35"
-        xmlSpace="preserve"
-        {...props}
-      >
-        {/* Elemen Dekorasi / Stempel Kecil di Kiri Bawah */}
-        <rect
-          id="rect16"
-          width={0.474}
-          height={1.246}
-          x={-0.305}
-          y={4.854}
-          ry={0.027}
-          style={{
-            fill: color,
-            stroke: 'none',
-          }}
-          transform="matrix(.98666 -.16281 .1194 .99285 0 0)"
-        />
   
-        {/* Bagian Bawah / Aksen Dokumen */}
-        <path
-          id="path16"
-          d="m1.008 4.885.117.954c.53-.328 1.616-.168 2.426-.1.181.015.35.012.504-.061.724-.346 1.275-.739 1.87-1.063.05-.174-.085-.374-.371-.31l-.415.147-.233.093-.194.038c-.093.032-.06.016-.162.045.006.673-.528.76-1.745.477.044-.038.147-.052.244-.07.257-.044.544.006.783.015.096.003.225.015.333-.079.08-.069.091-.216.083-.256-.019-.086-.046-.095-.094-.143a.7.7 0 0 0-.302-.134c-.373-.059-.511.043-.928-.074-.129-.036-.247-.053-.345-.081-.254-.073-.397-.068-.67.126a3.4 3.4 0 0 1-.901.476"
-          style={{
-            fill: color,
-            stroke: color,
-            strokeWidth: 0.084583,
-            strokeLinecap: 'round',
-            strokeLinejoin: 'round',
-            strokeDasharray: 'none',
-          }}
-        />
-  
-        {/* Sisi Kanan Kotak/Berkas (Perspektif 3D) */}
-        <rect
-          id="rect27"
-          width={1.93}
-          height={1.954}
-          x={1.942}
-          y={0.525}
-          ry={0.077}
-          style={{
-            fill: 'none',
-            stroke: color,
-            strokeWidth: 0.168351,
-            strokeLinecap: 'round',
-            strokeLinejoin: 'round',
-            strokeDasharray: 'none',
-          }}
-          transform="scale(.90526 1) skewY(23.018)"
-        />
-  
-        {/* Sisi Kiri Kotak/Berkas (Perspektif 3D) */}
-        <rect
-          id="rect1"
-          width={1.93}
-          height={1.954}
-          x={-5.843}
-          y={3.82}
-          ry={0.077}
-          style={{
-            fill: 'none',
-            stroke: color,
-            strokeWidth: 0.168351,
-            strokeLinecap: 'round',
-            strokeLinejoin: 'round',
-            strokeDasharray: 'none',
-          }}
-          transform="scale(-.90526 1) skewY(23.018)"
-        />
-  
-        {/* Bagian Atas / Lipatan Dokumen */}
-        <path
-          id="path2"
-          d="M2.011 1.242s1.295.626 1.494.584 1.644-.678 1.644-.678L3.69.804Z"
-          style={{
-            fill: 'none',
-            stroke: color,
-            strokeWidth: 0.145878,
-            strokeLinecap: 'round',
-            strokeLinejoin: 'round',
-            strokeDasharray: 'none',
-          }}
-        />
-      </svg>
-    );
-  };
   export function LogoSMAMerahHitam() {
     return (
       <svg width="80" height="48" viewBox="0 0 39.687 23.813" xmlns="http://www.w3.org/2000/svg">
@@ -1820,16 +1711,7 @@ export  function RoleIcon() {
     );
   }
 
-  export function LogoSMAWarna() {
-    return (
-      <svg width="65" height="65"  viewBox="0 0 23.812 23.813" xmlns="http://www.w3.org/2000/svg">
-        <g transform="matrix(.81511 0 0 .81511 -2.3477 1.9722)">
-          <path d="m18.405 9.3341c5.7093-4.665 13.135-0.097258 11.077 4.9796-3.1133 7.681-18.099 7.4839-22.117 2.2965 8.6887 3.4129 15.146-0.016114 16.343-2.0055 0.60998-1.0135 2.3813-4.6259-5.3037-5.2705z" fill="#fff"/>
-          <path d="m16.569 15.041c-5.7093 4.665-13.135 0.097257-11.077-4.9796 3.1133-7.681 18.099-7.4839 22.117-2.2965-8.6887-3.4129-15.146 0.016111-16.343 2.0055-0.60998 1.0135-2.3813 4.6259 5.3037 5.2705z" fill="#fff"/>
-        </g>
-      </svg>
-    );
-  }
+  
   export function LogoSMA20() {
     return (
       <svg width="20" height="20"  viewBox="0 0 23.812 23.813" xmlns="http://www.w3.org/2000/svg">

@@ -28,7 +28,7 @@ import CashPurchaseProgressModal from '../components/purchasing/CashPurchaseProg
 
 import { COLOR, RADIUS } from '../utils/styleTokens';
 import '../css/Header.css';
-import { HomeIcon, ImportIcon, ShoppingCartIcon } from '../components/Icons';
+import { HomeIcon, ImportIcon, ShoppingCartIcon, BarcodeIcon } from '../components/Icons';
 
 // ⚠️ WAJIB DISESUAIKAN: ganti dengan C_DocType_ID Document Type "Purchase
 // Order" di instance Anda.
@@ -648,11 +648,7 @@ useEffect(() => {
                 fontSize: '20px', lineHeight: 1, flexShrink: 0, WebkitTapHighlightColor: 'transparent',
               }}
             >
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
-                <rect x="3" y="14" width="7" height="7"/>
-                <path d="M14 14h.01M14 17h.01M17 14h.01M17 17h.01M20 14h.01M20 17h.01M20 20h.01M17 20h.01M14 20h.01"/>
-              </svg>
+              <BarcodeIcon />
             </button>
 
             <button
