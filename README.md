@@ -25,7 +25,7 @@ Aplikasi ini bersifat *free & open-source*.
 ### Prasyarat (Prerequisites)
 * **Node.js & NPM** (Direkomendasikan versi LTS terbaru)
 * **React / Vite v5.x ke atas** *(Catatan: Pastikan versi runtime Node Anda mendukung Vite terbaru)*
-
+* **idempiere-server 11** * atau terbaru yang terinstall plugin rest-api https://github.com/bxservice/idempiere-rest
 ### Dependencies Utama Proyek
 ```bash
 npm install recharts jspdf jspdf-autotable qrcode react-router-dom
@@ -43,11 +43,12 @@ npm install recharts jspdf jspdf-autotable qrcode react-router-dom
    ```
 3. Konfigurasi Proksi API:
    Buka file vite.config.js atau package.json Anda, lalu arahkan konfigurasi proxy ke URL endpoint iDempiere REST API asli milik perusahaan Anda. Untuk keperluan pengujian awal, Anda dapat memanfaatkan server demo di    www.demo.globalqss.com.
-4. Jalankan server
+4. Setup beberapa custom field pada IDempiere, tambahkan QtyEntered pada M_RequisitionLine(dibutuhkan untuk konversi UoM sejak Requisition), tambahkan C_Charge_ID pada M_Product(dibutuhkan untuk default charge pada proses internal use)
+5. Jalankan server
    ```
    npm run dev
    ```
-5. Akses antarmuka aplikasi melalui alamat lokal yang tertera pada terminal Anda (biasanya di http://localhost:5173).
+6. Akses antarmuka aplikasi melalui alamat lokal yang tertera pada terminal Anda (biasanya di http://localhost:5173).
    
 📁 Struktur Folder Proyek
 
