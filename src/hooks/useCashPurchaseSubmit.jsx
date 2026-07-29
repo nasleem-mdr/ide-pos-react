@@ -225,8 +225,8 @@ export function useCashPurchaseSubmit({ poDocTypeId, receiptDocTypeId, invoiceDo
       if (!invoiceGrandTotal) {
         console.warn('GrandTotal invoice tidak terbaca dari response Complete — payment mungkin perlu jumlah manual.');
       }
-      onStepUpdate?.('invoice', 'success', { id: invoiceId, documentNo: invoiceStatus.documentNo });
-      
+     
+      onStepUpdate?.('invoice', 'success', { id: invoiceId, documentNo: completedInvoice.DocumentNo });
       // ═══════════════════════════════════════════════════════════════════
       // TAHAP 4 — Payment
       // ═══════════════════════════════════════════════════════════════════
@@ -256,7 +256,12 @@ export function useCashPurchaseSubmit({ poDocTypeId, receiptDocTypeId, invoiceDo
         method: 'PUT',
         body: JSON.stringify({ 'doc-action': 'CO' }),
       });
-      onStepUpdate?.('payment', 'success', { id: paymentId, documentNo: paymentStatus.documentNo });
+     // Payment — tangkap response PUT-nya dulu:
+      const completedPayment = await idempiereApi(`/models/c_payment/${paymentId}`, {
+        method: 'PUT',
+        body: JSON.stringify({ 'doc-action': 'CO' }),
+      });
+      onStepUpdate?.('payment', 'success', { id: paymentId, documentNo: completedPayment.DocumentNo });
       // ═══════════════════════════════════════════════════════════════════
       // TAHAP 5 — Allocation (hubungkan Payment ↔ Invoice)
       // ═══════════════════════════════════════════════════════════════════
