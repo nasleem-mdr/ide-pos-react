@@ -6,3 +6,4 @@ export * from './Role';
 export * from './Client';
 export * from './Icons';
 export * from './Home';
+export * from './Search';
