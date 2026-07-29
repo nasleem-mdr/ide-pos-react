@@ -230,6 +230,7 @@ export function useCashPurchaseSubmit({ poDocTypeId, receiptDocTypeId, invoiceDo
       // ═══════════════════════════════════════════════════════════════════
       // TAHAP 4 — Payment
       // ═══════════════════════════════════════════════════════════════════
+     
       setProgressStep('payment');
       onStepUpdate?.('payment', 'pending');
       const paymentRes = await idempiereApi('/models/c_payment', {
@@ -238,8 +239,8 @@ export function useCashPurchaseSubmit({ poDocTypeId, receiptDocTypeId, invoiceDo
           AD_Client_ID: { id: clientId },
           AD_Org_ID:    { id: orgId },
           C_BPartner_ID: { id: parseInt(vendorId) },
-           C_DocType_ID:       { id: paymentDocTypeId },   // ⬅️ ganti dari null
-          C_DocTypeTarget_ID: { id: paymentDocTypeId },arkan default sesuai konfigurasi bank account, atau isi kalau kamu punya docTypeId payment
+          C_DocType_ID:       { id: paymentDocTypeId },
+          C_DocTypeTarget_ID: { id: paymentDocTypeId },
           DateTrx:      todayISO,
           DateAcct:     todayISO,
           IsReceipt:    false, // false = uang KELUAR (kita bayar vendor)
@@ -251,53 +252,35 @@ export function useCashPurchaseSubmit({ poDocTypeId, receiptDocTypeId, invoiceDo
       const paymentId = fkId(paymentRes.id) ?? paymentRes.id ?? paymentRes.C_Payment_ID;
       if (!paymentId) throw new Error('Gagal mendapatkan C_Payment_ID.');
       created.paymentId = paymentId;
-
-      await idempiereApi(`/models/c_payment/${paymentId}`, {
-        method: 'PUT',
-        body: JSON.stringify({ 'doc-action': 'CO' }),
+      
+      // ── Isi Payment Allocation SEBELUM Payment di-Complete ──────────────
+      // (setara mengisi tab "Payment Allocation" saat header masih Draft di
+      // Windows client — pilih invoice + nominal yang mau dibayar).
+      await idempiereApi('/models/c_paymentallocate', {
+        method: 'POST',
+        body: JSON.stringify({
+          AD_Org_ID:    { id: orgId },
+          C_Payment_ID: { id: paymentId },
+          C_Invoice_ID: { id: invoiceId },
+          Amount:       invoiceGrandTotal, // full payment — sesuaikan kalau nanti support partial/under-over
+        }),
       });
-     // Payment — tangkap response PUT-nya dulu:
+      
+      // ── Complete Payment → trigger auto-generate AllocationHdr/Line ────
       const completedPayment = await idempiereApi(`/models/c_payment/${paymentId}`, {
         method: 'PUT',
         body: JSON.stringify({ 'doc-action': 'CO' }),
       });
+      const paymentFinalStatus = completedPayment.DocStatus?.id ?? completedPayment.DocStatus;
+      if (paymentFinalStatus !== 'CO' && paymentFinalStatus !== 'CL') {
+        throw new Error(
+          `Payment gagal Complete (status: ${paymentFinalStatus || 'tidak diketahui'}). ` +
+          `Kemungkinan total baris Payment Allocation belum sama dengan PayAmt di header — cek langsung di iDempiere.`
+        );
+      }
       onStepUpdate?.('payment', 'success', { id: paymentId, documentNo: completedPayment.DocumentNo });
       // ═══════════════════════════════════════════════════════════════════
-      // TAHAP 5 — Allocation (hubungkan Payment ↔ Invoice)
-      // ═══════════════════════════════════════════════════════════════════
-      setProgressStep('allocation');
-      onStepUpdate?.('allocation', 'pending');
-      const allocHdrRes = await idempiereApi('/models/c_allocationhdr', {
-        method: 'POST',
-        body: JSON.stringify({
-          AD_Client_ID: { id: clientId },
-          AD_Org_ID:    { id: orgId },
-          DateTrx:      todayISO,
-          DateAcct:     todayISO,
-          IsManual:     true,
-          Description:  `Auto-allocation: ${description}`,
-        }),
-      });
-      const allocHdrId = fkId(allocHdrRes.id) ?? allocHdrRes.id ?? allocHdrRes.C_AllocationHdr_ID;
-      if (!allocHdrId) throw new Error('Gagal membuat C_AllocationHdr.');
-
-      await idempiereApi('/models/c_allocationline', {
-        method: 'POST',
-        body: JSON.stringify({
-          AD_Org_ID:         { id: orgId },
-          C_AllocationHdr_ID: { id: allocHdrId },
-          C_Invoice_ID:      { id: invoiceId },
-          C_Payment_ID:      { id: paymentId },
-          Amount:            invoiceGrandTotal,
-        }),
-      });
-
-      await idempiereApi(`/models/c_allocationhdr/${allocHdrId}`, {
-        method: 'PUT',
-        body: JSON.stringify({ 'doc-action': 'CO' }),
-      });
-      onStepUpdate?.('allocation', 'success', { id: allocHdrId });
-      // ═══════════════════════════════════════════════════════════════════
+            
       return {
         poId, receiptId, invoiceId, paymentId,
         grandTotal: invoiceGrandTotal,
