@@ -22,6 +22,7 @@ import ProductList from "./pages/ProductList";
 import GoodsReceiptContainer from './pages/GoodsReceiptContainer';
 import PurchasingContainer from './pages/PurchasingContainer';
 import InternalUseContainer from './pages/InternalUseContainer';
+import VendorInvoiceContainer from './pages/VendorInvoiceContainer';
 import BookingTimeline from './pages/BookingTimeline';
 import './css/AppLayout.css'; // Pastikan mengimpor file CSS layout Anda
 
@@ -147,6 +148,12 @@ export default function App() {
                         <Route path="/internaluse-list" element={
                           <ProtectedRoute windowKey="internalUseList">
                             <InternalUseList />
+                          </ProtectedRoute>
+                        } />
+                      
+                      <Route path="/vendor-invoice" element={
+                          <ProtectedRoute windowKey="vendorInvoice">
+                            <VendorInvoiceContainer />
                           </ProtectedRoute>
                         } />
                       </Routes>

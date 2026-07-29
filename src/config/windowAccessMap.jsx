@@ -24,6 +24,7 @@ export const WINDOW_ACCESS_MAP = {
   purchasing:           null,
   internalUse:          null,
   booking:              null,
+  vendorInvoie:         null,
 
   // ===== List / Report =====
   requisitionList:      null, 

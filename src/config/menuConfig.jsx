@@ -11,11 +11,12 @@ export const menuSections = [
             { key: 'purchasing',    windowKey: 'purchasing',   path: '/purchasing',     label: 'Purchasing',    icon: <ShoppingCartIcon /> },
             { key: 'goodsReceipt',  windowKey: 'goodsReceipt', path: '/goods-receipt', label: 'Goods Receipt', icon: <DeliveryIcon /> },
             { key: 'internalUse',   windowKey: 'internalUse',  path: '/internal-use',  label: 'Internal Use',  icon: <UserTake /> },
+            { key: 'vendorInvoice',   windowKey: 'vendorInvoice',  path: '/vendor-invoice',  label: 'Vendor Invoice',  icon: <UserTake /> },
         ]
     },
     {
         sectionKey: 'sales',
-        sectionLabel: 'Salses POS',
+        sectionLabel: 'Sales POS',
         defaultCollapsed: false,
         items: [
             { key: 'pos-order',     windowKey: 'pos',    path: '/pos-order',        label: 'Pos Sales',     icon: <CashierIcon size={20}/> },
