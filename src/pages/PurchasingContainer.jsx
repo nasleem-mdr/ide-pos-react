@@ -99,7 +99,7 @@ const [progressSteps, setProgressSteps] = useState({});
 const [progressDone, setProgressDone] = useState(false);
 
 const { submit: submitCashPurchase, isSubmitting: cashPurchaseSubmitting } = useCashPurchaseSubmit({
-    poDocTypeId, receiptDocTypeId, invoiceDocTypeId,
+    poDocTypeId, receiptDocTypeId, invoiceDocTypeId, paymentDocTypeId,
     description: 'Cash Purchase',
     onError: alert,
     onStepUpdate: (stepKey, status, meta) => {
