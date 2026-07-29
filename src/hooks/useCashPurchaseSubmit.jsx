@@ -230,55 +230,15 @@ export function useCashPurchaseSubmit({ poDocTypeId, receiptDocTypeId, invoiceDo
       // ═══════════════════════════════════════════════════════════════════
       // TAHAP 4 — Payment
       // ═══════════════════════════════════════════════════════════════════
-     
       setProgressStep('payment');
       onStepUpdate?.('payment', 'pending');
-      const paymentRes = await idempiereApi('/models/c_payment', {
-        method: 'POST',
-        body: JSON.stringify({
-          AD_Client_ID: { id: clientId },
-          AD_Org_ID:    { id: orgId },
-          C_BPartner_ID: { id: parseInt(vendorId) },
-          C_DocType_ID:       { id: paymentDocTypeId },
-          C_DocTypeTarget_ID: { id: paymentDocTypeId },
-          DateTrx:      todayISO,
-          DateAcct:     todayISO,
-          IsReceipt:    false, // false = uang KELUAR (kita bayar vendor)
-          TenderType:   paymentTenderType,
-          PayAmt:       invoiceGrandTotal,
-          ...(bankAccountId ? { C_BankAccount_ID: { id: parseInt(bankAccountId) } } : {}),
-        }),
-      });
-      const paymentId = fkId(paymentRes.id) ?? paymentRes.id ?? paymentRes.C_Payment_ID;
-      if (!paymentId) throw new Error('Gagal mendapatkan C_Payment_ID.');
-      created.paymentId = paymentId;
-      
-      // ── Isi Payment Allocation SEBELUM Payment di-Complete ──────────────
-      // (setara mengisi tab "Payment Allocation" saat header masih Draft di
-      // Windows client — pilih invoice + nominal yang mau dibayar).
-      await idempiereApi('/models/c_paymentallocate', {
-        method: 'POST',
-        body: JSON.stringify({
-          AD_Org_ID:    { id: orgId },
-          C_Payment_ID: { id: paymentId },
-          C_Invoice_ID: { id: invoiceId },
-          Amount:       invoiceGrandTotal, // full payment — sesuaikan kalau nanti support partial/under-over
-        }),
-      });
-      
-      // ── Complete Payment → trigger auto-generate AllocationHdr/Line ────
-      const completedPayment = await idempiereApi(`/models/c_payment/${paymentId}`, {
-        method: 'PUT',
-        body: JSON.stringify({ 'doc-action': 'CO' }),
-      });
-      const paymentFinalStatus = completedPayment.DocStatus?.id ?? completedPayment.DocStatus;
-      if (paymentFinalStatus !== 'CO' && paymentFinalStatus !== 'CL') {
-        throw new Error(
-          `Payment gagal Complete (status: ${paymentFinalStatus || 'tidak diketahui'}). ` +
-          `Kemungkinan total baris Payment Allocation belum sama dengan PayAmt di header — cek langsung di iDempiere.`
-        );
-      }
-      onStepUpdate?.('payment', 'success', { id: paymentId, documentNo: completedPayment.DocumentNo });
+      const paymentResult = await submitPaymentAllocation(
+        [{ invoiceId, grandTotal: invoiceGrandTotal }],
+        { vendorId, bankAccountId, paymentTenderType }
+      );
+      if (!paymentResult) throw new Error('Payment/Allocation gagal — lihat detail error sebelumnya.');
+      created.paymentId = paymentResult.paymentId;
+      onStepUpdate?.('payment', 'success', { id: paymentResult.paymentId, documentNo: paymentResult.documentNo });
       // ═══════════════════════════════════════════════════════════════════
             
       return {
