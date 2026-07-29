@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LogoIconP } from './Icons';
+import { LogoIconP } from '@/components/icon';
 import { useAccess } from '../context/AccessContext';
 import '../css/Sidebar.css';
 import { getMenuSections } from '../config/menuConfig';

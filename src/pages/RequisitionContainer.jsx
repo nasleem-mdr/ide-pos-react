@@ -21,7 +21,7 @@ import ProductCard from '../components/product/ProductCard';
 import ProductDetailSheet from '../components/product/ProductDetailSheet';
 import BarcodeScanner from '../components/scanner/BarcodeScanner';
 import RequisitionSuccessModal from '../components/requisition/RequisitionSuccessModal';
-import { HomeIcon, RequisitionIcon,ScanIcon, WarehouseIcon} from '../components/Icons'; 
+import { HomeIcon, RequisitionIcon,ScanIcon, WarehouseIcon} from '@/components/icon'; 
 // 5. Utils
 import { idempiereApi, fkId } from '../utils/idempiereApi';
 import { resolveDocTypeId, DOC_BASE_TYPE } from '../utils/docTypeResolver';

@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback } from 'react';
 import { COLOR } from '../../utils/styleTokens';
 import '../../css/ProductCard.css';
-import { StockIcon, VendorIcon } from '../Icons';
+import { StockIcon, VendorIcon } from '@/components/icon';
 
 const truncateText = (text, maxLength = 12) => {
   if (!text) return '';

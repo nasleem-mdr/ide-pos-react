@@ -6,7 +6,7 @@ import DataTable from "../components/DataTable";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import QRCode from "qrcode";
-import { LogoSMAMerahHitam} from "../components/Icons";
+import { LogoSMAMerahHitam} from "@/components/icon";
 import { idempiereApi } from "../utils/idempiereApi";
 import "../App.css";
 

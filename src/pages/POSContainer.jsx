@@ -12,7 +12,7 @@ import { useIsDesktop } from '../hooks/useIsDesktop';
 import CartPanel from '../components/cart/CartPanel';   // sesuaikan path sebenarnya
 import CartSidebar from '../components/cart/CartSidebar';
 import BarcodeScanner from '../components/scanner/BarcodeScanner'; // sesuaikan path sebenarnya
-import { ScanIcon} from '../components/Icons'; 
+import { ScanIcon} from '@/components/icon'; 
 import ProductGrid from '../components/product/ProductGrid';
 
 const POSContainer = () => {

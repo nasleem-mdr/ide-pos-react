@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useChangeRole } from "../hooks/useChangeRole";
-import { AlertIcon, ArrowIcon } from "./Icons";
+import { AlertIcon, ArrowIcon } from "@/components/icon";
 import "../css/Login.css"; // reuse styling .field, .btn-primary, dst
 
 export default function ChangeRoleModal({ token, onClose, onSuccess }) {

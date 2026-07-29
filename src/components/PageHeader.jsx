@@ -2,8 +2,8 @@ import { useState, useRef, useEffect } from 'react';
 import '../css/Components.css';
 import '../css/Header.css';
 import { COLOR, RADIUS } from '../utils/styleTokens';
-import { HomeIcon } from "../components/Icons";
-import { useNavigate } from "react-router-dom";
+import { HomeIcon } from '@/components/icon';
+import { useNavigate } from 'react-router-dom';
 
 const SearchIcon = ({ size = 18 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

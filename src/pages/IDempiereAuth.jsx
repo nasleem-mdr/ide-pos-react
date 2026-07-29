@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { ArrowIcon, EyeIcon, CheckIcon, AlertIcon, LogoIconW } from '../components/Icons';
+import { LogoIconW, ArrowIcon, EyeIcon, CheckIcon, AlertIcon } from '@/components/icon';
 import { useNavigate } from 'react-router-dom';
 import { apiLogin, apiGetRoles, apiGetOrganizations, normaliseList, apiGetWarehouses, apiSetSession, sortById} from '../utils/idempiereAuth';
 import '../css/Login.css';

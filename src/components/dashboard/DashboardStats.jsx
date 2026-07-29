@@ -8,7 +8,7 @@ import '../../css/Dashboard.css';
 import { useAccess } from '../../context/AccessContext';
 import LineChart from './LineChart';
 import { Link, useLocation } from 'react-router-dom';
-import { ShoppingCartIcon, RequisitionIcon, ReciprocalIcon } from '../Icons';
+import { ShoppingCartIcon, RequisitionIcon, ReciprocalIcon } from '@/components/icon';
 import { getMenuSections } from '../../config/menuConfig';
 
 const COLOR_DR = '#f57c00';

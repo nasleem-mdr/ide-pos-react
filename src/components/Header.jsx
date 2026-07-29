@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { UserIcon, RoleIcon, LogoutIcon, LogoIconW } from './Icons';
+import { UserIcon, RoleIcon, LogoIconW, LogoutIcon } from '@/components/icon';
 import ChangeRoleModal from './ChangeRoleModal';
 import { useNavigate } from "react-router-dom";
 import '../css/Header.css';

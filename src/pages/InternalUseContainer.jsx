@@ -22,7 +22,7 @@ import { resolveDocTypeId, DOC_BASE_TYPE, DOC_SUB_TYPE_INV } from '../utils/docT
 import { idempiereApi } from '../utils/idempiereApi';
 import { COLOR, RADIUS } from '../utils/styleTokens';
 import '../css/Header.css';
-import { UserTake, ImportIcon } from '../components/Icons';
+import { UserTake, ImportIcon } from '@/components/icon';
 
 const INTERNAL_USE_DESCRIPTION = 'Internal Use via Web';
 

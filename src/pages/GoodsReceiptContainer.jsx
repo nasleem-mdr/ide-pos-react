@@ -21,7 +21,7 @@ import { idempiereApi, fkId } from '../utils/idempiereApi';
 import { resolveDocTypeId, DOC_BASE_TYPE, IS_SO_TRX } from '../utils/docTypeResolver';
 import { COLOR, RADIUS } from '../utils/styleTokens';
 import '../css/Header.css';
-import { DeliveryIcon,ScanIcon, ImportIcon } from '../components/Icons';
+import { DeliveryIcon,ScanIcon, ImportIcon } from '@/components/icon';
 import ProductGrid from '../components/product/ProductGrid';
 
 // Deskripsi dokumen — tidak client-specific, aman tetap konstan.

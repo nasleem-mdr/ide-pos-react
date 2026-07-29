@@ -1,4 +1,4 @@
-import { HomeIcon, RequisitionIcon, ShoppingCartIcon, DeliveryIcon, UserTake, ListIconR, ListIconP, ListIconG, ListIconA, PartnerIcon, BoxIcon, CashierIcon, } from '../components/Icons'; // sesuaikan path import icon-nya
+import { HomeIcon, RequisitionIcon, ShoppingCartIcon, DeliveryIcon, UserTake, ListIconR, ListIconP, ListIconG, ListIconA, PartnerIcon, BoxIcon, CashierIcon, } from '@/components/icon'; // sesuaikan path import icon-nya
 
 export const menuSections = [ 
     {

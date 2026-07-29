@@ -6,7 +6,7 @@ import DataTable from '../components/DataTable';
 import { useInfiniteScroll } from "../hooks/useInfiniteScroll";
 import jsPDF from "jspdf";
 import QRCode from "qrcode";
-import { LogoSMAMerahHitam, LogoSMA20 } from "../components/Icons";
+import { LogoSMAMerahHitam, LogoSMA20 } from "@/components/icon";
 import { idempiereApi, getProductImageBlobUrls, getFirstProductImageBlobUrl } from '../utils/idempiereApi';
 import '../App.css';
 

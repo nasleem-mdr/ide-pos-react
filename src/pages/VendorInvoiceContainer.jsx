@@ -21,7 +21,7 @@ import { useAccess } from '../context/AccessContext';
 
 import { COLOR, RADIUS } from '../utils/styleTokens';
 import '../css/Header.css';
-import { ShoppingCartIcon } from '../components/Icons';
+import { ShoppingCartIcon } from '@/components/icon';
 
 const INVOICE_CONFIG = { DESCRIPTION: 'Purchase Invoice via Web' };
 
