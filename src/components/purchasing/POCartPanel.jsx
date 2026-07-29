@@ -11,7 +11,7 @@ const fmtRp = (n) => `Rp ${Math.round(n).toLocaleString('id-ID')}`;
 // sama seperti POCartSidebar (versi desktop).
 const POCartPanel = ({
   isOpen, onClose,
-  vendorGroups, onRemove, onQtyChange, onPriceChange, onVendorClick, onClearCart,
+  vendorGroups, onRemove, onQtyChange, onPriceChange, onUomChange, onVendorClick, onClearCart,
   totalItems, totalAmount, summaryRight,
   title = '🧾 Daftar Purchase Order',
   onSubmitDraft, onSubmitComplete, 
@@ -119,6 +119,7 @@ const POCartPanel = ({
                     onRemove={onRemove}
                     onQtyChange={onQtyChange}
                     onPriceChange={onPriceChange}
+                    onUomChange={onUomChange}
                     onVendorClick={onVendorClick}
                   />
                 ))}

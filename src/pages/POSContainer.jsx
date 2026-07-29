@@ -1111,24 +1111,46 @@ const loadMore = useCallback(() => {
             />
 
             {/* Config Bar */}
-            <div style={{ background: '#f0f4ff', padding: '12px 16px', borderRadius: '8px', border: '1px solid #c5d0e8', fontSize: '13px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '24px', flexWrap: 'wrap' }}>
+            <div style={{
+                background: '#f0f4ff',
+                padding: isDesktop ? '12px 16px' : '10px 12px',
+                borderRadius: '8px',
+                border: '1px solid #c5d0e8',
+                fontSize: '13px'
+            }}>
+                <div style={{
+                    display: 'flex',
+                    alignItems: isDesktop ? 'center' : 'stretch',
+                    gap: isDesktop ? '24px' : '10px',
+                    flexWrap: 'wrap',
+                    flexDirection: isDesktop ? 'row' : 'column'
+                }}>
 
-                    <div style={{ display: 'flex', gap: '16px', color: '#555', flexShrink: 0 }}>
-                        <span><strong>POS:</strong> {posConfig?.Name || '...'}</span>
-                        <span><strong>SalesRep:</strong> {posConfig?.SalesRep_ID?.id ?? posConfig?.SalesRep_ID ?? '-'}</span>
-                        <span><strong>Version:</strong> {currentVersionId
-                            ? <span style={{ color: '#2e7d32' }}>{currentVersionId}</span>
-                            : <span style={{ color: '#c62828' }}>Not Found</span>}
-                        </span>
-                    </div>
+                    {/* Info debug: POS / SalesRep / Version — hanya tampil di desktop */}
+                    {isDesktop && (
+                        <div style={{ display: 'flex', gap: '16px', color: '#555', flexShrink: 0 }}>
+                            <span><strong>POS:</strong> {posConfig?.Name || '...'}</span>
+                            <span><strong>SalesRep:</strong> {posConfig?.SalesRep_ID?.id ?? posConfig?.SalesRep_ID ?? '-'}</span>
+                            <span><strong>Version:</strong> {currentVersionId
+                                ? <span style={{ color: '#2e7d32' }}>{currentVersionId}</span>
+                                : <span style={{ color: '#c62828' }}>Not Found</span>}
+                            </span>
+                        </div>
+                    )}
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: '200px' }}>
+                    <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        flex: isDesktop ? 1 : undefined,
+                        width: isDesktop ? undefined : '100%',
+                        minWidth: isDesktop ? '200px' : undefined
+                    }}>
                         <label style={{ fontWeight: 'bold', whiteSpace: 'nowrap', color: '#333' }}>Customer:</label>
                         <select
                             value={selectedBPartner?.id || ''}
                             onChange={handleBPartnerChange}
-                            style={{ flex: 1, padding: '5px 8px', borderRadius: '6px', border: '1px solid #bbb', fontSize: '13px', background: selectedBPartner ? '#fff' : '#fff3f3', color: '#333' }}
+                            style={{ flex: 1, minWidth: 0, padding: '5px 8px', borderRadius: '6px', border: '1px solid #bbb', fontSize: '13px', background: selectedBPartner ? '#fff' : '#fff3f3', color: '#333' }}
                         >
                             <option value="">-- Pilih Customer --</option>
                             {bPartnerList.map(bp => (
@@ -1136,17 +1158,24 @@ const loadMore = useCallback(() => {
                             ))}
                         </select>
                         {!selectedBPartner && (
-                            <span style={{ color: '#c62828', fontSize: '11px', whiteSpace: 'nowrap' }}>⚠ Wajib diisi</span>
+                            <span style={{ color: '#c62828', fontSize: '11px', whiteSpace: 'nowrap' }}>⚠ Wajib</span>
                         )}
                     </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: '200px' }}>
+                    <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        flex: isDesktop ? 1 : undefined,
+                        width: isDesktop ? undefined : '100%',
+                        minWidth: isDesktop ? '200px' : undefined
+                    }}>
                         <label style={{ fontWeight: 'bold', whiteSpace: 'nowrap', color: '#333' }}>Price List:</label>
                         <select
                             value={selectedPriceList?.id || ''}
                             onChange={handlePriceListChange}
                             disabled={loading}
-                            style={{ flex: 1, padding: '5px 8px', borderRadius: '6px', border: '1px solid #bbb', fontSize: '13px', background: '#fff', color: '#333' }}
+                            style={{ flex: 1, minWidth: 0, padding: '5px 8px', borderRadius: '6px', border: '1px solid #bbb', fontSize: '13px', background: '#fff', color: '#333' }}
                         >
                             <option value="">-- Pilih Price List --</option>
                             {priceListList.map(pl => (
@@ -1160,7 +1189,7 @@ const loadMore = useCallback(() => {
             {/* Main Layout */}
             <div style={{ 
                     display: 'flex', 
-                    flexDirection: isDesktop ? 'row' : 'column',  // ⬅️ PINDAH KE SINI
+                    flexDirection: isDesktop ? 'row' : 'column',  
                     gap: '0px', 
                     flex: '1', 
                     overflow: 'hidden' 
@@ -1225,32 +1254,7 @@ const loadMore = useCallback(() => {
                         ><ScanIcon /></button>
                     </div>
 
-                    {/* <div style={{ flex: 1, overflowY: 'auto', paddingRight: '4px' }}>
-                    {loading ? (
-                        <p>Memuat produk...</p>
-                    ) : (
-                        <div style={{
-                            display: 'grid',
-                            gridTemplateColumns: isDesktop ? '1fr 1fr 1fr' : '1fr 1fr', // ⬅️ 2 kolom di mobile
-                            gap: isDesktop ? '10px' : '8px',
-                        }}>
-                            {products.length > 0
-                                ? products.map((p, index) => (
-                                    <ProductCard
-                                        key={`${p.M_Product_ID}-${index}`}
-                                        product={p}
-                                        onClick={addToCart}
-                                    />
-                                ))
-                                : !versionMissing && (
-                                    <p style={{ gridColumn: isDesktop ? 'span 3' : 'span 2', textAlign: 'center', color: '#999' }}>
-                                        Tidak ada produk ditemukan dengan harga aktif.
-                                    </p>
-                                )
-                            }
-                        </div>
-                    )}
-                </div> */}
+                   
                 <ProductGrid
                     products={products}
                     loading={loading}

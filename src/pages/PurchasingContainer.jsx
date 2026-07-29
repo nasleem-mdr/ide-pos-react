@@ -11,7 +11,7 @@ import RequisitionToPOImportModal from '../components/purchasing/RequisitionToPO
 import PurchaseOrderSuccessModal from '../components/purchasing/PurchaseOrderSuccessModal';
 import POCartSidebar from '../components/purchasing/POCartSidebar';
 import POCartPanel from '../components/purchasing/POCartPanel';
-import { usePOCart } from '../hooks/usePOCart';
+import { usePOCart, lineKey } from '../hooks/usePOCart';
 import { usePurchaseOrderSubmit } from '../hooks/usePurchaseOrderSubmit';
 import { useProductVendorInfo } from '../hooks/useProductVendorInfo';
 import { useUomConversion } from '../hooks/useUomConversion';
@@ -79,7 +79,7 @@ const PurchasingContainer = () => {
 
   const { products, loading: productsLoading, fetchProducts, search, searchValue, setSearchValue } = useProductSearch();
   const {
-    cart, addItem, addItems, removeItem, updateQty, updatePrice, updateVendor,
+    cart, addItem, addItems, removeItem, updateQty, updatePrice, updateUom, updateVendor,
     clearCart, totalItems, totalAmount, vendorGroups,
   } = usePOCart();
   const { fetchDefaultVendor } = useProductVendorInfo();
@@ -396,11 +396,12 @@ useEffect(() => {
       Name:         product.Name,
       C_UOM_ID:     uom?.C_UOM_ID || product.C_UOM_ID,
       UomName:      uom?.Name || product.C_UOM_Name,
-      BaseUOM_ID:   product.C_UOM_ID,   // ← UOM dasar produk, untuk konversi saat submit PO
-      BaseUOMName:  product.C_UOM_Name, // ← untuk teks preview konversi di cart
-      UnitsPerBaseUom: unitsPerEntered, // ← untuk preview konversi di cart, live walau Qty diedit
+      BaseUOM_ID:   product.C_UOM_ID,
+      BaseUOMName:  product.C_UOM_Name,
+      UnitsPerBaseUom: unitsPerEntered,
+      uomOptions:   product.uomOptions,   // ⬅️ TAMBAHKAN — supaya UomSelector bisa render dropdown
       Qty:          qty,
-      Price:        priceForEnteredUom, // ← sudah di-scale ke UOM yang dipilih user
+      Price:        priceForEnteredUom,
       C_BPartner_ID: suggestion.default?.C_BPartner_ID ?? null,
       VendorName:    suggestion.default?.VendorName ?? '',
     });
@@ -423,6 +424,7 @@ useEffect(() => {
         BaseUOM_ID:   found.C_UOM_ID,
         BaseUOMName:  found.C_UOM_Name,
         UnitsPerBaseUom: 1,
+        uomOptions:   found.uomOptions,   // ⬅️ TAMBAHKAN
         Qty:          1,
         Price:        suggestion.default?.Price ?? 0,
         C_BPartner_ID: suggestion.default?.C_BPartner_ID ?? null,
@@ -465,6 +467,25 @@ useEffect(() => {
     if (vendorPickerTarget) updateVendor(vendorPickerTarget, vendor);
     setVendorPickerTarget(null);
   }, [vendorPickerTarget, updateVendor]);
+
+  const handleCartUomChange = useCallback((itemKey, chosenUom) => {
+    const target = cart.find(i => lineKey(i) === itemKey);
+    if (!target) return;
+  
+    const unitsPerEnteredOld = target.UnitsPerBaseUom || 1;
+    const unitsPerEnteredNew = toBaseQty(1, chosenUom); // base-unit per 1 unit UOM baru
+  
+    const newPrice = unitsPerEnteredOld
+      ? (target.Price || 0) * unitsPerEnteredNew / unitsPerEnteredOld
+      : target.Price;
+  
+    updateUom(itemKey, {
+      C_UOM_ID: chosenUom.C_UOM_ID,
+      Name: chosenUom.Name,
+      UnitsPerBaseUom: unitsPerEnteredNew,
+      Price: Math.max(newPrice, 0),
+    });
+  }, [cart, toBaseQty, updateUom]);
 
   const handleSubmit = async (submitMode = 'complete') => {
     const { results, hadError } = await submit(cart, {
@@ -728,6 +749,7 @@ useEffect(() => {
             vendorGroups={vendorGroups}
             onRemove={removeItem}
             onQtyChange={updateQty}
+            onUomChange={handleCartUomChange}
             onPriceChange={updatePrice}
             onVendorClick={handleVendorClick}
             onClearCart={canSubmitPO ? handleClearCart : undefined}
@@ -756,6 +778,7 @@ useEffect(() => {
           onRemove={removeItem}
           onQtyChange={updateQty}
           onPriceChange={updatePrice}
+          onUomChange={handleCartUomChange}
           onVendorClick={handleVendorClick}
           onClearCart={canSubmitPO ? handleClearCart : undefined}
           totalItems={totalItems}

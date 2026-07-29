@@ -17,7 +17,7 @@ const fmtRp = (n) => `Rp ${Math.round(n).toLocaleString('id-ID')}`;
 // PURCHASING_CONFIG.DESCRIPTION saat submit (lihat descriptionPlaceholder).
 // ─────────────────────────────────────────────────────────────────────────────
 const POCartSidebar = ({
-  vendorGroups, onRemove, onQtyChange, onPriceChange, onVendorClick,
+  vendorGroups, onRemove, onQtyChange, onPriceChange, onUomChange, onVendorClick,
   onClearCart, totalItems, totalAmount, summaryRight,
   title = '🧾 Daftar Purchase Order',
   onSubmitDraft, onSubmitComplete, 
@@ -109,6 +109,7 @@ const POCartSidebar = ({
                   item={item}
                   itemKey={lineKey(item)}
                   onRemove={onRemove}
+                  onUomChange={onUomChange}
                   onQtyChange={onQtyChange}
                   onPriceChange={onPriceChange}
                   onVendorClick={onVendorClick}

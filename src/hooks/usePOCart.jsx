@@ -85,7 +85,41 @@ export function usePOCart(initialItems = []) {
       return [...without, updated];
     });
   }, []);
-
+  // Ganti UOM sebuah baris. UOM adalah bagian dari lineKey, jadi mekanismenya
+  // sama seperti updateVendor: hapus baris lama, buat baris baru dengan key
+  // baru, merge kalau ternyata sudah ada baris produk+vendor+UOM yang sama.
+  //
+  // Qty & Price ikut dikonversi mengikuti rasio UnitsPerBaseUom lama vs baru,
+  // supaya (a) Qty tetap merepresentasikan jumlah barang riil yang sama, dan
+  // (b) total nilai baris (Qty × Price) tidak berubah hanya gara-gara ganti
+  // UOM. Asumsi: tiap objek di item.uomOptions punya field UnitsPerBaseUom
+  // (rasio ke base UOM) — sesuaikan nama field ini kalau berbeda di data-mu.
+  const updateUom = useCallback((key, patch) => {
+    setCart(prev => {
+      const target = prev.find(i => lineKey(i) === key);
+      if (!target) return prev;
+  
+      const updated = {
+        ...target,
+        C_UOM_ID: patch.C_UOM_ID,
+        UomName: patch.Name,
+        C_UOM_Name: patch.Name,
+        selectedUom: patch,
+        UnitsPerBaseUom: patch.UnitsPerBaseUom ?? target.UnitsPerBaseUom,
+        Price: patch.Price ?? target.Price,
+        // Qty TIDAK diubah
+      };
+  
+      const without = prev.filter(i => lineKey(i) !== key);
+      const newKey  = lineKey(updated);
+      const dupIdx  = without.findIndex(i => lineKey(i) === newKey);
+      if (dupIdx >= 0) {
+        return without.map((it, i) => i === dupIdx ? { ...it, Qty: it.Qty + updated.Qty } : it);
+      }
+      return [...without, updated];
+    });
+  }, []);
+  
   const clearCart = useCallback(() => setCart([]), []);
 
   const totalItems  = useMemo(() => cart.length, [cart]);
@@ -113,7 +147,7 @@ export function usePOCart(initialItems = []) {
 
   return {
     cart, setCart, addItem, addItems, removeItem,
-    updateQty, updatePrice, updateVendor, clearCart,
+    updateQty, updatePrice, updateVendor, updateUom, clearCart,
     totalItems, totalAmount, vendorGroups,
   };
 }

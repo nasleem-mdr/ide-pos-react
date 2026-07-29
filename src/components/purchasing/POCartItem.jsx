@@ -1,5 +1,6 @@
 import React from 'react';
 import QtyStepper from '../common/QtyStepper';
+import UomSelector from '../product/UomSelector';  
 import { COLOR, RADIUS } from '../../utils/styleTokens';
 
 const fmtRp = (n) => `Rp ${Math.round(n).toLocaleString('id-ID')}`;
@@ -27,14 +28,14 @@ const fmtQty = (n) => {
 // Dihitung dari Qty SAAT INI (bukan angka statis), jadi tetap akurat kalau
 // user mengubah Qty lewat QtyStepper di bawah — preview ikut update live.
 // ─────────────────────────────────────────────────────────────────────────────
-const POCartItem = ({ item, itemKey, onRemove, onQtyChange, onPriceChange, onVendorClick }) => {
+const POCartItem = ({ item, itemKey, onRemove, onQtyChange, onPriceChange, onUomChange, onVendorClick }) => {
   const lineAmount = item.Qty * (item.Price || 0);
   const hasVendor = !!item.C_BPartner_ID;
 
   const isConverted = item.BaseUOM_ID && item.C_UOM_ID !== item.BaseUOM_ID
     && item.UnitsPerBaseUom && item.UnitsPerBaseUom !== 1;
   const convertedQty = isConverted ? item.Qty * item.UnitsPerBaseUom : null;
-
+  const handleUomChange = (_productId, chosenUom) => onUomChange(itemKey, chosenUom);
   return (
     <div style={{
       background: '#f7f9ff', border: `1px solid ${COLOR.border}`,
@@ -46,7 +47,10 @@ const POCartItem = ({ item, itemKey, onRemove, onQtyChange, onPriceChange, onVen
             fontWeight: 600, fontSize: '13px', color: COLOR.textDk,
             overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
           }}>{item.Name}</div>
-          <div style={{ fontSize: '11px', color: COLOR.textLt }}>{item.UomName || item.C_UOM_Name}</div>
+          <div style={{ fontSize: '11px', color: COLOR.textLt }}>
+            <span>{item.UomName || item.C_UOM_Name}</span>
+            {onUomChange && <UomSelector item={item} onUomChange={handleUomChange} />}
+            </div>
           {isConverted && (
             <div style={{ fontSize: '10px', color: COLOR.vendor, fontWeight: 600, marginTop: '1px' }}>
               ≈ {fmtQty(convertedQty)} {item.BaseUOMName || 'unit dasar'}
