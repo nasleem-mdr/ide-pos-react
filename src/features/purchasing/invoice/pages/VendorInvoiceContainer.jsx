@@ -6,7 +6,7 @@ import { POCard, POLineDetailSheet, POCartSidebar, POCartPanel, InvoiceSubmitMod
 
 import { useInvoiceCart } from '@/hooks/useInvoiceCart';
 import { usePOInvoiceLines } from '@/hooks/usePOInvoiceLines';
-import { useInvoiceSubmit } from '@/hooks/useInvoiceSubmit';
+import { useInvoiceSubmit } from '@/features/purchasing/invoice/hooks/useInvoiceSubmit';
 import { usePaymentAllocationSubmit } from '@/hooks/usePaymentAllocationSubmit';
 import { useIsDesktop } from '@/hooks/useIsDesktop';
 import { getLoginInfo, getMissingSessionFields } from '@/hooks/useLoginInfo';
