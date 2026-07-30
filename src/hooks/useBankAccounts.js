@@ -1,6 +1,6 @@
 // hooks/useBankAccounts.js
 import { useState, useEffect } from 'react';
-import { idempiereApi, fkId } from '../utils/idempiereApi';
+import { idempiereApi, fkId } from '@/utils/idempiereApi';
 
 export function useBankAccounts() {
     const [bankAccounts, setBankAccounts] = useState([]);

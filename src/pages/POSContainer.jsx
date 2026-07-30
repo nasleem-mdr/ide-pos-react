@@ -1,19 +1,19 @@
 import React, { useState, useEffect, useRef, useCallback} from 'react';
 import { useNavigate, useLocation } from "react-router-dom";
-import SearchBar from '../components/SearchBar';
-import ProductCard from '../components/ProductCard';
-import CartItem from '../components/CartItem';
-import ConfirmModal from '../components/ConfirmModal';
-import PaymentModal from '../components/PaymentModal';
-import ReceiptModal from '../components/ReceiptModal';
-import { useAccess } from '../context/AccessContext';
-import { idempiereApi } from '../utils/idempiereApi';
-import { useIsDesktop } from '../hooks/useIsDesktop';
-import CartPanel from '../components/cart/CartPanel';   // sesuaikan path sebenarnya
-import CartSidebar from '../components/cart/CartSidebar';
-import BarcodeScanner from '../components/scanner/BarcodeScanner'; // sesuaikan path sebenarnya
+import SearchBar from '@/components/SearchBar';
+import ProductCard from '@/components/ProductCard';
+import CartItem from '@/components/CartItem';
+import ConfirmModal from '@/components/ConfirmModal';
+import PaymentModal from '@/components/PaymentModal';
+import ReceiptModal from '@/components/ReceiptModal';
+import { useAccess } from '@/context/AccessContext';
+import { idempiereApi } from '@/utils/idempiereApi';
+import { useIsDesktop } from '@/hooks/useIsDesktop';
+import CartPanel from '@/shared/components/cart/CartPanel';   // sesuaikan path sebenarnya
+import CartSidebar from '@/shared/components/cart/CartSidebar';
+import BarcodeScanner from '@/shared/components/scanner/BarcodeScanner'; // sesuaikan path sebenarnya
 import { ScanIcon} from '@/components/icon'; 
-import ProductGrid from '../components/product/ProductGrid';
+import ProductGrid from '@/shared/components/product/ProductGrid';
 
 const POSContainer = () => {
      // 1. State untuk kontrol Loading & Data POS

@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { idempiereApi } from '../utils/idempiereApi';
+import { idempiereApi } from '@/utils/idempiereApi';
 import { getLoginInfo } from './useLoginInfo';
 
 // ─────────────────────────────────────────────────────────────────────────────

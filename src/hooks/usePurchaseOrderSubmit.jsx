@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
-import { idempiereApi, fkId } from '../utils/idempiereApi';
+import { idempiereApi, fkId } from '@/utils/idempiereApi';
 import { getLoginInfo } from './useLoginInfo';
-import { useUomConversion } from './useUomConversion';
+import { useUomConversion } from '@/shared/hooks/useUomConversion';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // usePurchaseOrderSubmit.jsx

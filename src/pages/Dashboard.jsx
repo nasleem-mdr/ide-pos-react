@@ -1,9 +1,9 @@
-import useDashboardStats from '../hooks/useDashboardStats';
-import WelcomeCards      from '../components/dashboard/WelcomeCards';
-import StatCard          from '../components/dashboard/StatCard';
-import MonthlyChartCard  from '../components/dashboard/MonthlyChartCard';
-import DashboardStats from '../components/dashboard/DashboardStats';
-import '../css/Dashboard.css';
+import useDashboardStats from '@/hooks/useDashboardStats';
+import WelcomeCards      from '@/components/dashboard/WelcomeCards';
+import StatCard          from '@/components/dashboard/StatCard';
+import MonthlyChartCard  from '@/components/dashboard/MonthlyChartCard';
+import DashboardStats from '@/components/dashboard/DashboardStats';
+import '@/css/Dashboard.css';
 
 /**
  * Dashboard — halaman utama setelah login

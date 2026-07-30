@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { idempiereApi, fkId, fkLabel } from '../utils/idempiereApi';
+import { idempiereApi, fkId, fkLabel } from '@/utils/idempiereApi';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // useVendorSearch.jsx

@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { idempiereApi, fkId, fkLabel } from '../utils/idempiereApi';
+import { idempiereApi, fkId, fkLabel } from '@/utils/idempiereApi';
 
 const PAGE_SIZE = 20;          // jumlah produk per "halaman" infinite scroll
 const NO_WH_TOP = PAGE_SIZE;   // top per fetch saat tanpa filter warehouse (server-paginated asli)

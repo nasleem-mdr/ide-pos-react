@@ -1,28 +1,28 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import Dialog from '../components/common/Dialog';
-import CartFab from '../components/cart/CartFab';
-import CartPanel from '../components/cart/CartPanel';
-import CartSidebar from '../components/cart/CartSidebar';
-import ProductCard from '../components/product/ProductCard';
-import ProductDetailSheet from '../components/product/ProductDetailSheet';
-import BarcodeScanner from '../components/scanner/BarcodeScanner';
-import PurchaseOrderImportModal from '../components/goodsreceipt/PurchaseOrderImportModal';
-import GoodsReceiptSuccessModal from '../components/goodsreceipt/GoodsReceiptSuccessModal';
-import { useGoodsReceiptSubmit } from '../hooks/useGoodsReceiptSubmit';
-import { useVendorSearch } from '../hooks/useVendorSearch';
-import { useAccess } from '../context/AccessContext';
-import { useCart } from '../hooks/useCart';
-import { useProductSearch } from '../hooks/useProductSearch';
-import { useIsDesktop } from '../hooks/useIsDesktop';
-import { getLoginInfo, getMissingSessionFields } from '../hooks/useLoginInfo';
-import { idempiereApi, fkId } from '../utils/idempiereApi';
-import { resolveDocTypeId, DOC_BASE_TYPE, IS_SO_TRX } from '../utils/docTypeResolver';
-import { COLOR, RADIUS } from '../utils/styleTokens';
-import '../css/Header.css';
+import Dialog from '@/shared/components/common/Dialog';
+import CartFab from '@/shared/components/cart/CartFab';
+import CartPanel from '@/shared/components/cart/CartPanel';
+import CartSidebar from '@/shared/components/cart/CartSidebar';
+import ProductGrid from '@/shared/components/product/ProductGrid';
+import ProductDetailSheet from '@/shared/components/product/ProductDetailSheet';
+import BarcodeScanner from '@/shared/components/scanner/BarcodeScanner';
+import PurchaseOrderImportModal from '@/components/goodsreceipt/PurchaseOrderImportModal';
+import GoodsReceiptSuccessModal from '@/components/goodsreceipt/GoodsReceiptSuccessModal';
+import { useGoodsReceiptSubmit } from '@/hooks/useGoodsReceiptSubmit';
+import { useVendorSearch } from '@/hooks/useVendorSearch';
+import { useAccess } from '@/context/AccessContext';
+import { useCart } from '@/hooks/useCart';
+import { useProductSearch } from '@/hooks/useProductSearch';
+import { useIsDesktop } from '@/hooks/useIsDesktop';
+import { getLoginInfo, getMissingSessionFields } from '@/hooks/useLoginInfo';
+import { idempiereApi, fkId } from '@/utils/idempiereApi';
+import { resolveDocTypeId, DOC_BASE_TYPE, IS_SO_TRX } from '@/utils/docTypeResolver';
+import { COLOR, RADIUS } from '@/utils/styleTokens';
+import '@/css/Header.css';
 import { DeliveryIcon,ScanIcon, ImportIcon } from '@/components/icon';
-import ProductGrid from '../components/product/ProductGrid';
+
 
 // Deskripsi dokumen — tidak client-specific, aman tetap konstan.
 const GOODS_RECEIPT_DESCRIPTION = 'Goods Receipt via Web';

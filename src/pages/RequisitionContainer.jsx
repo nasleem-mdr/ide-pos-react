@@ -3,33 +3,32 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 
 // 2. Context
-import { useAccess } from '../context/AccessContext';
+import { useAccess } from '@/context/AccessContext';
 
 // 3. Hooks
-import { useRequisitionSubmit } from '../hooks/useRequisitionSubmit';
-import { useCart } from '../hooks/useCart';
-import { useProductSearch } from '../hooks/useProductSearch';
-import { useIsDesktop } from '../hooks/useIsDesktop';
-import { getLoginInfo, getMissingSessionFields } from '../hooks/useLoginInfo';
+import { useRequisitionSubmit } from '@/hooks/useRequisitionSubmit';
+import { useCart } from '@/hooks/useCart';
+import { useProductSearch } from '@/hooks/useProductSearch';
+import { useIsDesktop } from '@/hooks/useIsDesktop';
+import { getLoginInfo, getMissingSessionFields } from '@/hooks/useLoginInfo';
 
 // 4. Components
-import Dialog from '../components/common/Dialog';
-import CartFab from '../components/cart/CartFab';
-import CartPanel from '../components/cart/CartPanel';
-import CartSidebar from '../components/cart/CartSidebar';
-import ProductCard from '../components/product/ProductCard';
-import ProductDetailSheet from '../components/product/ProductDetailSheet';
-import BarcodeScanner from '../components/scanner/BarcodeScanner';
-import RequisitionSuccessModal from '../components/requisition/RequisitionSuccessModal';
+import Dialog from '@/shared/components/common/Dialog';
+import CartFab from '@/shared/components/cart/CartFab';
+import CartPanel from '@/shared/components/cart/CartPanel';
+import CartSidebar from '@/shared/components/cart/CartSidebar';
+import ProductDetailSheet from '@/shared/components/product/ProductDetailSheet';
+import BarcodeScanner from '@/shared/components/scanner/BarcodeScanner';
+import { RequisitionSuccessModal } from '@/features/requisition/components';
 import { HomeIcon, RequisitionIcon,ScanIcon, WarehouseIcon} from '@/components/icon'; 
 // 5. Utils
-import { idempiereApi, fkId } from '../utils/idempiereApi';
-import { resolveDocTypeId, DOC_BASE_TYPE } from '../utils/docTypeResolver';
-import { COLOR, RADIUS } from '../utils/styleTokens';
+import { idempiereApi, fkId } from '@/utils/idempiereApi';
+import { resolveDocTypeId, DOC_BASE_TYPE } from '@/utils/docTypeResolver';
+import { COLOR, RADIUS } from '@/utils/styleTokens';
 
 // 6. Styles
-import '../css/Header.css';
-import ProductGrid from '../components/product/ProductGrid';
+import '@/css/Header.css';
+import ProductGrid from '@/shared/components/product/ProductGrid';
 const REQUISITION_CONFIG = {
   DESCRIPTION:  'Purchase Requisition via REST API',
 };
@@ -338,9 +337,9 @@ const RequisitionContainer = () => {
           fontWeight: 700, 
           fontSize: '15px', 
           flex: 1,
-          display: 'inline-flex', /* Membuat isi di dalamnya (icon & teks) berjejer ke samping */
-          alignItems: 'center',    /* Membuat icon dan teks sejajar secara vertikal (tinggi yang sama) */
-          gap: '6px'              /* Memberikan jarak horizontal antara icon dan tulisan Requisition */
+          display: 'inline-flex', 
+          alignItems: 'center',   
+          gap: '6px'              
         }}>
           <RequisitionIcon />
           <span>Requisition</span>
@@ -368,22 +367,10 @@ const RequisitionContainer = () => {
           )}
           {warehouses.map((wh, idx) => (
             <option key={wh.id || `wh-null-${idx}`} value={wh.id ?? ''} style={{ background: '#1e3a5f', color: '#e0eaff' }}>
-              🏭 {wh.name} {/* Menggunakan Emoji Gudang */}
+              🏭 {wh.name} 
             </option>
           ))}
         </select>
-      </div>
-
-      {/* ── Requester strip ──────────────────────────────────────────────── */}
-      <div style={{
-        background: '#dbeafe', padding: '6px 16px', fontSize: '12px', color: COLOR.textMd,
-        display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap', flexShrink: 0,
-      }}>
-        <span>👤 <strong>{requesterName || '...'}</strong></span>
-        <span style={{ color: COLOR.textLt }}>|</span>
-        <span>DocType: <strong>{docTypeId}</strong></span>
-        <span style={{ color: COLOR.textLt }}>|</span>
-        <span>Org: <strong>{getLoginInfo().orgId || '...'}</strong></span>
       </div>
 
       {/* ── Banner Edit Mode ─────────────────────────────────────────────── */}

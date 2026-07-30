@@ -14,15 +14,15 @@ import { AccessProvider } from './context/AccessContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import RequisitionList from "./pages/RequisitionList";
 import GoodsReceiptList from "./pages/GoodsReceiptList";
-import InternalUseList from "./pages/InternalUseList";
-import PurchasingList from "./pages/PurchasingList";
+import InternalUseList from "@/features/internal/pages/InternalUseList";
+//purchasing
+import { PurchasingContainer, PurchasingList, PurchasingView } from "./features/purchasing/order/pages";
+import { VendorInvoiceContainer } from '@/features/purchasing/invoice/pages';
+
 import RequisitionView from "./pages/RequisitionView";
-import PurchasingView from "./pages/PurchasingView";
 import ProductList from "./pages/ProductList";
 import GoodsReceiptContainer from './pages/GoodsReceiptContainer';
-import PurchasingContainer from './pages/PurchasingContainer';
-import InternalUseContainer from './pages/InternalUseContainer';
-import VendorInvoiceContainer from './pages/VendorInvoiceContainer';
+import InternalUseContainer from '@/features/internal/pages/InternalUseContainer';
 import BookingTimeline from './pages/BookingTimeline';
 import './css/AppLayout.css'; // Pastikan mengimpor file CSS layout Anda
 

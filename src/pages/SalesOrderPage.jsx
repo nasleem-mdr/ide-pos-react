@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import PageHeader from "../components/PageHeader";
-import DataTable from "../components/DataTable";
-import "../App.css";
+import PageHeader from "@/components/PageHeader";
+import DataTable from "@/components/DataTable";
+import "@/App.css";
 
 const SalesOrderPage = () => {
     const [orders, setOrders]             = useState([]);
