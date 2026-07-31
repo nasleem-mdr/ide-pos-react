@@ -190,7 +190,7 @@ useEffect(() => {
           `&$orderby=Name&$top=50`
         );
         const whList = (whData.records || []).map(w => ({
-          id:   fkId(w.M_Warehouse_ID),
+          id:   w.id ?? fkId(w.M_Warehouse_ID),
           name: w.Name,
         }));
         setWarehouses(whList);
@@ -467,9 +467,12 @@ useEffect(() => {
   }, [vendorPickerTarget, updateVendor]);
 
   const handleWarehouseChange = useCallback(async (e) => {
-    const id    = Number(e.target.value);
-    const found = warehouses.find(w => w.id === id) ?? null;
-    if (!found) return;
+  const id    = Number(e.target.value);
+  const found = warehouses.find(w => w.id === id) ?? null;
+  if (!found) {
+    console.warn('[handleWarehouseChange] warehouse id tidak ditemukan:', id, warehouses);
+    return;
+  }
     setWarehouseInfo(found);
   
     // Locator default ikut gudang yang baru dipilih — dipakai saat submit PO.
@@ -846,3 +849,4 @@ useEffect(() => {
 };
 
 export default PurchasingContainer;
+

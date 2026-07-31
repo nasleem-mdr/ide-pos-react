@@ -2,20 +2,25 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { COLOR, RADIUS } from '@/utils/styleTokens';
 import { formatCurrency } from '@/utils/currency';
-//const fmtRp = (n) => `Rp ${Math.round(n || 0).toLocaleString('id-ID')}`;
+import { ShoppingCartIcon } from '@/components/icon'; // ⬅️ sesuaikan nama icon utk versi Complete kalau perlu
 
-// ─────────────────────────────────────────────────────────────────────────────
-// PurchaseOrderSuccessModal.jsx
-// Berbeda dari success modal modul lain: `data` di sini adalah ARRAY (hasil
-// dari usePurchaseOrderSubmit.submit, yang bisa mengembalikan >1 PO kalau
-// cart berisi lebih dari 1 vendor). Ditampilkan sebagai daftar card per PO.
-// ─────────────────────────────────────────────────────────────────────────────
 const PurchaseOrderSuccessModal = ({ isOpen, data, onClose }) => {
   const navigate = useNavigate();
   const handleClose = () => { onClose(); navigate('/dashboard'); };
   if (!isOpen || !data || data.length === 0) return null;
 
   const grandTotal = data.reduce((s, po) => s + po.total, 0);
+  const isAllDraft = data.every(po => po.status === 'Draft');
+
+  const headerTitle = isAllDraft
+    ? (data.length > 1 ? `${data.length} Draft PO Berhasil Dibuat!` : 'Draft PO Berhasil Dibuat!')
+    : (data.length > 1 ? `${data.length} Purchase Order Berhasil Dibuat!` : 'Purchase Order Berhasil Dibuat!');
+
+  const headerSubtitle = isAllDraft
+    ? 'Anda perlu tekan tombol Complete untuk meminta persetujuan.'
+    : (data.length > 1
+        ? 'Karena berasal dari vendor berbeda, sistem membuat dokumen terpisah untuk masing-masing vendor.'
+        : 'Dokumen telah di-Complete dan menunggu persetujuan (approval) sesuai alur Workflow.');
 
   return (
     <div style={{
@@ -38,16 +43,25 @@ const PurchaseOrderSuccessModal = ({ isOpen, data, onClose }) => {
           }}
         >✕</button>
 
-        <div style={{ fontSize: '52px', marginBottom: '8px' }}>🧾✅</div>
-        <div style={{ fontSize: '19px', fontWeight: 700, color: COLOR.success, marginBottom: '4px' }}>
-          {data.length > 1 ? `${data.length} Purchase Order Berhasil Dibuat!` : 'Purchase Order Berhasil Dibuat!'}
-        </div>
-        <div style={{ fontSize: '13px', color: COLOR.textMd, marginBottom: '18px' }}>
-          {data.length > 1
-            ? 'Karena berasal dari vendor berbeda, sistem membuat dokumen terpisah untuk masing-masing vendor.'
-            : 'Dokumen telah di-Complete dan menunggu persetujuan (approval) sesuai alur di iDempiere.'}
+        {/* ── Icon header — ganti emoji dgn icon component, dibungkus circle badge ── */}
+        <div style={{
+          width: '64px', height: '64px', borderRadius: '50%',
+          background: isAllDraft ? '#f3f4f6' : COLOR.successLt,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          margin: '0 auto 8px',
+        }}>
+          {isAllDraft
+            ? <ShoppingCartIcon size={30} color={COLOR.danger} />   // merah
+            : <ShoppingCartIcon size={30} color={COLOR.success} />  // hijau
+          }
         </div>
 
+        <div style={{ fontSize: '19px', fontWeight: 700, color: COLOR.success, marginBottom: '4px' }}>
+          {headerTitle}
+        </div>
+        <div style={{ fontSize: '13px', color: COLOR.textMd, marginBottom: '18px' }}>
+          {headerSubtitle}
+        </div>
         {data.map((po, i) => (
           <div key={i} style={{
             background: COLOR.successLt, border: '1px solid #bbf7d0',

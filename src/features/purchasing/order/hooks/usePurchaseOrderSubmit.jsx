@@ -224,7 +224,6 @@ export function usePurchaseOrderSubmit({ docTypeId, defaultDescription, onError 
     }
 
     const { orgId, clientId, userId } = getLoginInfo();
-    console.log('[DEBUG submit]', { orgId, clientId, userId, warehouseId });
     if (!orgId || !clientId || !warehouseId) {
       onError?.('Data sesi/gudang tidak lengkap.\nSilakan login kembali.', 'Error');
       return { results: null, hadError: true };

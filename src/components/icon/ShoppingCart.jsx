@@ -1,10 +1,10 @@
-export const ShoppingCartIcon = ({ size = 24, className = '', ...props }) => (
+export const ShoppingCartIcon = ({ size = 24, color = 'currentColor', className = '', ...props }) => (
   <svg 
     width={size}
     height={size}
     viewBox="0 0 24 24" 
     fill="none" 
-    stroke="currentColor" 
+    stroke={color} 
     strokeWidth="2" 
     strokeLinecap="round" 
     strokeLinejoin="round">

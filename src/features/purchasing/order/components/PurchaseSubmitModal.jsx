@@ -13,14 +13,31 @@ const PurchaseSubmitModal = ({
 
     const bankRequired  = !selectedBankAccountId;
     const cashPurchaseDisabled = isSubmitting || bankRequired || bankAccounts.length === 0;
-
+    const ENABLE_CASH_PURCHASE = false; // ⬅️ set true lagi kalau mau diaktifkan
     return (
         <div
             onClick={e => { if (e.target === e.currentTarget && !isSubmitting) onClose(); }}
             style={{ position: 'fixed', inset: 0, zIndex: 400, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
         >
-            <div style={{ background: COLOR.surface, borderRadius: RADIUS.lg, padding: '22px', width: '380px', maxWidth: '90vw' }}>
-                <h3 style={{ margin: '0 0 4px', fontSize: '16px', color: COLOR.textDk }}>Pilih Metode Pengiriman</h3>
+            <div style={{ position: 'relative', background: COLOR.surface, borderRadius: RADIUS.lg, padding: '22px', width: '380px', maxWidth: '90vw' }}>
+
+                {/* ── Tombol Close (X) — pojok kanan atas ── */}
+                {!isSubmitting && (
+                    <button
+                        onClick={onClose}
+                        aria-label="Tutup"
+                        style={{
+                            position: 'absolute', top: '12px', right: '12px',
+                            width: '28px', height: '28px',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            background: 'transparent', border: 'none', borderRadius: RADIUS.sm,
+                            color: COLOR.textLt, fontSize: '18px', lineHeight: 1,
+                            cursor: 'pointer',
+                        }}
+                    >✕</button>
+                )}
+
+                <h3 style={{ margin: '0 28px 4px 0', fontSize: '16px', color: COLOR.textDk }}>Pilih Metode Pengiriman</h3>
                 <p style={{ margin: '0 0 18px', fontSize: '12px', color: COLOR.textLt }}>
                     Total: <strong style={{ color: COLOR.textDk }}>Rp {totalAmount?.toLocaleString('id-ID')}</strong>
                 </p>
@@ -48,7 +65,7 @@ const PurchaseSubmitModal = ({
                         }}
                     >COMPLETE</button>
                 </div>
-
+                {ENABLE_CASH_PURCHASE && (
                 <div style={{ borderTop: `1px solid ${COLOR.border}`, paddingTop: '16px' }}>
                     <p style={{ margin: '0 0 8px', fontSize: '12px', fontWeight: 600, color: COLOR.textMd }}>
                         Atau — Bayar Tunai Sekarang (PO → Receipt → Invoice → Payment otomatis)
@@ -91,15 +108,6 @@ const PurchaseSubmitModal = ({
                         }}
                     >💵 BAYAR TUNAI SEKARANG</button>
                 </div>
-
-                {!isSubmitting && (
-                    <button
-                        onClick={onClose}
-                        style={{
-                            width: '100%', marginTop: '14px', background: 'none', border: 'none',
-                            color: COLOR.textLt, fontSize: '12px', cursor: 'pointer', padding: '6px',
-                        }}
-                    >Batal</button>
                 )}
             </div>
         </div>
