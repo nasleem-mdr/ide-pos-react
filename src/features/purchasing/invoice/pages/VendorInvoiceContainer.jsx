@@ -1,22 +1,16 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 
-import Dialog from '@/shared/components/common/Dialog';
-import CartFab from '@/shared/components/cart/CartFab';
-import { POCard, POLineDetailSheet, POCartSidebar, POCartPanel, InvoiceSubmitModal, PurchaseOrderSuccessModal } from '@/features/purchasing/order/components';
-
-import { useInvoiceCart } from '@/hooks/useInvoiceCart';
-import { usePOInvoiceLines } from '@/hooks/usePOInvoiceLines';
-import { useInvoiceSubmit } from '@/features/purchasing/invoice/hooks/useInvoiceSubmit';
-import { usePaymentAllocationSubmit } from '@/hooks/usePaymentAllocationSubmit';
-import { useIsDesktop } from '@/hooks/useIsDesktop';
-import { getLoginInfo, getMissingSessionFields } from '@/hooks/useLoginInfo';
-import { resolveDocTypeId, DOC_BASE_TYPE } from '@/utils/docTypeResolver';
-import { useBankAccounts } from '@/hooks/useBankAccounts';
-import { useAccess } from '@/context/AccessContext';
+import { Dialog, CartFab } from '@/shared/components';
+import { useIsDesktop, getLoginInfo, getMissingSessionFields } from '@/shared/hooks';
+import { POCard, POLineDetailSheet,POCartSidebar, POCartPanel } from '@/features/purchasing/shared/components';
+import { InvoiceSubmitModal, VendorInvoiceSuccessModal } from '@/features/purchasing/invoice/components';
+import { useInvoiceSubmit, usePOInvoiceLines, usePaymentAllocationSubmit, useInvoiceCart, useBankAccounts } from '@/features/purchasing/invoice/hooks';
 
 import { COLOR, RADIUS } from '@/utils/styleTokens';
-import '@/css/Header.css';
+import { resolveDocTypeId, DOC_BASE_TYPE } from '@/utils/docTypeResolver';
 import { ShoppingCartIcon } from '@/components/icon';
+import { useAccess } from '@/context/AccessContext';
+import '@/css/Header.css';
 
 const INVOICE_CONFIG = { DESCRIPTION: 'Purchase Invoice via Web' };
 
@@ -146,7 +140,7 @@ const VendorInvoiceContainer = () => {
         isSubmitting={invoiceSubmitting || paymentSubmitting} totalAmount={totalAmount}
       />
 
-      <PurchaseOrderSuccessModal isOpen={successOpen} data={successData} onClose={() => { setSuccessOpen(false); setSuccessData(null); }} />
+      <VendorInvoiceSuccessModal isOpen={successOpen} data={successData} onClose={() => { setSuccessOpen(false); setSuccessData(null); }} />
 
       <div className='header-purchasing'>
         <span style={{ color: '#fff', fontWeight: 700, fontSize: '15px', flex: 1, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>

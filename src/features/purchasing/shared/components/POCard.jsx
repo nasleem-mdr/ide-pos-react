@@ -3,7 +3,7 @@ import { COLOR, RADIUS } from '@/utils/styleTokens';
 
 const POCard = ({ po, onClick }) => {
   const formattedDate  = po.DateOrdered ? new Date(po.DateOrdered).toLocaleDateString('id-ID') : '-';
-  const formattedTotal = po.GrandTotal?.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 });
+  const formattedTotal = po.GrandTotal?.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 2 });
   const sisaQty = po.lines.reduce((s, l) => s + l.qtyOutstanding, 0);
 
   return (

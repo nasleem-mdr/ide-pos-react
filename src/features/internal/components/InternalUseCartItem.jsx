@@ -1,6 +1,5 @@
 import React from 'react';
-import QtyStepper from '@/shared/components/common/QtyStepper';
-import UomSelector from '@/shared/components/product/UomSelector';
+import { QtyStepper, UomSelector } from '@/shared/components';
 import { COLOR, RADIUS } from '@/utils/styleTokens';
 
 // Padanan POCartItem.jsx untuk Internal Use — badge-nya Charge (bukan

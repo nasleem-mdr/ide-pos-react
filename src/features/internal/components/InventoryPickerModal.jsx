@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useProductStock } from '@/shared/hooks/useProductStock';
+import { useProductStock } from '@/shared/hooks';
 import { COLOR, RADIUS } from '@/utils/styleTokens';
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -1,26 +1,22 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 
-import Dialog from '@/shared/components/common/Dialog';
-import CartFab from '@/shared/components/cart/CartFab';
-import ProductCard from '@/shared/components/product/ProductCard';
-import ProductDetailSheet from '@/shared/components/product/ProductDetailSheet';
-import BarcodeScanner from '@/shared/components/scanner/BarcodeScanner';
-import { VendorPickerModal, RequisitionToPOImportModal, PurchaseOrderSuccessModal, POCartSidebar, POCartPanel, PurchaseSubmitModal, CashPurchaseProgressModal } from '@/features/purchasing/order/components';
-import { usePOCart, lineKey } from '@/hooks/usePOCart';
-import { usePurchaseOrderSubmit } from '@/hooks/usePurchaseOrderSubmit';
-import { useProductVendorInfo } from '@/hooks/useProductVendorInfo';
-import { useUomConversion } from '@/shared/hooks/useUomConversion';
-import { useAccess } from '@/context/AccessContext';
-import { useProductSearch } from '@/hooks/useProductSearch';
-import { useIsDesktop } from '@/hooks/useIsDesktop';
-import { getLoginInfo, getMissingSessionFields } from '@/hooks/useLoginInfo';
-import { resolveDocTypeId, DOC_BASE_TYPE } from '@/utils/docTypeResolver';
-import { idempiereApi, fkId } from '@/utils/idempiereApi';
-import { useBankAccounts } from '@/hooks/useBankAccounts';
-import { useCashPurchaseSubmit } from '@/hooks/useCashPurchaseSubmit';
+import {Dialog, CartFab, ProductCard, ProductDetailSheet, BarcodeScanner }from '@/shared/components';
 
+import { useIsDesktop, useBankAccounts, useUomConversion, getLoginInfo, getMissingSessionFields } from '@/shared/hooks';
+import { VendorPickerModal, RequisitionToPOImportModal, PurchaseOrderSuccessModal, PurchaseSubmitModal, CashPurchaseProgressModal } from '@/features/purchasing/order/components';
+import { POCartSidebar, POCartPanel } from '@/features/purchasing/shared/components';
+import { useCashPurchaseSubmit, usePurchaseOrderSubmit } from '@/features/purchasing/order/hooks';
+
+import { useProductSearch } from '@/hooks/useProductSearch';
+import { usePOCart, lineKey } from '@/hooks/usePOCart';
+import { useProductVendorInfo } from '@/hooks/useProductVendorInfo';
+
+import { useAccess } from '@/context/AccessContext';
 import { COLOR, RADIUS } from '@/utils/styleTokens';
+import { idempiereApi, fkId } from '@/utils/idempiereApi';
+import { resolveDocTypeId, DOC_BASE_TYPE } from '@/utils/docTypeResolver';
+
 import '@/css/Header.css';
 import { HomeIcon, ImportIcon, ShoppingCartIcon, ScanIcon } from '@/components/icon';
 

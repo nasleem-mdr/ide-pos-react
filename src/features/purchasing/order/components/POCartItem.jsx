@@ -2,8 +2,9 @@ import React from 'react';
 import QtyStepper from '@/shared/components/common/QtyStepper';
 import UomSelector from '@/shared/components/product/UomSelector';  
 import { COLOR, RADIUS } from '@/utils/styleTokens';
+import { formatCurrency } from '@/utils/currency';
 
-const fmtRp = (n) => `Rp ${Math.round(n).toLocaleString('id-ID')}`;
+//const fmtRp = (n) => `Rp ${Math.round(n).toLocaleString('id-ID')}`;
 
 // Format qty untuk preview konversi — buang residu floating point (mis.
 // 5.999999999998 → 6) tanpa memaksa semua angka jadi bilangan bulat (qty
@@ -99,7 +100,7 @@ const POCartItem = ({ item, itemKey, onRemove, onQtyChange, onPriceChange, onUom
       </div>
 
       <div style={{ textAlign: 'right', marginTop: '6px', fontSize: '12px', fontWeight: 700, color: COLOR.textDk }}>
-        = {fmtRp(lineAmount)}
+        = {formatCurrency(lineAmount)}
       </div>
     </div>
   );

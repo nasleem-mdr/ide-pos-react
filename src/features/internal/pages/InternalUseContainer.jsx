@@ -1,26 +1,17 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import Dialog from '@/shared/components/common/Dialog';
-import CartFab from '@/shared/components/cart/CartFab';
-import ProductCard from '@/shared/components/product/ProductCard';
-import ProductDetailSheet from '@/shared/components/product/ProductDetailSheet';
-import BarcodeScanner from '@/shared/components/scanner/BarcodeScanner';
-
+import { Dialog, CartFab, ProductCard, ProductDetailSheet, BarcodeScanner } from '@/shared/components';
+import { getLoginInfo, getMissingSessionFields, useProductStock, useIsDesktop, useProductSearch } from '@/shared/hooks';
 import { InternalUseCartPanel, ChargePickerModal, InventoryPickerModal, InternalUseSuccessModal, InternalUseCartSidebar } from '@/features/internal/components';
+import { useInternalUseCart, useInternalUseSubmit } from '@/features/internal/hooks';
 
-import { useInternalUseCart } from '@/hooks/useInternalUseCart';
-import { useInternalUseSubmit } from '@/hooks/useInternalUseSubmit';
-import { useProductStock } from '@/shared/hooks/useProductStock';
-import { useAccess } from '@/context/AccessContext';
-import { useProductSearch } from '@/hooks/useProductSearch';
-import { useIsDesktop } from '@/hooks/useIsDesktop';
-import { getLoginInfo, getMissingSessionFields } from '@/hooks/useLoginInfo';
-import { resolveDocTypeId, DOC_BASE_TYPE, DOC_SUB_TYPE_INV } from '@/utils/docTypeResolver';
 import { idempiereApi } from '@/utils/idempiereApi';
 import { COLOR, RADIUS } from '@/utils/styleTokens';
-import '@/css/Header.css';
+import { resolveDocTypeId, DOC_BASE_TYPE, DOC_SUB_TYPE_INV } from '@/utils/docTypeResolver';
 import { UserTake, ImportIcon } from '@/components/icon';
+import { useAccess } from '@/context/AccessContext';
+import '@/css/Header.css';
 
 const INTERNAL_USE_DESCRIPTION = 'Internal Use via Web';
 

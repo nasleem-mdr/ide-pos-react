@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { idempiereApi, fkId } from '@/utils/idempiereApi';
-import { getLoginInfo } from './useLoginInfo';
+import { getLoginInfo } from '@/shared/hooks/useLoginInfo';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // usePaymentAllocationSubmit.jsx

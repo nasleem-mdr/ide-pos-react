@@ -1,8 +1,8 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { COLOR, RADIUS } from '@/utils/styleTokens';
-
-const fmtRp = (n) => `Rp ${Math.round(n || 0).toLocaleString('id-ID')}`;
+import { formatCurrency } from '@/utils/currency';
+//const fmtRp = (n) => `Rp ${Math.round(n || 0).toLocaleString('id-ID')}`;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PurchaseOrderSuccessModal.jsx
@@ -55,7 +55,7 @@ const PurchaseOrderSuccessModal = ({ isOpen, data, onClose }) => {
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
               <span style={{ fontWeight: 700, fontSize: '15px', color: COLOR.textDk }}>{po.documentNo}</span>
-              <span style={{ fontSize: '13px', fontWeight: 700, color: COLOR.textDk }}>{fmtRp(po.total)}</span>
+              <span style={{ fontSize: '13px', fontWeight: 700, color: COLOR.textDk }}>{formatCurrency(po.total)}</span>
             </div>
             <div style={{ fontSize: '11px', color: COLOR.textLt, marginBottom: '8px' }}>
               🚚 {po.vendorName} · {po.date}
@@ -67,7 +67,7 @@ const PurchaseOrderSuccessModal = ({ isOpen, data, onClose }) => {
               }}>
                 <span style={{ color: '#333', flex: 1, marginRight: '8px' }}>{item.Name}</span>
                 <span style={{ color: COLOR.textMd, whiteSpace: 'nowrap' }}>
-                  {item.Qty} {item.UomName} × {fmtRp(item.Price)}
+                  {item.Qty} {item.UomName} × {formatCurrency(item.Price)}
                 </span>
               </div>
             ))}
@@ -80,7 +80,7 @@ const PurchaseOrderSuccessModal = ({ isOpen, data, onClose }) => {
             background: '#f0f4ff', borderRadius: RADIUS.md, marginBottom: '18px',
           }}>
             <span style={{ fontSize: '13px', color: COLOR.textMd }}>Total Keseluruhan</span>
-            <span style={{ fontSize: '14px', fontWeight: 700, color: COLOR.textDk }}>{fmtRp(grandTotal)}</span>
+            <span style={{ fontSize: '14px', fontWeight: 700, color: COLOR.textDk }}>{formatCurrency(grandTotal)}</span>
           </div>
         )}
 

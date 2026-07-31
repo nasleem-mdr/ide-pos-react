@@ -5,8 +5,9 @@ import {
 import { useRequisitionsForPO } from '@/hooks/useRequisitionsForPO';
 import VendorPickerModal from './VendorPickerModal';
 import { COLOR, RADIUS } from '@/utils/styleTokens';
+import { formatCurrency } from '@/utils/currency';
 
-const fmtRp = (n) => `Rp ${Math.round(n || 0).toLocaleString('id-ID')}`;
+//const fmtRp = (n) => `Rp ${Math.round(n || 0).toLocaleString('id-ID')}`;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // RequisitionToPOImportModal.jsx
@@ -239,7 +240,7 @@ const RequisitionToPOImportModal = ({ isOpen, onClose, onImport }) => {
                           <YAxis yAxisId="left" tick={{ fontSize: 10 }} />
                           <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 10 }} />
                           <Tooltip
-                            formatter={(value, name) => [fmtRp(value), name === 'lineAmount' ? 'Line Amount' : 'Harga Satuan']}
+                            formatter={(value, name) => [formatCurrency(value), name === 'lineAmount' ? 'Line Amount' : 'Harga Satuan']}
                             labelFormatter={(_, payload) => payload?.[0]?.payload?.fullName || ''}
                           />
                           <Legend
@@ -284,7 +285,7 @@ const RequisitionToPOImportModal = ({ isOpen, onClose, onImport }) => {
                                   : v.isCurrent ? ' (utama)' : '';
                                 return (
                                   <option key={v.C_BPartner_ID} value={v.C_BPartner_ID}>
-                                    {v.VendorName}{tag} — {fmtRp(v.Price)}
+                                    {v.VendorName}{tag} — {formatCurrency(v.Price)}
                                   </option>
                                 );
                               })}
@@ -320,7 +321,7 @@ const RequisitionToPOImportModal = ({ isOpen, onClose, onImport }) => {
                         </div>
 
                         <div style={{ textAlign: 'right', marginTop: '6px', fontSize: '12px', fontWeight: 700, color: COLOR.textDk }}>
-                          = {fmtRp(enteredQty(l) * (l.Price || 0))}
+                          = {formatCurrency(enteredQty(l) * (l.Price || 0))}
                         </div>
                       </div>
                     ))}
@@ -334,7 +335,7 @@ const RequisitionToPOImportModal = ({ isOpen, onClose, onImport }) => {
                           <>Akan membuat <strong style={{ color: COLOR.textDk }}>{distinctVendors.size}</strong> Purchase Order terpisah</>
                         )}
                       </span>
-                      <span style={{ fontSize: '13px', fontWeight: 700, color: COLOR.textDk }}>{fmtRp(grandTotal)}</span>
+                      <span style={{ fontSize: '13px', fontWeight: 700, color: COLOR.textDk }}>{formatCurrency(grandTotal)}</span>
                     </div>
 
                     {missingVendorCount > 0 && (

@@ -1,9 +1,10 @@
 import React from 'react';
-import POCartItem from './POCartItem';
+import POCartItem from '../../order/components/POCartItem';
 import { lineKey } from '@/hooks/usePOCart';
 import { COLOR, RADIUS } from '@/utils/styleTokens';
+import { formatCurrency } from '@/utils/currency';
 
-const fmtRp = (n) => `Rp ${Math.round(n).toLocaleString('id-ID')}`;
+//const fmtRp = (n) => `Rp ${Math.round(n).toLocaleString('id-ID')}`;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // POCartSidebar.jsx
@@ -101,7 +102,7 @@ const POCartSidebar = ({
                 borderBottom: `1px dashed ${COLOR.border}`,
               }}>
                 <span>🚚 {group.VendorName}</span>
-                <span>{fmtRp(group.subtotal)}</span>
+                <span>{formatCurrency(group.subtotal)}</span>
               </div>
               {group.items.map(item => (
                 <POCartItem
@@ -130,7 +131,7 @@ const POCartSidebar = ({
               <strong style={{ color: COLOR.textDk }}>{totalItems}</strong> item ·{' '}
               <strong style={{ color: COLOR.textDk }}>{vendorCount}</strong> vendor
             </div>
-            <div style={{ fontSize: '13px', fontWeight: 700, color: COLOR.textDk }}>{fmtRp(totalAmount)}</div>
+            <div style={{ fontSize: '13px', fontWeight: 700, color: COLOR.textDk }}>{formatCurrency(totalAmount)}</div>
           </div>
           {summaryRight && (
             <div style={{ fontSize: '11px', color: COLOR.textLt, marginBottom: '10px' }}>{summaryRight}</div>

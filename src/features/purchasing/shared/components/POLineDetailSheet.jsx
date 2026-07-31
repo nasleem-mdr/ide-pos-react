@@ -53,8 +53,22 @@ const POLineDetailSheet = ({ isOpen, po, onClose, onConfirm }) => {
   };
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 300, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }} onClick={onClose}>
-      <div onClick={e => e.stopPropagation()} style={{ background: COLOR.surface, width: '100%', maxWidth: '480px', borderRadius: `${RADIUS.lg} ${RADIUS.lg} 0 0`, maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}>
+    <div 
+      style={{ 
+        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 300, 
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: '16px' 
+        }} 
+        onClick={onClose}
+      >
+      <div 
+        onClick={e => e.stopPropagation()} 
+        style={{ background: COLOR.surface, width: '100%', maxWidth: '480px', 
+        borderRadius: RADIUS.lg, 
+        maxHeight: '85vh', 
+        display: 'flex', flexDirection: 'column',
+        boxShadow: '0 8px 40px rgba(0,0,0,0.25)', 
+        }}>
         <div style={{ padding: '14px 16px', borderBottom: `1px solid ${COLOR.border}` }}>
           <div style={{ fontWeight: 700, fontSize: '14px' }}>{po.DocumentNo} — {po.VendorName}</div>
           <div style={{ fontSize: '11px', color: COLOR.textLt }}>Pilih baris & qty yang mau ditagih</div>

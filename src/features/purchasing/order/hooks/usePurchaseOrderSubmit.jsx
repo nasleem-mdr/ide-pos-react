@@ -1,8 +1,8 @@
 import { useState, useCallback } from 'react';
 import { idempiereApi, fkId } from '@/utils/idempiereApi';
-import { getLoginInfo } from '@/shared/hooks/useLoginInfo';
+import { getLoginInfo } from '@/shared/hooks';
 import { useUomConversion } from '@/shared/hooks/useUomConversion';
-
+import { resolveCurrencyIso } from '@/utils/currency'; 
 // ─────────────────────────────────────────────────────────────────────────────
 // usePurchaseOrderSubmit.jsx
 //
@@ -181,11 +181,15 @@ export function usePurchaseOrderSubmit({ docTypeId, defaultDescription, onError 
           `Kemungkinan ada field wajib yang belum terisi (mis. Company Agent) — cek dokumen ini langsung di iDempiere.`
         );
       }
-      return { docNo: completedRes.DocumentNo || `PO-${orderId}`, status: 'Completed' };
+      const currencyRef = completedRes.C_Currency_ID
+      ?? (await idempiereApi(`/models/c_order/${orderId}?$select=C_Currency_ID`)).C_Currency_ID;
+      const currencyIso = await resolveCurrencyIso(currencyRef);
+      return { docNo: completedRes.DocumentNo || `PO-${orderId}`, status: 'Completed', currencyIso  };
     }
     // draft — tidak ada doc-action sama sekali
-    const draftRes = await idempiereApi(`/models/c_order/${orderId}?$select=DocumentNo,DocStatus`);
-    return { docNo: draftRes.DocumentNo || `PO-${orderId}`, status: 'Draft' };
+    const draftRes = await idempiereApi(`/models/c_order/${orderId}?$select=DocumentNo,DocStatus,C_Currency_ID`);
+  const currencyIso = await resolveCurrencyIso(draftRes.C_Currency_ID);
+  return { docNo: draftRes.DocumentNo || `PO-${orderId}`, status: 'Draft', currencyIso };
   }, []);
 
   const submit = useCallback(async (cart, { warehouseId, description, submitMode = 'complete', editOrderId = null } = {}) => {
@@ -220,6 +224,7 @@ export function usePurchaseOrderSubmit({ docTypeId, defaultDescription, onError 
     }
 
     const { orgId, clientId, userId } = getLoginInfo();
+    console.log('[DEBUG submit]', { orgId, clientId, userId, warehouseId });
     if (!orgId || !clientId || !warehouseId) {
       onError?.('Data sesi/gudang tidak lengkap.\nSilakan login kembali.', 'Error');
       return { results: null, hadError: true };
@@ -416,11 +421,11 @@ export function usePurchaseOrderSubmit({ docTypeId, defaultDescription, onError 
         }
 
         // ── Complete / draft ─────────────────────────────────────────────
-        const { docNo, status } = await finalizeOrder(editOrderId, submitMode, vendorName);
-
+        const { docNo, status, currencyIso } = await finalizeOrder(editOrderId, submitMode, vendorName);
         results.push({
           documentNo: docNo,
           status,
+          currencyIso, 
           vendorName,
           date: new Date().toLocaleString('id-ID'),
           items: [...cart],
@@ -478,11 +483,12 @@ export function usePurchaseOrderSubmit({ docTypeId, defaultDescription, onError 
             if (!ok) matchFailures.push(name);
           }
 
-          const { docNo, status } = await finalizeOrder(orderId, submitMode, vendorName);
+          const { docNo, status, currencyIso } = await finalizeOrder(orderId, submitMode, vendorName);
 
           results.push({
             documentNo: docNo,
             status,
+            currencyIso,   // ⬅️ baru
             vendorName,
             date: new Date().toLocaleString('id-ID'),
             items,
