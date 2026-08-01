@@ -1,5 +1,5 @@
 import { idempiereApi } from './idempiereApi';
-import { getLoginInfo } from '../hooks/useLoginInfo';
+import { getLoginInfo } from '@/shared/hooks/useLoginInfo';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // docTypeResolver.jsx

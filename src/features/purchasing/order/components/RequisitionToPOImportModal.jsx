@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import {
   ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from 'recharts';
-import { useRequisitionsForPO } from '@/hooks/useRequisitionsForPO';
+import { useRequisitionsForPO } from '@/features/requisition/hooks/useRequisitionsForPO';
 import VendorPickerModal from './VendorPickerModal';
 import { COLOR, RADIUS } from '@/utils/styleTokens';
 import { formatCurrency } from '@/utils/currency';

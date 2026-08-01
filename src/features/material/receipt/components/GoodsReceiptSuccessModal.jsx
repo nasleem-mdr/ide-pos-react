@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { COLOR, RADIUS } from '../../utils/styleTokens';
+import { COLOR, RADIUS } from '@/utils/styleTokens';
 
 // Struktur & gaya sengaja dibuat identik dengan RequisitionSuccessModal.jsx
 // supaya konsisten secara visual antar modul.

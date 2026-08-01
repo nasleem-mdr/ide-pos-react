@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { idempiereApi } from '@/utils/idempiereApi';
-import { getLoginInfo } from './useLoginInfo';
+import { getLoginInfo } from '@/shared/hooks/useLoginInfo';
 import { useUomConversion } from '@/shared/hooks/useUomConversion';
 
 export function useRequisitionSubmit({ docTypeId, description: defaultDescription, onError }) {

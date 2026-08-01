@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useVendorSearch } from '@/hooks/useVendorSearch';
+import { useVendorSearch } from '@/shared/hooks/useVendorSearch';
 import { COLOR, RADIUS } from '@/utils/styleTokens';
 
 // ─────────────────────────────────────────────────────────────────────────────

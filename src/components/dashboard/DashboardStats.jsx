@@ -3,7 +3,7 @@ import { BarChart, Bar, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer
 import useGenericStats from '../../hooks/useGenericStats';
 import useDashboardAccess from '../../hooks/useDashboardAccess';
 import usePurchasingStats from '../../hooks/usePurchasingStats';
-import useRequisitionConversion from '../../hooks/useRequisitionConversion';
+import useRequisitionConversion from '@/features/requisition/hooks/useRequisitionConversion';
 import '../../css/Dashboard.css';
 import { useAccess } from '../../context/AccessContext';
 import LineChart from './LineChart';

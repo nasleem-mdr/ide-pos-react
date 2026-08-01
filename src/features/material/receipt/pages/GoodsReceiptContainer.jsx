@@ -1,22 +1,25 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+import PurchaseOrderImportModal from '@/features/material/receipt/components/PurchaseOrderImportModal';
+import GoodsReceiptSuccessModal from '@/features/material/receipt/components/GoodsReceiptSuccessModal';
+import { useGoodsReceiptSubmit } from '@/features/material/receipt/hooks/useGoodsReceiptSubmit';
+
 import Dialog from '@/shared/components/common/Dialog';
 import CartFab from '@/shared/components/cart/CartFab';
 import CartPanel from '@/shared/components/cart/CartPanel';
 import CartSidebar from '@/shared/components/cart/CartSidebar';
 import ProductGrid from '@/shared/components/product/ProductGrid';
-import ProductDetailSheet from '@/shared/components/product/ProductDetailSheet';
 import BarcodeScanner from '@/shared/components/scanner/BarcodeScanner';
-import PurchaseOrderImportModal from '@/components/goodsreceipt/PurchaseOrderImportModal';
-import GoodsReceiptSuccessModal from '@/components/goodsreceipt/GoodsReceiptSuccessModal';
-import { useGoodsReceiptSubmit } from '@/hooks/useGoodsReceiptSubmit';
-import { useVendorSearch } from '@/hooks/useVendorSearch';
+import ProductDetailSheet from '@/shared/components/product/ProductDetailSheet';
+
+import { useCart } from '@/shared/hooks/useCart';
+import { useIsDesktop } from '@/shared/hooks/useIsDesktop';
+import { useVendorSearch } from '@/shared/hooks';
+import { useProductSearch } from '@/shared/hooks/useProductSearch';
+import { getLoginInfo, getMissingSessionFields } from '@/shared/hooks/useLoginInfo';
+
 import { useAccess } from '@/context/AccessContext';
-import { useCart } from '@/hooks/useCart';
-import { useProductSearch } from '@/hooks/useProductSearch';
-import { useIsDesktop } from '@/hooks/useIsDesktop';
-import { getLoginInfo, getMissingSessionFields } from '@/hooks/useLoginInfo';
 import { idempiereApi, fkId } from '@/utils/idempiereApi';
 import { resolveDocTypeId, DOC_BASE_TYPE, IS_SO_TRX } from '@/utils/docTypeResolver';
 import { COLOR, RADIUS } from '@/utils/styleTokens';

@@ -1,29 +1,35 @@
 import { useState } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom"; 
-import IDempiereAuth from "./pages/IDempiereAuth";
-import Dashboard from "./pages/Dashboard";
-import BusinessPartner from "./pages/BusinessPartner"; 
-import BusinessPartnerDetail from "./pages/BusinessPartnerDetail"; 
-import POSContainer from "./pages/POSContainer"; 
-import Header from "./components/Header"; 
-import Sidebar from "./components/Sidebar";
-import BusinessPartnerEdit from './pages/BusinessPartnerEdit';
-import SalesOrderPage from "./pages/SalesOrderPage";
-import RequisitionContainer from './pages/RequisitionContainer';
-import { AccessProvider } from './context/AccessContext';
-import ProtectedRoute from './components/ProtectedRoute';
-import RequisitionList from "./pages/RequisitionList";
-import GoodsReceiptList from "./pages/GoodsReceiptList";
-import InternalUseList from "@/features/internal/pages/InternalUseList";
+
+import RequisitionContainer from './features/requisition/pages/RequisitionContainer';
+import RequisitionView from "@/features/requisition/pages/RequisitionView";
+import RequisitionList from "@/features/requisition/pages/RequisitionList";
+
 //purchasing
 import { PurchasingContainer, PurchasingList, PurchasingView } from "./features/purchasing/order/pages";
 import { VendorInvoiceContainer } from '@/features/purchasing/invoice/pages';
 
-import RequisitionView from "./pages/RequisitionView";
-import ProductList from "./pages/ProductList";
-import GoodsReceiptContainer from './pages/GoodsReceiptContainer';
+import GoodsReceiptContainer from '@/features/material/receipt/pages/GoodsReceiptContainer';
+import GoodsReceiptList from "@/features/material/receipt/pages/GoodsReceiptList";
+
 import InternalUseContainer from '@/features/internal/pages/InternalUseContainer';
+import InternalUseList from "@/features/internal/pages/InternalUseList";
+
+import SalesOrderPage from "@/features/sales/order/pages/SalesOrderPage";
+import POSContainer from "@/features/sales/order/pages/POSContainer"; 
+
 import BookingTimeline from './pages/BookingTimeline';
+import ProductList from "./pages/ProductList";
+import BusinessPartner from "./pages/BusinessPartner"; 
+import BusinessPartnerDetail from "./pages/BusinessPartnerDetail";
+import BusinessPartnerEdit from './pages/BusinessPartnerEdit';
+import { AccessProvider } from './context/AccessContext';
+import ProtectedRoute from './components/ProtectedRoute';
+import IDempiereAuth from "./pages/IDempiereAuth";
+import Dashboard from "./pages/Dashboard";
+import Header from "./components/Header"; 
+import Sidebar from "./components/Sidebar";
+
 import './css/AppLayout.css'; // Pastikan mengimpor file CSS layout Anda
 
 export default function App() {

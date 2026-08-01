@@ -1,6 +1,6 @@
 import { useRef } from 'react';
 import ProductCard from './ProductCard';
-import { useInfiniteScroll } from '@/hooks/useInfiniteScroll';
+import { useInfiniteScroll } from '@/shared/hooks/useInfiniteScroll';
 import { COLOR } from '@/utils/styleTokens';
 
 /**

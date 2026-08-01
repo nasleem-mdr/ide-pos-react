@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { useApprovedPurchaseOrders } from '../../hooks/useApprovedPurchaseOrders';
-import { COLOR, RADIUS } from '../../utils/styleTokens';
+import { useApprovedPurchaseOrders } from '@/shared/hooks/useApprovedPurchaseOrders';
+import { COLOR, RADIUS } from '@/utils/styleTokens';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PurchaseOrderImportModal.jsx

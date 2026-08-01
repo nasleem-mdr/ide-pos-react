@@ -6,11 +6,11 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAccess } from '@/context/AccessContext';
 
 // 3. Hooks
-import { useRequisitionSubmit } from '@/hooks/useRequisitionSubmit';
-import { useCart } from '@/hooks/useCart';
-import { useProductSearch } from '@/hooks/useProductSearch';
-import { useIsDesktop } from '@/hooks/useIsDesktop';
-import { getLoginInfo, getMissingSessionFields } from '@/hooks/useLoginInfo';
+import { useRequisitionSubmit } from '@/features/requisition/hooks/useRequisitionSubmit';
+import { useCart } from '@/shared/hooks/useCart';
+import { useProductSearch } from '@/shared/hooks/useProductSearch';
+import { useIsDesktop } from '@/shared/hooks/useIsDesktop';
+import { getLoginInfo, getMissingSessionFields } from '@/shared/hooks/useLoginInfo';
 
 // 4. Components
 import Dialog from '@/shared/components/common/Dialog';

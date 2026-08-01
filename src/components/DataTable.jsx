@@ -1,6 +1,6 @@
 import React, {useRef} from 'react';
-import { useIsDesktop } from '../hooks/useIsDesktop';
-import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
+import { useIsDesktop } from '@/shared/hooks/useIsDesktop';
+import { useInfiniteScroll } from '@/shared/hooks/useInfiniteScroll';
 import '../css/Components.css';
 
 // Komponen Icon Navigasi Internal

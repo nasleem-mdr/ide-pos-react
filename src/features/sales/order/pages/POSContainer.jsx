@@ -3,12 +3,12 @@ import { useNavigate, useLocation } from "react-router-dom";
 import SearchBar from '@/components/SearchBar';
 import ProductCard from '@/components/ProductCard';
 import CartItem from '@/components/CartItem';
-import ConfirmModal from '@/components/ConfirmModal';
-import PaymentModal from '@/components/PaymentModal';
-import ReceiptModal from '@/components/ReceiptModal';
+import ConfirmModal from '@/features/sales/order/components/ConfirmModal';
+import PaymentModal from '@/features/sales/order/components/PaymentModal';
+import ReceiptModal from '@/features/sales/order/components/ReceiptModal';
 import { useAccess } from '@/context/AccessContext';
 import { idempiereApi } from '@/utils/idempiereApi';
-import { useIsDesktop } from '@/hooks/useIsDesktop';
+import { useIsDesktop } from '@/shared/hooks/useIsDesktop';
 import CartPanel from '@/shared/components/cart/CartPanel';   // sesuaikan path sebenarnya
 import CartSidebar from '@/shared/components/cart/CartSidebar';
 import BarcodeScanner from '@/shared/components/scanner/BarcodeScanner'; // sesuaikan path sebenarnya

@@ -1,8 +1,10 @@
-import useDashboardStats from '@/hooks/useDashboardStats';
-import WelcomeCards      from '@/components/dashboard/WelcomeCards';
-import StatCard          from '@/components/dashboard/StatCard';
-import MonthlyChartCard  from '@/components/dashboard/MonthlyChartCard';
+import StatCard from '@/components/dashboard/StatCard';
+import WelcomeCards from '@/components/dashboard/WelcomeCards';
 import DashboardStats from '@/components/dashboard/DashboardStats';
+import MonthlyChartCard from '@/components/dashboard/MonthlyChartCard';
+
+import useDashboardStats from '@/hooks/useDashboardStats';
+
 import '@/css/Dashboard.css';
 
 /**

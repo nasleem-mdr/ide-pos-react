@@ -1,9 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
+
 import BottomSheet from '@/shared/components/common/BottomSheet';
 import QtyStepper from '@/shared/components/common/QtyStepper';
+
+import { useUomConversion } from '@/shared/hooks/useUomConversion';
+
 import { COLOR, RADIUS } from '@/utils/styleTokens';
 import { getProductImageBlobUrls, getProductAvailability } from '@/utils/idempiereApi';
-import { useUomConversion } from '@/shared/hooks/useUomConversion';
+
 import '@/css/ProductDetailSheet.css';
 
 const ProductDetailSheet = ({
