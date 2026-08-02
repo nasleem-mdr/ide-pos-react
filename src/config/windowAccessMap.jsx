@@ -9,7 +9,7 @@
 // "tidak butuh AD_Window_Access" (lihat hasAccess() di AccessContext) —
 // jadi pastikan semua halaman yang ingin dibatasi role didaftarkan.
 
-import BookingTimeline from "../pages/BookingTimeline";
+import BookingTimeline from "@/pages/BookingTimeline";
 
 // ─────────────────────────────────────────────────────────────────────────────
 export const WINDOW_ACCESS_MAP = {

@@ -2,7 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { COLOR, RADIUS } from '@/utils/styleTokens';
 import { formatCurrency } from '@/utils/currency';
-import { ShoppingCartIcon } from '@/components/icon'; // ⬅️ sesuaikan nama icon utk versi Complete kalau perlu
+import { ShoppingCartIcon } from '@/shared/components'; // ⬅️ sesuaikan nama icon utk versi Complete kalau perlu
 
 const PurchaseOrderSuccessModal = ({ isOpen, data, onClose }) => {
   const navigate = useNavigate();

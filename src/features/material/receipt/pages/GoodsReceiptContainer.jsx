@@ -1,30 +1,45 @@
+//import from react
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import PurchaseOrderImportModal from '@/features/material/receipt/components/PurchaseOrderImportModal';
-import GoodsReceiptSuccessModal from '@/features/material/receipt/components/GoodsReceiptSuccessModal';
+//import from GoodsReceipt/Material Receipt feature
+import { PurchaseOrderImportModal, GoodsReceiptSuccessModal}  from '@/features/material/receipt/components';
 import { useGoodsReceiptSubmit } from '@/features/material/receipt/hooks/useGoodsReceiptSubmit';
 
-import Dialog from '@/shared/components/common/Dialog';
-import CartFab from '@/shared/components/cart/CartFab';
-import CartPanel from '@/shared/components/cart/CartPanel';
-import CartSidebar from '@/shared/components/cart/CartSidebar';
-import ProductGrid from '@/shared/components/product/ProductGrid';
-import BarcodeScanner from '@/shared/components/scanner/BarcodeScanner';
-import ProductDetailSheet from '@/shared/components/product/ProductDetailSheet';
+//import component from shared/components
+import { 
+  Dialog, 
+  CartFab, 
+  CartPanel, 
+  CartSidebar, 
+  ProductGrid, 
+  BarcodeScanner, 
+  ProductDetailSheet, 
+  DeliveryIcon,
+  ScanIcon, 
+  ImportIcon 
+} from '@/shared/components';
 
-import { useCart } from '@/shared/hooks/useCart';
-import { useIsDesktop } from '@/shared/hooks/useIsDesktop';
-import { useVendorSearch } from '@/shared/hooks';
-import { useProductSearch } from '@/shared/hooks/useProductSearch';
-import { getLoginInfo, getMissingSessionFields } from '@/shared/hooks/useLoginInfo';
+//import hooks from shared/hooks
+import { 
+  useCart, 
+  useIsDesktop, 
+  useVendorSearch, 
+  useProductSearch, 
+  getLoginInfo, 
+  getMissingSessionFields
+} from '@/shared/hooks';
 
 import { useAccess } from '@/context/AccessContext';
-import { idempiereApi, fkId } from '@/utils/idempiereApi';
-import { resolveDocTypeId, DOC_BASE_TYPE, IS_SO_TRX } from '@/utils/docTypeResolver';
-import { COLOR, RADIUS } from '@/utils/styleTokens';
+
+import { 
+  idempiereApi, 
+  fkId, resolveDocTypeId, 
+  DOC_BASE_TYPE, IS_SO_TRX, 
+  COLOR, RADIUS 
+} from '@/utils';
+
 import '@/css/Header.css';
-import { DeliveryIcon,ScanIcon, ImportIcon } from '@/components/icon';
 
 
 // Deskripsi dokumen — tidak client-specific, aman tetap konstan.

@@ -7,20 +7,11 @@ import { useAccess } from '@/context/AccessContext';
 
 // 3. Hooks
 import { useRequisitionSubmit } from '@/features/requisition/hooks/useRequisitionSubmit';
-import { useCart } from '@/shared/hooks/useCart';
-import { useProductSearch } from '@/shared/hooks/useProductSearch';
-import { useIsDesktop } from '@/shared/hooks/useIsDesktop';
-import { getLoginInfo, getMissingSessionFields } from '@/shared/hooks/useLoginInfo';
 
 // 4. Components
-import Dialog from '@/shared/components/common/Dialog';
-import CartFab from '@/shared/components/cart/CartFab';
-import CartPanel from '@/shared/components/cart/CartPanel';
-import CartSidebar from '@/shared/components/cart/CartSidebar';
-import ProductDetailSheet from '@/shared/components/product/ProductDetailSheet';
-import BarcodeScanner from '@/shared/components/scanner/BarcodeScanner';
+import { Dialog, CartFab, CartPanel, CartSidebar, ProductDetailSheet, BarcodeScanner, HomeIcon, RequisitionIcon,ScanIcon, WarehouseIcon, ProductGrid } from '@/shared/components';
 import { RequisitionSuccessModal } from '@/features/requisition/components';
-import { HomeIcon, RequisitionIcon,ScanIcon, WarehouseIcon} from '@/components/icon'; 
+import { getLoginInfo, getMissingSessionFields, useCart, useProductSearch, useIsDesktop } from '@/shared/hooks'; 
 // 5. Utils
 import { idempiereApi, fkId } from '@/utils/idempiereApi';
 import { resolveDocTypeId, DOC_BASE_TYPE } from '@/utils/docTypeResolver';
@@ -28,7 +19,7 @@ import { COLOR, RADIUS } from '@/utils/styleTokens';
 
 // 6. Styles
 import '@/css/Header.css';
-import ProductGrid from '@/shared/components/product/ProductGrid';
+
 const REQUISITION_CONFIG = {
   DESCRIPTION:  'Purchase Requisition via REST API',
 };

@@ -1,6 +1,6 @@
 import React, { createContext, useContext } from 'react';
-import { useWindowAccess } from '../hooks/useWindowAccess';
-import { getWindowId } from '../config/windowAccessMap';
+import { useWindowAccess } from '@/shared/hooks/useWindowAccess';
+import { getWindowId } from '@/config/windowAccessMap';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // AccessContext.jsx

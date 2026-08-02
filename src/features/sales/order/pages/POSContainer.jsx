@@ -1,19 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback} from 'react';
 import { useNavigate, useLocation } from "react-router-dom";
-import SearchBar from '@/components/SearchBar';
-import ProductCard from '@/components/ProductCard';
-import CartItem from '@/components/CartItem';
-import ConfirmModal from '@/features/sales/order/components/ConfirmModal';
-import PaymentModal from '@/features/sales/order/components/PaymentModal';
-import ReceiptModal from '@/features/sales/order/components/ReceiptModal';
+import { ProductCard, SearchBar, CartItem, ScanIcon, ProductGrid , CartPanel, CartSidebar, BarcodeScanner } from '@/shared/components';
+import { ConfirmModal, PaymentModal, ReceiptModal } from '@/features/sales/order/components';
 import { useAccess } from '@/context/AccessContext';
 import { idempiereApi } from '@/utils/idempiereApi';
 import { useIsDesktop } from '@/shared/hooks/useIsDesktop';
-import CartPanel from '@/shared/components/cart/CartPanel';   // sesuaikan path sebenarnya
-import CartSidebar from '@/shared/components/cart/CartSidebar';
-import BarcodeScanner from '@/shared/components/scanner/BarcodeScanner'; // sesuaikan path sebenarnya
-import { ScanIcon} from '@/components/icon'; 
-import ProductGrid from '@/shared/components/product/ProductGrid';
 
 const POSContainer = () => {
      // 1. State untuk kontrol Loading & Data POS

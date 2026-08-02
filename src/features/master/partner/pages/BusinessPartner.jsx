@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from "react-router-dom";
-import PageHeader from '@/components/PageHeader';
-import DataTable from '@/components/DataTable';
+import { PageHeader, DataTable } from '@/shared/components/setup';
 import '@/App.css';
 
 function BusinessPartner() {

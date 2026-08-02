@@ -1,6 +1,6 @@
 import React from 'react';
 import POCartItem from '../../order/components/POCartItem';
-import { lineKey } from '@/hooks/usePOCart';
+import { lineKey } from '@/shared/hooks/usePOCart';
 import { COLOR, RADIUS } from '@/utils/styleTokens';
 import { formatCurrency } from '@/utils/currency';
 

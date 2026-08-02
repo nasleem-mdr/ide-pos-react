@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import { Dialog, CartFab, ProductCard, ProductDetailSheet, BarcodeScanner } from '@/shared/components';
+import { Dialog, CartFab, ProductCard, ProductDetailSheet, BarcodeScanner, UserTake, ImportIcon } from '@/shared/components';
 import { getLoginInfo, getMissingSessionFields, useProductStock, useIsDesktop, useProductSearch } from '@/shared/hooks';
 import { InternalUseCartPanel, ChargePickerModal, InventoryPickerModal, InternalUseSuccessModal, InternalUseCartSidebar } from '@/features/internal/components';
 import { useInternalUseCart, useInternalUseSubmit } from '@/features/internal/hooks';
@@ -9,7 +9,6 @@ import { useInternalUseCart, useInternalUseSubmit } from '@/features/internal/ho
 import { idempiereApi } from '@/utils/idempiereApi';
 import { COLOR, RADIUS } from '@/utils/styleTokens';
 import { resolveDocTypeId, DOC_BASE_TYPE, DOC_SUB_TYPE_INV } from '@/utils/docTypeResolver';
-import { UserTake, ImportIcon } from '@/components/icon';
 import { useAccess } from '@/context/AccessContext';
 import '@/css/Header.css';
 

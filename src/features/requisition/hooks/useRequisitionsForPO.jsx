@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { idempiereApi, fkId, fkLabel } from '@/utils/idempiereApi';
-import { useProductVendorInfo } from '@/hooks/useProductVendorInfo';
+import { useProductVendorInfo } from '@/shared/hooks/useProductVendorInfo';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // useRequisitionsForPO.jsx (REVISI — selaras dengan RequisitionPOCreate.java)

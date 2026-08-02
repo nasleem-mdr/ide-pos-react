@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LogoIconP } from '@/components/icon';
-import { useAccess } from '../context/AccessContext';
-import '../css/Sidebar.css';
-import { getMenuSections } from '../config/menuConfig';
+
+import { LogoIconP } from '@/shared/components/icon';
+import { getMenuSections } from '@/config/menuConfig';
+import { useAccess } from '@/context/AccessContext';
+import '@/css/Sidebar.css';
 
 const menuSections = getMenuSections(); // semua section — sumber tunggal dari menuConfig
 

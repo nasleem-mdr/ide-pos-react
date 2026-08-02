@@ -4,9 +4,8 @@ import { Link } from "react-router-dom";
 import QRCode from "qrcode";
 import jsPDF from "jspdf";
 
-import { LogoSMAMerahHitam, LogoSMA20 } from "@/components/icon";
-import PageHeader from '@/components/PageHeader';
-import DataTable from '@/components/DataTable';
+import { LogoSMAMerahHitam, LogoSMA20 } from "@/shared/components/icon";
+import { PageHeader, DataTable } from '@/shared/components/setup';
 
 import { useInfiniteScroll } from "@/shared/hooks/useInfiniteScroll";
 

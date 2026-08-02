@@ -1,5 +1,5 @@
 import React from 'react';
-import '../css/ProductCard.css';
+import '@/css/ProductCard.css';
 
 /**
  * ProductCard

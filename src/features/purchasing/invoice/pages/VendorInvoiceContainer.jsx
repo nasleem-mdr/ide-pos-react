@@ -8,7 +8,7 @@ import { useInvoiceSubmit, usePOInvoiceLines, usePaymentAllocationSubmit, useInv
 
 import { COLOR, RADIUS } from '@/utils/styleTokens';
 import { resolveDocTypeId, DOC_BASE_TYPE } from '@/utils/docTypeResolver';
-import { ShoppingCartIcon } from '@/components/icon';
+import { ShoppingCartIcon } from '@/shared/components/icon';
 import { useAccess } from '@/context/AccessContext';
 import '@/css/Header.css';
 

@@ -1,6 +1,6 @@
 import React from 'react';
-import UOMSelect from './UOMSelect';
-import '../css/CartItem.css';
+import UOMSelect from '@/shared/components/setup/UOMSelect';
+import '@/css/CartItem.css';
 
 /**
  * CartItem — single-row layout:

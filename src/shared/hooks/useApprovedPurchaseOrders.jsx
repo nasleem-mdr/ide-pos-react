@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { idempiereApi, fkId, fkLabel } from '@/utils/idempiereApi';
+import { idempiereApi, fkId, fkLabel } from '@/utils';
 
 const APPROVED_STATUSES = ['CO', 'CL'];
 
@@ -22,45 +22,76 @@ export function useApprovedPurchaseOrders() {
   const openStatusFilter = () =>
     OPEN_INOUT_STATUSES.map(s => `M_InOut_ID/DocStatus eq '${s}'`).join(' or ');
 
-  // Ambil total qty yang "reserved" oleh Receipt lain yang masih terbuka,
-  // untuk SATU PO (dipakai di daftar Step 1).
-  const fetchReservedQtyForOrder = useCallback(async (orderId) => {
-    try {
-      const res = await idempiereApi(
-        `/models/m_inoutline?$select=MovementQty` +
-        `&$filter=C_OrderLine_ID/C_Order_ID eq ${orderId} and (${openStatusFilter()})`
-      );
-      const records = Array.isArray(res.records) ? res.records : [];
-      return records.reduce((sum, r) => sum + parseFloat(r.MovementQty || 0), 0);
-    } catch (err) {
-      console.warn(`[useApprovedPurchaseOrders] gagal cek reserved qty PO ${orderId}:`, err);
-      return 0; // gagal cek → jangan block PO ini (fallback tetap tampil, sama pola dgn _queryOk)
-    }
-  }, []);
-
-  // Ambil reserved qty PER LINE (dipakai di Step 2, saat 1 PO dipilih).
-  // Return: Map<C_OrderLine_ID, reservedQty>
+  // Ambil reserved qty PER LINE (dipakai di Step 2, dan juga oleh
+  // fetchReservedQtyForOrder). Return: Map<C_OrderLine_ID, reservedQty>
+  // CATATAN: filter navigasi FK apa pun di m_inoutline ditolak bxservice
+  // ("Invalid column for filter"), baik C_OrderLine_ID/C_Order_ID,
+  // C_OrderLine_ID/id, MAUPUN M_InOut_ID/DocStatus. Jadi solusinya:
+  //  1) ambil M_InOut_ID yang DocStatus-nya DR/IP dari tabel m_inout
+  //     (plain column di tabelnya sendiri, bukan navigasi FK → aman)
+  //  2) ambil m_inoutline TANPA filter FK, lalu filter M_InOut_ID dan
+  //     C_OrderLine_ID di JS.
   const fetchReservedQtyByLine = useCallback(async (orderLineIds) => {
     if (!orderLineIds || orderLineIds.length === 0) return new Map();
     try {
-      const lineFilter = orderLineIds.map(id => `C_OrderLine_ID eq ${id}`).join(' or ');
+      // STEP 1: header M_InOut yang masih open
+      const inoutRes = await idempiereApi(
+        `/models/m_inout?$select=M_InOut_ID` +
+        `&$filter=${OPEN_INOUT_STATUSES.map(s => `DocStatus eq '${s}'`).join(' or ')}`
+      );
+      const inoutRecords = Array.isArray(inoutRes.records) ? inoutRes.records : [];
+      const openInoutIds = new Set(
+        inoutRecords.map(r => fkId(r.M_InOut_ID) ?? r.id).filter(Boolean)
+      );
+      if (openInoutIds.size === 0) return new Map();
+
+      // STEP 2: semua m_inoutline, filter M_InOut_ID + C_OrderLine_ID di JS
       const res = await idempiereApi(
-        `/models/m_inoutline?$select=C_OrderLine_ID,MovementQty` +
-        `&$filter=(${lineFilter}) and (${openStatusFilter()})`
+        `/models/m_inoutline?$select=C_OrderLine_ID,MovementQty,M_InOut_ID`
       );
       const records = Array.isArray(res.records) ? res.records : [];
+      const lineIdSet = new Set(orderLineIds);
+
       const map = new Map();
       records.forEach(r => {
-        const lineId = fkId(r.C_OrderLine_ID);
-        if (!lineId) return;
+        const inoutId = fkId(r.M_InOut_ID);
+        const lineId  = fkId(r.C_OrderLine_ID);
+        if (!inoutId || !lineId) return;
+        if (!openInoutIds.has(inoutId)) return;
+        if (!lineIdSet.has(lineId)) return;
         map.set(lineId, (map.get(lineId) || 0) + parseFloat(r.MovementQty || 0));
       });
       return map;
     } catch (err) {
       console.warn('[useApprovedPurchaseOrders] gagal cek reserved qty per line:', err);
-      return new Map(); // gagal cek → treat sebagai 0 reserved (fallback tetap tampil)
+      return new Map();
     }
   }, []);
+  // Ambil total qty yang "reserved" oleh Receipt lain yang masih terbuka,
+  // untuk SATU PO (dipakai di daftar Step 1).
+  // CATATAN: bxservice REST cuma support FK navigation 1 level, jadi filter
+  // "C_OrderLine_ID/C_Order_ID eq X" (2-hop) tidak valid. Solusinya: ambil
+  // dulu C_OrderLine_ID milik order ini (1-hop di c_orderline), lalu pakai
+  // hasilnya untuk query m_inoutline via fetchReservedQtyByLine (1-hop juga).
+  const fetchReservedQtyForOrder = useCallback(async (orderId) => {
+    try {
+      const lineRes = await idempiereApi(
+        `/models/c_orderline?$select=C_OrderLine_ID` +
+        `&$filter=C_Order_ID eq ${orderId}`
+      );
+      const lineRecords = Array.isArray(lineRes.records) ? lineRes.records : [];
+      const lineIds = lineRecords.map(l => fkId(l.C_OrderLine_ID) ?? l.id).filter(Boolean);
+      if (lineIds.length === 0) return 0;
+
+      const reservedMap = await fetchReservedQtyByLine(lineIds);
+      let total = 0;
+      reservedMap.forEach(qty => { total += qty; });
+      return total;
+    } catch (err) {
+      console.warn(`[useApprovedPurchaseOrders] gagal cek reserved qty PO ${orderId}:`, err);
+      return 0;
+    }
+  }, [fetchReservedQtyByLine]);
 
   const fetchApprovedOrders = useCallback(async ({ warehouseId = null, search = '' } = {}) => {
     setLoadingList(true);

@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import PageHeader from "@/components/PageHeader";
-import DataTable from "@/components/DataTable";
+import { PageHeader, DataTable } from "@/shared/components";
 import "@/App.css";
 
 const SalesOrderPage = () => {

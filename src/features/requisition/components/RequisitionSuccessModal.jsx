@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { COLOR, RADIUS } from '@/utils/styleTokens';
-import { RequisitionIcon } from '@/components/icon';
+import { RequisitionIcon } from '@/shared/components/icon';
 
 const RequisitionSuccessModal = ({ isOpen, data, onClose }) => {
   const navigate = useNavigate();

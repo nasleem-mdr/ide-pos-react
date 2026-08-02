@@ -1,15 +1,15 @@
 import React from 'react';
 import { BarChart, Bar, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, CartesianGrid } from 'recharts';
-import useGenericStats from '../../hooks/useGenericStats';
-import useDashboardAccess from '../../hooks/useDashboardAccess';
-import usePurchasingStats from '../../hooks/usePurchasingStats';
+import useGenericStats from '@/shared/hooks/useGenericStats';
+import useDashboardAccess from '@/shared/hooks/useDashboardAccess';
+import usePurchasingStats from '@/shared/hooks/usePurchasingStats';
 import useRequisitionConversion from '@/features/requisition/hooks/useRequisitionConversion';
-import '../../css/Dashboard.css';
-import { useAccess } from '../../context/AccessContext';
+import '@/css/Dashboard.css';
+import { useAccess } from '@/context/AccessContext';
 import LineChart from './LineChart';
 import { Link, useLocation } from 'react-router-dom';
-import { ShoppingCartIcon, RequisitionIcon, ReciprocalIcon } from '@/components/icon';
-import { getMenuSections } from '../../config/menuConfig';
+import { ShoppingCartIcon, RequisitionIcon, ReciprocalIcon } from '@/shared/components';
+import { getMenuSections } from '@/config/menuConfig';
 
 const COLOR_DR = '#f57c00';
 const COLOR_CO = '#00d1b2';   // teal — sama dengan welcome-card-icon

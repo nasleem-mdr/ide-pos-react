@@ -1,12 +1,11 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import ReactDOMServer from "react-dom/server";
-import PageHeader from "@/components/PageHeader";
-import DataTable from "@/components/DataTable";
+import { PageHeader, DataTable } from "@/shared/components/setup";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import QRCode from "qrcode";
-import { LogoSMAMerahHitam } from "@/components/icon";
+import { LogoSMAMerahHitam } from "@/shared/components/icon";
 import { idempiereApi } from "@/utils/idempiereApi";
 import "@/App.css";
 

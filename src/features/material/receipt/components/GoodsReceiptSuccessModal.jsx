@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { COLOR, RADIUS } from '@/utils/styleTokens';
+import { COLOR, RADIUS } from '@/utils';
+import { DeliveryIcon } from '@/shared/components'; 
 
 // Struktur & gaya sengaja dibuat identik dengan RequisitionSuccessModal.jsx
 // supaya konsisten secara visual antar modul.
@@ -33,7 +34,9 @@ const GoodsReceiptSuccessModal = ({ isOpen, data, onClose }) => {
             lineHeight: 1,
           }}
         >✕</button>
-        <div style={{ fontSize: '52px', marginBottom: '8px' }}>📦✅</div>
+        <div style={{ fontSize: '52px', marginBottom: '8px' }}>
+          < DeliveryIcon size={30}/>
+          </div>
         <div style={{ fontSize: '19px', fontWeight: 700, color: COLOR.success, marginBottom: '4px' }}>
           Penerimaan Barang Berhasil!
         </div>
@@ -45,6 +48,12 @@ const GoodsReceiptSuccessModal = ({ isOpen, data, onClose }) => {
           background: COLOR.successLt, border: `1px solid #bbf7d0`,
           borderRadius: RADIUS.md, padding: '14px', marginBottom: '16px', textAlign: 'left',
         }}>
+          <div style={{ 
+            display: 'flex', 
+            flexWrap: 'wrap', 
+            rowGap: '12px' /* Jarak antar baris atas dan bawah */
+          }}>
+
           {[
             ['Document No', data.documentNo, true],
             ['Tanggal',     data.date,        false],
@@ -52,14 +61,17 @@ const GoodsReceiptSuccessModal = ({ isOpen, data, onClose }) => {
             ['Total Item',  `${data.items.length} produk`, false],
           ].map(([label, val, bold]) => (
             <div key={label} style={{ marginBottom: '6px' }}>
-              <span style={{ color: COLOR.textLt, fontSize: '11px' }}>{label}</span>
+              <span style={{ 
+                color: COLOR.textLt, 
+                fontSize: '11px' }}>
+                  {label}</span>
               <div style={{ fontSize: bold ? '16px' : '14px', fontWeight: bold ? 700 : 500, color: COLOR.textDk }}>
                 {val}
               </div>
             </div>
           ))}
         </div>
-
+      </div>
         <div style={{ textAlign: 'left', marginBottom: '20px' }}>
           <div style={{ fontWeight: 600, fontSize: '12px', color: COLOR.textMd, marginBottom: '6px' }}>
             Detail Penerimaan:

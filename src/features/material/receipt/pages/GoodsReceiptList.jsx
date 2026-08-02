@@ -5,12 +5,15 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import QRCode from "qrcode";
 
-import PageHeader from "@/components/PageHeader";
-import DataTable from "@/components/DataTable";
-import { LogoSMAMerahHitam} from "@/components/icon";
-import { idempiereApi } from "@/utils/idempiereApi";
-import "@/App.css";
+import { 
+    PageHeader, 
+    DataTable, 
+    LogoSMAMerahHitam 
+} from "@/shared/components";
 
+import { idempiereApi } from "@/utils";
+
+import "@/App.css";
 
 const GoodsReceiptList = () => {
     const todayStr = new Date().toISOString().split("T")[0];

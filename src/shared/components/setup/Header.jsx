@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { UserIcon, RoleIcon, LogoIconW, LogoutIcon } from '@/components/icon';
+import { UserIcon, RoleIcon, LogoIconW, LogoutIcon } from '@/shared/components';
 import ChangeRoleModal from './ChangeRoleModal';
 import { useNavigate } from "react-router-dom";
-import '../css/Header.css';
+import '@/css/Header.css';
  
 export default function Header({ session, onLogout, onSessionUpdate }) {
   const { username, clientName, clientId, roleName, roleId } = session;

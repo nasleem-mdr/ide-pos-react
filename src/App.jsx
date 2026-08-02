@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom"; 
 
-import RequisitionContainer from './features/requisition/pages/RequisitionContainer';
+import RequisitionContainer from '@/features/requisition/pages/RequisitionContainer';
 import RequisitionView from "@/features/requisition/pages/RequisitionView";
 import RequisitionList from "@/features/requisition/pages/RequisitionList";
 
@@ -20,15 +20,15 @@ import POSContainer from "@/features/sales/order/pages/POSContainer";
 
 import BookingTimeline from './pages/BookingTimeline';
 import ProductList from "./pages/ProductList";
-import BusinessPartner from "./pages/BusinessPartner"; 
-import BusinessPartnerDetail from "./pages/BusinessPartnerDetail";
-import BusinessPartnerEdit from './pages/BusinessPartnerEdit';
-import { AccessProvider } from './context/AccessContext';
-import ProtectedRoute from './components/ProtectedRoute';
-import IDempiereAuth from "./pages/IDempiereAuth";
-import Dashboard from "./pages/Dashboard";
-import Header from "./components/Header"; 
-import Sidebar from "./components/Sidebar";
+import BusinessPartner from "@/features/master/partner/pages/BusinessPartner"; 
+import BusinessPartnerDetail from "@/features/master/partner/pages/BusinessPartnerDetail";
+import BusinessPartnerEdit from '@/features/master/partner/pages/BusinessPartnerEdit';
+import { AccessProvider } from '@/context/AccessContext';
+import ProtectedRoute from '@/components/ProtectedRoute';
+
+import IDempiereAuth from "@/pages/IDempiereAuth";
+import Dashboard from "@/pages/Dashboard";
+import { Header, Sidebar } from "@/shared/components/setup"; 
 
 import './css/AppLayout.css'; // Pastikan mengimpor file CSS layout Anda
 

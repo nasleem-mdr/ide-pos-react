@@ -1,16 +1,14 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 
-import {Dialog, CartFab, ProductCard, ProductDetailSheet, BarcodeScanner }from '@/shared/components';
+import {Dialog, CartFab, ProductCard, ProductDetailSheet, BarcodeScanner,HomeIcon, ImportIcon, ShoppingCartIcon, ScanIcon }from '@/shared/components';
 
 import { useIsDesktop, useBankAccounts, useUomConversion, getLoginInfo, getMissingSessionFields } from '@/shared/hooks';
 import { VendorPickerModal, RequisitionToPOImportModal, PurchaseOrderSuccessModal, PurchaseSubmitModal, CashPurchaseProgressModal } from '@/features/purchasing/order/components';
 import { POCartSidebar, POCartPanel } from '@/features/purchasing/shared/components';
 import { useCashPurchaseSubmit, usePurchaseOrderSubmit } from '@/features/purchasing/order/hooks';
 
-import { useProductSearch } from '@/hooks/useProductSearch';
-import { usePOCart, lineKey } from '@/hooks/usePOCart';
-import { useProductVendorInfo } from '@/hooks/useProductVendorInfo';
+import { useProductSearch, usePOCart, lineKey, useProductVendorInfo } from '@/shared/hooks';
 
 import { useAccess } from '@/context/AccessContext';
 import { COLOR, RADIUS } from '@/utils/styleTokens';
@@ -18,7 +16,7 @@ import { idempiereApi, fkId } from '@/utils/idempiereApi';
 import { resolveDocTypeId, DOC_BASE_TYPE } from '@/utils/docTypeResolver';
 
 import '@/css/Header.css';
-import { HomeIcon, ImportIcon, ShoppingCartIcon, ScanIcon } from '@/components/icon';
+
 
 // ⚠️ WAJIB DISESUAIKAN: ganti dengan C_DocType_ID Document Type "Purchase
 // Order" di instance Anda.

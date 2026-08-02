@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { ShoppingCartIcon, DeliveryIcon, RequisitionIcon, UserTake, CashierIcon } from '@/components/icon';
+import { ShoppingCartIcon, DeliveryIcon, RequisitionIcon, UserTake, CashierIcon } from '@/shared/components/icon';
 
 /**
  * WelcomeCards — kartu info sesi + shortcut navigasi

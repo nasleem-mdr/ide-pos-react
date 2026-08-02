@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { COLOR, RADIUS } from '../../utils/styleTokens';
+import { COLOR, RADIUS } from '@/utils/styleTokens';
 
 const BarcodeScanner = ({ isOpen, onDetected, onClose }) => {
   const videoRef    = useRef(null);
