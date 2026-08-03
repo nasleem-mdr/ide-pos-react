@@ -1,6 +1,6 @@
 # ProcureGrid & POS System (React + iDempiere REST Integration)
 
-Aplikasi klien berbasis React yang awalnya dibangun untuk sistem Kasir (*Point of Sale*), kini telah dikembangkan menjadi modul **Procurement (Pengadaan Barang)** ujung-ke-ujung yang terintegrasi langsung dengan **iDempiere ERP REST API**.
+Aplikasi klien berbasis React yang awalnya dibangun untuk sistem Kasir (*Point of Sale*), kini telah dikembangkan dan ditambahkan modul **Procurement (Pengadaan Barang)** , dan bisa dikatakan ini adalah IDempiere versi lite, khusus untuk penanganan transaksi, belum menyentuh Setup dan configuration, dimana masih dilakukan di IDempiere.Aplikasi ini terhubung dan terintegrasi langsung dengan **iDempiere ERP REST API**.
 
 Aplikasi ini bersifat *free & open-source*. 
 *(Catatan Produksi: Masih banyak baris `console.log` aktif untuk keperluan debugging/pengujian lokal. Pastikan untuk membersihkannya sebelum naik ke lingkungan production).*
@@ -56,10 +56,10 @@ npm install recharts jspdf jspdf-autotable qrcode react-router-dom
 ide-pos-react/
 ├── public/              # Aset statis (index.html, favicon, dll.)
 ├── src/
-│   ├── assets/          # Gambar, logo, dan file font global
-│   ├── components/      # Komponen UI yang reusable (Button, Modal, Input)
-│   ├── config/  
-│   ├── context/         # State management global (jika menggunakan React Context)
+│   ├── api/          # rest api 
+│   ├── config/       # 
+│   ├── context/      # State management global (jika menggunakan React Context)
+│   ├── features/         #
 │   ├── hooks/           # Custom React Hooks (misal: useCart, useAuth)
 │   ├── pages/           # Komponen halaman utama (Dashboard, Kasir/POS, Laporan) 
 │   ├── utils/           # Fungsi Api IDempiere dan pembantu / helper
