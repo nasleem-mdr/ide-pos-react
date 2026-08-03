@@ -1,12 +1,38 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import { Dialog, CartFab, ProductCard, ProductDetailSheet, BarcodeScanner, UserTake, ImportIcon } from '@/shared/components';
-import { getLoginInfo, getMissingSessionFields, useProductStock, useIsDesktop, useProductSearch } from '@/shared/hooks';
-import { InternalUseCartPanel, ChargePickerModal, InventoryPickerModal, InternalUseSuccessModal, InternalUseCartSidebar } from '@/features/internal/components';
-import { useInternalUseCart, useInternalUseSubmit } from '@/features/internal/hooks';
+import { 
+  Dialog, 
+  CartFab, 
+  ProductCard, 
+  ProductDetailSheet, 
+  BarcodeScanner, 
+  UserTake, 
+  ImportIcon 
+} from '@/shared/components';
 
-import { idempiereApi } from '@/utils/idempiereApi';
+import { 
+  getLoginInfo, 
+  getMissingSessionFields, 
+  useProductStock, 
+  useIsDesktop, 
+  useProductSearch 
+} from '@/shared/hooks';
+
+import { 
+  InternalUseCartPanel, 
+  ChargePickerModal, 
+  InventoryPickerModal, 
+  InternalUseSuccessModal, 
+  InternalUseCartSidebar 
+} from '@/features/material/internaluse/components';
+
+import { 
+  useInternalUseCart, 
+  useInternalUseSubmit 
+} from '@/features/material/internaluse/hooks';
+
+import { idempiereApi } from '@/api/idempiereApi';
 import { COLOR, RADIUS } from '@/utils/styleTokens';
 import { resolveDocTypeId, DOC_BASE_TYPE, DOC_SUB_TYPE_INV } from '@/utils/docTypeResolver';
 import { useAccess } from '@/context/AccessContext';

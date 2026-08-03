@@ -1,9 +1,24 @@
 import React, { useState, useEffect, useRef, useCallback} from 'react';
 import { useNavigate, useLocation } from "react-router-dom";
-import { ProductCard, SearchBar, CartItem, ScanIcon, ProductGrid , CartPanel, CartSidebar, BarcodeScanner } from '@/shared/components';
-import { ConfirmModal, PaymentModal, ReceiptModal } from '@/features/sales/order/components';
+import { 
+    ProductCard, 
+    SearchBar, 
+    CartItem, 
+    ScanIcon, 
+    ProductGrid , 
+    CartPanel, 
+    CartSidebar, 
+    BarcodeScanner 
+} from '@/shared/components';
+
+import { 
+    ConfirmModal, 
+    PaymentModal, 
+    ReceiptModal 
+} from '@/features/sales/order/components';
+
 import { useAccess } from '@/context/AccessContext';
-import { idempiereApi } from '@/utils/idempiereApi';
+import { idempiereApi } from '@/api/idempiereApi';
 import { useIsDesktop } from '@/shared/hooks/useIsDesktop';
 
 const POSContainer = () => {

@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 
-import BottomSheet from '@/shared/components/common/BottomSheet';
-import QtyStepper from '@/shared/components/common/QtyStepper';
+import { BottomSheet, QtyStepper } from '@/shared/components/common';
 
 import { useUomConversion } from '@/shared/hooks/useUomConversion';
 
 import { COLOR, RADIUS } from '@/utils/styleTokens';
-import { getProductImageBlobUrls, getProductAvailability } from '@/utils/idempiereApi';
+import { 
+  getProductImageBlobUrls, 
+  getProductAvailability 
+} from '@/api/idempiereApi';
 
 import '@/css/ProductDetailSheet.css';
 
@@ -115,7 +117,7 @@ const ProductDetailSheet = ({
   const hasMultiUom = uomOptions.length > 1;
 
   return (
-    <BottomSheet isOpen={isOpen} onClose={onClose} maxHeight="90dvh">
+    <BottomSheet isOpen={isOpen} onClose={onClose} maxHeight="90dvh" position="center">
       <div className="pds-wrapper">
 
         {/* Header */}
@@ -160,7 +162,14 @@ const ProductDetailSheet = ({
               onTouchStart={handleTouchStart}
               onTouchEnd={handleTouchEnd}
             >
-              <img src={images[activeIdx].url} alt={`${product.Name} ${activeIdx + 1}`} />
+              <img 
+                src={images[activeIdx].url} 
+                alt={`${product.Name} ${activeIdx + 1}`}
+                onError={(e) => {
+                  console.warn('Gagal load image blob, mungkin sudah di-revoke:', images[activeIdx].name);
+                  // opsional: skip ke gambar berikutnya kalau ada, atau sembunyikan
+                }}
+                />
 
               {images.length > 1 && (
                 <>

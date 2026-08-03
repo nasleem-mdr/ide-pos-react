@@ -2,22 +2,43 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 
-// 2. Context
-import { useAccess } from '@/context/AccessContext';
-
-// 3. Hooks
+// 2. Feature Hooks
 import { useRequisitionSubmit } from '@/features/requisition/hooks/useRequisitionSubmit';
 
-// 4. Components
-import { Dialog, CartFab, CartPanel, CartSidebar, ProductDetailSheet, BarcodeScanner, HomeIcon, RequisitionIcon,ScanIcon, WarehouseIcon, ProductGrid } from '@/shared/components';
+// 3. Feature Component
 import { RequisitionSuccessModal } from '@/features/requisition/components';
-import { getLoginInfo, getMissingSessionFields, useCart, useProductSearch, useIsDesktop } from '@/shared/hooks'; 
-// 5. Utils
-import { idempiereApi, fkId } from '@/utils/idempiereApi';
+
+// 4. Shared Hooks
+import { 
+  getLoginInfo, 
+  getMissingSessionFields, 
+  useCart, 
+  useProductSearch, 
+  useIsDesktop 
+} from '@/shared/hooks'; 
+
+// 5. Shared Components
+import { 
+  Dialog, 
+  CartFab, 
+  CartPanel, 
+  CartSidebar, 
+  ProductDetailSheet, 
+  BarcodeScanner, 
+  RequisitionIcon,
+  ScanIcon, 
+  ProductGrid 
+} from '@/shared/components';
+
+// 6. Utils
+import { idempiereApi, fkId } from '@/api/idempiereApi';
 import { resolveDocTypeId, DOC_BASE_TYPE } from '@/utils/docTypeResolver';
 import { COLOR, RADIUS } from '@/utils/styleTokens';
 
-// 6. Styles
+// 7. Context
+import { useAccess } from '@/context/AccessContext';
+
+// 8. Styles
 import '@/css/Header.css';
 
 const REQUISITION_CONFIG = {

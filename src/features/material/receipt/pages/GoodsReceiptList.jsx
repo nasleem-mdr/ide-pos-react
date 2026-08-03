@@ -11,7 +11,7 @@ import {
     LogoSMAMerahHitam 
 } from "@/shared/components";
 
-import { idempiereApi } from "@/utils";
+import { idempiereApi } from "@/api/idempiereApi";
 
 import "@/App.css";
 

@@ -5,7 +5,7 @@ import {
   createModelRecord,
   updateModelRecord,
   deleteModelRecord,
-} from "@/utils/idempiereApi"; // pastikan idempiereApi.additions.js sudah digabung ke file ini
+} from "@/api/idempiereApi"; // pastikan idempiereApi.additions.js sudah digabung ke file ini
 
 /**
  * useResourceBooking

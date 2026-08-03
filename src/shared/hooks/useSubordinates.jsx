@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { idempiereApi } from '@/utils/idempiereApi';
+import { idempiereApi } from '@/api/idempiereApi';
 // const API_BASE = '/api/v1';
 
 /**

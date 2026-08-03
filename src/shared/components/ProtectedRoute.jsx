@@ -10,12 +10,6 @@ import { useAccess } from '@/context/AccessContext';
 // state singkat alih-alih langsung redirect (mencegah flash redirect saat
 // refresh halaman).
 //
-// Penggunaan di App.jsx:
-//   <Route path="/requisition" element={
-//     <ProtectedRoute windowKey="requisition">
-//       <RequisitionContainer />
-//     </ProtectedRoute>
-//   } />
 // ─────────────────────────────────────────────────────────────────────────────
 const ProtectedRoute = ({ windowKey, children, fallbackPath = '/dashboard' }) => {
   const { canView, loading } = useAccess();

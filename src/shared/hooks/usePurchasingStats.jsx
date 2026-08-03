@@ -1,6 +1,6 @@
 // src/hooks/usePurchasingStats.jsx
 import { useState, useEffect, useCallback } from 'react';
-import { idempiereApi } from '@/utils/idempiereApi'; // sesuaikan path
+import { idempiereApi } from '@/api/idempiereApi'; // sesuaikan path
 
 function toDateStr(d) {
   return d.toISOString().split('T')[0];

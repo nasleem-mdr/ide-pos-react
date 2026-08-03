@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { idempiereApi, fkId } from '@/utils/idempiereApi';
+import { idempiereApi, fkId } from '@/api/idempiereApi';
 import { getLoginInfo } from '@/shared/hooks';
 import { useUomConversion } from '@/shared/hooks/useUomConversion';
 import { resolveCurrencyIso } from '@/utils/currency'; 

@@ -12,7 +12,7 @@ import { useProductSearch, usePOCart, lineKey, useProductVendorInfo } from '@/sh
 
 import { useAccess } from '@/context/AccessContext';
 import { COLOR, RADIUS } from '@/utils/styleTokens';
-import { idempiereApi, fkId } from '@/utils/idempiereApi';
+import { idempiereApi, fkId } from '@/api/idempiereApi';
 import { resolveDocTypeId, DOC_BASE_TYPE } from '@/utils/docTypeResolver';
 
 import '@/css/Header.css';

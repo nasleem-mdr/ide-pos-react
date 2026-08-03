@@ -9,7 +9,7 @@ import {
 
 import { 
   useApprovedPurchaseOrders 
-} from '@/shared/hooks/useApprovedPurchaseOrders';
+} from '@/features/material/receipt/hooks/useApprovedPurchaseOrders';
 
 import { 
   COLOR, RADIUS 

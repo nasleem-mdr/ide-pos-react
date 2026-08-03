@@ -9,7 +9,7 @@ import { PageHeader, DataTable } from '@/shared/components/setup';
 
 import { useInfiniteScroll } from "@/shared/hooks/useInfiniteScroll";
 
-import { idempiereApi, getProductImageBlobUrls, getFirstProductImageBlobUrl } from '@/utils/idempiereApi';
+import { idempiereApi, getProductImageBlobUrls, getFirstProductImageBlobUrl } from '@/api/idempiereApi';
 import '@/App.css';
 
 // ---------- Brand palette (sesuaikan dengan warna resmi Sekupang Logistics) ----------

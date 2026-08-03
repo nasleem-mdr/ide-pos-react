@@ -1,4 +1,4 @@
-import { idempiereApi, fkId } from '@/utils/idempiereApi';
+import { idempiereApi, fkId } from '@/api/idempiereApi';
 // Cache C_Currency_ID → ISO_Code selama sesi aplikasi berjalan — currency
 // master data praktis tidak pernah berubah di runtime, jadi aman di-cache
 // tanpa invalidation.

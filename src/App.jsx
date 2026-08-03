@@ -1,31 +1,39 @@
 import { useState } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom"; 
 
+//purchasing
+import { 
+  PurchasingContainer, 
+  PurchasingList, 
+  PurchasingView 
+} from "./features/purchasing/order/pages";
+
+import { VendorInvoiceContainer } from '@/features/purchasing/invoice/pages';
+
+// Material Management
 import RequisitionContainer from '@/features/requisition/pages/RequisitionContainer';
 import RequisitionView from "@/features/requisition/pages/RequisitionView";
 import RequisitionList from "@/features/requisition/pages/RequisitionList";
-
-//purchasing
-import { PurchasingContainer, PurchasingList, PurchasingView } from "./features/purchasing/order/pages";
-import { VendorInvoiceContainer } from '@/features/purchasing/invoice/pages';
-
 import GoodsReceiptContainer from '@/features/material/receipt/pages/GoodsReceiptContainer';
 import GoodsReceiptList from "@/features/material/receipt/pages/GoodsReceiptList";
+import InternalUseContainer from '@/features/material/internaluse/pages/InternalUseContainer';
+import InternalUseList from "@/features/material/internaluse/pages/InternalUseList";
+import ProductList from "@/features/master/product/pages/ProductList";
+import ProductDetail from "@/features/master/product/pages/ProductDetail";
 
-import InternalUseContainer from '@/features/internal/pages/InternalUseContainer';
-import InternalUseList from "@/features/internal/pages/InternalUseList";
-
+// Sales Management
 import SalesOrderPage from "@/features/sales/order/pages/SalesOrderPage";
 import POSContainer from "@/features/sales/order/pages/POSContainer"; 
 
 import BookingTimeline from './pages/BookingTimeline';
-import ProductList from "./pages/ProductList";
+
+// Partner management
 import BusinessPartner from "@/features/master/partner/pages/BusinessPartner"; 
 import BusinessPartnerDetail from "@/features/master/partner/pages/BusinessPartnerDetail";
 import BusinessPartnerEdit from '@/features/master/partner/pages/BusinessPartnerEdit';
 import { AccessProvider } from '@/context/AccessContext';
-import ProtectedRoute from '@/components/ProtectedRoute';
 
+import ProtectedRoute from '@/shared/components/ProtectedRoute';
 import IDempiereAuth from "@/pages/IDempiereAuth";
 import Dashboard from "@/pages/Dashboard";
 import { Header, Sidebar } from "@/shared/components/setup"; 
@@ -102,6 +110,11 @@ export default function App() {
                         <Route path="/product" element={
                           <ProtectedRoute windowKey="product">
                             <ProductList />
+                          </ProtectedRoute>
+                        } />
+                        <Route path="/product-detail" element={
+                          <ProtectedRoute windowKey="productDetail">
+                            <ProductDetail />
                           </ProtectedRoute>
                         } />
                         {/* ===== Transaksi ===== */}

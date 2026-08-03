@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { idempiereApi, fkId } from '@/utils/idempiereApi';
+import { idempiereApi, fkId } from '@/api/idempiereApi';
 import { COLOR, RADIUS } from '@/utils/styleTokens';
 
 // ─────────────────────────────────────────────────────────────────────────────

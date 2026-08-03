@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { idempiereApi } from '@/utils/idempiereApi';
+import { idempiereApi } from '@/api/idempiereApi';
 import { getLoginInfo } from '@/shared/hooks/useLoginInfo';
 import { useUomConversion } from '@/shared/hooks/useUomConversion';
 

@@ -1,6 +1,9 @@
 import { useState, useRef, useCallback } from 'react';
 
-import { StockIcon, VendorIcon } from '@/shared/components/icon';
+import { 
+  StockIcon, 
+  VendorIcon 
+} from '@/shared/components/icon';
 
 import { COLOR } from '@/utils/styleTokens';
 

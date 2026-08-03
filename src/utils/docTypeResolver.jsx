@@ -1,4 +1,4 @@
-import { idempiereApi } from './idempiereApi';
+import { idempiereApi } from '@/api/idempiereApi';
 import { getLoginInfo } from '@/shared/hooks/useLoginInfo';
 
 // ─────────────────────────────────────────────────────────────────────────────

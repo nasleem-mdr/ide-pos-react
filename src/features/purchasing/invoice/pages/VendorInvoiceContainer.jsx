@@ -1,10 +1,36 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 
-import { Dialog, CartFab } from '@/shared/components';
-import { useIsDesktop, getLoginInfo, getMissingSessionFields } from '@/shared/hooks';
-import { POCard, POLineDetailSheet,POCartSidebar, POCartPanel } from '@/features/purchasing/shared/components';
-import { InvoiceSubmitModal, VendorInvoiceSuccessModal } from '@/features/purchasing/invoice/components';
-import { useInvoiceSubmit, usePOInvoiceLines, usePaymentAllocationSubmit, useInvoiceCart, useBankAccounts } from '@/features/purchasing/invoice/hooks';
+import { 
+  Dialog, 
+  CartFab 
+} from '@/shared/components';
+
+import { 
+  useIsDesktop, 
+  getLoginInfo, 
+  getMissingSessionFields,
+  useInfiniteScroll 
+} from '@/shared/hooks';
+
+import { 
+  POCard, 
+  POLineDetailSheet,
+  POCartSidebar, 
+  POCartPanel 
+} from '@/features/purchasing/shared/components';
+
+import { 
+  InvoiceSubmitModal, 
+  VendorInvoiceSuccessModal 
+} from '@/features/purchasing/invoice/components';
+
+import { 
+  useInvoiceSubmit, 
+  usePOInvoiceLines, 
+  usePaymentAllocationSubmit, 
+  useInvoiceCart, 
+  useBankAccounts 
+} from '@/features/purchasing/invoice/hooks';
 
 import { COLOR, RADIUS } from '@/utils/styleTokens';
 import { resolveDocTypeId, DOC_BASE_TYPE } from '@/utils/docTypeResolver';
@@ -16,7 +42,6 @@ const INVOICE_CONFIG = { DESCRIPTION: 'Purchase Invoice via Web' };
 
 const VendorInvoiceContainer = () => {
   const isDesktop = useIsDesktop();
-
   const [cartOpen, setCartOpen] = useState(false);
   const [dialog, setDialog] = useState({ isOpen: false, title: '', message: '' });
   const [detailOpen, setDetailOpen] = useState(false);
@@ -32,7 +57,7 @@ const VendorInvoiceContainer = () => {
   const searchRef = useRef(null);
   const alert = (message, title = 'Perhatian') => setDialog({ isOpen: true, title, message });
 
-  const { pos, loading: posLoading, fetchPOs, search, searchValue, setSearchValue } = usePOInvoiceLines();
+  
   const { cart, addItems, removeItem, updateQty, updatePrice, clearCart, totalItems, totalAmount, vendorGroups } = useInvoiceCart();
   const { bankAccounts } = useBankAccounts();
   const { canEdit } = useAccess();
@@ -44,7 +69,24 @@ const VendorInvoiceContainer = () => {
   const { submit: submitPaymentAllocation, isSubmitting: paymentSubmitting } = usePaymentAllocationSubmit({
     paymentDocTypeId, description: 'Pelunasan Invoice', onError: alert,
   });
-
+  
+  const {
+    pos, loading: posLoading, fetchPOs,
+    search, searchValue,
+    hasMore, loadingMore, fetchNextPage,
+  } = usePOInvoiceLines();
+  
+  const [showFullyInvoiced, setShowFullyInvoiced] = useState(false);
+  const outstandingPOs = pos.filter(po => !po.isFullyInvoiced);
+  const visiblePOs = showFullyInvoiced ? pos : outstandingPOs;
+  const hiddenCount = pos.length - outstandingPOs.length;
+  
+  const sentinelRef = useInfiniteScroll({
+    fetchMore: fetchNextPage,
+    hasMore,
+    loading: loadingMore,
+  });
+  
   useEffect(() => {
     const init = async () => {
       try {
@@ -175,10 +217,39 @@ const VendorInvoiceContainer = () => {
               </div>
             ) : (
               <>
-                <div style={{ fontSize: '12px', color: COLOR.textLt, marginBottom: '8px' }}>{pos.length} PO ditemukan</div>
-                <div style={{ display: 'grid', gridTemplateColumns: isDesktop ? 'repeat(auto-fill, minmax(200px, 1fr))' : 'repeat(2, 1fr)', gap: '10px' }}>
-                  {pos.map(po => <POCard key={po.C_Order_ID} po={po} onClick={openPODetail} />)}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: COLOR.textMd, cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={showFullyInvoiced}
+                      onChange={e => setShowFullyInvoiced(e.target.checked)}
+                    />
+                    Tampilkan semua ({hiddenCount > 0 ? `${hiddenCount} PO lunas disembunyikan` : 'tidak ada yang disembunyikan'})
+                  </label>
                 </div>
+
+                {visiblePOs.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '32px 0', color: COLOR.textLt }}>
+                    {showFullyInvoiced ? 'Tidak ada PO ditemukan.' : 'Tidak ada PO dengan sisa tagihan.'}
+                  </div>
+                ) : (
+                  <>
+                    <div style={{ display: 'grid', gridTemplateColumns: isDesktop ? 'repeat(auto-fill, minmax(200px, 1fr))' : 'repeat(2, 1fr)', gap: '10px' }}>
+                      {visiblePOs.map(po => <POCard key={po.C_Order_ID} po={po} onClick={openPODetail} />)}
+                    </div>
+
+                    {/* sentinel: elemen tak terlihat di ujung list, observer memantau ini */}
+                    {hasMore && (
+                      <div ref={sentinelRef} style={{ height: '1px' }} />
+                    )}
+
+                    {loadingMore && (
+                      <div style={{ textAlign: 'center', padding: '16px 0', color: COLOR.textLt, fontSize: '13px' }}>
+                        ⏳ Memuat PO lainnya...
+                      </div>
+                    )}
+                  </>
+                )}
               </>
             )}
           </div>

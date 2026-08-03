@@ -6,7 +6,7 @@ import {
   apiSetSession,
   normaliseList,
   sortById,
-} from "@/utils/idempiereAuth";
+} from "@/api/idempiereAuth";
 
 export function useChangeRole(token) {
   const clientId = localStorage.getItem("AD_Client_ID") || "";

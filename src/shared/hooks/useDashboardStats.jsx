@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { idempiereApi } from '@/utils/idempiereApi';
+import { idempiereApi } from '@/api/idempiereApi';
 
 function toDateStr(d) {
   return d.toISOString().split('T')[0];

@@ -6,7 +6,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import QRCode from "qrcode";
 import { LogoSMAMerahHitam } from "@/shared/components/icon";
-import { idempiereApi } from "@/utils/idempiereApi";
+import { idempiereApi } from "@/api/idempiereApi";
 import "@/App.css";
 
 // ─────────────────────────────────────────────────────────────────────────────

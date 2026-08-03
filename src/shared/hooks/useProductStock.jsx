@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { idempiereApi, fkId, fkLabel } from '@/utils/idempiereApi';
+import { idempiereApi, fkId, fkLabel } from '@/api/idempiereApi';
 import { useUomConversion } from './useUomConversion';
 
 // ─────────────────────────────────────────────────────────────────────────────

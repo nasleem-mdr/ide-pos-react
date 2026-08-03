@@ -32,9 +32,10 @@ import {
 
 import { useAccess } from '@/context/AccessContext';
 
+import { idempiereApi, fkId } from '@/api/idempiereApi';
+
 import { 
-  idempiereApi, 
-  fkId, resolveDocTypeId, 
+  resolveDocTypeId, 
   DOC_BASE_TYPE, IS_SO_TRX, 
   COLOR, RADIUS 
 } from '@/utils';

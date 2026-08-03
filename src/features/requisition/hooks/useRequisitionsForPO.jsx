@@ -1,21 +1,8 @@
 import { useState, useCallback } from 'react';
-import { idempiereApi, fkId, fkLabel } from '@/utils/idempiereApi';
+import { idempiereApi, fkId, fkLabel } from '@/api/idempiereApi';
 import { useProductVendorInfo } from '@/shared/hooks/useProductVendorInfo';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// useRequisitionsForPO.jsx (REVISI — selaras dengan RequisitionPOCreate.java)
-// Sumber import untuk modul Purchasing: FPB (M_Requisition) berstatus
-// Completed.
-//
-// 1. FILTER "sudah di-PO-kan" pakai C_OrderLine_ID IS NULL — field NATIVE.
-// 2. PRIORITAS VENDOR per baris — persis urutan resmi RequisitionPOCreate.java.
-// 3. QtyEntered & Qty (base) dibawa APA ADANYA dari FPB (tidak dihitung
-//    ulang) — lihat catatan panjang di fetchRequisitionLines.
-// 4. (BARU) BaseUOMName — nama UOM dasar produk, dibutuhkan
-//    RequisitionToPOImportModal.jsx untuk menampilkan preview hasil
-//    konversi ("≈ 6 pcs") di cart PO. BaseUOM_ID saja tidak cukup untuk
-//    ditampilkan ke user, perlu nama-nya juga.
-// ─────────────────────────────────────────────────────────────────────────────
+
 const APPROVED_STATUSES = ['CO'];
 
 export function useRequisitionsForPO() {
