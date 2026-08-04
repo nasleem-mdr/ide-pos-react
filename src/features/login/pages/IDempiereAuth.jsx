@@ -1,8 +1,25 @@
 import { useState, useEffect } from "react";
-import { LogoIconW, ArrowIcon, EyeIcon, CheckIcon, AlertIcon } from '@/shared/components/icon';
 import { useNavigate } from 'react-router-dom';
-import { apiLogin, apiGetRoles, apiGetOrganizations, normaliseList, apiGetWarehouses, apiSetSession, sortById} from '@/api/idempiereAuth';
-import '../css/Login.css';
+
+import { 
+  LogoIconW, 
+  ArrowIcon, 
+  EyeIcon, 
+  CheckIcon, 
+  AlertIcon 
+} from '@/shared/components/icon';
+
+import { 
+  apiLogin, 
+  apiGetRoles, 
+  apiGetOrganizations, 
+  normaliseList, 
+  apiGetWarehouses, 
+  apiSetSession, 
+  sortById
+} from '@/api/idempiereAuth';
+
+import '@/css/Login.css';
 
 
 // ─── Main Component ───────────────────────────────────────────────────────────

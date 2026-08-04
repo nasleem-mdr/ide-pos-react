@@ -85,7 +85,7 @@ const PaymentModal = ({
         
         // Validasi: Pembayaran tidak boleh kurang dari total belanjaan
         if (totalPaid < totalOrderAmount) {
-            alert(`Pembayaran masih kurang! Kurang: Rp ${remainingAmount.toLocaleString()}`);
+            alert(`Pembayaran masih kurang! Kurang:  ${remainingAmount.toLocaleString()}`);
             return;
         }
 
@@ -105,18 +105,18 @@ const PaymentModal = ({
         <div style={styles.overlay}>
             <div style={styles.modalBox}>
                 <div style={styles.header}>
-                    <h3>Pembayaran POS (Mixed Mode)</h3>
+                    <h3>Pembayaran POS</h3>
                     <button onClick={onClose} style={styles.closeBtn}>✕</button>
                 </div>
 
                 {/* Ringkasan Nilai Belanja */}
                 <div style={styles.summaryContainer}>
-                    <div style={styles.summaryRow}><span>Total Tagihan:</span><strong>Rp {totalOrderAmount.toLocaleString()}</strong></div>
-                    <div style={styles.summaryRow}><span>Total Dibayar:</span><span style={{ color: "green" }}>Rp {totalPaid.toLocaleString()}</span></div>
+                    <div style={styles.summaryRow}><span>Total Tagihan:</span><strong>{totalOrderAmount.toLocaleString()}</strong></div>
+                    <div style={styles.summaryRow}><span>Total Dibayar:</span><span style={{ color: "green" }}> {totalPaid.toLocaleString()}</span></div>
                     <div style={styles.summaryRow}>
-                        <span>Sisa Sisa / Kembalian:</span>
+                        <span>Kurang/Kembali:</span>
                         <strong style={{ color: remainingAmount <= 0 ? "blue" : "red" }}>
-                            {remainingAmount <= 0 ? `Kembalian: Rp ${Math.abs(remainingAmount).toLocaleString()}` : `Kurang: Rp ${remainingAmount.toLocaleString()}`}
+                            {remainingAmount <= 0 ? `Kembalian:  ${Math.abs(remainingAmount).toLocaleString()}` : `Kurang:  ${remainingAmount.toLocaleString()}`}
                         </strong>
                     </div>
                 </div>
@@ -126,8 +126,8 @@ const PaymentModal = ({
                         <table style={styles.table}>
                             <thead>
                                 <tr>
-                                    <th>Metode Pembayaran (C_POSTenderType)</th>
-                                    <th>Jumlah Bayar (PayAmt)</th>
+                                    <th>Metode Pembayaran</th>
+                                    <th>Jumlah Bayar</th>
                                     <th>Aksi</th>
                                 </tr>
                             </thead>
@@ -189,7 +189,14 @@ const PaymentModal = ({
                                                 style={styles.deleteRowBtn}
                                                 disabled={payments.length === 1}
                                             >
-                                                Hapus
+                                                <svg 
+                                                    fill="#fff" 
+                                                    width="32px" 
+                                                    height="32px" 
+                                                    viewBox="0 0 256 256" 
+                                                    id="Flat" xmlns="http://www.w3.org/2000/svg">
+                                                    <path d="M128,24A104,104,0,1,0,232,128,104.12041,104.12041,0,0,0,128,24Zm40,112H88a8,8,0,0,1,0-16h80a8,8,0,0,1,0,16Z"/>
+                                                </svg>
                                             </button>
                                         </td>
                                     </tr>
@@ -199,13 +206,13 @@ const PaymentModal = ({
                     </div>
 
                     <button type="button" onClick={handleAddRow} style={styles.addBtn}>
-                        + Tambah Baris Pembayaran
+                        + 
                     </button>
 
                     <div style={styles.footer}>
                         <button type="button" onClick={onClose} style={styles.cancelBtn} disabled={isLoading}>Batal</button>
                         <button type="submit" style={styles.submitBtn} disabled={isLoading}>
-                            {isLoading ? "Memproses Transaksi..." : "Bayar & Selesaikan Selesai"}
+                            {isLoading ? "Memproses Transaksi..." : "Bayar & Selesai"}
                         </button>
                     </div>
                 </form>

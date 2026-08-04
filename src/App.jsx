@@ -6,7 +6,7 @@ import {
   PurchasingContainer, 
   PurchasingList, 
   PurchasingView 
-} from "./features/purchasing/order/pages";
+} from "@/features/purchasing/order/pages";
 
 import { VendorInvoiceContainer } from '@/features/purchasing/invoice/pages';
 
@@ -25,7 +25,7 @@ import ProductDetail from "@/features/master/product/pages/ProductDetail";
 import SalesOrderPage from "@/features/sales/order/pages/SalesOrderPage";
 import POSContainer from "@/features/sales/order/pages/POSContainer"; 
 
-import BookingTimeline from './pages/BookingTimeline';
+import BookingTimeline from '@/features/login/pages/BookingTimeline';
 
 // Partner management
 import BusinessPartner from "@/features/master/partner/pages/BusinessPartner"; 
@@ -34,11 +34,11 @@ import BusinessPartnerEdit from '@/features/master/partner/pages/BusinessPartner
 import { AccessProvider } from '@/context/AccessContext';
 
 import ProtectedRoute from '@/shared/components/ProtectedRoute';
-import IDempiereAuth from "@/pages/IDempiereAuth";
-import Dashboard from "@/pages/Dashboard";
+import IDempiereAuth from "@/features/login/pages/IDempiereAuth";
+import Dashboard from "@/features/login/pages/Dashboard";
 import { Header, Sidebar } from "@/shared/components/setup"; 
 
-import './css/AppLayout.css'; // Pastikan mengimpor file CSS layout Anda
+import '@/css/AppLayout.css'; // Pastikan mengimpor file CSS layout Anda
 
 export default function App() {
   const [session, setSession] = useState(null);

@@ -2,7 +2,10 @@ import { useEffect, useRef, useState } from "react";
 import { Timeline } from "vis-timeline/standalone";
 import { DataSet } from "vis-data";
 import "vis-timeline/styles/vis-timeline-graph2d.min.css";
-import { useResourceBooking, BookingValidationError } from "@/shared/hooks/useResourceBooking";
+import { 
+  useResourceBooking, 
+  BookingValidationError 
+} from "@/shared/hooks/useResourceBooking";
 
 /**
  * BookingTimeline
