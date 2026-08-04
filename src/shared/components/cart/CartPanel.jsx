@@ -109,7 +109,7 @@ const CartPanel = ({
                 item={item}
                 onRemove={onRemove}
                 onQtyChange={onQtyChange}
-                onUOMChange={onUomChange}
+                onUomChange={onUomChange}
                 onPriceChange={onPriceChange}
               />
             ))

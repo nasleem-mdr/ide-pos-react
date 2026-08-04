@@ -14,11 +14,12 @@ import {
 import { 
     ConfirmModal, 
     PaymentModal, 
-    ReceiptModal 
+    ReceiptModal,
+    CartItemPOS 
 } from '@/features/sales/order/components';
 
 import { useAccess } from '@/context/AccessContext';
-import { idempiereApi } from '@/api/idempiereApi';
+import { idempiereApi, fkId, fkLabel } from '@/api/idempiereApi';
 import { useIsDesktop } from '@/shared/hooks/useIsDesktop';
 
 const POSContainer = () => {
@@ -379,7 +380,10 @@ const DIALOG_CLOSED = {
     const productRecords = Array.isArray(productData.records)
         ? productData.records
         : productData.records ? [productData.records] : [];
-
+        console.log('DEBUG raw product records:', productRecords.map(p => ({
+            name: p.Name,
+            C_UOM_ID_raw: p.C_UOM_ID,
+          })));
     const relevantIds = new Set(productRecords.map(p => p.M_Product_ID?.id ?? p.M_Product_ID ?? p.id));
     const rawPriceRecords = Array.isArray(priceData.records)
         ? priceData.records
@@ -481,22 +485,25 @@ const loadMore = useCallback(() => {
     // ─── 3a. Fetch UOM options untuk satu produk ───────────────────────────────
     const fetchUOMOptions = async (product) => {
         const productId = product.M_Product_ID;
-
+        
         if (uomCacheRef.current[productId]) {
             return uomCacheRef.current[productId];
         }
-
-        const defaultUOM    = product.defaultUOM || { id: null, name: 'EA', multiplyRate: 1 };
-        const defaultOption = { id: defaultUOM.id, name: defaultUOM.name, multiplyRate: 1 };
-
-        const defaultUomId = defaultUOM.id;
+    
+        // Object produk di POSContainer (dari resolveProducts, fetchProductByBarcode,
+        // maupun draft order loader) SUDAH punya field `defaultUOM` flat — TIDAK
+        // perlu fkId() di sini, karena bukan C_UOM_ID FK mentah dari API.
+        const defaultUomId   = product.defaultUOM?.id ?? null;
+        const defaultUomName = product.defaultUOM?.name || 'EA';
+        const defaultOption  = { id: defaultUomId, name: defaultUomName, multiplyRate: 1 };
+    
         if (!defaultUomId) {
             uomCacheRef.current[productId] = [defaultOption];
             return [defaultOption];
         }
-
+    
         const options = [defaultOption];
-
+    
         const buildOptions = (records) => {
             records.forEach(conv => {
                 const toId   = conv.C_UOM_To_ID?.id  ?? conv.C_UOM_To_ID;
@@ -507,7 +514,7 @@ const loadMore = useCallback(() => {
                 }
             });
         };
-
+    
         try {
             const resProduct = await idempiereApi(
                 `/models/c_uom_conversion?$filter=C_UOM_ID eq ${defaultUomId} and M_Product_ID eq ${productId} and IsActive eq true&$select=C_UOM_ID,C_UOM_To_ID,MultiplyRate,M_Product_ID`
@@ -516,7 +523,7 @@ const loadMore = useCallback(() => {
         } catch (err) {
             console.warn("Gagal fetch UOM spesifik produk", productId, err.message);
         }
-
+    
         try {
             const resGlobal = await idempiereApi(
                 `/models/c_uom_conversion?$filter=C_UOM_ID eq ${defaultUomId} and IsActive eq true&$select=C_UOM_ID,C_UOM_To_ID,MultiplyRate,M_Product_ID&$top=50`
@@ -527,7 +534,7 @@ const loadMore = useCallback(() => {
         } catch (err) {
             console.warn("Gagal fetch UOM global untuk UOM", defaultUomId, err.message);
         }
-
+    
         uomCacheRef.current[productId] = options;
         return options;
     };
@@ -601,7 +608,7 @@ const loadMore = useCallback(() => {
     
         // 3. Hitung jumlah item yang akan dipesan (Akan bertambah 1)
         const existingIndex = cart.findIndex(item => item.M_Product_ID === product.M_Product_ID);
-        const existingQty = existingIndex >= 0 ? cart[existingIndex]. QtyEntered : 0;
+        const existingQty = existingIndex >= 0 ? cart[existingIndex]. Qty : 0;
         const targetQty = existingQty + 1;
     
         // 4. Validasi batas stok HANYA jika BUKAN produk Jasa
@@ -621,24 +628,26 @@ const loadMore = useCallback(() => {
     
         // 6. Ambil data satuan unit (UOM)
         const uomOptions  = await fetchUOMOptions(product);
+        console.log('DEBUG uomOptions:', uomOptions);
         const selectedUOM = uomOptions[0];
     
         // 7. Perbarui State Cart
         if (existingIndex >= 0) {
             setCart(prev => prev.map((item, i) =>
                 i === existingIndex
-                    ? { ...item, QtyEntered: targetQty, QtyOnHand: isService ? 0 : qtyOnHand }
+                    ? { ...item, Qty: targetQty, QtyOnHand: isService ? 0 : qtyOnHand, isService }
                     : item
             ));
         } else {
             setCart(prev => [...prev, {
                 ...product,
-                QtyEntered:  1,
+                Qty:  1,
                 PriceEntered: product.PriceActual,  // harga per base UOM (default UOM, multiplyRate=1)
                 basePrice:    product.PriceActual,
                 uomOptions,
                 selectedUOM,
                 QtyOnHand:   isService ? 0 : qtyOnHand,
+                isService,
             }]);
         }
     };
@@ -649,7 +658,7 @@ const loadMore = useCallback(() => {
         const uomOptions = await fetchUOMOptions(product);
         setCart(prev => [...prev, {
             ...product,
-            QtyEntered:  1,
+            Qty:  1,
             PriceActual: product.PriceActual,
             basePrice:   product.PriceActual,
             uomOptions,
@@ -661,7 +670,7 @@ const loadMore = useCallback(() => {
     // ─── 6. Cart handlers ─────────────────────────────────────────────────────
     const removeFromCart = (id) => setCart(prev => prev.filter(i => i.M_Product_ID !== id));
 
-    const calculateTotal = () => cart.reduce((s, i) => s + (i.PriceEntered * i.QtyEntered), 0);
+    const calculateTotal = () => cart.reduce((s, i) => s + (i.PriceEntered * i.Qty), 0);
 
     const updateCartQty = (productId, rawQty) => {
     const newQty = parseFloat(rawQty);
@@ -670,26 +679,27 @@ const loadMore = useCallback(() => {
     setCart(prev => {
         const item = prev.find(i => i.M_Product_ID === productId);
         if (!item) return prev;
-
-        const multiplyRate  = item.selectedUOM?.multiplyRate || 1;
-        const qtyOnHandBase = item.QtyOnHand ?? Infinity;
-        const qtyOrderedBase = newQty * multiplyRate; // konversi ke base UOM untuk validasi
-
-        if (qtyOrderedBase > qtyOnHandBase) {
-            setTimeout(() => {
+        if (!item.isService) {
+            const multiplyRate  = item.selectedUOM?.multiplyRate || 1;
+            const qtyOnHandBase = item.QtyOnHand ?? Infinity;
+            const qtyOrderedBase = newQty * multiplyRate;
+      
+            if (qtyOrderedBase > qtyOnHandBase) {
+              setTimeout(() => {
                 triggerAlert(
-                    `Kuantitas melebihi stok untuk "${item.Name}". Stok tersedia: ${qtyOnHandBase} ` +
-                    `(setara ${(qtyOnHandBase / multiplyRate).toFixed(2)} ${item.selectedUOM?.name || ''}).`,
-                    "Stok Tidak Cukup"
+                  `Kuantitas melebihi stok untuk "${item.Name}". Stok tersedia: ${qtyOnHandBase} ` +
+                  `(setara ${(qtyOnHandBase / multiplyRate).toFixed(2)} ${item.selectedUOM?.name || ''}).`,
+                  "Stok Tidak Cukup"
                 );
-            }, 0);
-            return prev;
-        }
-
-        if (newQty <= 0) return prev.filter(i => i.M_Product_ID !== productId);
-
-        return prev.map(i => i.M_Product_ID === productId ? { ...i, QtyEntered: newQty } : i);
-    });
+              }, 0);
+              return prev;
+            }
+          }
+      
+          if (newQty <= 0) return prev.filter(i => i.M_Product_ID !== productId);
+      
+          return prev.map(i => i.M_Product_ID === productId ? { ...i, Qty: newQty } : i);
+        });
 };
 
     const updateCartPrice = (id, value) => {
@@ -1282,13 +1292,13 @@ const loadMore = useCallback(() => {
                             onUomChange={updateCartUOM}
                             onPriceChange={updateCartPrice}
                             totalItems={cart.length}
-                            totalQty={cart.reduce((s, i) => s + i.QtyEntered, 0)}
+                            totalQty={cart.reduce((s, i) => s + i.Qty, 0)}
                             summaryRight={`Rp ${calculateTotal().toLocaleString('id-ID')}`}
                             title="🛒 Cart"
                             submitLabel={isProcessingCheckout ? 'Memproses...' : 'PROSES BAYAR'}
                             onSubmit={handleCheckout}
                             isSubmitting={isProcessingCheckout}
-                            CartItemComponent={CartItem}   // ⬅️ CartItem versi POS (support price)
+                            CartItemComponent={CartItemPOS}   // ⬅️ CartItem versi POS (support price)
                         />
                     ) : (
                         <>
@@ -1318,13 +1328,13 @@ const loadMore = useCallback(() => {
                                 onUomChange={updateCartUOM}
                                 onPriceChange={updateCartPrice}
                                 totalItems={cart.length}
-                                totalQty={cart.reduce((s, i) => s + i.QtyEntered, 0)}
+                                totalQty={cart.reduce((s, i) => s + i.Qty, 0)}
                                 summaryRight={`Rp ${calculateTotal().toLocaleString('id-ID')}`}
                                 title="🛒 Cart"
                                 submitLabel={isProcessingCheckout ? 'Memproses...' : 'PROSES BAYAR'}
                                 onSubmit={() => { handleCheckout(); }}
                                 isSubmitting={isProcessingCheckout}
-                                CartItemComponent={CartItem}
+                                CartItemComponent={CartItemPOS}
                             />
                         </>
                     )}

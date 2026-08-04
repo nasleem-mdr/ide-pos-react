@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom"; 
+import { useState, useEffect } from "react";
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-router-dom"; 
 
 //purchasing
 import { 
@@ -41,8 +41,17 @@ import { Header, Sidebar } from "@/shared/components/setup";
 import '@/css/AppLayout.css'; // Pastikan mengimpor file CSS layout Anda
 
 export default function App() {
+  return (
+    <BrowserRouter>
+      <AppContent />
+    </BrowserRouter>
+  );
+}
+
+function AppContent() {
   const [session, setSession] = useState(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const navigate = useNavigate();
 
   function handleLoginSuccess(sessionInfo) {
     setSession(sessionInfo);
@@ -52,9 +61,19 @@ export default function App() {
     setSession(null);
     localStorage.removeItem("token");
   }
+  useEffect(() => {
+    const handleSessionExpired = () => {
+      localStorage.removeItem('token');
+      setSession(null); // opsional tapi disarankan — reset state session juga, bukan cuma token
+      navigate('/', { replace: true });
+    };
+
+    window.addEventListener('session-expired', handleSessionExpired);
+    return () => window.removeEventListener('session-expired', handleSessionExpired);
+  }, [navigate]);
 
   return (
-    <BrowserRouter>
+    
       <Routes>
 
         {/* ===== ROUTE PUBLIK - di luar kondisi session apapun ===== */}
@@ -185,6 +204,6 @@ export default function App() {
         />
 
       </Routes>
-    </BrowserRouter>
+    
   );
 }

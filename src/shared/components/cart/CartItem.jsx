@@ -24,7 +24,7 @@ const CartItem = ({ item, onRemove, onQtyChange, onUomChange }) => (
     </div>
 
     <QtyStepper value={item.Qty} onChange={q => onQtyChange(item.M_Product_ID, q)} size="sm" />
-
+    
     <button
       onTouchEnd={e => { e.preventDefault(); onRemove(item.M_Product_ID); }}
       onClick={() => onRemove(item.M_Product_ID)}
