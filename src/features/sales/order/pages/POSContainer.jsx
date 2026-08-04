@@ -404,16 +404,18 @@ const DIALOG_CLOSED = {
         const pId  = p.M_Product_ID?.id ?? p.M_Product_ID ?? p.id;
         const price = priceMap.get(pId);
         if (price === undefined) return null;
-
+        const uomName = p.C_UOM_ID?.Name || p.C_UOM_ID?.identifier || 'EA';
+    
         return {
             M_Product_ID:    pId,
             Name:            p.Name,
             Value:           p.Value,
             PriceActual:     price ?? 0,
             basePrice:       price ?? 0,
+            C_UOM_Name:      uomName
             defaultUOM: {
                 id:           p.C_UOM_ID?.id ?? p.C_UOM_ID,
-                name:         p.C_UOM_ID?.Name || p.C_UOM_ID?.identifier || 'EA',
+                name:         uomName,
                 multiplyRate: 1,
             },
             ProductCategory: {
