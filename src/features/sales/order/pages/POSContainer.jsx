@@ -92,43 +92,6 @@ const DIALOG_CLOSED = {
     const searchRef   = useRef(null);   // Ref ke <input> di SearchBar untuk reset value setelah barcode scan
     const [searchValue, setSearchValue] = useState(""); // Controlled value untuk input search
 
-    // ─── API helper ───────────────────────────────────────────────────────────
-    // const customFetch = async (url, options = {}) => {
-    //     const token    = localStorage.getItem("token");
-    //     const fullUrl  = `${API_BASE}${url}`;
-    //     const response = await fetch(fullUrl, {
-    //         ...options,
-    //         headers: {
-    //             ...options.headers,
-    //             'Authorization': `Bearer ${token}`,
-    //             'Content-Type': 'application/json',
-    //         },
-    //     });
-    //     if (!response.ok) {
-    //         const rawText   = await response.text().catch(() => '');
-    //         let errorData   = {};
-    //         try { errorData = JSON.parse(rawText); } catch (_) {}
-
-    //         const errMsg =
-    //             errorData.message  ||
-    //             errorData.Message  ||
-    //             errorData.error    ||
-    //             errorData.Error    ||
-    //             errorData.detail   ||
-    //             rawText            ||
-    //             `HTTP ${response.status}`;
-
-    //         console.error(`❌ API Error [${response.status}] ${options.method || 'GET'} ${fullUrl}`);
-    //         console.error('Response body:', rawText);
-    //         if (options.body) {
-    //             console.error('Request payload:', options.body);
-    //         }
-
-    //         throw new Error(`[${response.status}] ${errMsg}`);
-    //     }
-    //     return response.json();
-    // };
-
     // ─── 1. Init (mengambil data C_POS) ──────────────────────────────────────
     useEffect(() => {
         const initPOS = async () => {
@@ -154,11 +117,6 @@ const DIALOG_CLOSED = {
                         triggerAlert("M_PriceList_ID tidak ditemukan pada konfigurasi terminal.");
                     }
 
-                    // const bpId = terminalConfig.C_BPartner_ID?.id ?? terminalConfig.C_BPartner_ID;
-                    // if (bpId) {
-                    //     const bpName = terminalConfig.C_BPartner_ID?.identifier || terminalConfig.C_BPartner_ID?.Name || `BPartner #${bpId}`;
-                    //     setSelectedBPartner({ id: bpId, name: bpName });
-                    // }
                     const bpId = terminalConfig.C_BPartnerCashTrx_ID?.id ?? terminalConfig.C_BPartnerCashTrx_ID;
                     if (bpId) {
                         const bpName = terminalConfig.C_BPartnerCashTrx_ID?.identifier || terminalConfig.C_BPartnerCashTrx_ID?.Name || `BPartner #${bpId}`;
@@ -631,7 +589,7 @@ const loadMore = useCallback(() => {
     
         // 6. Ambil data satuan unit (UOM)
         const uomOptions  = await fetchUOMOptions(product);
-        console.log('DEBUG uomOptions:', uomOptions);
+
         const selectedUOM = uomOptions[0];
     
         // 7. Perbarui State Cart
@@ -1057,7 +1015,7 @@ const loadMore = useCallback(() => {
                 });
             }
 
-            console.log("✅ Data C_POSPayment tersimpan. Menentukan aturan pembayaran final...");
+            // console.log("✅ Data C_POSPayment tersimpan. Menentukan aturan pembayaran final...");
 
             let finalPaymentRule = "M";
             // FIX: mapping sebelumnya cuma nangani X/K/D, dan "D" (Direct Deposit) malah
@@ -1093,7 +1051,7 @@ const loadMore = useCallback(() => {
                 body: JSON.stringify(orderUpdatePayload),
             });
 
-            console.log(`✅ Aturan pembayaran diset ke [${finalPaymentRule}]. Mengunci transaksi ke Complete...`);
+            // console.log(`✅ Aturan pembayaran diset ke [${finalPaymentRule}]. Mengunci transaksi ke Complete...`);
 
             const completedOrder = await idempiereApi(`/models/c_order/${orderId}`, {
                 method: "PUT",
