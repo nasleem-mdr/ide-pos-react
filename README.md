@@ -9,11 +9,13 @@ Aplikasi ini bersifat *free & open-source*.
 
 ## 🚀 Fitur Utama
 
-1. **Modul Pengadaan Lengkap:** Mendukung alur kerja dari *Requisition*, *Purchase Order*, *Material/Goods Receipt*, hingga *Internal Use (Inventory Decrease/Increase)*.
-2. **Scan Barcode & QR Code:** Input entri barang/transaksi secara instan menggunakan perangkat pemindai.
-3. **Alur Kerja Interaktif (Shopping Cart Style):** Panel formulir transaksi dirancang menyerupai keranjang belanja *marketplace* agar ramah pengguna (*user-friendly*).
-4. **Impor Transaksi Berjenjang:** Mempercepat proses entri dengan fitur tarik data dari dokumen sebelumnya (contoh: membuat PO langsung dari data Requisition yang telah disetujui).
-5. **Validasi Dokumen Publik (Tanpa Login):** Menyediakan gerbang verifikasi status dokumen bagi pihak luar (vendor) melalui pemindaian QR Code (didukung oleh Servlet Express).
+1. **Modul Point Of Sales**
+Fungsi penjualan dengan berbagai penyederhanaan tampilan dan design modern seperti yg sudah banyak dipakai pada gerai-gerai retail.
+2. **Modul Pengadaan Lengkap:** Mendukung alur kerja dari *Requisition*, *Purchase Order*, *Material/Goods Receipt*, hingga *Internal Use (Inventory Decrease/Increase)*.
+3. **Scan Barcode & QR Code:** Input entri barang/transaksi secara instan menggunakan perangkat pemindai.
+4. **Alur Kerja Interaktif (Shopping Cart Style):** Panel formulir transaksi dirancang menyerupai keranjang belanja *marketplace* agar ramah pengguna (*user-friendly*).
+5. **Impor Transaksi Berjenjang:** Mempercepat proses entri dengan fitur tarik data dari dokumen sebelumnya (contoh: membuat PO langsung dari data Requisition yang telah disetujui).
+6. **Validasi Dokumen Publik (Tanpa Login):** Menyediakan gerbang verifikasi status dokumen bagi pihak luar (vendor) melalui pemindaian QR Code (didukung oleh Servlet Express).
 
 > 💡 **Informasi untuk Sistem POS:**
 > Fitur POS utama masih aktif dan dapat digunakan. Anda cukup mendaftarkan ulang komponen `POSContainer.jsx` ke dalam berkas `App.js`, `Sidebar.jsx`, atau `Dashboard.jsx`. Fitur POS ini masih sangat dasar dan terbuka untuk dikembangkan lebih lanjut (misalnya penambahan metode pembayaran *mixed-cash* atau QRIS).
