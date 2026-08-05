@@ -241,6 +241,7 @@ const DIALOG_CLOSED = {
                          Value:          "",
                          PriceEntered:    price,
                          basePrice:      price,
+                         Qty:            qty,   // FIX: samakan dengan field yang dipakai calculateTotal()/totalQty
                          QtyEntered:     qty,
                          defaultUOM:     selectedUOM,
                          uomOptions:     [selectedUOM],
@@ -412,7 +413,7 @@ const DIALOG_CLOSED = {
             Value:           p.Value,
             PriceActual:     price ?? 0,
             basePrice:       price ?? 0,
-            C_UOM_Name:      uomName
+            C_UOM_Name:      uomName,
             defaultUOM: {
                 id:           p.C_UOM_ID?.id ?? p.C_UOM_ID,
                 name:         uomName,
@@ -716,7 +717,7 @@ const loadMore = useCallback(() => {
             return {
                 ...item,
                 selectedUOM:  uomOption,
-                PriceEntered: item.basePrice * uomOption.multiplyRate,
+                PriceEntered: item.basePrice / uomOption.multiplyRate,
             };
         }));
     };
@@ -885,7 +886,10 @@ const loadMore = useCallback(() => {
 
         const formattedLines = cart.map((item) => {
             const multiplyRate = item.selectedUOM?.multiplyRate || 1;
-            const qtyEntered   = parseFloat(item.QtyEntered || 1);
+            // FIX: cart item dari addToCart/updateCartQty menyimpan qty di `item.Qty`.
+            // `item.QtyEntered` cuma terisi kalau cart di-load dari order lama (mode edit),
+            // jadi kalau cuma baca QtyEntered, order baru selalu fallback ke 1.
+            const qtyEntered   = parseFloat(item.Qty ?? item.QtyEntered ?? 1);
             const priceEntered = parseFloat(item.PriceEntered || 0);
             const qtyOrdered   = qtyEntered * multiplyRate;
             const priceOrdered = multiplyRate ? priceEntered / multiplyRate : priceEntered;
@@ -970,7 +974,10 @@ const loadMore = useCallback(() => {
                  const adOrgId = posConfig?.AD_Org_ID?.id ?? posConfig?.AD_Org_ID;
                  for (const item of cart) {
                     const multiplyRate = item.selectedUOM?.multiplyRate || 1;
-                    const qtyEntered   = parseFloat(item.QtyEntered || 1);
+                    // FIX: sama seperti di preparePayloadForIdempiere — kalau cashier ubah qty
+                    // lewat updateCartQty() saat mode edit, nilainya masuk ke `item.Qty`, bukan
+                    // `item.QtyEntered`. Utamakan Qty dulu, baru fallback QtyEntered/1.
+                    const qtyEntered   = parseFloat(item.Qty ?? item.QtyEntered ?? 1);
                     const priceEntered = parseFloat(item.PriceEntered || 0);
                     const qtyOrdered   = qtyEntered * multiplyRate;
                     const priceOrdered = multiplyRate ? priceEntered / multiplyRate : priceEntered;
@@ -1016,7 +1023,7 @@ const loadMore = useCallback(() => {
          }
      };
      //handle proses pembayaran
-     const handleCompletePOSPaymentWorkflow = async (cleanPaymentsArray) => {
+     const handleCompletePOSPaymentWorkflow = async (cleanPaymentsArray, bankAccountId) => {
 
         if (!currentOrderData) return;
 
@@ -1053,16 +1060,37 @@ const loadMore = useCallback(() => {
             console.log("✅ Data C_POSPayment tersimpan. Menentukan aturan pembayaran final...");
 
             let finalPaymentRule = "M";
+            // FIX: mapping sebelumnya cuma nangani X/K/D, dan "D" (Direct Deposit) malah
+            // salah di-mapping ke PaymentRule "T" (Direct Debit). Akibatnya tender apa pun
+            // di luar X/K/D (termasuk kode aslinya "D" atau "T") jatuh ke default "M" (Mixed).
+            // Kode TenderType (di C_POSTenderType/MPayment) dan PaymentRule (di C_Order) pada
+            // dasarnya sama persis KECUALI Cash: TenderType Cash="X" tapi PaymentRule Cash="B".
+            const TENDER_TO_PAYMENTRULE = {
+                X: "B", // Cash
+                K: "K", // Credit Card
+                D: "D", // Direct Deposit ("Bank")
+                T: "T", // Direct Debit
+                C: "S", // Check
+            };
             if (cleanPaymentsArray?.length === 1) {
                 const singleTender = cleanPaymentsArray[0]?.TenderType;
-                if (singleTender === "X") finalPaymentRule = "B";
-                else if (singleTender === "K") finalPaymentRule = "K";
-                else if (singleTender === "D") finalPaymentRule = "T";
+                finalPaymentRule = TENDER_TO_PAYMENTRULE[singleTender] || "M";
             }
+            console.log("🧾 finalPaymentRule dihitung:", {
+                jumlahBarisPembayaran: cleanPaymentsArray?.length,
+                singleTender: cleanPaymentsArray?.length === 1 ? cleanPaymentsArray[0]?.TenderType : "(lebih dari 1 baris)",
+                finalPaymentRule,
+            });
+
+            // FIX: C_BankAccount_ID BUKAN kolom di C_Order (error "Column C_BankAccount_ID
+            // does not exist" konfirmasi ini). Kolom itu ada di C_Payment, dan sesuai kode Java
+            // referensi, nilainya di-resolve OTOMATIS oleh iDempiere lewat query Org+Currency
+            // (bukan dipilih user, bukan disimpan di Order). Jadi kita cukup kirim PaymentRule saja.
+            const orderUpdatePayload = { PaymentRule: finalPaymentRule };
 
             await idempiereApi(`/models/c_order/${orderId}`, {
                 method: "PUT",
-                body: JSON.stringify({ PaymentRule: finalPaymentRule }),
+                body: JSON.stringify(orderUpdatePayload),
             });
 
             console.log(`✅ Aturan pembayaran diset ke [${finalPaymentRule}]. Mengunci transaksi ke Complete...`);
@@ -1346,6 +1374,7 @@ const loadMore = useCallback(() => {
                     totalOrderAmount={calculateTotal()}
                     onSubmitPayment={handleCompletePOSPaymentWorkflow}
                     idempiereApi={idempiereApi}
+                    adOrgId={posConfig?.AD_Org_ID?.id ?? posConfig?.AD_Org_ID}
                 />
                <ReceiptModal
                    isOpen={isReceiptModalOpen}

@@ -5,7 +5,9 @@ const PaymentModal = ({
     onClose, 
     totalOrderAmount, 
     onSubmitPayment,
-    customFetch // Menggunakan handler API Anda
+    idempiereApi, // FIX: sebelumnya bernama `customFetch` tapi POSContainer mengirim prop `idempiereApi`,
+                  // sehingga fetch tender type gagal secara silent (tertangkap try/catch).
+    adOrgId       // Dipakai untuk memfilter Kas/Bank Account sesuai Org POS saat ini
 }) => {
     // ─── STATE MANAGEMENT ──────────────────────────────────────────────────
     const [tenderTypes, setTenderTypes] = useState([]); // Data dari C_POSTenderType
@@ -14,13 +16,17 @@ const PaymentModal = ({
     ]);
     const [isLoading, setIsLoading] = useState(false);
 
+    // ─── KAS/BANK ACCOUNT TUJUAN (khusus payment rule Cash) ─────────────────
+    const [bankAccounts, setBankAccounts] = useState([]);
+    const [selectedBankAccountId, setSelectedBankAccountId] = useState("");
+
     // ─── AMBIL DATA TENDER TYPE DARI IDEMPIERE ──────────────────────────────
     useEffect(() => {
         if (isOpen) {
             const fetchTenderTypes = async () => {
                 try {
                     // Ambil konfigurasi cara bayar aktif di terminal iDempiere
-                    const response = await customFetch("/models/c_postendertype");
+                    const response = await idempiereApi("/models/c_postendertype");
                     // Pastikan respons disesuaikan dengan format array REST API Anda
                     setTenderTypes(response.records || response || []);
                 } catch (err) {
@@ -31,11 +37,66 @@ const PaymentModal = ({
         }
     }, [isOpen]);
 
+    // ─── AMBIL DATA C_BANKACCOUNT (untuk pilihan Kas/Bank tujuan saat Cash) ──
+    useEffect(() => {
+        if (isOpen) {
+            const fetchBankAccounts = async () => {
+                try {
+                    // FIX: sebelumnya filter `AD_Org_ID eq {orgId}` secara ketat + `IsActive eq 'Y'`
+                    // (string), yang bikin hasil kosong kalau C_BankAccount didefinisikan di Org 0
+                    // (shared/HQ) — pola umum di iDempiere untuk Bank Account. Disamakan dengan
+                    // pola yang sudah terbukti jalan di fetchPriceListOptions()/fetchBPartnerList():
+                    // IsActive eq true (boolean) + (AD_Org_ID eq 0 or AD_Org_ID eq {orgId}).
+                    const orgId  = adOrgId ? parseInt(adOrgId) : null;
+                    const filter = orgId
+                        ? `IsActive eq true and (AD_Org_ID eq 0 or AD_Org_ID eq ${orgId})`
+                        : `IsActive eq true`;
+                    const query = `/models/c_bankaccount?$filter=${filter}`;
+                    const response = await idempiereApi(query);
+                    const records = response.records || response || [];
+                    setBankAccounts(records);
+
+                    if (records.length === 0) {
+                        console.warn("⚠️ Tidak ada C_BankAccount aktif ditemukan. Query:", query);
+                    }
+
+                    // Auto-pilih akun yang ditandai default (IsDefault), mengikuti perilaku
+                    // MOrder.createPOSPayments() di iDempiere (order by IsDefault DESC)
+                    const defaultAcct = records.find(b => b.IsDefault === true || b.IsDefault === "Y");
+                    const fallback = defaultAcct || records[0];
+                    if (fallback) {
+                        const fallbackId = fallback.id?.id ?? fallback.id ?? fallback.C_BankAccount_ID;
+                        setSelectedBankAccountId(fallbackId ? String(fallbackId) : "");
+                    }
+                } catch (err) {
+                    console.error("Gagal mengambil data C_BankAccount:", err);
+                }
+            };
+            fetchBankAccounts();
+        }
+    }, [isOpen, adOrgId]);
+
     if (!isOpen) return null;
 
     // ─── KALKULASI NOMINAL KASIR ───────────────────────────────────────────
     const totalPaid = payments.reduce((sum, item) => sum + (parseFloat(item.PayAmt) || 0), 0);
     const remainingAmount = totalOrderAmount - totalPaid;
+
+    // ─── DETEKSI SKENARIO CASH TUNGGAL ──────────────────────────────────────
+    // Sesuai logika di POSContainer: PaymentRule hanya jadi "B" (Cash) ketika
+    // HANYA ADA 1 baris pembayaran dan TenderType-nya "X" (Cash). Untuk kasus ini
+    // iDempiere butuh C_BankAccount_ID di header Order (sama seperti popup Kas
+    // Tujuan yang muncul di client Swing/ZK saat PaymentRule = Cash).
+    const isSingleCashPayment = payments.length === 1 && payments[0].TenderType === "X";
+
+    // Ekstraksi nama akun bank secara aman (antisipasi field Name berbentuk objek)
+    const getBankAccountLabel = (b) => {
+        let name = b.Name;
+        if (name && typeof name === "object") name = name.identifier || name.propertyLabel || "";
+        if (!name && b.identifier) name = typeof b.identifier === "object" ? b.identifier.identifier : b.identifier;
+        const acctNo = typeof b.AccountNo === "object" ? (b.AccountNo?.identifier || "") : (b.AccountNo || "");
+        return acctNo ? `${name || "Kas"} - ${acctNo}` : (name || "Kas Tanpa Nama");
+    };
 
     // ─── LOGIKA MANIPULASI FORM BARIS ──────────────────────────────────────
     const handleAddRow = () => {
@@ -89,6 +150,25 @@ const PaymentModal = ({
             return;
         }
 
+        // Validasi khusus MIXED (>1 metode bayar): iDempiere mewajibkan total C_POSPayment
+        // PERSIS SAMA dengan Grand Total (lihat createPOSPayments() — @POSPaymentDiffers@),
+        // dan Mixed POS Payment diketahui belum reliable di instance ini. Kelebihan bayar
+        // (kembalian) HANYA valid untuk Cash tunggal, tidak untuk Mixed.
+        if (payments.length > 1 && Math.abs(remainingAmount) > 0.01) {
+            alert(
+                `Untuk pembayaran gabungan (lebih dari 1 metode), total bayar harus PERSIS sama ` +
+                `dengan total tagihan (tidak boleh ada kembalian). Selisih saat ini: ${remainingAmount.toLocaleString()}. ` +
+                `Sesuaikan nominal tiap baris, atau gunakan 1 metode bayar saja.`
+            );
+            return;
+        }
+
+        // Catatan: pilihan Kas Tujuan saat ini TIDAK di-kirim ke backend — C_BankAccount_ID
+        // bukan kolom di C_Order, dan iDempiere me-resolve bank account secara otomatis saat
+        // proses payment (lihat komentar di POSContainer.jsx). Jadi tidak lagi memblokir submit
+        // di sini; dropdown-nya sementara bersifat informasional sampai ada endpoint khusus
+        // untuk membuat C_Payment/AR Receipt secara eksplisit dengan bank account pilihan user.
+
         setIsLoading(false);
         // Kirim array baris pembayaran bersih ke fungsi utama POSContainer
         const cleanPayments = payments.map(({ C_POSTenderType_ID, TenderType, PayAmt }) => ({
@@ -97,7 +177,19 @@ const PaymentModal = ({
             PayAmt: parseFloat(PayAmt)
         }));
 
-        await onSubmitPayment(cleanPayments);
+        // Kirim C_BankAccount_ID sebagai argumen kedua, hanya relevan saat Cash tunggal
+        const bankAccountId = isSingleCashPayment ? parseInt(selectedBankAccountId) : null;
+
+        console.log("💳 Submit pembayaran:", {
+            jumlahBaris: cleanPayments.length,
+            payments: cleanPayments,
+            bankAccountId,
+            catatan: cleanPayments.length === 1
+                ? "1 baris → PaymentRule akan dihitung dari TenderType baris ini (X=Cash→B, K=CreditCard→K, D=DirectDeposit→T)"
+                : "Lebih dari 1 baris → PaymentRule akan jadi Mixed (M), wajib total pas.",
+        });
+
+        await onSubmitPayment(cleanPayments, bankAccountId);
     };
 
     // ─── RENDERING TAMPILAN VISUAL MODAL ───────────────────────────────────
@@ -209,6 +301,38 @@ const PaymentModal = ({
                         + 
                     </button>
 
+                    {/* Kas Tujuan — hanya tampil jika pembayaran Cash tunggal */}
+                    {isSingleCashPayment && (
+                        <div style={styles.bankAccountContainer}>
+                            <label style={styles.bankAccountLabel}>Kas Tujuan (Penerimaan Cash):</label>
+                            <select
+                                required
+                                value={selectedBankAccountId}
+                                onChange={(e) => setSelectedBankAccountId(e.target.value)}
+                                style={styles.input}
+                            >
+                                <option value="">-- Pilih Kas/Bank --</option>
+                                {bankAccounts.map((b) => {
+                                    const rawId = b.id?.id ?? b.id ?? b.C_BankAccount_ID;
+                                    const stringId = rawId ? String(rawId) : "";
+                                    return (
+                                        <option key={stringId || Math.random()} value={stringId}>
+                                            {getBankAccountLabel(b)}
+                                        </option>
+                                    );
+                                })}
+                            </select>
+                            {bankAccounts.length === 0 && (
+                                <div style={styles.bankAccountHint}>
+                                    Tidak ada Kas/Bank Account aktif ditemukan untuk Org ini.
+                                </div>
+                            )}
+                            <div style={styles.bankAccountHint}>
+                                * Kas tujuan aktual di-resolve otomatis oleh iDempiere saat proses payment.
+                            </div>
+                        </div>
+                    )}
+
                     <div style={styles.footer}>
                         <button type="button" onClick={onClose} style={styles.cancelBtn} disabled={isLoading}>Batal</button>
                         <button type="submit" style={styles.submitBtn} disabled={isLoading}>
@@ -234,6 +358,9 @@ const styles = {
     input: { width: "100%", padding: "8px", borderRadius: "4px", border: "1px solid #ccc", boxSizing: "border-color" },
     deleteRowBtn: { backgroundColor: "#ff4d4d", color: "#fff", border: "none", padding: "6px 12px", borderRadius: "4px", cursor: "pointer" },
     addBtn: { backgroundColor: "#2196F3", color: "#fff", border: "none", padding: "8px 14px", borderRadius: "4px", cursor: "pointer", marginBottom: "20px" },
+    bankAccountContainer: { backgroundColor: "#fff8e1", border: "1px solid #ffe082", borderRadius: "6px", padding: "10px 12px", marginBottom: "16px" },
+    bankAccountLabel: { display: "block", fontSize: "13px", fontWeight: "bold", marginBottom: "6px", color: "#5d4a00" },
+    bankAccountHint: { fontSize: "11px", color: "#b71c1c", marginTop: "4px" },
     footer: { display: "flex", justifyContent: "end", gap: "10px", borderTop: "1px solid #ddd", paddingTop: "15px" },
     cancelBtn: { backgroundColor: "#ccc", border: "none", padding: "10px 20px", borderRadius: "4px", cursor: "pointer" },
     submitBtn: { backgroundColor: "#4CAF50", color: "#fff", border: "none", padding: "10px 20px", borderRadius: "4px", cursor: "pointer", fontWeight: "bold" }
