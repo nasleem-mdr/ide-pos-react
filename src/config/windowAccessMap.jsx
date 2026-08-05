@@ -25,6 +25,7 @@ export const WINDOW_ACCESS_MAP = {
   internalUse:          null,
   booking:              null,
   vendorInvoie:         null,
+  bankstatemet:         null,
 
   // ===== List / Report =====
   requisitionList:      null, 

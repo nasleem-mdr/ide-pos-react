@@ -33,6 +33,9 @@ import BusinessPartnerDetail from "@/features/master/partner/pages/BusinessPartn
 import BusinessPartnerEdit from '@/features/master/partner/pages/BusinessPartnerEdit';
 import { AccessProvider } from '@/context/AccessContext';
 
+// Banking
+import BankStatementContainer from '@/features/banking/statement/pages/BankStatementContainer';
+
 import ProtectedRoute from '@/shared/components/ProtectedRoute';
 import IDempiereAuth from "@/features/login/pages/IDempiereAuth";
 import Dashboard from "@/features/login/pages/Dashboard";
@@ -189,9 +192,14 @@ function AppContent() {
                           </ProtectedRoute>
                         } />
                       
-                      <Route path="/vendor-invoice" element={
+                        <Route path="/vendor-invoice" element={
                           <ProtectedRoute windowKey="vendorInvoice">
                             <VendorInvoiceContainer />
+                          </ProtectedRoute>
+                        } />
+                        <Route path="/bank-statement" element={
+                          <ProtectedRoute windowKey="bankstatement">
+                            <BankStatementContainer />
                           </ProtectedRoute>
                         } />
                       </Routes>
