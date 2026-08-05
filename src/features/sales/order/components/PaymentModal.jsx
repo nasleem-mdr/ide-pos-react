@@ -5,9 +5,8 @@ const PaymentModal = ({
     onClose, 
     totalOrderAmount, 
     onSubmitPayment,
-    idempiereApi, // FIX: sebelumnya bernama `customFetch` tapi POSContainer mengirim prop `idempiereApi`,
-                  // sehingga fetch tender type gagal secara silent (tertangkap try/catch).
-    adOrgId       // Dipakai untuk memfilter Kas/Bank Account sesuai Org POS saat ini
+    idempiereApi, 
+    adOrgId
 }) => {
     // ─── STATE MANAGEMENT ──────────────────────────────────────────────────
     const [tenderTypes, setTenderTypes] = useState([]); // Data dari C_POSTenderType
