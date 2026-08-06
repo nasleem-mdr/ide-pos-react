@@ -79,7 +79,7 @@ const BankStatementContainer = () => {
             whiteSpace: 'nowrap', flexShrink: 0,
           }}
         >
-          ⬇️ Import
+          ⬇️ Import AP/AR
         </button>
         <button
           onClick={() => setChargeFormOpen(true)}
@@ -88,7 +88,7 @@ const BankStatementContainer = () => {
             background: 'none', fontWeight: 600, whiteSpace: 'nowrap', flexShrink: 0,
           }}
         >
-          ➕ Charge
+          ➕ Add Charge
         </button>
       </>
     )}
@@ -96,8 +96,8 @@ const BankStatementContainer = () => {
 
   {bankAccountId && (
     <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '10px', fontSize: '13px' }}>
-      <span>Saldo Awal: <b>{beginningBalance.toLocaleString('id-ID')}</b></span>
-      <span>Saldo Akhir (preview): <b style={{ color: COLOR.primary }}>{endingBalancePreview.toLocaleString('id-ID')}</b></span>
+      <span>Begining Balance: <b>{beginningBalance.toLocaleString('id-ID')}</b></span>
+      <span>Ending Balance(preview): <b style={{ color: COLOR.primary }}>{endingBalancePreview.toLocaleString('id-ID')}</b></span>
     </div>
   )}
 </div>
