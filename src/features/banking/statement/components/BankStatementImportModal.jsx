@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { COLOR, RADIUS } from '@/utils/styleTokens';
 import { useUnreconciledPaymentLines } from '../hooks/useUnreconciledPaymentLines';
-import useSubordinates from '@/shared/hooks/useSubordinates'; // ⚠️ SESUAIKAN path kalau beda
+import useSubordinates from '@/shared/hooks/useSubordinates'; 
 import { getLoginInfo } from '@/shared/hooks';
 
 const todayISO = () => new Date().toISOString().split('T')[0];
@@ -80,28 +80,58 @@ const BankStatementImportModal = ({ isOpen, onClose, bankAccountId, bankAccountN
           <div style={{ fontSize: '11px', color: COLOR.textLt }}>Bank Account: {bankAccountName}</div>
         </div>
 
-        <div style={{ padding: '12px 16px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', borderBottom: `1px solid ${COLOR.border}` }}>
-          <select value={docTypeFilter || ''} onChange={e => setDocTypeFilter(e.target.value || null)}
-            style={{ padding: '8px', border: `1px solid ${COLOR.border}`, borderRadius: RADIUS.sm }}>
-            <option value="">All Type (AR or AP)</option>
+        <div
+          style={{
+            padding: '12px 16px',
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr',
+            gap: '8px',
+            borderBottom: `1px solid ${COLOR.border}`,
+          }}
+        >
+          <select
+            value={docTypeFilter || ''}
+            onChange={e => setDocTypeFilter(e.target.value || null)}
+            style={{
+              width: '100%', minWidth: 0, boxSizing: 'border-box',
+              padding: '8px', border: `1px solid ${COLOR.border}`, borderRadius: RADIUS.sm,
+            }}
+          >
+            <option value="">All Type(AR/AP)</option>
             <option value="AR">AR Receipt</option>
             <option value="AP">AP Payment</option>
           </select>
 
-          <select value={createdByOption} onChange={e => setCreatedByOption(e.target.value)}
-            style={{ padding: '8px', border: `1px solid ${COLOR.border}`, borderRadius: RADIUS.sm }}>
-            <option value="all">Semua User</option>
-            <option value="mine">Dibuat Saya Sendiri</option>
-            {hasSubordinates && <option value="team">Saya + Tim (Bawahan)</option>}
+          <select
+            value={createdByOption}
+            onChange={e => setCreatedByOption(e.target.value)}
+            style={{
+              width: '100%', minWidth: 0, boxSizing: 'border-box',
+              padding: '8px', border: `1px solid ${COLOR.border}`, borderRadius: RADIUS.sm,
+            }}
+          >
+            <option value="all">All User</option>
+            <option value="mine">Made by myself</option>
+            {hasSubordinates && <option value="team">Me + My Team</option>}
           </select>
 
-          <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
-            style={{ padding: '8px', border: `1px solid ${COLOR.border}`, borderRadius: RADIUS.sm }} />
-          <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
-            style={{ padding: '8px', border: `1px solid ${COLOR.border}`, borderRadius: RADIUS.sm }} />
+          <input
+            type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
+            style={{
+              width: '100%', minWidth: 0, boxSizing: 'border-box',
+              padding: '8px', border: `1px solid ${COLOR.border}`, borderRadius: RADIUS.sm,
+            }}
+          />
+          <input
+            type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
+            style={{
+              width: '100%', minWidth: 0, boxSizing: 'border-box',
+              padding: '8px', border: `1px solid ${COLOR.border}`, borderRadius: RADIUS.sm,
+            }}
+          />
         </div>
 
-        <div style={{ flex: 1, overflowY: 'auto' }}>
+        <div style={{ flex: 1, overflowY: 'auto', overflowX: 'auto' }}>
           {loading ? (
             <div style={{ textAlign: 'center', padding: '32px', color: COLOR.textLt }}>⏳ Loading...</div>
           ) : lines.length === 0 ? (
