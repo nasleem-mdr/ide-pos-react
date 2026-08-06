@@ -28,19 +28,15 @@ export function useCustomerSearch() {
     }
     setLoading(true);
     try {
+      const escaped = q.replace(/'/g, "''");
       const res = await idempiereApi(
         `/models/c_bpartner?$select=C_BPartner_ID,Name,Value,IsCustomer` +
-        `&$orderby=Name&$top=500`
+        `&$filter=IsCustomer eq true and contains(Name,'${escaped}')` +
+        `&$orderby=Name&$top=20`
       );
       const records = Array.isArray(res.records) ? res.records : [];
   
-      const qLower = q.toLowerCase();
-      const filtered = records.filter(r =>
-        r.IsCustomer === true &&
-        r.Name?.toLowerCase().includes(qLower)
-      );
-  
-      setCustomers(filtered.slice(0, 20).map(r => ({
+      setCustomers(records.map(r => ({
         C_BPartner_ID: fkId(r.C_BPartner_ID) ?? r.id ?? r.C_BPartner_ID,
         Name:  r.Name,
         Value: r.Value,
