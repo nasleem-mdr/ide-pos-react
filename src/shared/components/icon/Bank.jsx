@@ -18,3 +18,4 @@ export const BankIcon = ({ color = 'currentColor', size = 24, ...props }) => {
       <path d="M22.15,11.58h3.21L18.65,7.72a.8.8,0,0,0-.8,0l-6.72,3.86h3.21l3.9-2.24Z" />
     </svg>
   );
+}
