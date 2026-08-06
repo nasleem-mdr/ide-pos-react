@@ -83,7 +83,45 @@ export async function getProductAvailability(productId) {
     return { perLocator: [], totals: { qtyOnHand: 0, qtyReserved: 0, qtyOrdered: 0, qtyAvailable: 0 } };
   }
 }
+export async function waitForDocStatus(tableName, id, {
+  timeoutMs = 15000,             // total waktu tunggu maksimum
+  intervalMs = 700,              // jeda antar polling
+  successStatuses = ['CO', 'CL'], // Completed, Closed → dianggap sukses
+  pendingStatuses  = ['IP', 'DR'], // In Progress, Draft → masih diproses, lanjut polling
+} = {}) {
+  const start = Date.now();
+  let lastStatus = null;
+  let lastRecord = null;
 
+  while (Date.now() - start < timeoutMs) {
+    const record = await idempiereApi(`/models/${tableName.toLowerCase()}/${id}`);
+    lastRecord = record;
+    lastStatus = fkId(record.DocStatus); // DocStatus biasanya { id: 'CO', identifier: 'Completed' }
+
+    if (successStatuses.includes(lastStatus)) {
+      return {
+        success: true,
+        status: lastStatus,
+        documentNo: record.DocumentNo,
+        grandTotal: record.GrandTotal,
+        record,
+      };
+    }
+
+    if (!pendingStatuses.includes(lastStatus)) {
+      // Status final tapi BUKAN status sukses (mis. 'IN' Invalid, 'VO' Voided,
+      // 'RE' Reversed, 'NA' Not Approved) — berhenti, jangan polling terus.
+      return { success: false, status: lastStatus, documentNo: record.DocumentNo, record };
+    }
+
+    await new Promise(resolve => setTimeout(resolve, intervalMs));
+  }
+
+  // Timeout — masih pending setelah timeoutMs, kemungkinan approval manual
+  // yang lama atau workflow nyangkut. Biarkan caller yang putuskan tindak
+  // lanjutnya (biasanya: kasih tahu user dokumennya masih diproses).
+  return { success: false, status: lastStatus, documentNo: lastRecord?.DocumentNo, record: lastRecord, timedOut: true };
+}
 // ─────────────────────────────────────────────────────────────────────────────
 // Attachment helpers — untuk produk yang gambarnya disimpan sebagai
 // AD_Attachment (file menempel ke record), bukan field kolom URL biasa.

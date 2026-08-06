@@ -1,6 +1,7 @@
 export * from './useBankAccounts';
 export * from './useCart';
 export * from './useChangeRole';
+export * from './useCustomerSearch';
 export * from './useDashboardAccess';
 export * from './useDashboardStats';
 export * from './useGenericStats';
