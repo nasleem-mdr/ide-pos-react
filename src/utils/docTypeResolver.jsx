@@ -116,7 +116,8 @@ export const DOC_BASE_TYPE = {
   MATERIAL_MOVEMENT:     'MMM', // Perpindahan gudang↔gudang (TIDAK dipakai Internal Use)
   MATERIAL_INVENTORY:    'MMI', // M_Inventory — WAJIB dikombinasikan dengan
   AP_INVOICE:            'API',  // ⬅️ baru
-  AP_PAYMENT:            'APP', // DOC_SUB_TYPE_INV di bawah (lihat catatan di atas).
+  AP_PAYMENT:            'APP', 
+  AR_INVOICE:            'ARI', // DOC_SUB_TYPE_INV di bawah (lihat catatan di atas).
 };
 
 // Referensi nilai DocSubTypeInv (AD_Reference_ID=200068) — pembeda transaksi

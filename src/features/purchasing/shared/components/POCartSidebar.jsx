@@ -16,6 +16,13 @@ import { formatCurrency } from '@/utils/currency';
 // Field Description ditempatkan di bawah header (sebelum daftar item) —
 // kalau dikosongkan user, PurchasingContainer akan fallback ke
 // PURCHASING_CONFIG.DESCRIPTION saat submit (lihat descriptionPlaceholder).
+//
+// CHANGES (backward-compatible, default behavior unchanged for PO callers):
+// - `group.VendorName` -> `group.VendorName || group.CustomerName` so this
+//   same component can render Sales (customer-grouped) carts too.
+// - Added `partnerIcon` (default 🚚) and `partnerLabel` (default 'vendor')
+//   props so the group badge/summary text isn't hardcoded to Purchasing.
+//   Sales callers can pass partnerIcon="🏢" partnerLabel="customer".
 // ─────────────────────────────────────────────────────────────────────────────
 const POCartSidebar = ({
   vendorGroups, onRemove, onQtyChange, onPriceChange, onUomChange, onVendorClick,
@@ -29,6 +36,9 @@ const POCartSidebar = ({
   description = '',
   onDescriptionChange,
   descriptionPlaceholder = 'Keterangan Purchase Order...',
+  partnerIcon = '🚚',
+  partnerLabel = 'vendor',
+  docLabel = 'PO',
 }) => {
   const vendorCount = vendorGroups.length;
   const hasIncompleteVendor = vendorGroups.some(g => !g.C_BPartner_ID);
@@ -101,7 +111,7 @@ const POCartSidebar = ({
                 marginBottom: '6px', paddingBottom: '4px',
                 borderBottom: `1px dashed ${COLOR.border}`,
               }}>
-                <span>🚚 {group.VendorName}</span>
+                <span>{partnerIcon} {group.VendorName || group.CustomerName}</span>
                 <span>{formatCurrency(group.subtotal)}</span>
               </div>
               {group.items.map(item => (
@@ -129,7 +139,7 @@ const POCartSidebar = ({
           }}>
             <div style={{ fontSize: '13px', color: COLOR.textMd }}>
               <strong style={{ color: COLOR.textDk }}>{totalItems}</strong> item ·{' '}
-              <strong style={{ color: COLOR.textDk }}>{vendorCount}</strong> vendor
+              <strong style={{ color: COLOR.textDk }}>{vendorCount}</strong> {partnerLabel}
             </div>
             <div style={{ fontSize: '13px', fontWeight: 700, color: COLOR.textDk }}>{formatCurrency(totalAmount)}</div>
           </div>
@@ -142,7 +152,7 @@ const POCartSidebar = ({
                 fontSize: '11px', color: COLOR.danger, background: COLOR.dangerLt,
                 borderRadius: RADIUS.sm, padding: '8px 10px', marginBottom: '10px',
               }}>
-                ⚠ Masih ada item tanpa vendor. Ketuk badge 🚚 pada item untuk memilih vendor.
+                ⚠ Masih ada item tanpa {partnerLabel}. Ketuk badge {partnerIcon} pada item untuk memilih {partnerLabel}.
               </div>
             )}
 
@@ -173,7 +183,7 @@ const POCartSidebar = ({
                     cursor: (isSubmitting || hasIncompleteVendor) ? 'not-allowed' : 'pointer',
                   }}
                 >
-                  {isSubmitting ? '⏳ Memproses...' : `📝 DRAFT ${vendorCount} PO${vendorCount > 1 ? ' (terpisah)' : ''}`}
+                  {isSubmitting ? '⏳ Memproses...' : `📝 DRAFT ${vendorCount} ${docLabel}${vendorCount > 1 ? ' (terpisah)' : ''}`}
                 </button>
                 <button
                   onClick={onSubmitComplete}
@@ -185,7 +195,7 @@ const POCartSidebar = ({
                     cursor: (isSubmitting || hasIncompleteVendor) ? 'not-allowed' : 'pointer',
                   }}
                 >
-                  {isSubmitting ? '⏳ Memproses...' : `✅ COMPLETE ${vendorCount} PO${vendorCount > 1 ? ' (terpisah)' : ''}`}
+                  {isSubmitting ? '⏳ Memproses...' : `✅ COMPLETE ${vendorCount} ${docLabel}${vendorCount > 1 ? ' (terpisah)' : ''}`}
                   </button>
               </div>
             )}

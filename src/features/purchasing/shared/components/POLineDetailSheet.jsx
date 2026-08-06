@@ -1,6 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { COLOR, RADIUS } from '@/utils/styleTokens';
 
+// CHANGES vs original (both backward-compatible, zero behavior change for
+// existing PO callers):
+// 1. `po.VendorName` -> `po.VendorName || po.CustomerName` for header text.
+// 2. handleConfirm now carries through BOTH `VendorName` and `CustomerName`
+//    (whichever the source object had, the other stays undefined) so
+//    POCartSidebar/POCartPanel group headers can fall back correctly too.
+// 3. Empty-state text no longer says "PO" specifically.
+//
 // User centang baris + qty (dibatasi qtyOutstanding), 1x konfirmasi
 // menambahkan SEMUA baris tercentang sekaligus ke cart Invoice.
 const POLineDetailSheet = ({ isOpen, po, onClose, onConfirm }) => {
@@ -15,6 +23,8 @@ const POLineDetailSheet = ({ isOpen, po, onClose, onConfirm }) => {
   }, [isOpen, po]);
 
   if (!isOpen || !po) return null;
+
+  const partnerName = po.VendorName || po.CustomerName;
 
   const toggleLine = (line) => {
     setSelected(prev => {
@@ -44,6 +54,7 @@ const POLineDetailSheet = ({ isOpen, po, onClose, onConfirm }) => {
         Price: l.PriceEntered,
         C_BPartner_ID: po.C_BPartner_ID,
         VendorName: po.VendorName,
+        CustomerName: po.CustomerName,
         C_BPartner_Location_ID: po.C_BPartner_Location_ID,
         OrderDocumentNo: po.DocumentNo,
       }));
@@ -70,7 +81,7 @@ const POLineDetailSheet = ({ isOpen, po, onClose, onConfirm }) => {
         boxShadow: '0 8px 40px rgba(0,0,0,0.25)', 
         }}>
         <div style={{ padding: '14px 16px', borderBottom: `1px solid ${COLOR.border}` }}>
-          <div style={{ fontWeight: 700, fontSize: '14px' }}>{po.DocumentNo} — {po.VendorName}</div>
+          <div style={{ fontWeight: 700, fontSize: '14px' }}>{po.DocumentNo} — {partnerName}</div>
           <div style={{ fontSize: '11px', color: COLOR.textLt }}>Pilih baris & qty yang mau ditagih</div>
         </div>
 
@@ -94,7 +105,7 @@ const POLineDetailSheet = ({ isOpen, po, onClose, onConfirm }) => {
             </div>
           ))}
           {po.lines.every(l => l.qtyOutstanding <= 0) && (
-            <div style={{ textAlign: 'center', padding: '24px 0', color: COLOR.textLt }}>Semua baris PO ini sudah ditagih penuh.</div>
+            <div style={{ textAlign: 'center', padding: '24px 0', color: COLOR.textLt }}>Semua baris dokumen ini sudah ditagih penuh.</div>
           )}
         </div>
 

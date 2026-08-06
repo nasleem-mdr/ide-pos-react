@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Dialog } from '@/shared/components';
+import { Dialog, AddIcon, ImportIcon } from '@/shared/components';
 import { useBankAccounts, useIsDesktop, getLoginInfo } from '@/shared/hooks';
 import { useAccess } from '@/context/AccessContext';
 import { COLOR, RADIUS } from '@/utils/styleTokens';
@@ -83,8 +83,14 @@ const BankStatementContainer = () => {
                   background: COLOR.primary, color: '#fff', fontWeight: 600,
                   whiteSpace: 'nowrap', flexShrink: 0,
                 }}
-              >
-                {isDesktop ? '⬇️ Import AP/AR' : '⬇️'}
+                >
+                {isDesktop ? (
+                  <>
+                    <Import size={16} /> Import AP/AR
+                  </>
+                ) : (
+                  <ImportIcon size={18} />
+                )}
               </button>
               <button
                 onClick={() => setChargeFormOpen(true)}
@@ -97,8 +103,14 @@ const BankStatementContainer = () => {
                   border: `1px solid ${COLOR.border}`, borderRadius: RADIUS.md,
                   background: 'none', fontWeight: 600, whiteSpace: 'nowrap', flexShrink: 0,
                 }}
-              >
-                {isDesktop ? '➕ Add Charge' : '➕'}
+                >
+                {isDesktop ? (
+                  <>
+                    <AddIcon size={16} /> Add Charge
+                  </>
+                ) : (
+                  <AddIcon size={18} />
+                )}
               </button>
             </>
           )}
@@ -117,11 +129,11 @@ const BankStatementContainer = () => {
 
           <div style={{ flex: 1, overflowY: 'auto', padding: '0 14px 14px' }}>
             {cart.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '32px', color: COLOR.textLt }}>Belum ada baris statement.</div>
+              <div style={{ textAlign: 'center', padding: '32px', color: COLOR.textLt }}>There is no statement line yet.</div>
             ) : cart.map(item => (
               <div key={lineKey(item)} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px', background: COLOR.surface, border: `1px solid ${COLOR.border}`, borderRadius: RADIUS.md, marginBottom: '6px' }}>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: '13px', fontWeight: 600 }}>
+                  <div style={{ fontSize: '12px', fontWeight: 600 }}>
                     {item.type === 'payment' ? `${item.DocumentNo} — ${item.BPName}` : `⚙️ ${item.ChargeName}`}
                   </div>
                   {item.Description && <div style={{ fontSize: '11px', color: COLOR.textLt }}>{item.Description}</div>}
@@ -129,7 +141,7 @@ const BankStatementContainer = () => {
                 <input
                   type="number" value={item.StmtAmt}
                   onChange={e => updateStmtAmt(lineKey(item), parseFloat(e.target.value) || 0)}
-                  style={{ width: '100px', padding: '6px', textAlign: 'right', border: `1px solid ${COLOR.border}`, borderRadius: RADIUS.sm, color: item.StmtAmt >= 0 ? COLOR.success : '#dc2626', fontWeight: 700 }}
+                  style={{ width: '120px', padding: '6px', textAlign: 'right', border: `1px solid ${COLOR.border}`, borderRadius: RADIUS.sm, color: item.StmtAmt >= 0 ? COLOR.success : '#dc2626', fontWeight: 700 }}
                 />
                 <button onClick={() => removeItem(lineKey(item))} style={{ background: 'none', border: 'none', color: '#dc2626', fontSize: '16px', cursor: 'pointer' }}>✕</button>
               </div>

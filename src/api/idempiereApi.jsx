@@ -196,7 +196,7 @@ export async function getProductImageBlobUrls(productId) {
   // di-embed langsung di URL, TIDAK di-encode (server/proxy kamu sudah terbukti
   // jalan dengan format ini di modul stock).
 
-  function buildQuery(params = {}) {
+  export function buildQuery(params = {}) {
     const parts = Object.entries(params)
       .filter(([, v]) => v !== undefined && v !== null && v !== "")
       .map(([k, v]) => `${k}=${v}`);

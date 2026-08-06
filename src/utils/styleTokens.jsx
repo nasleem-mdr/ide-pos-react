@@ -15,7 +15,7 @@ export const COLOR = {
   vendorBg:   '#edf3fc',
 };
 
-export const RADIUS = { sm: '6px', md: '10px', lg: '14px', xl: '18px' };
+export const RADIUS = { sm: '4px', md: '8px', lg: '12px', xl: '16px' };
 
 export const stepBtnBase = {
   border: '1px solid #dde3ef',

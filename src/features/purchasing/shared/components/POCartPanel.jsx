@@ -10,6 +10,10 @@ import { formatCurrency } from '@/utils/currency';
 // (grouped-by-vendor), tapi dibungkus sebagai bottom-sheet mobile.
 // Field Description ditempatkan di bawah header, sebelum daftar item —
 // sama seperti POCartSidebar (versi desktop).
+//
+// CHANGES (backward-compatible, mirrors POCartSidebar.jsx):
+// - fallback `group.VendorName || group.CustomerName`
+// - added `partnerIcon` / `partnerLabel` / `docLabel` props (same defaults)
 const POCartPanel = ({
   isOpen, onClose,
   vendorGroups, onRemove, onQtyChange, onPriceChange, onUomChange, onVendorClick, onClearCart,
@@ -22,6 +26,9 @@ const POCartPanel = ({
   description = '',
   onDescriptionChange,
   descriptionPlaceholder = 'Keterangan Purchase Order...',
+  partnerIcon = '🚚',
+  partnerLabel = 'vendor',
+  docLabel = 'PO',
 }) => {
   if (!isOpen) return null;
   const vendorCount = vendorGroups.length;
@@ -109,7 +116,7 @@ const POCartPanel = ({
                   color: group.C_BPartner_ID ? COLOR.vendor : COLOR.danger,
                   marginBottom: '6px', paddingBottom: '4px', borderBottom: `1px dashed ${COLOR.border}`,
                 }}>
-                  <span>🚚 {group.VendorName}</span>
+                  <span>{partnerIcon} {group.VendorName || group.CustomerName}</span>
                   <span>{formatCurrency(group.subtotal)}</span>
                 </div>
                 {group.items.map(item => (
@@ -141,7 +148,7 @@ const POCartPanel = ({
             }}>
               <div style={{ fontSize: '13px', color: COLOR.textMd }}>
                 <strong style={{ color: COLOR.textDk }}>{totalItems}</strong> item ·{' '}
-                <strong style={{ color: COLOR.textDk }}>{vendorCount}</strong> vendor
+                <strong style={{ color: COLOR.textDk }}>{vendorCount}</strong> {partnerLabel}
               </div>
               <div style={{ fontSize: '13px', fontWeight: 700, color: COLOR.textDk }}>{formatCurrency(totalAmount)}</div>
             </div>
@@ -154,7 +161,7 @@ const POCartPanel = ({
                 fontSize: '11px', color: COLOR.danger, background: COLOR.dangerLt,
                 borderRadius: RADIUS.sm, padding: '8px 10px', marginBottom: '10px',
               }}>
-                ⚠ Masih ada item tanpa vendor. Ketuk badge 🚚 pada item untuk memilih vendor.
+                ⚠ Masih ada item tanpa {partnerLabel}. Ketuk badge {partnerIcon} pada item untuk memilih {partnerLabel}.
               </div>
             )}
 
@@ -185,7 +192,7 @@ const POCartPanel = ({
                     cursor: (isSubmitting || hasIncompleteVendor) ? 'not-allowed' : 'pointer',
                   }}
                 >
-                  {isSubmitting ? '⏳ Memproses...' : `📝 DRAFT ${vendorCount} PO${vendorCount > 1 ? ' (terpisah)' : ''}`}
+                  {isSubmitting ? '⏳ Memproses...' : `📝 DRAFT ${vendorCount} ${docLabel}${vendorCount > 1 ? ' (terpisah)' : ''}`}
                 </button>
                 <button
                   onClick={onSubmitComplete}
@@ -197,7 +204,7 @@ const POCartPanel = ({
                     cursor: (isSubmitting || hasIncompleteVendor) ? 'not-allowed' : 'pointer',
                   }}
                 >
-                  {isSubmitting ? '⏳ Memproses...' : `✅ COMPLETE ${vendorCount} PO${vendorCount > 1 ? ' (terpisah)' : ''}`}
+                  {isSubmitting ? '⏳ Memproses...' : `✅ COMPLETE ${vendorCount} ${docLabel}${vendorCount > 1 ? ' (terpisah)' : ''}`}
                 </button>
               </div>
             )}

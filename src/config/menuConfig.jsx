@@ -1,10 +1,10 @@
-import { HomeIcon, VendorIcon, RequisitionIcon, ShoppingCartIcon, DeliveryIcon, UserTake, ListIcon, PartnerIcon, BoxIcon, CashierIcon, } from '@/shared/components/icon';
+import { HomeIcon, ImportIcon, BankIcon, VendorIcon, RequisitionIcon, ShoppingCartIcon, DeliveryIcon, UserTake, ListIcon, PartnerIcon, BoxIcon, CashierIcon, } from '@/shared/components/icon';
 
 export const menuSections = [ 
     {
         sectionKey: 'procurement',
         sectionLabel: 'Procurement',
-        defaultCollapsed: false,
+        defaultCollapsed: true,
         items: [
             { key: 'dashboard',     windowKey: 'dashboard',    path: '/dashboard',      label: 'Dashboard',     icon: <HomeIcon /> },
             { key: 'requisition',   windowKey: 'requisition',  path: '/requisition',    label: 'Requisition',   icon: <RequisitionIcon /> },
@@ -12,15 +12,23 @@ export const menuSections = [
             { key: 'goodsReceipt',  windowKey: 'goodsReceipt', path: '/goods-receipt', label: 'Goods Receipt', icon: <DeliveryIcon /> },
             { key: 'internalUse',   windowKey: 'internalUse',  path: '/internal-use',  label: 'Internal Use',  icon: <UserTake /> },
             { key: 'vendorInvoice',   windowKey: 'vendorInvoice',  path: '/vendor-invoice',  label: 'Vendor Invoice',  icon: <VendorIcon /> },
-            { key: 'bankstatement',   windowKey: 'bankstatement',  path: '/bank-statement',  label: 'Bank/Cash Statement',  icon: <VendorIcon /> },
         ]
     },
     {
         sectionKey: 'sales',
-        sectionLabel: 'Sales POS',
-        defaultCollapsed: false,
+        sectionLabel: 'Sales',
+        defaultCollapsed: true,
         items: [
             { key: 'pos-order',     windowKey: 'pos',    path: '/pos-order',        label: 'Pos Sales',     icon: <CashierIcon size={20}/> },
+            { key: 'salesInvoice',       windowKey: 'salesInvoice', path: '/sales-invoice',         label: 'Sales Invoice',  icon: <ImportIcon /> },
+            ]
+    },
+    {
+        sectionKey: 'payment',
+        sectionLabel: 'Payment/Receipt',
+        defaultCollapsed: true,
+        items: [
+            { key: 'bankstatement',   windowKey: 'bankstatement',  path: '/bank-statement',  label: 'Bank/Cash Statement',  icon: <BankIcon /> },
             { key: 'booking',       windowKey: 'booking', path: '/booking',         label: 'Booking Timeline',  icon: <UserTake /> },
             ]
     },
