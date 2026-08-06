@@ -1,37 +1,51 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { COLOR, RADIUS } from '@/utils/styleTokens';
 import { useUnreconciledPaymentLines } from '../hooks/useUnreconciledPaymentLines';
+import useSubordinates from '@/shared/hooks/useSubordinates'; // ⚠️ SESUAIKAN path kalau beda
+import { getLoginInfo } from '@/shared/hooks';
 
-// Replicate "Create From" on "Bank Statement IDempiere" — Bank Account filter (fixed
-// from context, cannot be changed here), Document Type (AR/AP), Payment
-// Amount range, Business Partner, Transaction Date range, multi-select table
-// with running Sum in the footer
+const todayISO = () => new Date().toISOString().split('T')[0];
+
 const BankStatementImportModal = ({ isOpen, onClose, bankAccountId, bankAccountName, onImport }) => {
   const { lines, loading, fetchLines } = useUnreconciledPaymentLines();
+  const { subordinates } = useSubordinates();
+  const currentUserId = getLoginInfo()?.userId;
+
   const [docTypeFilter, setDocTypeFilter] = useState(null); // 'AR' | 'AP' | null
-  const [amountMin, setAmountMin] = useState('');
-  const [amountMax, setAmountMax] = useState('');
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
-  const [selected, setSelected] = useState({}); // { [C_Payment_ID]: true }
+  const [createdByOption, setCreatedByOption] = useState('all'); // 'all' | 'mine' | 'team'
+  const [dateFrom, setDateFrom] = useState(todayISO());
+  const [dateTo, setDateTo] = useState(todayISO());
+  const [selected, setSelected] = useState({});
+
+  // Punya bawahan atau tidak — kalau tidak, opsi "Tim Saya" tidak relevan
+  // ditampilkan (subordinates = [] berarti user ini bukan atasan siapapun).
+  const hasSubordinates = subordinates.length > 0;
+
+  const createdByIds = useMemo(() => {
+    if (createdByOption === 'mine') return currentUserId ? [currentUserId] : [];
+    if (createdByOption === 'team') return currentUserId ? [currentUserId, ...subordinates] : subordinates;
+    return null; // 'all' — tidak difilter
+  }, [createdByOption, currentUserId, subordinates]);
 
   const runFilter = () => {
-    fetchLines({
-      bankAccountId, docTypeFilter,
-      amountMin: amountMin ? parseFloat(amountMin) : null,
-      amountMax: amountMax ? parseFloat(amountMax) : null,
-      dateFrom: dateFrom || null,
-      dateTo: dateTo || null,
-    });
+    fetchLines({ bankAccountId, docTypeFilter, createdByIds, dateFrom: dateFrom || null, dateTo: dateTo || null });
   };
 
+  // Auto-fetch setiap filter berubah — tidak ada tombol Refresh manual lagi.
   useEffect(() => {
-    if (isOpen && bankAccountId) {
-      setSelected({});
-      runFilter();
-    }
+    if (isOpen && bankAccountId) runFilter();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, bankAccountId]);
+  }, [isOpen, bankAccountId, docTypeFilter, createdByIds, dateFrom, dateTo]);
+
+  useEffect(() => {
+    if (isOpen) {
+      setSelected({});
+      setDateFrom(todayISO());
+      setDateTo(todayISO());
+      setDocTypeFilter(null);
+      setCreatedByOption('all');
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -46,7 +60,7 @@ const BankStatementImportModal = ({ isOpen, onClose, bankAccountId, bankAccountN
       C_Payment_ID: l.C_Payment_ID,
       DocumentNo:   l.DocumentNo,
       DateTrx:      l.DateTrx,
-      StmtAmt:      l.IsReceipt ? l.PayAmt : -l.PayAmt,   // Receipt (+), Payment (-)
+      StmtAmt:      l.IsReceipt ? l.PayAmt : -l.PayAmt,
       TrxAmt:       l.IsReceipt ? l.PayAmt : -l.PayAmt,
       C_BPartner_ID: l.C_BPartner_ID,
       BPName:        l.BPName,
@@ -68,22 +82,23 @@ const BankStatementImportModal = ({ isOpen, onClose, bankAccountId, bankAccountN
 
         <div style={{ padding: '12px 16px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', borderBottom: `1px solid ${COLOR.border}` }}>
           <select value={docTypeFilter || ''} onChange={e => setDocTypeFilter(e.target.value || null)}
-            style={{ padding: '8px', border: `1px solid ${COLOR.border}`, borderRadius: RADIUS.sm, gridColumn: '1 / -1' }}>
-            <option value="">All Type(AR or AP)</option>
+            style={{ padding: '8px', border: `1px solid ${COLOR.border}`, borderRadius: RADIUS.sm }}>
+            <option value="">All Type (AR or AP)</option>
             <option value="AR">AR Receipt</option>
             <option value="AP">AP Payment</option>
           </select>
-          <input type="number" placeholder="Jumlah min" value={amountMin} onChange={e => setAmountMin(e.target.value)}
-            style={{ padding: '8px', border: `1px solid ${COLOR.border}`, borderRadius: RADIUS.sm }} />
-          <input type="number" placeholder="Jumlah max" value={amountMax} onChange={e => setAmountMax(e.target.value)}
-            style={{ padding: '8px', border: `1px solid ${COLOR.border}`, borderRadius: RADIUS.sm }} />
+
+          <select value={createdByOption} onChange={e => setCreatedByOption(e.target.value)}
+            style={{ padding: '8px', border: `1px solid ${COLOR.border}`, borderRadius: RADIUS.sm }}>
+            <option value="all">Semua User</option>
+            <option value="mine">Dibuat Saya Sendiri</option>
+            {hasSubordinates && <option value="team">Saya + Tim (Bawahan)</option>}
+          </select>
+
           <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
             style={{ padding: '8px', border: `1px solid ${COLOR.border}`, borderRadius: RADIUS.sm }} />
           <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
             style={{ padding: '8px', border: `1px solid ${COLOR.border}`, borderRadius: RADIUS.sm }} />
-          <button onClick={runFilter} style={{ gridColumn: '1 / -1', padding: '8px', border: 'none', borderRadius: RADIUS.sm, background: COLOR.primary, color: '#fff', fontWeight: 600 }}>
-            🔄 Refresh
-          </button>
         </div>
 
         <div style={{ flex: 1, overflowY: 'auto' }}>
