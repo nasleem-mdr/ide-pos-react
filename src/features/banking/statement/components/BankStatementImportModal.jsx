@@ -2,10 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { COLOR, RADIUS } from '@/utils/styleTokens';
 import { useUnreconciledPaymentLines } from '../hooks/useUnreconciledPaymentLines';
 
-// Replika "Bank Statement .. Create lines from" — filter Bank Account (fixed
-// dari context, tidak bisa diganti di sini), Document Type (AR/AP), Payment
-// Amount range, Business Partner, Transaction Date range, tabel multi-select
-// dgn running Sum di footer (lihat screenshot referensi).
+// Replicate "Create From" on "Bank Statement IDempiere" — Bank Account filter (fixed
+// from context, cannot be changed here), Document Type (AR/AP), Payment
+// Amount range, Business Partner, Transaction Date range, multi-select table
+// with running Sum in the footer
 const BankStatementImportModal = ({ isOpen, onClose, bankAccountId, bankAccountName, onImport }) => {
   const { lines, loading, fetchLines } = useUnreconciledPaymentLines();
   const [docTypeFilter, setDocTypeFilter] = useState(null); // 'AR' | 'AP' | null
@@ -69,9 +69,9 @@ const BankStatementImportModal = ({ isOpen, onClose, bankAccountId, bankAccountN
         <div style={{ padding: '12px 16px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', borderBottom: `1px solid ${COLOR.border}` }}>
           <select value={docTypeFilter || ''} onChange={e => setDocTypeFilter(e.target.value || null)}
             style={{ padding: '8px', border: `1px solid ${COLOR.border}`, borderRadius: RADIUS.sm, gridColumn: '1 / -1' }}>
-            <option value="">Semua Tipe (AR Receipt + AP Payment)</option>
-            <option value="AR">AR Receipt saja</option>
-            <option value="AP">AP Payment saja</option>
+            <option value="">All Type(AR or AP)</option>
+            <option value="AR">AR Receipt</option>
+            <option value="AP">AP Payment</option>
           </select>
           <input type="number" placeholder="Jumlah min" value={amountMin} onChange={e => setAmountMin(e.target.value)}
             style={{ padding: '8px', border: `1px solid ${COLOR.border}`, borderRadius: RADIUS.sm }} />
@@ -88,19 +88,19 @@ const BankStatementImportModal = ({ isOpen, onClose, bankAccountId, bankAccountN
 
         <div style={{ flex: 1, overflowY: 'auto' }}>
           {loading ? (
-            <div style={{ textAlign: 'center', padding: '32px', color: COLOR.textLt }}>⏳ Memuat...</div>
+            <div style={{ textAlign: 'center', padding: '32px', color: COLOR.textLt }}>⏳ Loading...</div>
           ) : lines.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '32px', color: COLOR.textLt }}>Tidak ada Payment/Receipt yang belum direkonsiliasi.</div>
+            <div style={{ textAlign: 'center', padding: '32px', color: COLOR.textLt }}>There are no unreconciled Payments/Receipts.</div>
           ) : (
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
               <thead>
                 <tr style={{ background: COLOR.bg, textAlign: 'left' }}>
                   <th style={{ padding: '8px' }}></th>
-                  <th style={{ padding: '8px' }}>Tanggal</th>
+                  <th style={{ padding: '8px' }}>Date</th>
                   <th style={{ padding: '8px' }}>Payment</th>
-                  <th style={{ padding: '8px' }}>Tipe</th>
+                  <th style={{ padding: '8px' }}>Type</th>
                   <th style={{ padding: '8px' }}>Vendor/Customer</th>
-                  <th style={{ padding: '8px', textAlign: 'right' }}>Jumlah</th>
+                  <th style={{ padding: '8px', textAlign: 'right' }}>Amount</th>
                 </tr>
               </thead>
               <tbody>
@@ -124,13 +124,13 @@ const BankStatementImportModal = ({ isOpen, onClose, bankAccountId, bankAccountN
 
         <div style={{ padding: '10px 16px', borderTop: `1px solid ${COLOR.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span style={{ fontSize: '12px', fontWeight: 600 }}>
-            {selectedLines.length} dipilih — Sum {sumSelected.toLocaleString('id-ID')}
+            {selectedLines.length} Selected — Sum {sumSelected.toLocaleString('id-ID')}
           </span>
           <div style={{ display: 'flex', gap: '8px' }}>
-            <button onClick={onClose} style={{ padding: '8px 14px', border: `1px solid ${COLOR.border}`, borderRadius: RADIUS.md, background: 'none' }}>Batal</button>
+            <button onClick={onClose} style={{ padding: '8px 14px', border: `1px solid ${COLOR.border}`, borderRadius: RADIUS.md, background: 'none' }}>Cancel</button>
             <button onClick={handleConfirm} disabled={selectedLines.length === 0}
               style={{ padding: '8px 14px', border: 'none', borderRadius: RADIUS.md, background: COLOR.primary, color: '#fff', fontWeight: 700, opacity: selectedLines.length === 0 ? 0.5 : 1 }}>
-              Tambahkan ({selectedLines.length})
+              + Add ({selectedLines.length})
             </button>
           </div>
         </div>

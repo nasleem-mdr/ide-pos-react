@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Dialog } from '@/shared/components';
-import { useBankAccounts, getLoginInfo } from '@/shared/hooks';
+import { useBankAccounts, useIsDesktop, getLoginInfo } from '@/shared/hooks';
 import { useAccess } from '@/context/AccessContext';
 import { COLOR, RADIUS } from '@/utils/styleTokens';
 
@@ -20,8 +20,8 @@ const BankStatementContainer = () => {
   const [chargeFormOpen, setChargeFormOpen] = useState(false);
   const selectedBank = bankAccounts.find(b => String(b.id) === String(bankAccountId));
   const { canEdit } = useAccess();
-  const canSubmit = canEdit('bankstatement'); 
-
+  const canSubmit = canEdit('banking'); 
+  const isDesktop = useIsDesktop();
   const { cart, addItems, addChargeLine, removeItem, updateStmtAmt, clearCart, totalItems, totalStmtAmt } = useBankStatementCart();
   const { submit, fetchBeginningBalance, isSubmitting } = useBankStatementSubmit({ onError: alert });
 
@@ -47,60 +47,70 @@ const BankStatementContainer = () => {
       <Dialog isOpen={dialog.isOpen} title={dialog.title} message={dialog.message} onClose={() => setDialog({ isOpen: false, title: '', message: '' })} />
       <BankStatementImportModal isOpen={importOpen} onClose={() => setImportOpen(false)} bankAccountId={bankAccountId} bankAccountName={selectedBank?.name} onImport={addItems} />
       <ChargeLineForm isOpen={chargeFormOpen} onClose={() => setChargeFormOpen(false)} onAdd={addChargeLine} />
-
+  
       <div className='header-purchasing'>
         <span style={{ color: '#fff', fontWeight: 700, fontSize: '15px' }}>🏦 Cash/Bank Statement</span>
       </div>
-    <div style={{ padding: '14px', background: COLOR.surface, borderBottom: `1px solid ${COLOR.border}` }}>
-  <label style={{ fontSize: '12px', color: COLOR.textLt }}>Bank Account</label>
-
-  <div style={{ display: 'flex', gap: '8px', alignItems: 'stretch', marginTop: '4px', flexWrap: 'wrap' }}>
-    <select
-      value={bankAccountId || ''}
-      onChange={e => setBankAccountId(e.target.value || null)}
-      style={{
-        flex: '1 1 200px', minWidth: '160px', padding: '10px',
-        border: `1px solid ${COLOR.border}`, borderRadius: RADIUS.md,
-      }}
-    >
-      <option value="">-- Pilih Bank Account --</option>
-      {bankAccounts.map(b => (
-        <option key={b.id} value={b.id}>{b.name}</option>
-      ))}
-    </select>
-
-    {bankAccountId && (
-      <>
-        <button
-          onClick={() => setImportOpen(true)}
-          style={{
-            padding: '10px 14px', border: 'none', borderRadius: RADIUS.md,
-            background: COLOR.primary, color: '#fff', fontWeight: 600,
-            whiteSpace: 'nowrap', flexShrink: 0,
-          }}
-        >
-          ⬇️ Import AP/AR
-        </button>
-        <button
-          onClick={() => setChargeFormOpen(true)}
-          style={{
-            padding: '10px 14px', border: `1px solid ${COLOR.border}`, borderRadius: RADIUS.md,
-            background: 'none', fontWeight: 600, whiteSpace: 'nowrap', flexShrink: 0,
-          }}
-        >
-          ➕ Add Charge
-        </button>
-      </>
-    )}
-  </div>
-
-  {bankAccountId && (
-    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '10px', fontSize: '13px' }}>
-      <span>Begining Balance: <b>{beginningBalance.toLocaleString('id-ID')}</b></span>
-      <span>Ending Balance(preview): <b style={{ color: COLOR.primary }}>{endingBalancePreview.toLocaleString('id-ID')}</b></span>
-    </div>
-  )}
-</div>
+  
+      <div style={{ padding: '14px', background: COLOR.surface, borderBottom: `1px solid ${COLOR.border}` }}>
+          
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'stretch', marginTop: '4px' }}>
+          <select
+            value={bankAccountId || ''}
+            onChange={e => setBankAccountId(e.target.value || null)}
+            style={{
+              flex: '1 1 auto', minWidth: 0, padding: '10px',
+              border: `1px solid ${COLOR.border}`, borderRadius: RADIUS.md,
+            }}
+          >
+            <option value="">-- Choose Bank Account --</option>
+            {bankAccounts.map(b => (
+              <option key={b.id} value={b.id}>{b.name}</option>
+            ))}
+          </select>
+  
+          {bankAccountId && (
+            <>
+              <button
+                onClick={() => setImportOpen(true)}
+                title="Import AP/AR"
+                style={{
+                  padding: isDesktop ? '10px 14px' : '10px',
+                  width: isDesktop ? 'auto' : '40px',
+                  height: isDesktop ? 'auto' : '40px',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  border: 'none', borderRadius: RADIUS.md,
+                  background: COLOR.primary, color: '#fff', fontWeight: 600,
+                  whiteSpace: 'nowrap', flexShrink: 0,
+                }}
+              >
+                {isDesktop ? '⬇️ Import AP/AR' : '⬇️'}
+              </button>
+              <button
+                onClick={() => setChargeFormOpen(true)}
+                title="Add Charge"
+                style={{
+                  padding: isDesktop ? '10px 14px' : '10px',
+                  width: isDesktop ? 'auto' : '40px',
+                  height: isDesktop ? 'auto' : '40px',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  border: `1px solid ${COLOR.border}`, borderRadius: RADIUS.md,
+                  background: 'none', fontWeight: 600, whiteSpace: 'nowrap', flexShrink: 0,
+                }}
+              >
+                {isDesktop ? '➕ Add Charge' : '➕'}
+              </button>
+            </>
+          )}
+        </div>
+  
+        {bankAccountId && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '10px', fontSize: '13px' }}>
+            <span>Begining Balance: <b>{beginningBalance.toLocaleString('id-ID')}</b></span>
+            <span>Ending Balance(preview): <b style={{ color: COLOR.primary }}>{endingBalancePreview.toLocaleString('id-ID')}</b></span>
+          </div>
+        )}
+      </div>
       {bankAccountId && (
         <>
           

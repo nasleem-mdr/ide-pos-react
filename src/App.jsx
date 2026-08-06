@@ -67,7 +67,7 @@ function AppContent() {
   useEffect(() => {
     const handleSessionExpired = () => {
       localStorage.removeItem('token');
-      setSession(null); // opsional tapi disarankan — reset state session juga, bukan cuma token
+      setSession(null); 
       navigate('/', { replace: true });
     };
 
