@@ -11,7 +11,7 @@ import { useBankStatementSubmit } from '@/features/banking/statement/hooks/useBa
 
 const BankStatementContainer = () => {
   const [dialog, setDialog] = useState({ isOpen: false, title: '', message: '' });
-  const alert = (message, title = 'Perhatian') => setDialog({ isOpen: true, title, message });
+  const alert = (message, title = 'Attention') => setDialog({ isOpen: true, title, message });
 
   const { bankAccounts } = useBankAccounts();
   const [bankAccountId, setBankAccountId] = useState(null);
@@ -20,7 +20,7 @@ const BankStatementContainer = () => {
   const [chargeFormOpen, setChargeFormOpen] = useState(false);
   const selectedBank = bankAccounts.find(b => String(b.id) === String(bankAccountId));
   const { canEdit } = useAccess();
-  const canSubmit = canEdit('banking'); // ⚠️ SESUAIKAN key access-nya
+  const canSubmit = canEdit('bankstatement'); 
 
   const { cart, addItems, addChargeLine, removeItem, updateStmtAmt, clearCart, totalItems, totalStmtAmt } = useBankStatementCart();
   const { submit, fetchBeginningBalance, isSubmitting } = useBankStatementSubmit({ onError: alert });
@@ -38,7 +38,7 @@ const BankStatementContainer = () => {
   const handleSubmit = async (submitMode) => {
     const { result, hadError } = await submit(cart, { bankAccountId, beginningBalance, submitMode });
     if (!result) return;
-    alert(`Bank Statement ${result.documentNo} berhasil ${result.status === 'Completed' ? 'di-Complete' : 'disimpan sbg Draft'}.`, 'Berhasil');
+    alert(`Bank Statement ${result.documentNo} has been successfully ${result.status === 'Completed' ? 'di-Complete' : 'Save as Draft'}.`, 'Success');
     if (!hadError) { clearCart(); }
   };
 
