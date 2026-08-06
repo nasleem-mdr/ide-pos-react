@@ -1,3 +1,5 @@
+export * from './Add';
+export * from './Bank';
 export * from './Logo';
 export * from './Login';
 export * from './Logout';
