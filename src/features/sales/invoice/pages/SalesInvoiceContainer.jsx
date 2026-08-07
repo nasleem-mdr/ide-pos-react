@@ -14,13 +14,15 @@ import {
 import {
   useIsDesktop,
   getLoginInfo,
-  getMissingSessionFields
+  getMissingSessionFields,
+  useColumnSupport
 } from '@/shared/hooks';
 
 import { useSalesProductSearch } from '@/features/sales/shared/hooks/useSalesProductSearch';
 import {
   useUomConversion
 } from '@/shared/hooks';
+import { useBankAccounts } from '@/shared/hooks/useBankAccounts'; // sesuaikan path
 
 import { useCustomerSearch } from '@/shared/hooks/useCustomerSearch';
 import SalesInvoiceSubmitModal from '@/features/sales/invoice/components/SalesInvoiceSubmitModal';
@@ -37,7 +39,7 @@ import { resolveDocTypeId, DOC_BASE_TYPE } from '@/utils/docTypeResolver';
 import '@/css/Header.css';
 
 const SALES_INVOICE_CONFIG = {
-  DESCRIPTION: 'Sales Invoice via Web',
+  DESCRIPTION: 'POReference',
 };
 
 const SalesInvoiceContainer = () => {
@@ -54,11 +56,16 @@ const SalesInvoiceContainer = () => {
   const [invoiceDocTypeId, setInvoiceDocTypeId] = useState(null);
   const [submitModalOpen, setSubmitModalOpen] = useState(false);
   const [description, setDescription] = useState('');
-
+  // ...
+  const supportsBankAccount = useColumnSupport('c_invoice', 'C_BankAccount_ID');
+  const supportsDateService = useColumnSupport('c_invoiceline', 'DateService');
+  const [bankAccountId, setBankAccountId] = useState(null);
+  const { bankAccounts, loading: bankAccountsLoading } = useBankAccounts();
+  
   // ── Inline customer search state (pola GoodsReceiptContainer) ──────────
   const [customerQuery, setCustomerQuery] = useState('');
   const [customerOpen, setCustomerOpen]   = useState(false);
-  const { customers, loading: customerLoading, searchCustomer } = useCustomerSearch();
+  const { customers, loading: customerLoading, searchCustomer, resolveCustomerPricing } = useCustomerSearch();
 
   const searchRef = useRef(null);
   const customerBoxRef = useRef(null);
@@ -67,13 +74,13 @@ const SalesInvoiceContainer = () => {
   const { products, loading: productsLoading, fetchProducts, search, searchValue, setSearchValue } = useSalesProductSearch();
   const {
     cart, addItem, addItems, removeItem, updateQty, updatePrice, updateUom, clearCart,
-    customer, setCustomer, totalItems, totalAmount,
+    customer, setCustomer, totalItems, totalAmount, updateDescription, updateDateService,
   } = useSalesCart();
   const { toBaseQty } = useUomConversion();
 
   const { submit: submitInvoice, isSubmitting } = useSalesInvoiceSubmit({
     invoiceDocTypeId,
-    description: description || SALES_INVOICE_CONFIG.DESCRIPTION,
+    description: description,
     onError: alert,
   });
 
@@ -105,17 +112,32 @@ const SalesInvoiceContainer = () => {
   }, []);
 
   // ── Klik di luar box search customer → tutup dropdown ───────────────────
-  useEffect(() => {
-    const handler = (e) => {
-      if (customerBoxRef.current && !customerBoxRef.current.contains(e.target)) {
-        setCustomerOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
+ // ── Klik di luar box search customer → tutup dropdown ───────────────────
+ useEffect(() => {
+  const handler = (e) => {
+    if (customerBoxRef.current && !customerBoxRef.current.contains(e.target)) {
+      setCustomerOpen(false);
+    }
+  };
+  document.addEventListener('mousedown', handler);
+  return () => document.removeEventListener('mousedown', handler);
+}, []);
 
-  const openProductDetail = (product) => { setSelectedProduct(product); setDetailOpen(true); };
+// ── BARU: re-fetch produk (dengan harga baru) saat price list customer berubah ──
+useEffect(() => {
+  if (customer?.priceListVersionId) {
+    fetchProducts(searchValue, null, customer.priceListVersionId);
+  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [customer?.priceListVersionId]);
+useEffect(() => {
+  if (bankAccounts.length > 0 && !bankAccountId) {
+    const defaultAcc = bankAccounts.find(b => b.isDefault) || bankAccounts[0];
+    setBankAccountId(defaultAcc.id);
+  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [bankAccounts]);
+const openProductDetail = (product) => { setSelectedProduct(product); setDetailOpen(true); };
   const closeProductDetail = () => { setDetailOpen(false); setSelectedProduct(null); };
 
   const handleConfirmAddToCart = (product, qty, chosenUom) => {
@@ -135,7 +157,7 @@ const SalesInvoiceContainer = () => {
 
   const handleBarcodeDetected = async (code) => {
     setScannerOpen(false);
-    await fetchProducts(code);
+    await fetchProducts(code, null, customer?.priceListVersionId);
   };
 
   const handleCartUomChange = (itemKey, chosenUom) => {
@@ -153,11 +175,7 @@ const SalesInvoiceContainer = () => {
       Price: Math.max(newPrice, 0),
     });
   };
-  const handleDescriptionChange = (itemKey, value) => {
-    setCartItems(prev => prev.map(it =>
-      it.key === itemKey ? { ...it, Description: value } : it
-    ));
-  };
+  
   // ── Pilih customer dari hasil search — fetch lokasi aktifnya sekalian ──
   // (sebelumnya ini kerjaan CustomerPickerModal; sekarang dilakukan di sini
   // begitu user klik salah satu hasil dropdown).
@@ -165,13 +183,11 @@ const SalesInvoiceContainer = () => {
     const bpId = fkId(bp.C_BPartner_ID) ?? bp.id;
     setCustomerQuery(bp.Name);
     setCustomerOpen(false);
-
-    // Ganti customer di tengah jalan saat cart sudah ada isi → kosongkan,
-    // karena harga per item sudah terikat ke customer/price-list sebelumnya.
+  
     if (customer?.C_BPartner_ID && customer.C_BPartner_ID !== bpId && cart.length > 0) {
       clearCart();
     }
-
+  
     try {
       const locRes = await idempiereApi(
         `/models/c_bpartner_location?$filter=C_BPartner_ID eq ${bpId} and IsActive eq true&$select=C_BPartner_Location_ID&$top=1`
@@ -179,9 +195,22 @@ const SalesInvoiceContainer = () => {
       const locRecords = Array.isArray(locRes.records) ? locRes.records : [];
       const locationId = locRecords[0] ? (fkId(locRecords[0].C_BPartner_Location_ID) ?? locRecords[0].id) : null;
       if (!locationId) {
-        alert(`Customer "${bp.Name}" tidak memiliki alamat aktif (C_BPartner_Location).\nTambahkan alamat customer terlebih dahulu di Business Partner.`, 'Data Tidak Lengkap');
+        alert(`Customer "${bp.Name}" tidak memiliki alamat aktif...`, 'Data Tidak Lengkap');
       }
-      setCustomer({ C_BPartner_ID: bpId, Name: bp.Name, locationId });
+  
+      // ── BARU: resolve price list version customer ini ──
+      const { priceListId, priceListVersionId } = await resolveCustomerPricing(bp);
+      if (!priceListVersionId) {
+        alert(`Customer "${bp.Name}" tidak memiliki Price List aktif.\nHarga produk mungkin tidak akurat.`, 'Price List Tidak Ditemukan');
+      }
+  
+      setCustomer({
+        C_BPartner_ID: bpId,
+        Name: bp.Name,
+        locationId,
+        priceListId,
+        priceListVersionId,   // ← simpan ini di state customer
+      });
     } catch (err) {
       console.error('Gagal fetch lokasi customer:', err.message);
       setCustomer({ C_BPartner_ID: bpId, Name: bp.Name, locationId: null });
@@ -198,10 +227,15 @@ const SalesInvoiceContainer = () => {
       alert('Pilih customer dulu sebelum submit invoice.', 'Data Belum Lengkap');
       return;
     }
+    if (!bankAccountId) {
+      alert('Pilih rekening bank dulu sebelum submit invoice.', 'Data Belum Lengkap');
+      return;
+    }
     const result = await submitInvoice(cart, {
       customerId:         customer.C_BPartner_ID,
       customerLocationId: customer.locationId,
       customerName:       customer.Name,
+      bankAccountId,
       submitMode,
     });
     if (!result) return;
@@ -213,6 +247,7 @@ const SalesInvoiceContainer = () => {
     setCartOpen(false);
     setDescription('');
     setCustomerQuery('');
+    setBankAccountId(null);
   };
 
   const cartSummaryRight = customer?.Name ? `👤 ${customer.Name}` : '👤 Belum dipilih';
@@ -252,7 +287,7 @@ const SalesInvoiceContainer = () => {
         onClose={() => {
           setSuccessOpen(false);
           setSuccessData(null);
-          fetchProducts('');
+          fetchProducts('', null, customer?.priceListVersionId);
           setSearchValue('');
           setTimeout(() => searchRef.current?.focus(), 150);
         }}
@@ -275,10 +310,10 @@ const SalesInvoiceContainer = () => {
         </span>
       </div>
 
-      {/* Customer Search — inline, pola GoodsReceiptContainer */}
+      {/* Customer Search + Description — inline, pola GoodsReceiptContainer */}
       <div style={{
         padding: '10px 14px', background: COLOR.surface, borderBottom: `1px solid ${COLOR.border}`,
-        display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap', flexShrink: 0,
+        display: 'flex', gap: '10px', alignItems: 'flex-start', flexWrap: 'wrap', flexShrink: 0,
       }}>
         <div ref={customerBoxRef} style={{ position: 'relative', flex: 1, minWidth: '200px', maxWidth: '360px' }}>
           <input
@@ -337,11 +372,41 @@ const SalesInvoiceContainer = () => {
           )}
         </div>
 
-        {!customer && (
-          <span style={{ color: COLOR.textLt, fontSize: '11px' }}>
-            Pilih customer dulu sebelum menambahkan produk ke invoice.
-          </span>
+        {/* ── BARU: Description invoice-level, pindahan dari SICartSidebar ── */}
+        <input
+          type="text"
+          value={description}
+          onChange={e => setDescription(e.target.value)}
+          placeholder={SALES_INVOICE_CONFIG.DESCRIPTION}
+          style={{
+            flex: 1, minWidth: '200px', boxSizing: 'border-box', padding: '8px 10px',
+            border: `1.5px solid ${COLOR.border}`, borderRadius: RADIUS.sm,
+            fontSize: '13px', color: COLOR.textDk, outline: 'none', background: '#fff',
+          }}
+        />
+        {/* ── Pilih C_BankAccount_ID, wajib sebelum submit ── */}
+        {supportsBankAccount && (
+          <select
+            value={bankAccountId ?? ''}
+            onChange={e => setBankAccountId(e.target.value ? parseInt(e.target.value, 10) : null)}
+            style={{
+              minWidth: '180px', boxSizing: 'border-box', padding: '8px 10px',
+              border: `1.5px solid ${bankAccountId ? COLOR.success : COLOR.border}`,
+              borderRadius: RADIUS.sm, fontSize: '13px', color: COLOR.textDk,
+              outline: 'none', background: '#fff',
+            }}
+          >
+            <option value="">
+              {bankAccountsLoading ? 'Memuat rekening...' : '— Pilih Rekening Bank —'}
+            </option>
+            {bankAccounts.map(b => (
+              <option key={b.id} value={b.id}>
+                {b.name}{b.isDefault ? ' (Default)' : ''}
+              </option>
+            ))}
+          </select>
         )}
+        
       </div>
 
       {/* Body */}
@@ -359,8 +424,8 @@ const SalesInvoiceContainer = () => {
                 ref={searchRef}
                 type="text"
                 value={searchValue}
-                onChange={e => search(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); fetchProducts(searchValue.trim()); } }}
+                onChange={e => search(e.target.value, null, customer?.priceListVersionId)}
+                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); fetchProducts(searchValue.trim(), null, customer?.priceListVersionId); } }}
                 placeholder="Cari nama / kode produk..."
                 style={{
                   width: '100%', boxSizing: 'border-box', padding: '10px 12px 10px 34px',
@@ -370,7 +435,7 @@ const SalesInvoiceContainer = () => {
               />
               {searchValue && (
                 <button
-                  onClick={() => { setSearchValue(''); fetchProducts(''); }}
+                onClick={() => { setSearchValue(''); fetchProducts('', null, customer?.priceListVersionId); }}
                   style={{
                     position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)',
                     background: 'none', border: 'none', cursor: 'pointer', color: COLOR.textLt,
@@ -429,23 +494,27 @@ const SalesInvoiceContainer = () => {
 
         {isDesktop && (
           <SICartSidebar
-            title="🧾 Sales Invoice"
-            items={cart}
-            onRemove={removeItem}
-            onQtyChange={updateQty}
-            onPriceChange={updatePrice}
-            onUomChange={handleCartUomChange}
-            onClearCart={clearCart}
-            totalItems={totalItems}
-            totalAmount={totalAmount}
-            summaryRight={cartSummaryRight}
-            customerName={customer?.Name}
-            onSubmit={() => setSubmitModalOpen(true)}
-            isSubmitting={isSubmitting}
-            description={description}
-            onDescriptionChange={setDescription}
-            descriptionPlaceholder={SALES_INVOICE_CONFIG.DESCRIPTION}
-          />
+          isOpen={cartOpen}
+          onClose={() => setCartOpen(false)}
+          title="🧾 Sales Invoice"
+          items={cart}
+          onRemove={removeItem}
+          onQtyChange={updateQty}
+          onPriceChange={updatePrice}
+          onUomChange={handleCartUomChange}
+          onClearCart={clearCart}
+          totalItems={totalItems}
+          totalAmount={totalAmount}
+          summaryRight={cartSummaryRight}
+          customerName={customer?.Name}
+          onSubmit={() => setSubmitModalOpen(true)}
+          isSubmitting={isSubmitting}
+          description={description}
+          onLineDescriptionChange={updateDescription}  
+          onDateServiceChange={updateDateService}   
+          showDateService={supportsDateService}  
+          descriptionPlaceholder={SALES_INVOICE_CONFIG.DESCRIPTION}
+        />
         )}
       </div>
 
@@ -471,7 +540,9 @@ const SalesInvoiceContainer = () => {
           onSubmit={() => setSubmitModalOpen(true)}
           isSubmitting={isSubmitting}
           description={description}
-          onDescriptionChange={setDescription}
+          onLineDescriptionChange={updateDescription}  
+          onDateServiceChange={updateDateService}   
+          showDateService={supportsDateService}  
           descriptionPlaceholder={SALES_INVOICE_CONFIG.DESCRIPTION}
         />
       )}

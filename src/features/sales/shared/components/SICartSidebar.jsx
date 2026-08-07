@@ -30,9 +30,12 @@ const SICartSidebar = ({
   width = '740px',
   description = '',
   onDescriptionChange,
+  onLineDescriptionChange, 
   descriptionPlaceholder = 'Keterangan Sales Invoice...',
   customerName,          // ⬅️ nama customer terpilih (undefined/null kalau belum dipilih)
   customerLabel = 'customer',
+  onDateServiceChange,      // ← tambahan
+  showDateService = false,
 }) => {
   const hasCustomer = !!customerName;
   const isSingleButtonMode = !!onSubmit && !onSubmitDraft && !onSubmitComplete;
@@ -104,6 +107,9 @@ const SICartSidebar = ({
               onQtyChange={onQtyChange}
               onPriceChange={onPriceChange}
               onUomChange={onUomChange}
+              onDescriptionChange={onLineDescriptionChange} 
+              onDateServiceChange={onDateServiceChange} 
+              showDateService={showDateService}    
             />
           ))
         )}

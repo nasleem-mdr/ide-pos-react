@@ -339,10 +339,10 @@ const DIALOG_CLOSED = {
     const productRecords = Array.isArray(productData.records)
         ? productData.records
         : productData.records ? [productData.records] : [];
-        console.log('DEBUG raw product records:', productRecords.map(p => ({
-            name: p.Name,
-            C_UOM_ID_raw: p.C_UOM_ID,
-          })));
+        // console.log('DEBUG raw product records:', productRecords.map(p => ({
+        //     name: p.Name,
+        //     C_UOM_ID_raw: p.C_UOM_ID,
+        //   })));
     const relevantIds = new Set(productRecords.map(p => p.M_Product_ID?.id ?? p.M_Product_ID ?? p.id));
     const rawPriceRecords = Array.isArray(priceData.records)
         ? priceData.records

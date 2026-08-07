@@ -47,6 +47,18 @@ export function useSalesCart() {
   const updateUom = useCallback((itemKey, uomPatch) => {
     setCart(prev => prev.map(i => lineKey(i) === itemKey ? { ...i, ...uomPatch } : i));
   }, []);
+  
+  const updateDescription = (itemKey, value) => {
+    setCart(prev => prev.map(it =>
+      lineKey(it) === itemKey ? { ...it, Description: value } : it
+    ));
+  };
+  
+  const updateDateService = (itemKey, value) => {
+    setCart(prev => prev.map(it =>
+      lineKey(it) === itemKey ? { ...it, DateService: value } : it
+    ));
+  };
 
   const clearCart = useCallback(() => {
     setCart([]);
@@ -60,7 +72,7 @@ export function useSalesCart() {
 
   return {
     cart, addItem, addItems, removeItem, updateQty, updatePrice, updateUom, clearCart,
-    customer, setCustomer,
+    customer, setCustomer, updateDescription, updateDateService,
     totalItems, totalAmount,
   };
 }

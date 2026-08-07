@@ -1,33 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { idempiereApi, fkId, fkLabel } from '@/api/idempiereApi';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// useSalesProductSearch.jsx
-// Padanan useProductSearch.jsx (Purchasing) untuk sisi SALES. Dua beda inti:
-//
-//   1. Filter produk: `IsSold eq true` (bukan `IsPurchased eq true`).
-//
-//   2. TIDAK mensyaratkan produk punya baris M_Product_PO (vendor aktif).
-//      Di versi Purchasing, buildProducts() SENGAJA membuang produk yang
-//      tidak punya M_Product_PO — masuk akal di sana (produk tanpa vendor
-//      memang tidak bisa dibeli). Tapi kalau syarat itu ikut dipakai di sini,
-//      produk yang CUMA dijual (tidak pernah dibeli dari vendor manapun,
-//      mis. jasa atau barang trading tanpa PO) akan hilang total dari hasil
-//      pencarian — bukan cuma salah filter status, tapi produk itu memang
-//      tidak akan pernah muncul. Jadi query M_Product_PO dan seluruh
-//      dependensi vendorMap DIHAPUS di sini.
-//
-// Field harga (PriceActual/Price) TIDAK di-suggest otomatis di sini — beda
-// dengan Purchasing yang punya hook terpisah (useProductVendorInfo) buat
-// suggest harga dari M_Product_PO. Untuk Sales, harga wajar diambil dari
-// Sales Price List (M_ProductPrice via M_PriceList yg IsSOPriceList=true),
-// tapi itu di luar cakupan hook pencarian ini — kalau perlu auto-suggest
-// harga jual, buat hook terpisah `useProductPriceInfo`-style sendiri
-// (analog useProductVendorInfo, query-nya lewat M_PriceList bukan
-// M_Product_PO). Selama itu belum ada, harga di cart tetap default 0 dan
-// diisi manual lewat input Price di SICartItem (perilaku saat ini).
-// ─────────────────────────────────────────────────────────────────────────────
-
 const PAGE_SIZE = 20;
 const NO_WH_TOP = PAGE_SIZE;
 const WH_POOL_CAP = 150;
@@ -40,7 +13,8 @@ export function useSalesProductSearch({ debounceMs = 420 } = {}) {
   const [searchValue, setSearchValue] = useState('');
   const debounceRef = useRef(null);
 
-  const lastParamsRef = useRef({ query: '', warehouseId: null });
+  // ← tambahan priceListVersionId di params yang diingat untuk loadMore
+  const lastParamsRef = useRef({ query: '', warehouseId: null, priceListVersionId: null });
   const skipRef        = useRef(0);
   const poolRef         = useRef([]);
   const visibleCountRef = useRef(PAGE_SIZE);
@@ -49,10 +23,52 @@ export function useSalesProductSearch({ debounceMs = 420 } = {}) {
     return () => clearTimeout(debounceRef.current);
   }, []);
 
-  // ── shared helper: build product objects dari raw API records ──────────────
-  // TIDAK ada filter/require vendorMap di sini (lihat catatan di atas) —
-  // semua rawProducts yang lolos query M_Product langsung dipetakan.
-  const buildProducts = useCallback((rawProducts, uomRecords, qtyMap = new Map()) => {
+  // ── BARU: fetch harga dari M_ProductPrice untuk sekumpulan product IDs ──
+  // Filter pakai M_PriceList_Version_ID (bukan M_PriceList_ID langsung),
+  // karena harga sebenarnya nempel di level Version — pola sama seperti
+  // useProductVendorInfo di sisi Purchasing tapi sumbernya M_ProductPrice,
+  // bukan M_Product_PO.
+  const fetchPriceMap = useCallback(async (productIds, priceListVersionId) => {
+    const priceMap = new Map();
+    if (!priceListVersionId || productIds.length === 0) return priceMap;
+
+    // chunk biar filter OR tidak kepanjangan (sama pola CHUNK_SIZE storage/uom)
+    const CHUNK_SIZE = 40;
+    const chunks = [];
+    for (let i = 0; i < productIds.length; i += CHUNK_SIZE) {
+      chunks.push(productIds.slice(i, i + CHUNK_SIZE));
+    }
+
+    const chunkResults = await Promise.all(
+      chunks.map(chunk => {
+        const idFilter = chunk.map(id => `M_Product_ID eq ${id}`).join(' or ');
+        return idempiereApi(
+          `/models/m_productprice?$select=M_Product_ID,PriceStd,PriceList,PriceLimit` +
+          `&$filter=M_PriceList_Version_ID eq ${priceListVersionId} and IsActive eq true and (${idFilter})`
+        ).catch(err => {
+          console.warn('[useSalesProductSearch] fetchPriceMap chunk error:', err);
+          return { records: [] };
+        });
+      })
+    );
+
+    chunkResults.forEach(data => {
+      const records = Array.isArray(data.records) ? data.records : [];
+      records.forEach(r => {
+        const pid = fkId(r.M_Product_ID);
+        if (!pid) return;
+        priceMap.set(pid, {
+          PriceStd:  parseFloat(r.PriceStd  || 0),
+          PriceList: parseFloat(r.PriceList || 0),
+        });
+      });
+    });
+
+    return priceMap;
+  }, []);
+
+  // ── buildProducts: terima priceMap opsional, isi Price/PriceActual ──────
+  const buildProducts = useCallback((rawProducts, uomRecords, qtyMap = new Map(), priceMap = new Map()) => {
     const uomConvMap = new Map();
     uomRecords.forEach(conv => {
       const pid       = fkId(conv.M_Product_ID);
@@ -79,6 +95,7 @@ export function useSalesProductSearch({ debounceMs = 420 } = {}) {
       const baseUom   = { C_UOM_ID: baseUomId, Name: fkLabel(p.C_UOM_ID) || 'EA', multiplyRate: 1 };
       const convUoms  = uomConvMap.get(pid) || [];
       const allUoms   = [baseUom, ...convUoms.filter(u => u.C_UOM_ID !== baseUomId)];
+      const priceInfo = priceMap.get(pid); // undefined kalau customer belum dipilih / tidak ada harga
 
       return {
         M_Product_ID: pid,
@@ -90,6 +107,10 @@ export function useSalesProductSearch({ debounceMs = 420 } = {}) {
         Description:  p.Description || null,
         uomOptions:   allUoms,
         QtyOnHand:    qtyMap.get(pid) ?? 0,
+        // ── BARU: harga dari price list customer (0 kalau tidak ditemukan) ──
+        Price:        priceInfo?.PriceStd ?? 0,
+        PriceActual:  priceInfo?.PriceStd ?? 0,
+        hasPriceListMatch: !!priceInfo, // opsional: buat kasih indikator "harga belum ada di price list" di UI
       };
     });
   }, []);
@@ -109,33 +130,26 @@ export function useSalesProductSearch({ debounceMs = 420 } = {}) {
 
   const scoreMatch = useCallback((product, safeQ) => {
     if (!safeQ) return 0;
-
     const value       = (product.Value || '').toUpperCase();
     const name        = (product.Name || '').toUpperCase();
     const upc         = (product.UPC || '').toUpperCase();
     const description = (product.Description || '').toUpperCase();
-
     let score = 0;
-
     if (value === safeQ) score = Math.max(score, 100);
     else if (value.startsWith(safeQ)) score = Math.max(score, 90);
     else if (value.includes(safeQ)) score = Math.max(score, 70);
-
     if (name === safeQ) score = Math.max(score, 95);
     else if (name.startsWith(safeQ)) score = Math.max(score, 80);
     else if (name.includes(safeQ)) score = Math.max(score, 60);
-
     if (upc === safeQ) score = Math.max(score, 85);
     else if (upc.includes(safeQ)) score = Math.max(score, 50);
-
     if (description.includes(safeQ)) score = Math.max(score, 20);
-
     return score;
   }, []);
 
-  // ── enrich: ambil UOM (+ stok) untuk sekumpulan rawProducts, lalu build+sort ─
-  // Query m_product_po DIHAPUS (tidak relevan untuk Sales — lihat catatan atas).
-  const enrichAndSort = useCallback(async (rawProducts, query, safeQ, warehouseId = null) => {
+  // ── enrich: sekarang juga terima priceListVersionId, fetch M_ProductPrice
+  // paralel bareng uom-conversion & storage ──────────────────────────────
+  const enrichAndSort = useCallback(async (rawProducts, query, safeQ, warehouseId = null, priceListVersionId = null) => {
     if (rawProducts.length === 0) return [];
 
     const productIds = rawProducts.map(p => fkId(p.M_Product_ID) ?? p.id).filter(Boolean);
@@ -145,9 +159,10 @@ export function useSalesProductSearch({ debounceMs = 420 } = {}) {
       storageFilter += ` and M_Locator_ID/M_Warehouse_ID eq ${warehouseId}`;
     }
 
-    const [uomConvData, storageData] = await Promise.all([
+    const [uomConvData, storageData, priceMap] = await Promise.all([
       idempiereApi(`/models/c_uom_conversion?$select=C_UOM_Conversion_ID,M_Product_ID,C_UOM_ID,C_UOM_To_ID,MultiplyRate,DivideRate&$filter=IsActive eq true and (${idScopeFilter})`),
       idempiereApi(`/models/m_storage?$select=M_Product_ID,QtyOnHand&$filter=${storageFilter}`),
+      fetchPriceMap(productIds, priceListVersionId),
     ]);
 
     const uomRecords = Array.isArray(uomConvData.records) ? uomConvData.records : [];
@@ -160,15 +175,15 @@ export function useSalesProductSearch({ debounceMs = 420 } = {}) {
       qtyMap.set(pid, (qtyMap.get(pid) || 0) + parseFloat(r.QtyOnHand || 0));
     });
 
-    const finalProducts = buildProducts(rawProducts, uomRecords, qtyMap);
+    const finalProducts = buildProducts(rawProducts, uomRecords, qtyMap, priceMap);
 
     return query
       ? [...finalProducts].sort((a, b) => scoreMatch(b, safeQ) - scoreMatch(a, safeQ))
       : finalProducts;
-  }, [buildProducts, scoreMatch]);
+  }, [buildProducts, scoreMatch, fetchPriceMap]);
 
-  // ── path A: tanpa filter warehouse — server-side skip/top asli ─────────────
-  const fetchNoWarehousePage = useCallback(async (query, skip) => {
+  // ── path A: tanpa filter warehouse ──────────────────────────────────────
+  const fetchNoWarehousePage = useCallback(async (query, skip, priceListVersionId = null) => {
     const safeQ = query.toUpperCase().replace(/'/g, "''");
     let productFilter = 'IsSold eq true and IsActive eq true';
     if (query) {
@@ -180,12 +195,12 @@ export function useSalesProductSearch({ debounceMs = 420 } = {}) {
       `&$filter=${productFilter}&$orderby=Updated desc&$top=${NO_WH_TOP}&$skip=${skip}`
     );
     const rawProducts = Array.isArray(productData.records) ? productData.records : [];
-    const page = await enrichAndSort(rawProducts, query, safeQ);
+    const page = await enrichAndSort(rawProducts, query, safeQ, null, priceListVersionId);
     return { page, rawCount: rawProducts.length };
   }, [enrichAndSort]);
 
-  // ── path B: dengan filter warehouse — fetch pool sekali, lalu slice ─────────
-  const fetchWarehousePool = useCallback(async (query, warehouseId) => {
+  // ── path B: dengan filter warehouse ─────────────────────────────────────
+  const fetchWarehousePool = useCallback(async (query, warehouseId, priceListVersionId = null) => {
     const safeQ = query.toUpperCase().replace(/'/g, "''");
     let productFilter = 'IsSold eq true and IsActive eq true';
     if (query) {
@@ -201,7 +216,7 @@ export function useSalesProductSearch({ debounceMs = 420 } = {}) {
         `&$filter=${productFilter}&$orderby=Updated desc&$top=${WH_POOL_CAP}`
       );
       const rawProducts = Array.isArray(productData.records) ? productData.records : [];
-      return enrichAndSort(rawProducts, query, safeQ, warehouseId);
+      return enrichAndSort(rawProducts, query, safeQ, warehouseId, priceListVersionId);
     }
 
     const CHUNK_SIZE = 15;
@@ -231,22 +246,23 @@ export function useSalesProductSearch({ debounceMs = 420 } = {}) {
       })
       .slice(0, WH_POOL_CAP);
 
-    return enrichAndSort(rawProducts, query, safeQ, warehouseId);
+    return enrichAndSort(rawProducts, query, safeQ, warehouseId, priceListVersionId);
   }, [enrichAndSort, fetchWarehouseLocatorIds]);
 
-  const fetchProducts = useCallback(async (query = '', warehouseId = null) => {
-    lastParamsRef.current = { query, warehouseId };
+  // ── fetchProducts: tambah parameter priceListVersionId ──────────────────
+  const fetchProducts = useCallback(async (query = '', warehouseId = null, priceListVersionId = null) => {
+    lastParamsRef.current = { query, warehouseId, priceListVersionId };
     setLoading(true);
     try {
       if (warehouseId) {
-        const pool = await fetchWarehousePool(query, warehouseId);
+        const pool = await fetchWarehousePool(query, warehouseId, priceListVersionId);
         poolRef.current = pool;
         visibleCountRef.current = PAGE_SIZE;
         setProducts(pool.slice(0, PAGE_SIZE));
         setHasMore(pool.length > PAGE_SIZE);
       } else {
         skipRef.current = 0;
-        const { page, rawCount } = await fetchNoWarehousePage(query, 0);
+        const { page, rawCount } = await fetchNoWarehousePage(query, 0, priceListVersionId);
         skipRef.current = rawCount;
         poolRef.current = [];
         setProducts(page);
@@ -264,7 +280,7 @@ export function useSalesProductSearch({ debounceMs = 420 } = {}) {
   }, [fetchWarehousePool, fetchNoWarehousePage]);
 
   const loadMore = useCallback(async () => {
-    const { query, warehouseId } = lastParamsRef.current;
+    const { query, warehouseId, priceListVersionId } = lastParamsRef.current;
 
     if (warehouseId) {
       const nextCount = visibleCountRef.current + PAGE_SIZE;
@@ -276,7 +292,7 @@ export function useSalesProductSearch({ debounceMs = 420 } = {}) {
 
     setLoadingMore(true);
     try {
-      const { page, rawCount } = await fetchNoWarehousePage(query, skipRef.current);
+      const { page, rawCount } = await fetchNoWarehousePage(query, skipRef.current, priceListVersionId);
       skipRef.current += rawCount;
       setProducts(prev => [...prev, ...page]);
       setHasMore(rawCount === NO_WH_TOP);
@@ -287,8 +303,7 @@ export function useSalesProductSearch({ debounceMs = 420 } = {}) {
     }
   }, [fetchNoWarehousePage]);
 
-  // ── searchByUPC: exact match, tanpa debounce ────────────────────────────────
-  const searchByUPC = useCallback(async (upc) => {
+  const searchByUPC = useCallback(async (upc, priceListVersionId = null) => {
     if (!upc) return null;
     try {
       setLoading(true);
@@ -300,12 +315,13 @@ export function useSalesProductSearch({ debounceMs = 420 } = {}) {
 
       const targetProductId = fkId(rawProducts[0].M_Product_ID) ?? rawProducts[0].id;
 
-      const uomConvData = await idempiereApi(
-        `/models/c_uom_conversion?$select=C_UOM_Conversion_ID,M_Product_ID,C_UOM_ID,C_UOM_To_ID,MultiplyRate,DivideRate&$filter=IsActive eq true and M_Product_ID eq ${targetProductId}`
-      );
+      const [uomConvData, priceMap] = await Promise.all([
+        idempiereApi(`/models/c_uom_conversion?$select=C_UOM_Conversion_ID,M_Product_ID,C_UOM_ID,C_UOM_To_ID,MultiplyRate,DivideRate&$filter=IsActive eq true and M_Product_ID eq ${targetProductId}`),
+        fetchPriceMap([targetProductId], priceListVersionId),
+      ]);
       const uomRecords = Array.isArray(uomConvData.records) ? uomConvData.records : [];
 
-      const results = buildProducts(rawProducts, uomRecords);
+      const results = buildProducts(rawProducts, uomRecords, new Map(), priceMap);
       return results[0] ?? null;
     } catch (err) {
       console.error('[useSalesProductSearch] searchByUPC error:', err);
@@ -313,18 +329,18 @@ export function useSalesProductSearch({ debounceMs = 420 } = {}) {
     } finally {
       setLoading(false);
     }
-  }, [buildProducts]);
+  }, [buildProducts, fetchPriceMap]);
 
-  const search = useCallback((query, warehouseId = null) => {
+  const search = useCallback((query, warehouseId = null, priceListVersionId = null) => {
     setSearchValue(query);
     clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => fetchProducts(query, warehouseId), debounceMs);
+    debounceRef.current = setTimeout(() => fetchProducts(query, warehouseId, priceListVersionId), debounceMs);
   }, [fetchProducts, debounceMs]);
 
-  const searchImmediate = useCallback((query, warehouseId = null) => {
+  const searchImmediate = useCallback((query, warehouseId = null, priceListVersionId = null) => {
     clearTimeout(debounceRef.current);
     setSearchValue(query);
-    return fetchProducts(query, warehouseId);
+    return fetchProducts(query, warehouseId, priceListVersionId);
   }, [fetchProducts]);
 
   return {

@@ -19,7 +19,9 @@ const fmtQty = (n) => {
 // dalam 1 cart). Selain itu strukturnya sama persis: UOM selector, input
 // harga, qty stepper, line amount dihitung live (Qty × Price).
 // ─────────────────────────────────────────────────────────────────────────────
-const SICartItem = ({ item, itemKey, onRemove, onQtyChange, onPriceChange, onUomChange, onDescriptionChange }) => {
+const SICartItem = ({ 
+  item, itemKey, onRemove, onQtyChange, onPriceChange, 
+  onUomChange, onDescriptionChange, onDateServiceChange, showDateService = false, }) => {
   const lineAmount = item.Qty * (item.Price || 0);
 
   const isConverted = item.BaseUOM_ID && item.C_UOM_ID !== item.BaseUOM_ID
@@ -49,7 +51,22 @@ const SICartItem = ({ item, itemKey, onRemove, onQtyChange, onPriceChange, onUom
             </div>
           )}
           
+          
         </div>
+        {showDateService && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '6px' }}>
+              <span style={{ fontSize: '10px', color: COLOR.textLt, whiteSpace: 'nowrap' }}>Date Service:</span>
+              <input
+                type="date"
+                value={item.DateService || ''}
+                onChange={e => onDateServiceChange(itemKey, e.target.value)}
+                style={{
+                  padding: '4px 6px', border: `1px solid ${COLOR.border}`,
+                  borderRadius: RADIUS.sm, fontSize: '11px', color: COLOR.textDk, background: '#fff',
+                }}
+              />
+            </div>
+          )}
         <button
           onClick={() => onRemove(itemKey)}
           style={{
@@ -62,19 +79,19 @@ const SICartItem = ({ item, itemKey, onRemove, onQtyChange, onPriceChange, onUom
 
       <div style={{ display: 'flex', gap: '6px', marginTop: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
-          <span style={{ fontSize: '11px', color: COLOR.textLt }}></span>
+          <span style={{ fontSize: '11px', color: COLOR.textLt }}>Price:</span>
          <PriceInput
           value={item.Price}
           onChange={val => onPriceChange(itemKey, val)}
           style={{
-            width: '90px', padding: '5px 6px', border: `1px solid ${COLOR.border}`,
+            width: '90px', textAlign: 'right', padding: '5px 6px', border: `1px solid ${COLOR.border}`,
             borderRadius: RADIUS.sm, fontSize: '12px', fontWeight: 600, color: COLOR.textDk,
           }}
         />
         </div>
-
+        <span style={{ fontSize: '11px', color: COLOR.textLt }}>Qty</span>
         <QtyStepper value={item.Qty} onChange={q => onQtyChange(itemKey, q)} size="sm" />
-
+        
         <input
           type="text"
           value={descriptionValue}

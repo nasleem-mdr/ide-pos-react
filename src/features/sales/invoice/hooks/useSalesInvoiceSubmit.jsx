@@ -1,33 +1,19 @@
 import { useState, useCallback } from 'react';
 import { idempiereApi, fkId, waitForDocStatus } from '@/api/idempiereApi';
 import { getLoginInfo } from '@/shared/hooks/useLoginInfo';
+import { checkColumnSupport } from '@/shared/hooks/useSchemaCapability';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// useSalesInvoiceSubmit.jsx
-// Submit langsung ke C_Invoice (sisi SALES, IsSOTrx=true) — HANYA
-// Invoice + InvoiceLine, lalu Complete. TIDAK ada Order, Shipment, Payment,
-// atau Allocation — dipakai untuk kasus jual langsung tanpa dokumen PO
-// (mis. invoice manual / jasa / item non-stock).
-//
-// Beda dengan useCashPurchaseSubmit.jsx:
-//   - Cuma 1 tahap dokumen: 'invoice' (bukan po → receipt → invoice → payment)
-//   - IsSOTrx: true (Sales), bukan false (Purchase)
-//   - Tidak menyentuh C_Order / M_InOut / C_Payment sama sekali
-//
-// Kalau Complete invoice gagal setelah invoice/line berhasil dibuat, proses
-// berhenti dan mengembalikan info invoice yang sudah terlanjur dibuat (masih
-// Draft) — supaya staff bisa lanjutkan/Complete manual dari iDempiere.
-// ─────────────────────────────────────────────────────────────────────────────
 export function useSalesInvoiceSubmit({ invoiceDocTypeId, description, onError, onStepUpdate }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [progressStep, setProgressStep] = useState(null); // 'invoice'
+  const [progressStep, setProgressStep] = useState(null);
 
   const submit = useCallback(async (cart, {
     customerId,
     customerLocationId,
     customerName,
-    paymentRule = 'P',      // 'P' = Immediate Payment, sesuaikan kalau perlu termin lain
-    submitMode = 'complete', // 'draft' = simpan tanpa Complete, 'complete' = langsung Complete
+    bankAccountId,
+    paymentRule = 'P',
+    submitMode = 'complete',
   } = {}) => {
     if (cart.length === 0) {
       onError?.('Keranjang penjualan masih kosong!');
@@ -50,26 +36,45 @@ export function useSalesInvoiceSubmit({ invoiceDocTypeId, description, onError, 
 
     try {
       const todayISO = new Date().toISOString().split('T')[0];
+      const trimmedDescription = (description || '').trim();
 
-      // ═══════════════════════════════════════════════════════════════════
-      // TAHAP 1 — Sales Invoice (header)
-      // ═══════════════════════════════════════════════════════════════════
       setProgressStep('invoice');
       onStepUpdate?.('invoice', 'pending');
+
+      // ── BARU: cek dukungan kolom DULU, sebelum invoicePayload dipakai ──
+      const hasBankAccount = await checkColumnSupport('c_invoice', 'C_BankAccount_ID');
+
+      // ── Validasi wajib bank account HANYA kalau instance ini mendukungnya ──
+      if (hasBankAccount && !bankAccountId) {
+        onError?.('Rekening bank belum ditentukan.', 'Data Belum Lengkap');
+        setIsSubmitting(false);
+        setProgressStep(null);
+        return null;
+      }
+
+      const invoicePayload = {
+        AD_Client_ID:  { id: clientId },
+        AD_Org_ID:     { id: orgId },
+        C_DocType_ID:  { id: invoiceDocTypeId },
+        C_DocTypeTarget_ID: { id: invoiceDocTypeId },
+        C_BPartner_ID: { id: parseInt(customerId) },
+        C_BPartner_Location_ID: { id: parseInt(customerLocationId) },
+        DateInvoiced:  todayISO,
+        IsSOTrx:       true,
+        PaymentRule:   paymentRule,
+      };
+
+      if (trimmedDescription) {
+        invoicePayload.POReference = trimmedDescription;
+      }
+      // ── BARU: tambahkan C_BankAccount_ID SETELAH invoicePayload ada ──
+      if (hasBankAccount && bankAccountId) {
+        invoicePayload.C_BankAccount_ID = { id: parseInt(bankAccountId) };
+      }
+
       const invoiceRes = await idempiereApi('/models/c_invoice', {
         method: 'POST',
-        body: JSON.stringify({
-          AD_Client_ID:  { id: clientId },
-          AD_Org_ID:     { id: orgId },
-          C_DocType_ID:  { id: invoiceDocTypeId },
-          C_DocTypeTarget_ID: { id: invoiceDocTypeId },
-          C_BPartner_ID: { id: parseInt(customerId) },
-          C_BPartner_Location_ID: { id: parseInt(customerLocationId) },
-          DateInvoiced:  todayISO,
-          IsSOTrx:       true,
-          PaymentRule:   paymentRule,
-          Description:   description,
-        }),
+        body: JSON.stringify(invoicePayload),
       });
       const invoiceId = fkId(invoiceRes.id) ?? invoiceRes.id ?? invoiceRes.C_Invoice_ID;
       if (!invoiceId) throw new Error('Gagal mendapatkan C_Invoice_ID.');

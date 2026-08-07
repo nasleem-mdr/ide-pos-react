@@ -22,9 +22,12 @@ const SICartPanel = ({
   emptyLabel = 'Belum ada produk dipilih.',
   description = '',
   onDescriptionChange,
+  onLineDescriptionChange,
   descriptionPlaceholder = 'Keterangan Sales Invoice...',
   customerName,
   customerLabel = 'customer',
+  onDateServiceChange,      // ← tambahan
+  showDateService = false,
 }) => {
   if (!isOpen) return null;
   const hasCustomer = !!customerName;
@@ -113,6 +116,9 @@ const SICartPanel = ({
                 onQtyChange={onQtyChange}
                 onPriceChange={onPriceChange}
                 onUomChange={onUomChange}
+                onDescriptionChange={onLineDescriptionChange} 
+                onDateServiceChange={onDateServiceChange}
+              showDateService={showDateService}    
               />
             ))
           )}

@@ -19,3 +19,4 @@ export * from './useSubordinates';
 export * from './useUomConversion';
 export * from './useVendorSearch';
 export * from './useWindowAccess';
+export * from './useSchemaCapability';
