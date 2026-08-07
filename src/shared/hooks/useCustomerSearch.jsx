@@ -1,78 +1,39 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
-import { idempiereApi, fkId } from '@/api/idempiereApi';
+import { useState, useCallback, useRef } from 'react';
+import { idempiereApi } from '@/api/idempiereApi';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// useCustomerSearch.jsx
-// Padanan useVendorSearch — BEDA-nya cuma filter `IsCustomer eq true` (bukan
-// `IsVendor eq true`). Dipakai oleh CustomerPickerModal.jsx.
-//
-// - search(query)             → debounced (300ms), auto-update state `customers`
-// - getDefaultBPLocation(id)  → resolve C_BPartner_Location_ID aktif pertama
-//                                milik customer tsb (dipakai saat user pilih
-//                                customer, supaya CustomerPickerModal tidak
-//                                perlu fetch lokasi terpisah di komponennya)
-//
-// Kalau instance kamu punya konsep "default/primary" location (mis. flag
-// IsBillTo / IsShipTo), sesuaikan $filter di getDefaultBPLocation di bawah.
+// useCustomerSearch.js
+// Padanan hook pencarian vendor inline di GoodsReceiptContainer, tapi untuk
+// C_BPartner sisi Customer (IsCustomer = true). Debounce ringan (250ms)
+// supaya tidak nembak request di tiap keystroke.
 // ─────────────────────────────────────────────────────────────────────────────
 export function useCustomerSearch() {
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(false);
   const debounceRef = useRef(null);
 
-  const runSearch = useCallback(async (query) => {
-    const q = (query || '').trim();
-    if (!q) {
-      setCustomers([]);
-      return;
-    }
-    setLoading(true);
-    try {
-      const escaped = q.replace(/'/g, "''");
-      const res = await idempiereApi(
-        `/models/c_bpartner?$select=C_BPartner_ID,Name,Value,IsCustomer` +
-        `&$filter=IsCustomer eq true and contains(Name,'${escaped}')` +
-        `&$orderby=Name&$top=20`
-      );
-      const records = Array.isArray(res.records) ? res.records : [];
-  
-      setCustomers(records.map(r => ({
-        C_BPartner_ID: fkId(r.C_BPartner_ID) ?? r.id ?? r.C_BPartner_ID,
-        Name:  r.Name,
-        Value: r.Value,
-      })));
-    } catch (err) {
-      console.error('Gagal mencari customer:', err);
-      setCustomers([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  // Debounce supaya tidak nembak API tiap keystroke.
-  const search = useCallback((query) => {
+  const searchCustomer = useCallback((term) => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => runSearch(query), 300);
-  }, [runSearch]);
 
-  useEffect(() => () => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
+    const q = term.trim();
+    if (q.length < 2) { setCustomers([]); return; }
+
+    debounceRef.current = setTimeout(async () => {
+      setLoading(true);
+      try {
+        const res = await idempiereApi(
+          `/models/c_bpartner?$filter=IsCustomer eq true and IsActive eq true and contains(upper(Name), upper('${q}'))` +
+          `&$select=C_BPartner_ID,Name,Value&$orderby=Name&$top=20`
+        );
+        setCustomers(Array.isArray(res.records) ? res.records : []);
+      } catch (err) {
+        console.error('[useCustomerSearch] gagal cari customer:', err.message);
+        setCustomers([]);
+      } finally {
+        setLoading(false);
+      }
+    }, 250);
   }, []);
 
-  const getDefaultBPLocation = useCallback(async (bpartnerId) => {
-    try {
-      const res = await idempiereApi(
-        `/models/c_bpartner_location?$select=C_BPartner_Location_ID` +
-        `&$filter=C_BPartner_ID eq ${bpartnerId} and IsActive eq true&$top=1`
-      );
-      const records = Array.isArray(res.records) ? res.records : [];
-      if (records.length === 0) return null;
-      return fkId(records[0].C_BPartner_Location_ID) ?? records[0].id ?? null;
-    } catch (err) {
-      console.error('Gagal fetch lokasi customer:', err.message);
-      return null;
-    }
-  }, []);
-
-  return { customers, loading, search, getDefaultBPLocation };
+  return { customers, loading, searchCustomer };
 }

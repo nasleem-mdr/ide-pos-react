@@ -81,3 +81,20 @@ export function formatCurrency(amount, currencyCode = 'IDR', opts = {}) {
     return `${code} ${rounded.toLocaleString('id-ID')}`;
   }
 }
+/**
+ * Parse input teks jadi number, dukung desimal (koma sebagai pemisah desimal ala id-ID).
+ * "500" -> 500 | "500,5" -> 500.5 | "1.000,5" -> 1000.5 | "0500" -> 500
+ */
+export const parsePriceInput = (raw) => {
+  if (!raw) return 0;
+  const cleaned = raw.replace(/[^\d,.-]/g, '');
+  // titik dianggap pemisah ribuan (dibuang), koma dianggap pemisah desimal
+  const normalized = cleaned.replace(/\./g, '').replace(',', '.');
+  const num = parseFloat(normalized);
+  return isNaN(num) ? 0 : num;
+};
+
+export const formatPriceDisplay = (n, { maxDecimals = 2 } = {}) => {
+  if (n === '' || n === null || n === undefined) return '';
+  return new Intl.NumberFormat('id-ID', { maximumFractionDigits: maxDecimals }).format(n);
+};

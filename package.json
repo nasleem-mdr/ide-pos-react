@@ -13,7 +13,7 @@
     "react-router-dom": "^7.15.0",
     "recharts": "^3.9.0",
     "vis-data": "^8.0.4",
-    "vis-timeline": "^8.5.2",
+    "vis-timeline": "^8.5.3",
     "web-vitals": "^2.1.4"
   },
   "scripts": {

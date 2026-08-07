@@ -1,8 +1,9 @@
 import React from 'react';
 import { COLOR, RADIUS, stepBtnBase } from '@/utils/styleTokens';
+import PriceInput from '@/shared/components/common/PriceInput';
 
 const SIZES = {
-  sm: { btn: '32px', font: '18px', inputW: '52px', inputFont: '14px' },
+  sm: { btn: '32px', font: '18px', inputW: '60px', inputFont: '14px' },
   lg: { btn: '40px', font: '20px', inputW: null, inputFont: '16px' },
 };
 
@@ -15,6 +16,7 @@ const QtyStepper = ({ value, onChange, min = 0.01, step = 1, size = 'sm' }) => {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: size === 'lg' ? '8px' : '3px', minWidth: 0 }}>
       <button onTouchEnd={e => { e.preventDefault(); dec(); }} onClick={dec} style={{ ...btnStyle, flexShrink: 0 }}>−</button>
+      
       <input
         type="number" min={min} step={step} value={value}
         onChange={e => onChange(parseFloat(e.target.value) || 0)}

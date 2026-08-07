@@ -27,7 +27,7 @@ const SICartSidebar = ({
   onSubmit, submitLabel,
   isSubmitting = false,
   emptyLabel = 'Belum ada produk dipilih.',
-  width = '380px',
+  width = '740px',
   description = '',
   onDescriptionChange,
   descriptionPlaceholder = 'Keterangan Sales Invoice...',

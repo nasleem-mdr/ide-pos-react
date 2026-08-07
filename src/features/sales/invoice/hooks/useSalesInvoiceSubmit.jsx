@@ -94,6 +94,7 @@ export function useSalesInvoiceSubmit({ invoiceDocTypeId, description, onError, 
             QtyInvoiced:   qtyInvoiced,
             PriceActual:   parseFloat(item.PriceActual || item.Price || 0),
             PriceEntered:  parseFloat(item.PriceEntered || item.PriceActual || item.Price || 0),
+            Description: item.Description || item.Name,
           }),
         });
       }
