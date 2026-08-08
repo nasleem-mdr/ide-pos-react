@@ -150,14 +150,14 @@ const VendorInvoiceList = () => {
     }, [buildFilterClause]);
 
     useEffect(() => {
-        fetchRequisitions();
-    }, [fetchRequisitions]);
+        fetchVendorinvoices();
+    }, [fetchVendorinvoives]);
 
     useEffect(() => {
         fetchTotalLines();
     }, [fetchTotalLines]);
 
-    const handleEdit = (vendorincoice) => {
+    const handleEdit = (vendorinvoice) => {
         // Gunakan _raw (data asli sebelum di-overwrite tableData) agar field
         // seperti M_Warehouse_ID tetap berupa object {id, identifier}, bukan string.
         // Di-bersihkan via JSON round-trip karena history.pushState (dipakai navigate)
@@ -187,7 +187,7 @@ const VendorInvoiceList = () => {
     ];
     
 
-    const generateRequisitionPDF = async (requisitionId, documentNo, token) => {
+    const generateVendorinvoicePDF = async (invoiceId, documentNo, token) => {
         const API_BASE = "/api/v1";
         const customFetch = async (url) => {
             const res = await fetch(`${API_BASE}${url}`, {
