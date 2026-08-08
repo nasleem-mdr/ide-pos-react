@@ -454,4 +454,105 @@ const VendorInvoiceList = () => {
     
                 <button
                     onClick={() => !isDownloadDisabled ? handleDownload(item) : null}
-                    disabled={isDownloadDisa
+                    disabled={isDownloadDisabled}
+                    style={{
+                        ...styles.editBtn,
+                        backgroundColor: isDownloadDisabled ? "#ccc" : "#546e7a",
+                        cursor:          isDownloadDisabled ? "not-allowed" : "pointer",
+                        opacity:         isDownloadDisabled ? 0.6 : 1,
+                    }}
+                    title={
+                        item._status !== "CO"
+                            ? `Download hanya tersedia untuk dokumen dengan status Completed`
+                            : "Download Dokumen"
+                    }
+                >
+                    {isDownloading ? "⏳ ..." : "⬇️ Download"}
+                </button>
+            </div>
+        );
+    };
+    
+    const handleStartDateChange = (val) => {
+        setStartDate(val);
+        setOffset(0);
+    };
+
+    const handleEndDateChange = (val) => {
+        setEndDate(val);
+        setOffset(0);
+    };
+
+    const handleFilterChange = (val) => {
+        setStatusFilter(val);
+        setOffset(0);
+    };
+
+    return (
+        <div className="card-container">
+            
+            <PageHeader
+                title="Requisition"
+                onSearch={(val) => { setSearch(val); setOffset(0); }}
+                filters={STATUS_FILTERS}
+                activeFilter={statusFilter}
+                onFilterChange={handleFilterChange}
+                extraAction={
+                    <button
+                        onClick={() => navigate("/requisition")}
+                        style={styles.newBtn}
+                    >
+                        + Transaksi Baru
+                    </button>
+                }
+            />
+
+            <div style={styles.dateFilterRow}>
+                <div style={styles.dateField}>
+                    <label style={styles.dateLabel}>Dari Tanggal</label>
+                    <input
+                        type="date"
+                        value={startDate}
+                        max={endDate}
+                        onChange={(e) => handleStartDateChange(e.target.value)}
+                        style={styles.dateInput}
+                    />
+                </div>
+                <div style={styles.dateField}>
+                    <label style={styles.dateLabel}>Sampai Tanggal</label>
+                    <input
+                        type="date"
+                        value={endDate}
+                        min={startDate}
+                        onChange={(e) => handleEndDateChange(e.target.value)}
+                        style={styles.dateInput}
+                    />
+                </div>
+            </div>
+
+            <DataTable
+                columns={columns}
+                data={tableData}
+                loading={loading}
+                offset={offset}
+                pageSize={pageSize}
+                totalRecords={totalRecords}
+                onPageChange={(newOffset) => setOffset(newOffset)}
+                renderActions={actionRenderer}
+                summaryRow={{ columnKey: "TotalLines", value: totalLinesFormatted, label: "Total Semua" }}
+            />
+        </div>
+    );
+};
+
+const styles = {
+    newBtn:  { backgroundColor: "#1976d2", color: "#fff", border: "none", padding: "10px 18px", borderRadius: "6px", cursor: "pointer", fontWeight: "bold" },
+    badge:   { color: "#fff", padding: "3px 10px", borderRadius: "12px", fontSize: "11px", fontWeight: "bold" },
+    editBtn: { color: "#fff", border: "none", padding: "6px 14px", borderRadius: "6px", fontWeight: "bold", fontSize: "12px", transition: "all 0.2s ease" },
+    dateFilterRow: { display: "flex", gap: "16px", flexWrap: "wrap", margin: "12px 0 16px" },
+    dateField:     { display: "flex", flexDirection: "column", gap: "4px" },
+    dateLabel:     { fontSize: "12px", fontWeight: "600", color: "#555" },
+    dateInput:      { padding: "8px 10px", borderRadius: "6px", border: "1px solid #ccc", fontSize: "13px" },
+};
+
+export default VendorIncoiceList;
