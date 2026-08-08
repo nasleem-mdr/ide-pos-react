@@ -1,111 +1,82 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import ReactDOMServer from "react-dom/server";
-import { PageHeader, DataTable , LogoSMAMerahHitam}  from "@/shared/components";
-
+import { PageHeader, DataTable } from "@/shared/components/setup";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import QRCode from "qrcode";
-
+import { LogoSMAMerahHitam } from "@/shared/components/icon";
+import { idempiereApi } from "@/api/idempiereApi";
 import "@/App.css";
 
-// Filter status ala Shopee — value 'ALL' berarti tanpa filter DocStatus sama
-// sekali. Urutan di sini menentukan urutan tab yang tampil di PageHeader.
-const STATUS_FILTERS = [
-    { value: "ALL", label: "Semua" },
-    { value: "DR",  label: "Draft" },
-    { value: "IP",  label: "Diproses" },
-    { value: "NA",  label: "Ditolak" },
-    { value: "CO",  label: "Selesai" },
-];
+// ─────────────────────────────────────────────────────────────────────────────
+// VendorInvoiceList.jsx
+// GET /api/v1/models/ad_table?$select=AD_Table_ID&$filter=TableName eq 'C_Order'
+// ─────────────────────────────────────────────────────────────────────────────
+const C_INVOICE_AD_TABLE_ID = 259; // ← GANTI kalau berbeda di instance Anda
 
 const VendorInvoiceList = () => {
     const todayStr = new Date().toISOString().split("T")[0];
-    
-    const [vendorinvoices, setVendorinvoices]             = useState([]);
+
+    const [invoices, setInvoices]             = useState([]);
     const [loading, setLoading]           = useState(false);
     const [search, setSearch]             = useState("");
-    const [statusFilter, setStatusFilter] = useState("ALL");
     const [offset, setOffset]             = useState(0);
     const [totalRecords, setTotalRecords] = useState(0);
-    const [totalLinesAll, setTotalLinesAll] = useState(null);
+    const [totalAmountAll, setTotalAmountAll] = useState(null);
     const [downloadingId, setDownloadingId] = useState(null);
     const [startDate, setStartDate]       = useState(todayStr);
     const [endDate, setEndDate]           = useState(todayStr);
     const pageSize                        = 10;
     const navigate                        = useNavigate();
 
-    const API_BASE    = "/api/v1";
-    const customFetch = async (url, options = {}) => {
-        const token    = localStorage.getItem("token");
-        const response = await fetch(`${API_BASE}${url}`, {
-            ...options,
-            headers: {
-                ...options.headers,
-                Authorization:  `Bearer ${token}`,
-                "Content-Type": "application/json",
-            },
-        });
-        if (!response.ok) {
-            const text = await response.text().catch(() => "");
-            throw new Error(`[${response.status}] ${text}`);
-        }
-        return response.json();
-    };
-
     const getStatusLabel = (status) => {
-        const map = { DR: "Draft", IP: "In Progress", CO: "Completed", VO: "Voided", RE: "Reversed", NA: "Ditolak" };
+        const map = { DR: "Draft", IP: "In Progress", CO: "Completed", CL: "Closed", VO: "Voided", RE: "Reversed", NA: "Ditolak" };
         return map[status] || status;
     };
 
     const getStatusColor = (status) => {
-        const map = { DR: "#f57c00", CO: "#2e7d32", VO: "#c62828", IP: "#1565c0", NA: "#c62828" };
+        const map = { DR: "#f57c00", CO: "#2e7d32", CL: "#37474f", VO: "#c62828", IP: "#1565c0", NA: "#c62828" };
         return map[status] || "#555";
     };
 
-    // Filter dasar (tanggal + owner + search) — dipakai bareng oleh
-    // fetchRequisitions & fetchTotalLines supaya konsisten. statusFilter
-    // ditambahkan terpisah karena 'ALL' berarti TIDAK ada klausa DocStatus.
-    const buildFilterClause = useCallback((loginUserId) => {
-        let filterClause =
-            ` CreatedBy eq ${loginUserId}` +
-            ` and Created ge ${startDate}T00:00:00Z` +
-            ` and Created le ${endDate}T23:59:59Z`;
-
-        if (search) {
-            filterClause += ` and contains(tolower(DocumentNo),'${search.toLowerCase()}')`;
-        }
-        if (statusFilter && statusFilter !== "ALL") {
-            filterClause += ` and DocStatus eq '${statusFilter}'`;
-        }
-        return filterClause;
-    }, [search, startDate, endDate, statusFilter]);
-
-    const fetchVendorinvoices = useCallback(async () => {
+    // Invoice bersifat sentral (tidak scoped ke 1 gudang), tapi tetap
+    // hanya menampilkan Invoice yang dibuat oleh user yang sedang login — sama
+    // seperti perilaku RequisitionList.jsx untuk FPB.
+    const fetchInvoices = useCallback(async () => {
         const loginUserId = localStorage.getItem("AD_User_ID");
         if (!loginUserId) return;
 
         setLoading(true);
         try {
-            const filterClause = buildFilterClause(loginUserId);
+            let filterClause =
+                ` IsSOTrx eq false` + // sisi pembelian saja (bukan Sales Order)
+                ` and CreatedBy eq ${loginUserId}` +
+                ` and Created ge ${startDate}T00:00:00Z` +
+                ` and Created le ${endDate}T23:59:59Z`;
 
-            const res = await customFetch(
+            if (search) {
+                filterClause += ` and contains(tolower(DocumentNo),'${search.toLowerCase()}')`;
+            }
+
+            const res = await idempiereApi(
                 `/models/c_invoice` +
                 `?$filter=${filterClause}` +
-                `&$select=C_Invoice_ID,DocumentNo,DateAcct,M_Warehouse_ID,TotalLines,DocStatus,M_PriceList_ID,C_DocType_ID` +
+                `&$select=C_Invoice_ID,DocumentNo,DateInvoiced,C_BPartner_ID,GrandTotal,DocStatus,C_DocType_ID,M_Warehouse_ID` +
                 `&$orderby=DocumentNo desc` +
                 `&$top=${pageSize}` +
                 `&$skip=${offset}`
             );
 
-            setVendorinvoices(Array.isArray(res.records) ? res.records : []);
+            setInvoices(Array.isArray(res.records) ? res.records : []);
             setTotalRecords(res["row-count"] || res.totalRecords || 0);
         } catch (err) {
-            console.error("Failed to fetch vendor incoices:", err.message);
+            console.error("Gagal fetch purchase invoices:", err.message);
         } finally {
             setLoading(false);
         }
-    }, [offset, buildFilterClause]);
+    }, [offset, search, startDate, endDate]);
+
     const svgToPngDataUrl = (svgString, width, height) => {
         return new Promise((resolve, reject) => {
             const svgBlob = new Blob([svgString], { type: "image/svg+xml;charset=utf-8" });
@@ -124,146 +95,156 @@ const VendorInvoiceList = () => {
             img.src = url;
         });
     };
-    // Fetch total GrandTotal seluruh halaman — hanya dipicu saat filter berubah (bukan saat ganti halaman)
-    const fetchTotalLines = useCallback(async () => {
+
+    // Fetch total GrandTotal seluruh halaman (bukan cuma TotalLines seperti
+    // di Requisition) — hanya dipicu saat filter berubah, bukan saat ganti halaman.
+    const fetchTotalAmount = useCallback(async () => {
         const loginUserId = localStorage.getItem("AD_User_ID");
         if (!loginUserId) return;
 
-        setTotalLinesAll(null); // reset saat filter berubah
+        setTotalAmountAll(null); // reset saat filter berubah
         try {
-            const filterClause = buildFilterClause(loginUserId);
+            let filterClause =
+                ` IsSOTrx eq false` +
+                ` and CreatedBy eq ${loginUserId}` +
+                ` and Created ge ${startDate}T00:00:00Z` +
+                ` and Created le ${endDate}T23:59:59Z`;
 
-            // Ambil hanya kolom GrandTotal tanpa pagination untuk dijumlahkan
-            const res = await customFetch(
+            if (search) {
+                filterClause += ` and contains(tolower(DocumentNo),'${search.toLowerCase()}')`;
+            }
+
+            const res = await idempiereApi(
                 `/models/c_invoice` +
                 `?$filter=${filterClause}` +
-                `&$select=TotalLines`
+                `&$select=GrandTotal`
             );
 
             const records = Array.isArray(res.records) ? res.records : [];
-            const total   = records.reduce((sum, r) => sum + parseFloat(r.TotalLines || 0), 0);
-            setTotalLinesAll(total);
+            const total   = records.reduce((sum, r) => sum + parseFloat(r.GrandTotal || 0), 0);
+            setTotalAmountAll(total);
         } catch (err) {
-            console.error("Gagal fetch total lines:", err.message);
-            setTotalLinesAll(0);
+            console.error("Gagal fetch total grand total:", err.message);
+            setTotalAmountAll(0);
         }
-    }, [buildFilterClause]);
+    }, [search, startDate, endDate]);
 
     useEffect(() => {
-        fetchVendorinvoices();
-    }, [fetchVendorinvoives]);
+        fetchInvoices();
+    }, [fetchInvoices]);
 
     useEffect(() => {
-        fetchTotalLines();
-    }, [fetchTotalLines]);
+        fetchTotalAmount();
+    }, [fetchTotalAmount]);
 
-    const handleEdit = (vendorinvoice) => {
+    const handleEdit = (invoice) => {
         // Gunakan _raw (data asli sebelum di-overwrite tableData) agar field
-        // seperti M_Warehouse_ID tetap berupa object {id, identifier}, bukan string.
-        // Di-bersihkan via JSON round-trip karena history.pushState (dipakai navigate)
-        // memerlukan structured-clone-safe object — record API kadang menyertakan
-        // referensi/getter yang tidak bisa di-clone langsung.
-        const raw = vendorinvoice._raw ?? vendorinvoice;
-        let cleanVendorinvoice;
+        // seperti C_BPartner_ID tetap berupa object {id, identifier}, bukan string.
+        const raw = invoice._raw ?? invoice;
+        let cleanInvoice;
         try {
-            cleanVedorinvoice = JSON.parse(JSON.stringify(raw));
+            cleanInvoice = JSON.parse(JSON.stringify(raw));
         } catch {
-            cleanVendorinvoice = raw;
+            cleanInvoice = raw;
         }
-        navigate("/vendor-invoice", { state: { editVendorinvoice: cleanVendorinvoice } });
+        // ⚠️ VendorInvoiceContainer.jsx saat ini belum mengonsumsi state.editOrder
+        // ini (belum ada mode edit draft PI) — navigasi tetap disiapkan di
+        // sini supaya UI konsisten dengan RequisitionList.jsx, tapi perlu
+        // ditambahkan handling-nya di PurchasingContainer kalau fitur edit
+        // draft PO memang dibutuhkan.
+        navigate("/vendor-invoice", { state: { editOrder: cleanOrder } });
     };
 
+    const fmtRp = (n) => ` ${Math.round(n || 0).toLocaleString("id-ID")}`;
+
     // Format total seluruh halaman dari state (null = sedang loading)
-    const totalLinesFormatted = totalLinesAll === null
+    const totalAmountFormatted = totalAmountAll === null
         ? "Menghitung..."
-        : ` ${totalLinesAll.toLocaleString("id-ID")}`;
+        : fmtRp(totalAmountAll);
 
     const columns = [
-        { key: "DocumentNo",    label: "No. Dokumen" },
-        { key: "DateAcct",   label: "Tanggal" },
-        { key: "M_Warehouse_ID", label: "Gudang" },
-        //{ key: "TotalLines",    label: "Total Lines", align: "right" },
-        { key: "DocStatus",     label: "Status", align: "center" },
+        { key: "DocumentNo", label: "No. Dokumen" },
+        { key: "DateInvoice", label: "Tanggal" },
+        { key: "C_BPartner_ID", label: "Vendor" },
+        { key: "GrandTotal", label: "Total", align: "right" },
+        { key: "DocStatus", label: "Status", align: "center" },
     ];
-    
 
-    const generateVendorinvoicePDF = async (invoiceId, documentNo, token) => {
-        const API_BASE = "/api/v1";
-        const customFetch = async (url) => {
-            const res = await fetch(`${API_BASE}${url}`, {
-                headers: { Authorization: `Bearer ${token}` },
-            });
-            return res.json();
-        };
-    
+    const generateInvoicePDF = async (invoiceId, documentNo, token) => {
+
         // 1. Fetch header data
-        const header = await customFetch(
-            `/models/c_invoice/${invoiceId}` +
-            `?$select=DocumentNo,DateAcct,Description,DocStatus,AD_Org_ID,CreatedBy,M_Warehouse_ID,C_Invoice_UU`
+        const header = await idempiereApi(
+            `/models/c_invoice/${orderId}` +
+            `?$select=DocumentNo,DateInvoiced,Description,DocStatus,AD_Org_ID,CreatedBy,C_BPartner_ID,M_Warehouse_ID,GrandTotal,C_Invoice_UU`
         );
-        
+
         // 2. Fetch line items
-        const linesRes = await customFetch(
+        const linesRes = await idempiereApi(
             `/models/c_invoiceline` +
-            `?$filter=C_Invoice_ID eq ${invoiceId}` +
-            `&$select=Line,M_Product_ID,QtyInvoiced,C_UOM_ID,Description` +
+            `?$filter=C_Invoice_ID eq ${orderId}` +
+            `&$select=Line,M_Product_ID, QtyEntered,C_UOM_ID,PriceActual,LineNetAmt,Description` +
             `&$orderby=Line`
         );
         const lines = linesRes.records || [];
-    
-        // 3. Fetch workflow history (AD_Table_ID 702 = M_Requisition)
-        const historyRes = await customFetch(
+
+        // 3. Fetch workflow history (AD_Table_ID C_Order)
+        const historyRes = await idempiereApi(
             `/models/ad_wf_eventaudit` +
-            `?$filter=AD_Table_ID eq 702 and Record_ID eq ${requisitionId}` +
+            `?$filter=AD_Table_ID eq ${C_INVOICE_AD_TABLE_ID} and Record_ID eq ${invoiceId}` +
             `&$select=AD_WF_Node_ID,AD_User_ID,Updated` +
             `&$orderby=Updated asc`
         );
-        
+
         // Filter node "(Start)" di client-side, case-insensitive
         const history = (historyRes.records || []).filter((h) => {
             const nodeName = (h.AD_WF_Node_ID?.identifier || "").toLowerCase();
-            
-            return nodeName !== "(start)" && 
+
+            return nodeName !== "(start)" &&
                    nodeName !== "(docauto)" &&
                    nodeName !== "(completedocument)";
         });
-    
+
         // 4. Generate QR code as data URL
-        const qrUrl = `https://192.168.0.126:8432/view/requisition/${header.uid}`;
+        // ⚠️ Endpoint verifikasi PO ini mengasumsikan ada servlet verifikasi
+        // serupa VerifyRequisitionServlet (mis. VerifyOrderServlet) yang
+        // menerima UUID di path ini. Sesuaikan/bangun endpoint-nya kalau
+        // belum ada di sisi backend Anda.
+        const qrUrl = `https://192.168.0.126:8432/view/invoice/${header.uid}`;
         const qrDataUrl = await QRCode.toDataURL(qrUrl, { margin: 1, width: 200 });
-    
-        // 5. Status label mapping (sama seperti di RequisitionList.jsx)
+
+        // 5. Status label mapping
         const statusMap = { DR: "Draft", IP: "Dalam Proses Approval", CO: "Selesai / Disetujui", CL: "Ditutup", VO: "Dibatalkan", RE: "Ditolak" };
         const statusCode = header.DocStatus?.id ?? header.DocStatus;
-    
+
         // 6. Logo
         const logoSvgString = ReactDOMServer.renderToStaticMarkup(<LogoSMAMerahHitam />);
-        const logoDataUrl = await svgToPngDataUrl(logoSvgString, 70, 42);// width, height dalam pt
+        const logoDataUrl = await svgToPngDataUrl(logoSvgString, 70, 42);
         // 7. Build PDF
-        const doc = new jsPDF({ unit: "pt", format: "a4" }); // 595 x 842 pt, sama seperti jrxml
+        const doc = new jsPDF({ unit: "pt", format: "a4" });
         const pageWidth = doc.internal.pageSize.getWidth();
-        
+
         // Header
         doc.addImage(logoDataUrl, "PNG", 20, 5, 70, 42);
         doc.setFontSize(14).setFont(undefined, "bold");
-        doc.text("FORMULIR PERMINTAAN BARANG (FPB)", pageWidth / 2, 30, { align: "center" });
+        doc.text("PURCHASE INVOICE(PI)", pageWidth / 2, 30, { align: "center" });
         doc.setFontSize(9).setFont(undefined, "italic");
-        doc.text("Purchase Requisition - Dokumen ini sah dengan histori approval terlampir", pageWidth / 2, 44, { align: "center" });
+        doc.text("Dokumen ini sah dengan histori approval terlampir", pageWidth / 2, 44, { align: "center" });
         doc.line(20, 55, pageWidth - 20, 55);
-    
+
         // Info fields
         doc.setFont(undefined, "normal").setFontSize(9);
         let y = 75;
         const infoLeft = [
             ["No. Dokumen", ": "+header.DocumentNo],
-            ["Pemohon", ": "+header.CreatedBy?.identifier || "-"],
-            ["Gudang Tujuan", ": "+header.M_Warehouse_ID?.identifier || "-"],
-            ["Keterangan", ": "+header.Description || "-"],
+            ["Vendor", ": "+(header.C_BPartner_ID?.identifier || "-")],
+            ["Gudang Tujuan", ": "+(header.M_Warehouse_ID?.identifier || "-")],
+            ["Keterangan", ": "+(header.Description || "-")],
         ];
         const infoRight = [
-            ["Tanggal", ": "+new Date(header.DateDoc).toLocaleDateString("id-ID")],
-            ["Departemen", ": "+header.AD_Org_ID?.identifier || "-"],
-            ["Status", ": "+statusMap[statusCode] || statusCode],
+            ["Tanggal", ": "+new Date(header.DateOrdered).toLocaleDateString("id-ID")],
+            ["Departemen", ": "+(header.AD_Org_ID?.identifier || "-")],
+            ["Status", ": "+(statusMap[statusCode] || statusCode)],
+            ["Grand Total", ": "+fmtRp(header.GrandTotal)],
         ];
         infoLeft.forEach(([label, val], i) => {
             doc.text(label, 20, y + i * 16);
@@ -273,28 +254,30 @@ const VendorInvoiceList = () => {
             doc.text(label, 320, y + i * 16);
             doc.text(String(val), 400, y + i * 16);
         });
-    
+
         // Table item
         autoTable(doc, {
             startY: y + infoLeft.length * 16 + 20,
-            head: [["No", "Nama Barang", "Qty", "UOM", "Keterangan"]],
+            head: [["No", "Nama Barang", "Qty", "UOM", "Harga", "Line Amount"]],
             body: lines.map((l, idx) => [
                 idx + 1,
                 l.M_Product_ID?.identifier || "-",
-                l.Qty,
+                l.QtyEntered,
                 l.C_UOM_ID?.identifier || "-",
-                l.Description || "",
+                fmtRp(l.PriceActual),
+                fmtRp(l.LineNetAmt),
             ]),
             theme: "grid",
             styles: { fontSize: 8 },
             headStyles: {
-                fillColor: [0, 0, 0],   //hitam
-                textColor: [255, 255, 255], //putih
+                fillColor: [0, 0, 0],
+                textColor: [255, 255, 255],
                 fontStyle: "bold",
             },
-            margin: { left: 20, right: 20 }, 
-            tableWidth: pageWidth - 40, 
+            margin: { left: 20, right: 20 },
+            tableWidth: pageWidth - 40,
         });
+
         // Histori Approval - horizontal layout (kiri ke kanan)
         let finalY = doc.lastAutoTable.finalY + 20;
         doc.setFont(undefined, "bold").setFontSize(10);
@@ -308,64 +291,48 @@ const VendorInvoiceList = () => {
         const usableWidth = pageWidth - marginLeft - marginRight;
         const colCount = 5;
         const colWidth = usableWidth / colCount;
-        const rowHeight = 65; // tinggi tiap baris histori
+        const rowHeight = 65;
 
         history.forEach((h, idx) => {
             const col = idx % colCount;
             const row = Math.floor(idx / colCount);
             const x = marginLeft + col * colWidth;
             const y = finalY + row * rowHeight;
-        
-            // --- TAMBAHAN: Garis Dotted Pembatas Antar Baris ---
-            // Jika data sudah masuk ke baris 2, 3, dst (row > 0) dan berada di awal kolom (col === 0)
+
             if (row > 0 && col === 0) {
-                // [jarak_garis, jarak_spasi] -> [2, 2] artiinya garis pendek 2 unit, spasi 2 unit
-                doc.setLineDashPattern([2, 2], 0); 
-                doc.setDrawColor(150, 150, 150); // Set warna abu-abu agar tidak terlalu mencolok
-                
-                // Gambar garis sedikit di atas teks baris baru (misal: y - 10)
+                doc.setLineDashPattern([2, 2], 0);
+                doc.setDrawColor(150, 150, 150);
                 doc.line(20, y - 10, pageWidth - 20, y - 10);
-                
-                // RESET kembali ke mode garis normal (solid) agar garis di bawah nama user tidak ikut putus-putus
                 doc.setLineDashPattern([], 0);
-                doc.setDrawColor(0, 0, 0); // Kembalikan ke warna hitam default
+                doc.setDrawColor(0, 0, 0);
             }
-            // ---------------------------------------------------
-        
-            // Jaga-jaga batas aman agar teks panjang tidak menabrak kolom sebelah (beri padding 5 unit)
-            const maxTextWidth = colWidth - 5; 
-        
-            // 1. Nama Node / Status
+
+            const maxTextWidth = colWidth - 5;
+
             doc.setFont(undefined, "bold").setFontSize(7.5);
             const nodeName = `${h.AD_WF_Node_ID?.identifier || "-"}`;
             const splitNode = doc.splitTextToSize(nodeName, maxTextWidth);
             doc.text(splitNode, x, y);
-        
-            // Hitung offset dinamis jika statusnya ternyata membungkus ke 2 baris
+
             const nodeHeightOffset = (splitNode.length - 1) * 9;
-        
-            // 2. Nama User
+
             doc.setFont(undefined, "normal").setFontSize(7.5);
             const userName = h.AD_User_ID?.identifier || "-";
             const splitUser = doc.splitTextToSize(userName, maxTextWidth);
-            
+
             const userY = y + 22 + nodeHeightOffset;
             doc.text(splitUser, x, userY);
-            
-            // Garis bawah nama user (menggunakan garis solid karena dash pattern sudah di-reset)
+
             const textWidth = doc.getTextWidth(splitUser[0] || "");
-            doc.line(x, userY + 2, x + Math.min(textWidth, maxTextWidth), userY + 2); 
-        
-            // 3. Tanggal
+            doc.line(x, userY + 2, x + Math.min(textWidth, maxTextWidth), userY + 2);
+
             const userHeightOffset = (splitUser.length - 1) * 9;
             doc.text(new Date(h.Updated).toLocaleDateString("id-ID"), x, userY + 15 + userHeightOffset);
         });
-        
-        // Update posisi Y setelah histori (untuk QR code, dsb) - hitung berapa baris dipakai
+
         const totalRows = Math.ceil(history.length / colCount);
         finalY += totalRows * rowHeight + 20;
-        
-        
+
         // QR Code
         finalY += 20;
         doc.setFont(undefined, "bold").setFontSize(9);
@@ -376,7 +343,7 @@ const VendorInvoiceList = () => {
             `Scan untuk verifikasi keaslian & status approval dokumen ${header.DocumentNo}`,
             pageWidth / 2, finalY + 80, { align: "center" }
         );
-    
+
         // Footer
         const pageHeight = doc.internal.pageSize.getHeight();
         doc.setFont(undefined, "italic").setFontSize(7);
@@ -384,16 +351,16 @@ const VendorInvoiceList = () => {
             `Dokumen ini dicetak otomatis dari sistem dan sah tanpa tanda tangan basah selama status approval di atas terverifikasi pada sistem - dicetak ${new Date().toLocaleDateString("id-ID")}`,
             pageWidth / 2, pageHeight - 20, { align: "center" }
         );
-    
-        doc.save(`Requisition-${documentNo}.pdf`);
+
+        doc.save(`PO-${documentNo}.pdf`);
     };
 
-    const handleDownload = async (requisition) => {
-        const requisitionId = requisition._requisitionId ?? requisition.id;
-        setDownloadingId(requisitionId);
+    const handleDownload = async (invoice) => {
+        const invoiceId = invoice._invoiceId ?? invoice.id;
+        setDownloadingId(invoiceId);
         try {
             const token = localStorage.getItem("token");
-            await generateRequisitionPDF(requisitionId, requisition.DocumentNo, token);
+            await generateInvoicePDF(invoiceId, invoice.DocumentNo, token);
         } catch (err) {
             console.error("Gagal generate PDF:", err.message);
             alert("Gagal membuat dokumen PDF.");
@@ -401,23 +368,24 @@ const VendorInvoiceList = () => {
             setDownloadingId(null);
         }
     };
-    const tableData = requisitions.map((requisition) => {
-        const requisitionId = requisition.id ?? requisition.M_Requisition_ID;
-        const status  = requisition.DocStatus?.id ?? requisition.DocStatus ?? "DR";
+
+    const tableData = invoices.map((invoice) => {
+        const invoiceId = invoice.id ?? invoice.C_Invoice_ID;
+        const status  = invoice.DocStatus?.id ?? invoice.DocStatus ?? "DR";
 
         return {
-            ...requisition,
-            _raw:        requisition, 
-            _requisitionId:    requisitionId,
-            _status:     status,
-            DocumentNo:  requisition.DocumentNo || `#${requisitionId}`,
-            DateDoc: requisition.DateDoc
-                ? new Date(requisition.DateDoc).toLocaleDateString("id-ID")
+            ...invoice,
+            _raw:      invoice,
+            _invoiceId:  invoiceId,
+            _status:   status,
+            DocumentNo: order.DocumentNo || `#${orderId}`,
+            DateInvoiced: invoice.DateInvoiced
+                ? new Date(invoice.DateInvoiced).toLocaleDateString("id-ID")
                 : "-",
-            "M_Warehouse_ID": requisition.M_Warehouse_ID?.identifier
-                || requisition.M_Warehouse_ID?.Name
+            "C_BPartner_ID": invoice.C_BPartner_ID?.identifier
+                || invoice.C_BPartner_ID?.Name
                 || "-",
-            TotalLines: ` ${parseFloat(requisition.TotalLines || 0).toLocaleString("id-ID")}`,
+            GrandTotal: fmtRp(order.GrandTotal),
             DocStatus: (
                 <span style={{
                     ...styles.badge,
@@ -428,14 +396,15 @@ const VendorInvoiceList = () => {
             ),
         };
     });
+
     const actionRenderer = (item) => {
         const isEditDisabled = !["DR", "NA"].includes(item._status);
         const editTitle = item._status === "NA"
             ? "Revisi & ajukan ulang untuk approval"
             : "Edit Dokumen";
-        const isDownloading = downloadingId === item._requisitionId;
+        const isDownloading = downloadingId === item._orderId;
         const isDownloadDisabled = item._status !== "CO" || isDownloading; // ⬅️ hanya aktif saat Completed
-    
+
         return (
             <div style={{ display: "flex", gap: "6px" }}>
                 <button
@@ -451,7 +420,7 @@ const VendorInvoiceList = () => {
                 >
                     {item._status === "NA" ? "🔁 Revisi" : "✏️ Edit"}
                 </button>
-    
+
                 <button
                     onClick={() => !isDownloadDisabled ? handleDownload(item) : null}
                     disabled={isDownloadDisabled}
@@ -472,7 +441,7 @@ const VendorInvoiceList = () => {
             </div>
         );
     };
-    
+
     const handleStartDateChange = (val) => {
         setStartDate(val);
         setOffset(0);
@@ -483,23 +452,15 @@ const VendorInvoiceList = () => {
         setOffset(0);
     };
 
-    const handleFilterChange = (val) => {
-        setStatusFilter(val);
-        setOffset(0);
-    };
-
     return (
         <div className="card-container">
-            
+
             <PageHeader
-                title="Requisition"
+                title="Purchasing Invoice"
                 onSearch={(val) => { setSearch(val); setOffset(0); }}
-                filters={STATUS_FILTERS}
-                activeFilter={statusFilter}
-                onFilterChange={handleFilterChange}
                 extraAction={
                     <button
-                        onClick={() => navigate("/requisition")}
+                        onClick={() => navigate("/vendor-inboice")}
                         style={styles.newBtn}
                     >
                         + Transaksi Baru
@@ -539,7 +500,7 @@ const VendorInvoiceList = () => {
                 totalRecords={totalRecords}
                 onPageChange={(newOffset) => setOffset(newOffset)}
                 renderActions={actionRenderer}
-                summaryRow={{ columnKey: "TotalLines", value: totalLinesFormatted, label: "Total Semua" }}
+                summaryRow={{ columnKey: "GrandTotal", value: totalAmountFormatted, label: "Total Semua" }}
             />
         </div>
     );
@@ -555,4 +516,4 @@ const styles = {
     dateInput:      { padding: "8px 10px", borderRadius: "6px", border: "1px solid #ccc", fontSize: "13px" },
 };
 
-export default VendorIncoiceList;
+export default VendorInvoiceList;
