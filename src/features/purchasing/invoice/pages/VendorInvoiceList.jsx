@@ -22,7 +22,7 @@ const STATUS_FILTERS = [
 const VendorInvoiceList = () => {
     const todayStr = new Date().toISOString().split("T")[0];
     
-    const [requisitions, setRequisitions]             = useState([]);
+    const [vendorinvoices, setVendorinvoices]             = useState([]);
     const [loading, setLoading]           = useState(false);
     const [search, setSearch]             = useState("");
     const [statusFilter, setStatusFilter] = useState("ALL");
@@ -81,7 +81,7 @@ const VendorInvoiceList = () => {
         return filterClause;
     }, [search, startDate, endDate, statusFilter]);
 
-    const fetchRequisitions = useCallback(async () => {
+    const fetchVendorinvoices = useCallback(async () => {
         const loginUserId = localStorage.getItem("AD_User_ID");
         if (!loginUserId) return;
 
@@ -90,18 +90,18 @@ const VendorInvoiceList = () => {
             const filterClause = buildFilterClause(loginUserId);
 
             const res = await customFetch(
-                `/models/m_requisition` +
+                `/models/c_invoice` +
                 `?$filter=${filterClause}` +
-                `&$select=M_Requisition_ID,DocumentNo,DateDoc,M_Warehouse_ID,TotalLines,DocStatus,M_PriceList_ID,C_DocType_ID` +
+                `&$select=C_Invoice_ID,DocumentNo,DateAcct,M_Warehouse_ID,TotalLines,DocStatus,M_PriceList_ID,C_DocType_ID` +
                 `&$orderby=DocumentNo desc` +
                 `&$top=${pageSize}` +
                 `&$skip=${offset}`
             );
 
-            setRequisitions(Array.isArray(res.records) ? res.records : []);
+            setVendorinvoices(Array.isArray(res.records) ? res.records : []);
             setTotalRecords(res["row-count"] || res.totalRecords || 0);
         } catch (err) {
-            console.error("Gagal fetch requisitions:", err.message);
+            console.error("Failed to fetch vendor incoices:", err.message);
         } finally {
             setLoading(false);
         }
@@ -135,7 +135,7 @@ const VendorInvoiceList = () => {
 
             // Ambil hanya kolom GrandTotal tanpa pagination untuk dijumlahkan
             const res = await customFetch(
-                `/models/m_requisition` +
+                `/models/c_invoice` +
                 `?$filter=${filterClause}` +
                 `&$select=TotalLines`
             );
@@ -157,20 +157,20 @@ const VendorInvoiceList = () => {
         fetchTotalLines();
     }, [fetchTotalLines]);
 
-    const handleEdit = (requisition) => {
+    const handleEdit = (vendorincoice) => {
         // Gunakan _raw (data asli sebelum di-overwrite tableData) agar field
         // seperti M_Warehouse_ID tetap berupa object {id, identifier}, bukan string.
         // Di-bersihkan via JSON round-trip karena history.pushState (dipakai navigate)
         // memerlukan structured-clone-safe object — record API kadang menyertakan
         // referensi/getter yang tidak bisa di-clone langsung.
-        const raw = requisition._raw ?? requisition;
-        let cleanRequisition;
+        const raw = vendorinvoice._raw ?? vendorinvoice;
+        let cleanVendorinvoice;
         try {
-            cleanRequisition = JSON.parse(JSON.stringify(raw));
+            cleanVedorinvoice = JSON.parse(JSON.stringify(raw));
         } catch {
-            cleanRequisition = raw;
+            cleanVendorinvoice = raw;
         }
-        navigate("/requisition", { state: { editRequisition: cleanRequisition } });
+        navigate("/vendor-invoice", { state: { editVendorinvoice: cleanVendorinvoice } });
     };
 
     // Format total seluruh halaman dari state (null = sedang loading)
@@ -180,7 +180,7 @@ const VendorInvoiceList = () => {
 
     const columns = [
         { key: "DocumentNo",    label: "No. Dokumen" },
-        { key: "DateDoc",   label: "Tanggal" },
+        { key: "DateAcct",   label: "Tanggal" },
         { key: "M_Warehouse_ID", label: "Gudang" },
         //{ key: "TotalLines",    label: "Total Lines", align: "right" },
         { key: "DocStatus",     label: "Status", align: "center" },
@@ -198,15 +198,15 @@ const VendorInvoiceList = () => {
     
         // 1. Fetch header data
         const header = await customFetch(
-            `/models/m_requisition/${requisitionId}` +
-            `?$select=DocumentNo,DateDoc,Description,DocStatus,AD_Org_ID,CreatedBy,M_Warehouse_ID,M_Requisition_UU`
+            `/models/c_invoice/${invoiceId}` +
+            `?$select=DocumentNo,DateAcct,Description,DocStatus,AD_Org_ID,CreatedBy,M_Warehouse_ID,C_Invoice_UU`
         );
         
         // 2. Fetch line items
         const linesRes = await customFetch(
-            `/models/m_requisitionline` +
-            `?$filter=M_Requisition_ID eq ${requisitionId}` +
-            `&$select=Line,M_Product_ID,Qty,C_UOM_ID,Description` +
+            `/models/c_invoiceline` +
+            `?$filter=C_Invoice_ID eq ${invoiceId}` +
+            `&$select=Line,M_Product_ID,QtyInvoiced,C_UOM_ID,Description` +
             `&$orderby=Line`
         );
         const lines = linesRes.records || [];
