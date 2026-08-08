@@ -86,7 +86,7 @@ const BankStatementContainer = () => {
                 >
                 {isDesktop ? (
                   <>
-                    <Import size={16} /> Import AP/AR
+                    <ImportIcon size={16} /> Import AP/AR
                   </>
                 ) : (
                   <ImportIcon size={18} />

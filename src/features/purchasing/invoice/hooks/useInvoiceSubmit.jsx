@@ -109,8 +109,10 @@ export function useInvoiceSubmit({ invoiceDocTypeId, defaultDescription, onError
         if (!invoiceId) throw new Error(`Gagal membuat header Invoice untuk vendor "${vendorName}".`);
 
         for (const item of items) {
-          const qty          = parseFloat(item.Qty || 0);
+          const qtyEntered   = parseFloat(item.QtyEntered || 0);
+          const qtyInvoiced  = parseFloat(item.QtyOrdered || 0);
           const priceEntered = parseFloat(item.Price || 0);
+
           await idempiereApi('/models/c_invoiceline', {
             method: 'POST',
             body: JSON.stringify({
@@ -118,7 +120,8 @@ export function useInvoiceSubmit({ invoiceDocTypeId, defaultDescription, onError
               C_Invoice_ID:   { id: invoiceId },
               M_Product_ID:   { id: parseInt(item.M_Product_ID) },
               C_UOM_ID:       { id: parseInt(item.C_UOM_ID) },
-              QtyInvoiced:    qty,
+              QtyEntered:     qtyEntered,
+              QtyInvoiced:    qtyInvoiced,
               PriceEntered:   priceEntered,
               PriceActual:    priceEntered,
               C_OrderLine_ID: { id: parseInt(item.C_OrderLine_ID) },

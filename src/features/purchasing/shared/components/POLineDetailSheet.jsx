@@ -39,7 +39,6 @@ const POLineDetailSheet = ({ isOpen, po, onClose, onConfirm }) => {
     const qty = Math.min(Math.max(parseFloat(value) || 0, 0), line.qtyOutstanding);
     setSelected(prev => ({ ...prev, [line.C_OrderLine_ID]: qty }));
   };
-
   const handleConfirm = () => {
     const chosen = po.lines
       .filter(l => selected[l.C_OrderLine_ID] > 0)
@@ -50,7 +49,9 @@ const POLineDetailSheet = ({ isOpen, po, onClose, onConfirm }) => {
         Name: l.ProductName,
         C_UOM_ID: l.C_UOM_ID,
         UomName: l.UomName,
-        Qty: selected[l.C_OrderLine_ID],
+        Qty: selected[l.C_OrderLine_ID], 
+        QtyEntered: selected[l.C_OrderLine_ID], // → payload QtyEntered
+        QtyOrdered: selected[l.C_OrderLine_ID], // → payload QtyInvoiced
         Price: l.PriceEntered,
         C_BPartner_ID: po.C_BPartner_ID,
         VendorName: po.VendorName,

@@ -35,7 +35,7 @@ import BusinessPartnerEdit from '@/features/master/partner/pages/BusinessPartner
 import { AccessProvider } from '@/context/AccessContext';
 
 // Banking
-import BankStatementContainer from '@/features/banking/statement/pages/BankStatementContainer';
+import BankStatementContainer  from '@/features/banking/statement/pages/BankStatementContainer';
 
 import ProtectedRoute from '@/shared/components/ProtectedRoute';
 import IDempiereAuth from "@/features/login/pages/IDempiereAuth";

@@ -31,7 +31,9 @@ export function useInvoiceCart() {
   }, []);
 
   const updateQty = useCallback((key, qty) => {
-    setCart(prev => prev.map(i => lineKey(i) === key ? { ...i, Qty: qty } : i));
+    setCart(prev => prev.map(i =>
+      lineKey(i) === key ? { ...i, Qty: qty, QtyEntered: qty, QtyOrdered: qty } : i
+    ));
   }, []);
 
   const updatePrice = useCallback((key, price) => {
@@ -42,7 +44,6 @@ export function useInvoiceCart() {
 
   const totalItems  = cart.length;
   const totalAmount = useMemo(() => cart.reduce((s, i) => s + (i.Qty || 0) * (i.Price || 0), 0), [cart]);
-
   const vendorGroups = useMemo(() => {
     const map = new Map();
     cart.forEach(item => {

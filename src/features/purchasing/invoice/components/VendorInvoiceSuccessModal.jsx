@@ -3,28 +3,26 @@ import { useNavigate } from 'react-router-dom';
 import { COLOR, RADIUS } from '@/utils/styleTokens';
 import { formatCurrency } from '@/utils/currency';
 
-// const fmtRp = (n) => `Rp ${Math.round(n || 0).toLocaleString('id-ID')}`;
-
 // ─────────────────────────────────────────────────────────────────────────────
 // VendorInvoiceSuccessModal.jsx
-// Berbeda dari PurchaseOrderSuccessModal: `data` di sini SELALU 1 objek
-// (bukan array) — submit AP Invoice selalu menghasilkan 1 dokumen per PO
-// yang ditagih, tidak ada skenario split-per-vendor seperti Purchasing.
+// `data` = ARRAY hasil useInvoiceSubmit (1 elemen per vendor/invoice yang
+// berhasil dibuat — bisa >1 kalau cart berisi baris dari beberapa vendor).
 //
-// Bentuk `data` yang diharapkan (sesuaikan kalau hasil hook submit beda):
+// Bentuk tiap elemen results[] (dari useInvoiceSubmit):
 // {
-//   documentNo: string,       // DocumentNo invoice yang baru dibuat
-//   vendorName: string,
-//   date: string,
-//   total: number,            // GrandTotal invoice
-//   sourceOrderDocumentNo: string,  // DocumentNo PO asal (referensi)
-//   items: [{ ProductName, UomName, qtyInvoiced, PriceEntered }]
+//   invoiceId, documentNo, status, grandTotal,
+//   vendorId, vendorName, vendorLocationId, date,
+//   items: [ cart item asli — Name, UomName, QtyOrdered, Price, OrderDocumentNo, ... ]
 // }
 // ─────────────────────────────────────────────────────────────────────────────
 const VendorInvoiceSuccessModal = ({ isOpen, data, onClose }) => {
   const navigate = useNavigate();
   const handleClose = () => { onClose(); navigate('/dashboard'); };
-  if (!isOpen || !data) return null;
+
+  const invoices = Array.isArray(data) ? data : (data ? [data] : []);
+  if (!isOpen || invoices.length === 0) return null;
+
+  const grandTotalAll = invoices.reduce((s, inv) => s + (inv.grandTotal || 0), 0);
 
   return (
     <div style={{
@@ -49,45 +47,51 @@ const VendorInvoiceSuccessModal = ({ isOpen, data, onClose }) => {
 
         <div style={{ fontSize: '52px', marginBottom: '8px' }}>📄✅</div>
         <div style={{ fontSize: '19px', fontWeight: 700, color: COLOR.success, marginBottom: '4px' }}>
-          Invoice Vendor Berhasil Dibuat!
+          {invoices.length > 1 ? `${invoices.length} Invoice Vendor Berhasil Dibuat!` : 'Invoice Vendor Berhasil Dibuat!'}
         </div>
         <div style={{ fontSize: '13px', color: COLOR.textMd, marginBottom: '18px' }}>
           Dokumen telah di-Complete dan menunggu proses pembayaran sesuai alur di iDempiere.
         </div>
 
-        <div style={{
-          background: COLOR.successLt, border: '1px solid #bbf7d0',
-          borderRadius: RADIUS.md, padding: '14px', marginBottom: '14px', textAlign: 'left',
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-            <span style={{ fontWeight: 700, fontSize: '15px', color: COLOR.textDk }}>{data.documentNo}</span>
-            <span style={{ fontSize: '13px', fontWeight: 700, color: COLOR.textDk }}>{formatCurrency(data.total)}</span>
-          </div>
-          <div style={{ fontSize: '11px', color: COLOR.textLt, marginBottom: '8px' }}>
-            🚚 {data.vendorName} · {data.date}
-          </div>
-
-          {data.sourceOrderDocumentNo && (
-            <div style={{
-              fontSize: '11px', color: COLOR.textMd, background: '#eef2ff',
-              borderRadius: RADIUS.sm, padding: '6px 8px', marginBottom: '8px',
-            }}>
-              📎 Ditagih dari PO: <strong>{data.sourceOrderDocumentNo}</strong>
+        {invoices.map((inv, i) => (
+          <div key={inv.invoiceId ?? i} style={{
+            background: COLOR.successLt, border: '1px solid #bbf7d0',
+            borderRadius: RADIUS.md, padding: '14px', marginBottom: '14px', textAlign: 'left',
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+              <span style={{ fontWeight: 700, fontSize: '15px', color: COLOR.textDk }}>{inv.documentNo}</span>
+              <span style={{ fontSize: '13px', fontWeight: 700, color: COLOR.textDk }}>{formatCurrency(inv.grandTotal)}</span>
             </div>
-          )}
-
-          {(data.items || []).map((item, j) => (
-            <div key={j} style={{
-              display: 'flex', justifyContent: 'space-between', fontSize: '12px', padding: '4px 0',
-              borderTop: j > 0 ? '1px solid #d1fae5' : 'none',
-            }}>
-              <span style={{ color: '#333', flex: 1, marginRight: '8px' }}>{item.ProductName}</span>
-              <span style={{ color: COLOR.textMd, whiteSpace: 'nowrap' }}>
-                {item.qtyInvoiced} {item.UomName} × {formatCurrency(item.PriceEntered)}
-              </span>
+            <div style={{ fontSize: '11px', color: COLOR.textLt, marginBottom: '8px' }}>
+              🚚 {inv.vendorName} · {inv.date}
             </div>
-          ))}
-        </div>
+
+            {(inv.items || []).map((item, j) => (
+              <div key={item.C_OrderLine_ID ?? j} style={{
+                display: 'flex', flexDirection: 'column', fontSize: '12px', padding: '4px 0',
+                borderTop: j > 0 ? '1px solid #d1fae5' : 'none',
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#333', flex: 1, marginRight: '8px' }}>{item.Name}</span>
+                  <span style={{ color: COLOR.textMd, whiteSpace: 'nowrap' }}>
+                    {item.QtyOrdered} {item.UomName} × {formatCurrency(item.Price)}
+                  </span>
+                </div>
+                {item.OrderDocumentNo && (
+                  <div style={{ fontSize: '10px', color: COLOR.textLt }}>
+                    📎 dari PO: {item.OrderDocumentNo}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        ))}
+
+        {invoices.length > 1 && (
+          <div style={{ fontSize: '13px', fontWeight: 700, color: COLOR.textDk, marginBottom: '14px' }}>
+            Total Semua Invoice: {formatCurrency(grandTotalAll)}
+          </div>
+        )}
 
         <button onClick={onClose} style={{
           background: COLOR.primary, color: '#fff', border: 'none',
