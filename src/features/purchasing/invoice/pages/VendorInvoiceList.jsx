@@ -362,8 +362,8 @@ const VendorInvoiceList = () => {
             const token = localStorage.getItem("token");
             await generateInvoicePDF(invoiceId, invoice.DocumentNo, token);
         } catch (err) {
-            console.error("Gagal generate PDF:", err.message);
-            alert("Gagal membuat dokumen PDF.");
+            console.error("Failed to generate PDF:", err.message);
+            alert("Failed to create PDF Document");
         } finally {
             setDownloadingId(null);
         }
@@ -378,7 +378,7 @@ const VendorInvoiceList = () => {
             _raw:      invoice,
             _invoiceId:  invoiceId,
             _status:   status,
-            DocumentNo: order.DocumentNo || `#${orderId}`,
+            DocumentNo: invoice.DocumentNo || `#${orderId}`,
             DateInvoiced: invoice.DateInvoiced
                 ? new Date(invoice.DateInvoiced).toLocaleDateString("id-ID")
                 : "-",
@@ -400,8 +400,8 @@ const VendorInvoiceList = () => {
     const actionRenderer = (item) => {
         const isEditDisabled = !["DR", "NA"].includes(item._status);
         const editTitle = item._status === "NA"
-            ? "Revisi & ajukan ulang untuk approval"
-            : "Edit Dokumen";
+            ? "Revise and resubmit for approval."
+            : "Edit Document";
         const isDownloading = downloadingId === item._orderId;
         const isDownloadDisabled = item._status !== "CO" || isDownloading; // ⬅️ hanya aktif saat Completed
 
@@ -416,9 +416,9 @@ const VendorInvoiceList = () => {
                         cursor:          !isEditDisabled ? "pointer"  : "not-allowed",
                         opacity:         !isEditDisabled ? 1          : 0.6,
                     }}
-                    title={isEditDisabled ? `Status ${getStatusLabel(item._status)} tidak dapat diubah` : editTitle}
+                    title={isEditDisabled ? `Status ${getStatusLabel(item._status)} can't change` : editTitle}
                 >
-                    {item._status === "NA" ? "🔁 Revisi" : "✏️ Edit"}
+                    {item._status === "NA" ? "🔁 Revised" : "✏️ Edit"}
                 </button>
 
                 <button
@@ -432,8 +432,8 @@ const VendorInvoiceList = () => {
                     }}
                     title={
                         item._status !== "CO"
-                            ? `Download hanya tersedia untuk dokumen dengan status Completed`
-                            : "Download Dokumen"
+                            ? `Download ready only for Completed Document`
+                            : "Download Document"
                     }
                 >
                     {isDownloading ? "⏳ ..." : "⬇️ Download"}
@@ -460,17 +460,17 @@ const VendorInvoiceList = () => {
                 onSearch={(val) => { setSearch(val); setOffset(0); }}
                 extraAction={
                     <button
-                        onClick={() => navigate("/vendor-inboice")}
+                        onClick={() => navigate("/vendor-invoice")}
                         style={styles.newBtn}
                     >
-                        + Transaksi Baru
+                        + New Transactions 
                     </button>
                 }
             />
 
             <div style={styles.dateFilterRow}>
                 <div style={styles.dateField}>
-                    <label style={styles.dateLabel}>Dari Tanggal</label>
+                    <label style={styles.dateLabel}>Date from</label>
                     <input
                         type="date"
                         value={startDate}
@@ -480,7 +480,7 @@ const VendorInvoiceList = () => {
                     />
                 </div>
                 <div style={styles.dateField}>
-                    <label style={styles.dateLabel}>Sampai Tanggal</label>
+                    <label style={styles.dateLabel}>Date To</label>
                     <input
                         type="date"
                         value={endDate}
