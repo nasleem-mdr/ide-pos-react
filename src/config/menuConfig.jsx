@@ -41,6 +41,7 @@ export const menuSections = [
             { key: 'purchasing-list',  windowKey: 'purchasingList',  path: '/purchasing-list',   label: 'Purchasing List',     icon: <ListIcon teks={'P'} /> },
             { key: 'goodsreceipt-list', windowKey: 'goodsReceiptList', path: '/goodsreceipt-list', label: 'Goods Receipt List', icon: <ListIcon teks={'G'} /> },
             { key: 'internaluse-list', windowKey: 'internalUseList',  path: '/internaluse-list',  label: 'Internal Use List',   icon: <ListIcon teks={'IU'} /> },
+            { key: 'vendorInvoiceList', windowKey: 'vendorInvoiceList',  path: '/vendorinvoice-list',  label: 'Vendor Invoice List',   icon: <ListIcon teks={'VI'} /> },
         ]
     },
     {

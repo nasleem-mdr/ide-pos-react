@@ -8,7 +8,8 @@ import {
   PurchasingView 
 } from "@/features/purchasing/order/pages";
 
-import { VendorInvoiceContainer } from '@/features/purchasing/invoice/pages';
+import VendorInvoiceContainer from '@/features/purchasing/invoice/pages/VendorInvoiceContainer';
+import VendorInvoiceList from "./features/purchasing/invoice/pages/VendorInvoiceList";
 
 // Material Management
 import RequisitionContainer from '@/features/requisition/pages/RequisitionContainer';
@@ -196,6 +197,12 @@ function AppContent() {
                         <Route path="/vendor-invoice" element={
                           <ProtectedRoute windowKey="vendorInvoice">
                             <VendorInvoiceContainer />
+                          </ProtectedRoute>
+                        } />
+                        
+                        <Route path="/vendorinvoice-list" element={
+                          <ProtectedRoute windowKey="vendorInvoiceList">
+                            <VendorInvoiceList />
                           </ProtectedRoute>
                         } />
                         <Route path="/bank-statement" element={
