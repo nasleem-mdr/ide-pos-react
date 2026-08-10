@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom'; 
 
 import {
   Dialog,
@@ -70,6 +70,12 @@ const SalesInvoiceContainer = () => {
   const searchRef = useRef(null);
   const customerBoxRef = useRef(null);
   const alert = (message, title = 'Perhatian') => setDialog({ isOpen: true, title, message });
+  
+  const location = useLocation(); // ⬅️ tambahkan setelah navigate
+  const [editInvoiceId, setEditInvoiceId]         = useState(null);
+  const [editInvoiceDocNo, setEditInvoiceDocNo]   = useState(null);
+  const [editInvoiceStatus, setEditInvoiceStatus] = useState(null);
+  const [loadingEditInvoice, setLoadingEditInvoice] = useState(false);
 
   const { products, loading: productsLoading, fetchProducts, search, searchValue, setSearchValue } = useSalesProductSearch();
   const {
@@ -110,6 +116,99 @@ const SalesInvoiceContainer = () => {
     init();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  useEffect(() => {
+    const editInvoice = location.state?.editInvoice;
+    if (!editInvoice) return;
+  
+    const loadEditInvoice = async () => {
+      setLoadingEditInvoice(true);
+      try {
+        const invoiceId = editInvoice.id ?? editInvoice.C_Invoice_ID;
+        const bpId      = fkId(editInvoice.C_BPartner_ID) ?? editInvoice.C_BPartner_ID?.id;
+        const bpName    = editInvoice.C_BPartner_ID?.identifier || editInvoice.C_BPartner_ID?.Name || '';
+  
+        if (!invoiceId || !bpId) {
+          throw new Error('Data Invoice tidak lengkap (ID atau customer tidak ditemukan).');
+        }
+  
+        // ── Ambil semua line invoice ini ──────────────────────────────
+        const linesRes = await idempiereApi(
+          `/models/c_invoiceline?$filter=C_Invoice_ID eq ${invoiceId}` +
+          `&$select=C_InvoiceLine_ID,M_Product_ID,QtyEntered,C_UOM_ID,PriceEntered,PriceActual,Description,DateService` +
+          `&$orderby=Line`
+        );
+        const lines = Array.isArray(linesRes.records) ? linesRes.records : [];
+        if (lines.length === 0) {
+          throw new Error('Invoice ini tidak memiliki baris item — tidak bisa diedit dari sini.');
+        }
+  
+        const cartItems = lines.map(line => ({
+          M_Product_ID: fkId(line.M_Product_ID) ?? line.M_Product_ID?.id,
+          Name:         line.M_Product_ID?.identifier || `Produk #${fkId(line.M_Product_ID)}`,
+          Description:  line.Description || line.M_Product_ID?.identifier || '',
+          C_UOM_ID:     fkId(line.C_UOM_ID) ?? line.C_UOM_ID?.id,
+          UomName:      line.C_UOM_ID?.identifier || '',
+          selectedUom:  { C_UOM_ID: fkId(line.C_UOM_ID) ?? line.C_UOM_ID?.id, Name: line.C_UOM_ID?.identifier },
+          Qty:          parseFloat(line.QtyEntered ?? 0),
+          Price:        parseFloat(line.PriceEntered ?? line.PriceActual ?? 0),
+          DateService:  line.DateService || null,
+          // dipakai useSalesCart untuk identity — sesuaikan dengan lineKey() kalau perlu
+          sourceInvoiceLineId: line.id ?? line.C_InvoiceLine_ID,
+        }));
+  
+        // ── Resolve lokasi customer (fallback kalau tidak terkirim dari List) ──
+        let locationId = fkId(editInvoice.C_BPartner_Location_ID) ?? editInvoice.C_BPartner_Location_ID?.id ?? null;
+        if (!locationId) {
+          try {
+            const locRes = await idempiereApi(
+              `/models/c_bpartner_location?$filter=C_BPartner_ID eq ${bpId} and IsActive eq true&$select=C_BPartner_Location_ID&$top=1`
+            );
+            const locRecords = Array.isArray(locRes.records) ? locRes.records : [];
+            locationId = locRecords[0] ? (fkId(locRecords[0].C_BPartner_Location_ID) ?? locRecords[0].id) : null;
+          } catch (err) {
+            console.error('Gagal fetch lokasi customer:', err.message);
+          }
+        }
+  
+        // ── Resolve price list version customer (tidak tersimpan di header invoice) ──
+        const { priceListId, priceListVersionId } = await resolveCustomerPricing({ C_BPartner_ID: bpId, Name: bpName });
+  
+        clearCart();
+        setCustomer({ C_BPartner_ID: bpId, Name: bpName, locationId, priceListId, priceListVersionId });
+        setCustomerQuery(bpName);
+        addItems(cartItems);
+        setDescription(editInvoice.Description || '');
+  
+        const bankAccId = fkId(editInvoice.C_BankAccount_ID) ?? editInvoice.C_BankAccount_ID?.id ?? null;
+        if (bankAccId) setBankAccountId(bankAccId);
+  
+        setEditInvoiceId(invoiceId);
+        setEditInvoiceDocNo(editInvoice.DocumentNo || `#${invoiceId}`);
+        setEditInvoiceStatus(editInvoice.DocStatus?.id ?? editInvoice.DocStatus ?? null);
+  
+        // Bersihkan location.state supaya refresh/back tidak reload ulang.
+        navigate(location.pathname, { replace: true, state: {} });
+      } catch (err) {
+        alert('Gagal memuat data Invoice untuk diedit:\n' + err.message, 'Error');
+      } finally {
+        setLoadingEditInvoice(false);
+      }
+    };
+  
+    loadEditInvoice();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.state]);
+  
+  const handleCancelEditInvoice = useCallback(() => {
+    clearCart();
+    setCustomer(null);
+    setCustomerQuery('');
+    setDescription('');
+    setBankAccountId(null);
+    setEditInvoiceId(null);
+    setEditInvoiceDocNo(null);
+    setEditInvoiceStatus(null);
+  }, [clearCart, setCustomer]);
 
   // ── Klik di luar box search customer → tutup dropdown ───────────────────
  // ── Klik di luar box search customer → tutup dropdown ───────────────────
@@ -237,9 +336,10 @@ const openProductDetail = (product) => { setSelectedProduct(product); setDetailO
       customerName:       customer.Name,
       bankAccountId,
       submitMode,
+      editInvoiceId,   // ⬅️ BARU — null di mode normal, terisi di mode edit
     });
     if (!result) return;
-
+  
     setSubmitModalOpen(false);
     setSuccessData([result]);
     setSuccessOpen(true);
@@ -248,6 +348,10 @@ const openProductDetail = (product) => { setSelectedProduct(product); setDetailO
     setDescription('');
     setCustomerQuery('');
     setBankAccountId(null);
+    setCustomer(null);          // ⬅️ tambahkan, biar konsisten dengan clear customer
+    setEditInvoiceId(null);     // ⬅️ BARU
+    setEditInvoiceDocNo(null);  // ⬅️ BARU
+    setEditInvoiceStatus(null); // ⬅️ BARU
   };
 
   const cartSummaryRight = customer?.Name ? `👤 ${customer.Name}` : '👤 Belum dipilih';
@@ -408,6 +512,34 @@ const openProductDetail = (product) => { setSelectedProduct(product); setDetailO
         )}
         
       </div>
+      {loadingEditInvoice && (
+  <div style={{
+    background: '#e0f2fe', color: '#075985', fontSize: '12px', fontWeight: 600,
+    padding: '8px 14px', textAlign: 'center', flexShrink: 0,
+  }}>
+    ⏳ Memuat data Invoice untuk diedit...
+  </div>
+)}
+
+{editInvoiceId && !loadingEditInvoice && (
+  <div style={{
+    background: '#fff3cd', color: '#856404', fontSize: '12px', fontWeight: 600,
+    padding: '8px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+    gap: '8px', flexWrap: 'wrap', borderBottom: '1px solid #ffe69c', flexShrink: 0,
+  }}>
+    <span>✏️ Mode Edit — Invoice {editInvoiceDocNo}</span>
+    <button
+      onClick={handleCancelEditInvoice}
+      style={{
+        background: 'transparent', border: '1px solid #856404', color: '#856404',
+        borderRadius: RADIUS.sm, padding: '4px 10px', fontSize: '11px',
+        cursor: 'pointer', fontWeight: 700, WebkitTapHighlightColor: 'transparent',
+      }}
+    >Batalkan Edit</button>
+  </div>
+)}
+
+
 
       {/* Body */}
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0 }}>

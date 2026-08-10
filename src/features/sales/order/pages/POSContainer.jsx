@@ -86,7 +86,7 @@ const DIALOG_CLOSED = {
     const [selectedBPartner, setSelectedBPartner] = useState(null); // { id, name }
     const [selectedPriceList, setSelectedPriceList] = useState(null); // { id, name }
 
-    const API_BASE    = "/api/v1";
+    //const API_BASE    = "/api/v1";
     const debounceRef = useRef(null);
     const uomCacheRef = useRef({});
     const searchRef   = useRef(null);   // Ref ke <input> di SearchBar untuk reset value setelah barcode scan
@@ -436,12 +436,14 @@ const DIALOG_CLOSED = {
     }
 };
 
-const loadMore = useCallback(() => {
-    const nextOffset = offset + pageSize;
-    setOffset(nextOffset);
-    fetchProducts(searchValue, getActivePriceListId(), null, "append", nextOffset);
-}, [offset, searchValue]);
-
+    const loadMore = useCallback(() => {
+        const nextOffset = offset + pageSize;
+        setOffset(nextOffset);
+        fetchProducts(searchValue, getActivePriceListId(), null, "append", nextOffset)
+            .catch((err) => {
+                if (err?.name !== 'AbortError') console.error("loadMore gagal:", err.message);
+            });
+    }, [offset, searchValue, selectedPriceList, posConfig]);
 
     // ─── 3a. Fetch UOM options untuk satu produk ───────────────────────────────
     const fetchUOMOptions = async (product) => {
@@ -569,7 +571,7 @@ const loadMore = useCallback(() => {
     
         // 3. Hitung jumlah item yang akan dipesan (Akan bertambah 1)
         const existingIndex = cart.findIndex(item => item.M_Product_ID === product.M_Product_ID);
-        const existingQty = existingIndex >= 0 ? cart[existingIndex]. Qty : 0;
+        const existingQty = existingIndex >= 0 ? cart[existingIndex].Qty : 0;
         const targetQty = existingQty + 1;
     
         // 4. Validasi batas stok HANYA jika BUKAN produk Jasa
@@ -1258,7 +1260,6 @@ const loadMore = useCallback(() => {
                         ><ScanIcon /></button>
                     </div>
 
-                   
                 <ProductGrid
                     products={products}
                     loading={loading}
@@ -1273,59 +1274,59 @@ const loadMore = useCallback(() => {
                 </div>
                 
                     {isDesktop ? (
-                        <CartSidebar
-                            cart={cart}
-                            onRemove={removeFromCart}
-                            onQtyChange={updateCartQty}
-                            onUomChange={updateCartUOM}
-                            onPriceChange={updateCartPrice}
-                            totalItems={cart.length}
-                            totalQty={cart.reduce((s, i) => s + i.Qty, 0)}
-                            summaryRight={`Rp ${calculateTotal().toLocaleString('id-ID')}`}
-                            title="🛒 Cart"
-                            submitLabel={isProcessingCheckout ? 'Memproses...' : 'PROSES BAYAR'}
-                            onSubmit={handleCheckout}
-                            isSubmitting={isProcessingCheckout}
-                            CartItemComponent={CartItemPOS}   // ⬅️ CartItem versi POS (support price)
-                        />
+                    <CartSidebar
+                        cart={cart}
+                        onRemove={removeFromCart}
+                        onQtyChange={updateCartQty}
+                        onUomChange={updateCartUOM}
+                        onPriceChange={updateCartPrice}
+                        totalItems={cart.length}
+                        totalQty={cart.reduce((s, i) => s + i.Qty, 0)}
+                        summaryRight={`Rp ${calculateTotal().toLocaleString('id-ID')}`}
+                        title="🛒 Cart"
+                        submitLabel={isProcessingCheckout ? 'Memproses...' : 'PROSES BAYAR'}
+                        onSubmit={handleCheckout}
+                        isSubmitting={isProcessingCheckout}
+                        CartItemComponent={CartItemPOS}   // ⬅️ CartItem versi POS (support price)
+                    />
                     ) : (
-                        <>
-                            {/* Tombol melayang — muncul hanya kalau cart tidak kosong */}
-                            {cart.length > 0 && (
-                                <button
-                                    onClick={() => setIsCartOpen(true)}
-                                    style={{
-                                        position: 'fixed', bottom: '20px', left: '16px', right: '16px',
-                                        zIndex: 200, background: '#28a745', color: '#fff', border: 'none',
-                                        borderRadius: '12px', padding: '14px 18px', fontWeight: 700, fontSize: '15px',
-                                        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                                        boxShadow: '0 4px 16px rgba(0,0,0,0.2)', cursor: 'pointer',
-                                    }}
-                                >
-                                    <span>🛒 {cart.length} item</span>
-                                    <span>Rp {calculateTotal().toLocaleString('id-ID')} · Lihat Cart</span>
-                                </button>
-                            )}
-
-                            <CartPanel
-                                isOpen={isCartOpen}
-                                onClose={() => setIsCartOpen(false)}
-                                cart={cart}
-                                onRemove={removeFromCart}
-                                onQtyChange={updateCartQty}
-                                onUomChange={updateCartUOM}
-                                onPriceChange={updateCartPrice}
-                                totalItems={cart.length}
-                                totalQty={cart.reduce((s, i) => s + i.Qty, 0)}
-                                summaryRight={`Rp ${calculateTotal().toLocaleString('id-ID')}`}
-                                title="🛒 Cart"
-                                submitLabel={isProcessingCheckout ? 'Memproses...' : 'PROSES BAYAR'}
-                                onSubmit={() => { handleCheckout(); }}
-                                isSubmitting={isProcessingCheckout}
-                                CartItemComponent={CartItemPOS}
-                            />
-                        </>
+                    <>
+                    {/* Tombol melayang — muncul hanya kalau cart tidak kosong */}
+                    {cart.length > 0 && (
+                        <button
+                            onClick={() => setIsCartOpen(true)}
+                            style={{
+                                position: 'fixed', bottom: '20px', left: '16px', right: '16px',
+                                zIndex: 200, background: '#28a745', color: '#fff', border: 'none',
+                                borderRadius: '12px', padding: '14px 18px', fontWeight: 700, fontSize: '15px',
+                                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                                boxShadow: '0 4px 16px rgba(0,0,0,0.2)', cursor: 'pointer',
+                        }}
+                        >
+                        <span>🛒 {cart.length} item</span>
+                        <span>{calculateTotal().toLocaleString('id-ID')} · Lihat Cart</span>
+                        </button>
                     )}
+                    <CartPanel
+                        isOpen={isCartOpen}
+                        onClose={() => setIsCartOpen(false)}
+                        cart={cart}
+                        onRemove={removeFromCart}
+                        onQtyChange={updateCartQty}
+                        onUomChange={updateCartUOM}
+                        onPriceChange={updateCartPrice}
+                        totalItems={cart.length}
+                        totalQty={cart.reduce((s, i) => s + i.Qty, 0)}
+                        summaryRight={`Rp ${calculateTotal().toLocaleString('id-ID')}`}
+                        title="🛒 Cart"
+                        submitLabel={isProcessingCheckout ? 'Memproses...' : 'PROSES BAYAR'}
+                        onSubmit={() => { handleCheckout(); }}
+                        isSubmitting={isProcessingCheckout}
+                        CartItemComponent={CartItemPOS}
+                        />
+                    </>
+                )}
+                            
                 <PaymentModal
                     isOpen={isPaymentModalOpen}
                     onClose={() => setIsPaymentModalOpen(false)}
@@ -1334,12 +1335,12 @@ const loadMore = useCallback(() => {
                     idempiereApi={idempiereApi}
                     adOrgId={posConfig?.AD_Org_ID?.id ?? posConfig?.AD_Org_ID}
                 />
-               <ReceiptModal
-                   isOpen={isReceiptModalOpen}
-                   onClose={() => setIsReceiptModalOpen(false)}
-                   receiptData={receiptData}
-               />
-               <BarcodeScanner
+                <ReceiptModal
+                    isOpen={isReceiptModalOpen}
+                    onClose={() => setIsReceiptModalOpen(false)}
+                    receiptData={receiptData}
+                />
+                <BarcodeScanner
                     isOpen={scannerOpen}
                     onDetected={handleBarcodeDetected}
                     onClose={() => setScannerOpen(false)}

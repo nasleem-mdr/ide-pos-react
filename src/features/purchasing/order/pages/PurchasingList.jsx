@@ -30,24 +30,7 @@ const PurchasingList = () => {
     const pageSize                        = 10;
     const navigate                        = useNavigate();
 
-    // const API_BASE    = "/api/v1";
-    // const customFetch = async (url, options = {}) => {
-    //     const token    = localStorage.getItem("token");
-    //     const response = await fetch(`${API_BASE}${url}`, {
-    //         ...options,
-    //         headers: {
-    //             ...options.headers,
-    //             Authorization:  `Bearer ${token}`,
-    //             "Content-Type": "application/json",
-    //         },
-    //     });
-    //     if (!response.ok) {
-    //         const text = await response.text().catch(() => "");
-    //         throw new Error(`[${response.status}] ${text}`);
-    //     }
-    //     return response.json();
-    // };
-
+    
     const getStatusLabel = (status) => {
         const map = { DR: "Draft", IP: "In Progress", CO: "Completed", CL: "Closed", VO: "Voided", RE: "Reversed", NA: "Ditolak" };
         return map[status] || status;
@@ -69,7 +52,7 @@ const PurchasingList = () => {
         try {
             let filterClause =
                 ` IsSOTrx eq false` + // sisi pembelian saja (bukan Sales Order)
-                ` and CreatedBy eq ${loginUserId}` +
+                //` and CreatedBy eq ${loginUserId}` +
                 ` and Created ge ${startDate}T00:00:00Z` +
                 ` and Created le ${endDate}T23:59:59Z`;
 
@@ -124,7 +107,7 @@ const PurchasingList = () => {
         try {
             let filterClause =
                 ` IsSOTrx eq false` +
-                ` and CreatedBy eq ${loginUserId}` +
+                //` and CreatedBy eq ${loginUserId}` +
                 ` and Created ge ${startDate}T00:00:00Z` +
                 ` and Created le ${endDate}T23:59:59Z`;
 

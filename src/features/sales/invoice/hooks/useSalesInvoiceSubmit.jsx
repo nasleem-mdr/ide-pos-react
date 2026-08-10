@@ -14,6 +14,7 @@ export function useSalesInvoiceSubmit({ invoiceDocTypeId, description, onError, 
     bankAccountId,
     paymentRule = 'P',
     submitMode = 'complete',
+    editInvoiceId = null,   // ⬅️ BARU — null = create baru, terisi = update existing
   } = {}) => {
     if (cart.length === 0) {
       onError?.('Keranjang penjualan masih kosong!');
@@ -32,7 +33,8 @@ export function useSalesInvoiceSubmit({ invoiceDocTypeId, description, onError, 
     }
 
     setIsSubmitting(true);
-    const created = { invoiceId: null };
+    const isEditMode = !!editInvoiceId;
+    const created = { invoiceId: isEditMode ? editInvoiceId : null };
 
     try {
       const todayISO = new Date().toISOString().split('T')[0];
@@ -41,10 +43,8 @@ export function useSalesInvoiceSubmit({ invoiceDocTypeId, description, onError, 
       setProgressStep('invoice');
       onStepUpdate?.('invoice', 'pending');
 
-      // ── BARU: cek dukungan kolom DULU, sebelum invoicePayload dipakai ──
       const hasBankAccount = await checkColumnSupport('c_invoice', 'C_BankAccount_ID');
 
-      // ── Validasi wajib bank account HANYA kalau instance ini mendukungnya ──
       if (hasBankAccount && !bankAccountId) {
         onError?.('Rekening bank belum ditentukan.', 'Data Belum Lengkap');
         setIsSubmitting(false);
@@ -52,65 +52,149 @@ export function useSalesInvoiceSubmit({ invoiceDocTypeId, description, onError, 
         return null;
       }
 
-      const invoicePayload = {
-        AD_Client_ID:  { id: clientId },
-        AD_Org_ID:     { id: orgId },
-        C_DocType_ID:  { id: invoiceDocTypeId },
-        C_DocTypeTarget_ID: { id: invoiceDocTypeId },
-        C_BPartner_ID: { id: parseInt(customerId) },
-        C_BPartner_Location_ID: { id: parseInt(customerLocationId) },
-        DateInvoiced:  todayISO,
-        IsSOTrx:       true,
-        PaymentRule:   paymentRule,
-      };
+      let invoiceId = editInvoiceId;
+      let invoiceRes;
 
-      if (trimmedDescription) {
-        invoicePayload.POReference = trimmedDescription;
-      }
-      // ── BARU: tambahkan C_BankAccount_ID SETELAH invoicePayload ada ──
-      if (hasBankAccount && bankAccountId) {
-        invoicePayload.C_BankAccount_ID = { id: parseInt(bankAccountId) };
-      }
+      if (isEditMode) {
+        // ═══════════════════════════════════════════════════════════════
+        // MODE EDIT — update header + diff lines terhadap invoice existing
+        // ═══════════════════════════════════════════════════════════════
 
-      const invoiceRes = await idempiereApi('/models/c_invoice', {
-        method: 'POST',
-        body: JSON.stringify(invoicePayload),
-      });
-      const invoiceId = fkId(invoiceRes.id) ?? invoiceRes.id ?? invoiceRes.C_Invoice_ID;
-      if (!invoiceId) throw new Error('Gagal mendapatkan C_Invoice_ID.');
-      created.invoiceId = invoiceId;
+        // Guard: invoice hanya boleh diubah kalau masih Draft/Ditolak —
+        // konsisten dengan isEditDisabled di SalesInvoiceList.jsx.
+        const existing = await idempiereApi(`/models/c_invoice/${invoiceId}?$select=DocStatus,DocumentNo`);
+        const existingStatus = existing.DocStatus?.id ?? existing.DocStatus;
+        if (!['DR', 'NA'].includes(existingStatus)) {
+          throw new Error(`Invoice berstatus "${existingStatus}" tidak bisa diedit lagi.`);
+        }
 
-      // ═══════════════════════════════════════════════════════════════════
-      // TAHAP 1b — Invoice Lines
-      // ═══════════════════════════════════════════════════════════════════
-      for (const item of cart) {
-        const uom = item.selectedUom || { C_UOM_ID: item.C_UOM_ID, multiplyRate: 1 };
-        const qtyEntered = parseFloat(item.Qty);
-        const qtyInvoiced = qtyEntered * (uom.multiplyRate || 1);
+        const headerPayload = {
+          C_BPartner_ID: { id: parseInt(customerId) },
+          C_BPartner_Location_ID: { id: parseInt(customerLocationId) },
+          PaymentRule: paymentRule,
+        };
+        if (trimmedDescription) headerPayload.POReference = trimmedDescription;
+        if (hasBankAccount) {
+          // Eksplisit null kalau user mengosongkan pilihan bank saat edit.
+          headerPayload.C_BankAccount_ID = bankAccountId ? { id: parseInt(bankAccountId) } : null;
+        }
 
-        await idempiereApi('/models/c_invoiceline', {
-          method: 'POST',
-          body: JSON.stringify({
+        invoiceRes = await idempiereApi(`/models/c_invoice/${invoiceId}`, {
+          method: 'PUT',
+          body: JSON.stringify(headerPayload),
+        });
+        invoiceRes.DocumentNo = invoiceRes.DocumentNo || existing.DocumentNo;
+
+        // ── Diff line items ────────────────────────────────────────────
+        // cart item dengan `sourceInvoiceLineId` = line lama yang masih
+        // dipertahankan (mungkin diedit qty/price/uom-nya). Item tanpa
+        // field itu = line baru yang ditambahkan user saat edit. Line
+        // lama yang ID-nya tidak lagi muncul di cart = dihapus user →
+        // DELETE dari server.
+        const currentLinesRes = await idempiereApi(
+          `/models/c_invoiceline?$filter=C_Invoice_ID eq ${invoiceId}&$select=C_InvoiceLine_ID`
+        );
+        const currentLineIds = (currentLinesRes.records || [])
+          .map(l => String(l.id ?? l.C_InvoiceLine_ID));
+        const keptLineIds = new Set(
+          cart.filter(i => i.sourceInvoiceLineId).map(i => String(i.sourceInvoiceLineId))
+        );
+        const toDelete = currentLineIds.filter(id => !keptLineIds.has(id));
+
+        for (const lineId of toDelete) {
+          await idempiereApi(`/models/c_invoiceline/${lineId}`, { method: 'DELETE' });
+        }
+
+        for (const item of cart) {
+          const uom = item.selectedUom || { C_UOM_ID: item.C_UOM_ID, multiplyRate: 1 };
+          const qtyEntered = parseFloat(item.Qty);
+          const qtyInvoiced = qtyEntered * (uom.multiplyRate || 1);
+
+          const linePayload = {
             AD_Org_ID:     { id: orgId },
-            C_Invoice_ID:  { id: invoiceId },
             M_Product_ID:  { id: parseInt(item.M_Product_ID) },
             C_UOM_ID:      { id: parseInt(uom.C_UOM_ID) },
             QtyEntered:    qtyEntered,
             QtyInvoiced:   qtyInvoiced,
             PriceActual:   parseFloat(item.PriceActual || item.Price || 0),
             PriceEntered:  parseFloat(item.PriceEntered || item.PriceActual || item.Price || 0),
-            Description: item.Description || item.Name,
-          }),
+            Description:   item.Description || item.Name,
+          };
+          if (item.DateService) linePayload.DateService = item.DateService;
+
+          if (item.sourceInvoiceLineId) {
+            await idempiereApi(`/models/c_invoiceline/${item.sourceInvoiceLineId}`, {
+              method: 'PUT',
+              body: JSON.stringify(linePayload),
+            });
+          } else {
+            await idempiereApi('/models/c_invoiceline', {
+              method: 'POST',
+              body: JSON.stringify({ ...linePayload, C_Invoice_ID: { id: invoiceId } }),
+            });
+          }
+        }
+
+      } else {
+        // ═══════════════════════════════════════════════════════════════
+        // MODE CREATE — perilaku lama, TIDAK diubah
+        // ═══════════════════════════════════════════════════════════════
+        const invoicePayload = {
+          AD_Client_ID:  { id: clientId },
+          AD_Org_ID:     { id: orgId },
+          C_DocType_ID:  { id: invoiceDocTypeId },
+          C_DocTypeTarget_ID: { id: invoiceDocTypeId },
+          C_BPartner_ID: { id: parseInt(customerId) },
+          C_BPartner_Location_ID: { id: parseInt(customerLocationId) },
+          DateInvoiced:  todayISO,
+          IsSOTrx:       true,
+          PaymentRule:   paymentRule,
+        };
+
+        if (trimmedDescription) {
+          invoicePayload.POReference = trimmedDescription;
+        }
+        if (hasBankAccount && bankAccountId) {
+          invoicePayload.C_BankAccount_ID = { id: parseInt(bankAccountId) };
+        }
+
+        invoiceRes = await idempiereApi('/models/c_invoice', {
+          method: 'POST',
+          body: JSON.stringify(invoicePayload),
         });
+        invoiceId = fkId(invoiceRes.id) ?? invoiceRes.id ?? invoiceRes.C_Invoice_ID;
+        if (!invoiceId) throw new Error('Gagal mendapatkan C_Invoice_ID.');
+
+        for (const item of cart) {
+          const uom = item.selectedUom || { C_UOM_ID: item.C_UOM_ID, multiplyRate: 1 };
+          const qtyEntered = parseFloat(item.Qty);
+          const qtyInvoiced = qtyEntered * (uom.multiplyRate || 1);
+
+          await idempiereApi('/models/c_invoiceline', {
+            method: 'POST',
+            body: JSON.stringify({
+              AD_Org_ID:     { id: orgId },
+              C_Invoice_ID:  { id: invoiceId },
+              M_Product_ID:  { id: parseInt(item.M_Product_ID) },
+              C_UOM_ID:      { id: parseInt(uom.C_UOM_ID) },
+              QtyEntered:    qtyEntered,
+              QtyInvoiced:   qtyInvoiced,
+              PriceActual:   parseFloat(item.PriceActual || item.Price || 0),
+              PriceEntered:  parseFloat(item.PriceEntered || item.PriceActual || item.Price || 0),
+              Description: item.Description || item.Name,
+            }),
+          });
+        }
       }
 
+      created.invoiceId = invoiceId;
+
       // ═══════════════════════════════════════════════════════════════════
-      // TAHAP 1c — Complete (di-skip kalau submitMode === 'draft')
+      // Complete / Draft — sama untuk kedua mode
       // ═══════════════════════════════════════════════════════════════════
-      // Total belum tentu ke-compute di iDempiere sebelum Complete, jadi
-      // untuk mode draft kita hitung sendiri dari cart supaya UI (success
-      // modal) tetap bisa menampilkan angka yang masuk akal.
-      const clientGrandTotal = cart.reduce((s, item) => s + (parseFloat(item.Qty) * parseFloat(item.Price || item.PriceActual || 0)), 0);
+      const clientGrandTotal = cart.reduce(
+        (s, item) => s + (parseFloat(item.Qty) * parseFloat(item.Price || item.PriceActual || 0)), 0
+      );
 
       if (submitMode === 'draft') {
         onStepUpdate?.('invoice', 'success', { id: invoiceId, documentNo: invoiceRes.DocumentNo, status: 'Drafted' });
@@ -134,7 +218,6 @@ export function useSalesInvoiceSubmit({ invoiceDocTypeId, description, onError, 
 
       const grandTotal = parseFloat(completedInvoice.GrandTotal ?? invoiceStatus.grandTotal ?? clientGrandTotal);
       onStepUpdate?.('invoice', 'success', { id: invoiceId, documentNo: invoiceStatus.documentNo, status: 'Completed' });
-      // ═══════════════════════════════════════════════════════════════════
 
       return {
         invoiceId,
@@ -147,8 +230,6 @@ export function useSalesInvoiceSubmit({ invoiceDocTypeId, description, onError, 
       };
 
     } catch (err) {
-      // Kalau invoice header sudah terlanjur dibuat (masih Draft), kasih tahu
-      // supaya bisa dilanjutkan/dibetulkan manual dari iDempiere.
       const doneList = Object.entries(created)
         .filter(([, v]) => v)
         .map(([k, v]) => `${k}: ${v}`)
@@ -157,7 +238,7 @@ export function useSalesInvoiceSubmit({ invoiceDocTypeId, description, onError, 
       onStepUpdate?.(progressStep, 'error', { message: err.message });
       onError?.(
         `Gagal pada tahap "${progressStep}": ${err.message}` +
-        (doneList ? `\n\nDokumen yang SUDAH berhasil dibuat (perlu ditindaklanjuti manual):\n${doneList}` : ''),
+        (doneList ? `\n\nDokumen yang SUDAH berhasil dibuat/diubah (perlu ditindaklanjuti manual):\n${doneList}` : ''),
         'Proses Terhenti'
       );
       return null;

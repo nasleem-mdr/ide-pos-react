@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { PageHeader, DataTable } from "@/shared/components";
+import { idempiereApi } from "@/api/idempiereApi";
 import "@/App.css";
 
-const SalesOrderPage = () => {
+const POSOrderList = () => {
     const [orders, setOrders]             = useState([]);
     const [loading, setLoading]           = useState(false);
     const [search, setSearch]             = useState("");
@@ -11,25 +12,27 @@ const SalesOrderPage = () => {
     const [totalRecords, setTotalRecords] = useState(0);
     const [grandTotalAll, setGrandTotalAll] = useState(null); // null = belum load
     const pageSize                        = 10;
+    const [startDate, setStartDate]       = useState(todayStr);
+    const [endDate, setEndDate]           = useState(todayStr);
     const navigate                        = useNavigate();
 
-    const API_BASE    = "/api/v1";
-    const customFetch = async (url, options = {}) => {
-        const token    = localStorage.getItem("token");
-        const response = await fetch(`${API_BASE}${url}`, {
-            ...options,
-            headers: {
-                ...options.headers,
-                Authorization:  `Bearer ${token}`,
-                "Content-Type": "application/json",
-            },
-        });
-        if (!response.ok) {
-            const text = await response.text().catch(() => "");
-            throw new Error(`[${response.status}] ${text}`);
-        }
-        return response.json();
-    };
+    // const API_BASE    = "/api/v1";
+    // const customFetch = async (url, options = {}) => {
+    //     const token    = localStorage.getItem("token");
+    //     const response = await fetch(`${API_BASE}${url}`, {
+    //         ...options,
+    //         headers: {
+    //             ...options.headers,
+    //             Authorization:  `Bearer ${token}`,
+    //             "Content-Type": "application/json",
+    //         },
+    //     });
+    //     if (!response.ok) {
+    //         const text = await response.text().catch(() => "");
+    //         throw new Error(`[${response.status}] ${text}`);
+    //     }
+    //     return response.json();
+    // };
 
     const getStatusLabel = (status) => {
         const map = { DR: "Draft", IP: "In Progress", CO: "Completed", VO: "Voided", RE: "Reversed" };
@@ -59,7 +62,7 @@ const SalesOrderPage = () => {
                 filterClause += ` and contains(tolower(DocumentNo),'${search.toLowerCase()}')`;
             }
 
-            const res = await customFetch(
+            const res = await idempiereApi(
                 `/models/c_order` +
                 `?$filter=${filterClause}` +
                 `&$select=C_Order_ID,DocumentNo,DateOrdered,C_BPartner_ID,GrandTotal,DocStatus,M_PriceList_ID,M_Warehouse_ID,C_DocTypeTarget_ID` +
@@ -97,7 +100,7 @@ const SalesOrderPage = () => {
             }
 
             // Ambil hanya kolom GrandTotal tanpa pagination untuk dijumlahkan
-            const res = await customFetch(
+            const res = await idempiereApi(
                 `/models/c_order` +
                 `?$filter=${filterClause}` +
                 `&$select=GrandTotal`
@@ -127,7 +130,7 @@ const SalesOrderPage = () => {
     // Format total seluruh halaman dari state (null = sedang loading)
     const grandTotalFormatted = grandTotalAll === null
         ? "Menghitung..."
-        : `Rp ${grandTotalAll.toLocaleString("id-ID")}`;
+        : `${grandTotalAll.toLocaleString("id-ID")}`;
 
     const columns = [
         { key: "DocumentNo",    label: "No. Dokumen" },
@@ -152,7 +155,7 @@ const SalesOrderPage = () => {
             "C_BPartner_ID": order.C_BPartner_ID?.identifier
                 || order.C_BPartner_ID?.Name
                 || "-",
-            GrandTotal: `Rp ${parseFloat(order.GrandTotal || 0).toLocaleString("id-ID")}`,
+            GrandTotal: `${parseFloat(order.GrandTotal || 0).toLocaleString("id-ID")}`,
             DocStatus: (
                 <span style={{
                     ...styles.badge,
@@ -193,7 +196,7 @@ const SalesOrderPage = () => {
                         onClick={() => navigate("/pos-order")}
                         style={styles.newBtn}
                     >
-                        + Transaksi Baru
+                        + New Transaction
                     </button>
                 }
             />
@@ -219,4 +222,4 @@ const styles = {
     editBtn: { color: "#fff", border: "none", padding: "6px 14px", borderRadius: "6px", fontWeight: "bold", fontSize: "12px", transition: "all 0.2s ease" },
 };
 
-export default SalesOrderPage;
+export default POSOrderList;

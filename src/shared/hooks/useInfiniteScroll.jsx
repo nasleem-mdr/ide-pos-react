@@ -1,9 +1,14 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 
 export function useInfiniteScroll({ fetchMore, hasMore, loading, rootMargin = '300px', rootRef = null }) {
   const sentinelRef = useRef(null);
   const observerRef = useRef(null);
-  const rootNode = rootRef ? rootRef.current : null; // ambil dulu, jangan optional-chain di deps array
+  const [rootNode, setRootNode] = useState(null);
+
+  // sinkronkan rootNode setelah commit, bukan saat render
+  useEffect(() => {
+    setRootNode(rootRef ? rootRef.current : null);
+  }); // tanpa deps → cek tiap render, murah karena cuma setState kalau berubah (bisa dioptimasi dgn perbandingan)
 
   const handleIntersect = useCallback((entries) => {
     const [entry] = entries;

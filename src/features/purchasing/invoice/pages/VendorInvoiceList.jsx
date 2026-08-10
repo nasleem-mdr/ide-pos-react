@@ -1,10 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import ReactDOMServer from "react-dom/server";
 import { PageHeader, DataTable } from "@/shared/components/setup";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
-import QRCode from "qrcode";
 import { LogoSMAMerahHitam } from "@/shared/components/icon";
 import { idempiereApi } from "@/api/idempiereApi";
 import { renderDocumentPDF } from "@/utils/pdf/renderDocumentPDF";
@@ -52,7 +48,6 @@ const VendorInvoiceList = () => {
         try {
             let filterClause =
                 ` IsSOTrx eq false` + // sisi pembelian saja (bukan Sales Order)
-                ` and CreatedBy eq ${loginUserId}` +
                 ` and Created ge ${startDate}T00:00:00Z` +
                 ` and Created le ${endDate}T23:59:59Z`;
 
@@ -107,7 +102,6 @@ const VendorInvoiceList = () => {
         try {
             let filterClause =
                 ` IsSOTrx eq false` +
-                ` and CreatedBy eq ${loginUserId}` +
                 ` and Created ge ${startDate}T00:00:00Z` +
                 ` and Created le ${endDate}T23:59:59Z`;
 
@@ -165,7 +159,7 @@ const VendorInvoiceList = () => {
 
     const columns = [
         { key: "DocumentNo", label: "No. Dokumen" },
-        { key: "DateInvoice", label: "Tanggal" },
+        { key: "DateInvoiced", label: "Tanggal" },
         { key: "C_BPartner_ID", label: "Vendor" },
         { key: "GrandTotal", label: "Total", align: "right" },
         { key: "DocStatus", label: "Status", align: "center" },

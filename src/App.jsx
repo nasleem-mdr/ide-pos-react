@@ -23,9 +23,10 @@ import ProductList from "@/features/master/product/pages/ProductList";
 import ProductDetail from "@/features/master/product/pages/ProductDetail";
 
 // Sales Management
-import SalesOrderPage from "@/features/sales/order/pages/SalesOrderPage";
+import POSOrderList from "@/features/sales/order/pages/POSOrderList";
 import POSContainer from "@/features/sales/order/pages/POSContainer"; 
 import SalesInvoiceContainer from "@/features/sales/invoice/pages/SalesInvoiceContainer";
+import SalesInvoiceList from "@/features/sales/invoice/pages/SalesInvoiceList";
 
 import BookingTimeline from '@/features/login/pages/BookingTimeline';
 
@@ -142,9 +143,9 @@ function AppContent() {
                           </ProtectedRoute>
                         } />
                         {/* ===== Transaksi ===== */}
-                        <Route path="/sales-order" element={
-                          <ProtectedRoute windowKey="salesOrder">
-                            <SalesOrderPage />
+                        <Route path="/posorder-list" element={
+                          <ProtectedRoute windowKey="posOrderList">
+                            <POSOrderList />
                           </ProtectedRoute>
                         } />
                         <Route path="/pos-order" element={
@@ -215,7 +216,14 @@ function AppContent() {
                             <SalesInvoiceContainer />
                           </ProtectedRoute>
                         } />
+                        <Route path="/salesinvoice-list" element={
+                          <ProtectedRoute windowKey="salesInvoiceList">
+                            <SalesInvoiceList />
+                          </ProtectedRoute>
+                        } />
                       </Routes>
+                      
+
                     </main>
                   </div>
                 </div>
