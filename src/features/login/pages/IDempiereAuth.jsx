@@ -29,7 +29,7 @@ export default function IDempiereAuth({ onLoginSuccess }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [sessionData, setSessionData] = useState(null);
-  const [leftOpen, setLeftOpen] = useState(true);
+  const [leftOpen, setLeftOpen] = useState(false);
   const navigate = useNavigate();
 
   // Step 1
@@ -320,7 +320,7 @@ export default function IDempiereAuth({ onLoginSuccess }) {
                   <span
                     className="input-icon"
                     onClick={() => setShowPass((p) => !p)}
-                    title={showPass ? "Sembunyikan" : "Tampilkan"}
+                    title={showPass ? "Hide" : "Show"}
                   >
                     <EyeIcon show={showPass} />
                   </span>

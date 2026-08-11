@@ -391,55 +391,81 @@ const DIALOG_CLOSED = {
     // ─── 2. Fetch products ────────────────────────────────────────────────────
     const isDesktop = useIsDesktop();
     const abortRef = useRef(null);
+    const MAX_SCAN_ROUNDS = 10; // maksimal 10 x pageSize = 200 produk mentah di-scan per aksi
+
     const fetchProducts = async (query = "", priceListId = null, terminalConfig = null, mode = "replace", currentOffset = 0) => {
-    abortRef.current?.abort();
-    const controller = new AbortController();
-    abortRef.current = controller;
+        abortRef.current?.abort();
+        const controller = new AbortController();
+        abortRef.current = controller;
 
-    mode === "append" ? setLoadingMore(true) : setLoading(true);
+        mode === "append" ? setLoadingMore(true) : setLoading(true);
 
-    try {
-        setVersionMissing(false);
+        try {
+            setVersionMissing(false);
 
-        const config           = terminalConfig || posConfig;
-        const rawPriceId       = priceListId || config?.M_PriceList_ID;
-        const finalPriceListId = typeof rawPriceId === 'object' ? rawPriceId?.id : rawPriceId;
-        if (!finalPriceListId) { console.error("PriceList ID tidak ditemukan"); return; }
+            const config           = terminalConfig || posConfig;
+            const rawPriceId       = priceListId || config?.M_PriceList_ID;
+            const finalPriceListId = typeof rawPriceId === 'object' ? rawPriceId?.id : rawPriceId;
+            if (!finalPriceListId) { console.error("PriceList ID tidak ditemukan"); return; }
 
-        const versionId = await fetchActiveVersionId(finalPriceListId, controller.signal);
-        if (!versionId) {
-            setCurrentVersionId("NOT_FOUND");
-            setVersionMissing(true);
-            setProducts([]);
-            setHasMore(false);
-            return;
+            const versionId = await fetchActiveVersionId(finalPriceListId, controller.signal);
+            if (!versionId) {
+                setCurrentVersionId("NOT_FOUND");
+                setVersionMissing(true);
+                setProducts([]);
+                setHasMore(false);
+                return;
+            }
+            setCurrentVersionId(versionId);
+
+            let productFilter = "IsSold eq true and IsActive eq true";
+            if (query) {
+                const safeQuery = query.toUpperCase().replace(/'/g, "''");
+                productFilter += ` and (contains(toupper(Name),'${safeQuery}') or contains(toupper(Value),'${safeQuery}'))`;
+            }
+
+            // FIX: filter harga (M_ProductPrice) jalan di CLIENT setelah $skip/$top
+            // di SERVER — satu halaman mentah bisa kebetulan 0 hasil (semua produk
+            // belum ada harga di version ini) walau count raw = pageSize (masih
+            // ada halaman berikutnya). Kalau langsung berhenti, sentinel infinite-
+            // scroll tidak akan bergerak & observer TIDAK retrigger otomatis
+            // (intersection ratio-nya tidak berubah) — grid macet kosong selamanya.
+            // Jadi loop di sini sampai dapat produk, atau server benar-benar habis.
+            let skip = currentOffset;
+            let collected = [];
+            let serverExhausted = false;
+
+            for (let round = 0; round < MAX_SCAN_ROUNDS; round++) {
+                const { list, count } = await resolveProducts(productFilter, versionId, config, controller.signal, pageSize, skip);
+                skip += count;
+                collected = collected.concat(list);
+
+                if (count < pageSize) { serverExhausted = true; break; }
+                if (collected.length > 0) break;
+            }
+
+            if (!serverExhausted && collected.length === 0) {
+                console.warn(`[POS] ${MAX_SCAN_ROUNDS * pageSize} produk di-scan tanpa hasil — mayoritas produk mungkin belum punya M_ProductPrice di version ${versionId}.`);
+            }
+
+            setOffset(skip); // simpan skip absolut terakhir yang sudah difetch, bukan currentOffset+pageSize
+            setProducts(prev => mode === "append" ? [...prev, ...collected] : collected);
+            setHasMore(!serverExhausted);
+        } catch (err) {
+            if (err.name === 'AbortError') return;
+            console.error("Fetch Products Error:", err.message);
+            if (mode !== "append") setProducts([]);
+        } finally {
+            setLoading(false);
+            setLoadingMore(false);
         }
-        setCurrentVersionId(versionId);
-
-        let productFilter = "IsSold eq true and IsActive eq true";
-        if (query) {
-            const safeQuery = query.toUpperCase().replace(/'/g, "''");
-            productFilter += ` and (contains(toupper(Name),'${safeQuery}') or contains(toupper(Value),'${safeQuery}'))`;
-        }
-
-        const { list, count } = await resolveProducts(productFilter, versionId, config, controller.signal, pageSize, currentOffset);
-
-        setProducts(prev => mode === "append" ? [...prev, ...list] : list);
-        setHasMore(count === pageSize);
-    } catch (err) {
-        if (err.name === 'AbortError') return;
-        console.error("Fetch Products Error:", err.message);
-        if (mode !== "append") setProducts([]);
-    } finally {
-        setLoading(false);
-        setLoadingMore(false);
-    }
-};
+    };
 
     const loadMore = useCallback(() => {
-        const nextOffset = offset + pageSize;
-        setOffset(nextOffset);
-        fetchProducts(searchValue, getActivePriceListId(), null, "append", nextOffset)
+        // FIX: offset sekarang sudah merepresentasikan skip absolut terakhir
+        // (di-update oleh fetchProducts sendiri di akhir loop-nya), jadi TIDAK
+        // perlu ditambah pageSize lagi di sini — cukup lanjut dari situ.
+        fetchProducts(searchValue, getActivePriceListId(), null, "append", offset)
             .catch((err) => {
                 if (err?.name !== 'AbortError') console.error("loadMore gagal:", err.message);
             });

@@ -118,7 +118,7 @@ const RequisitionContainer = () => {
           `&$orderby=Name&$top=50`
         );
         const whList = (whData.records || []).map(w => ({
-          id:   fkId(w.M_Warehouse_ID),
+          id:   w.id ?? fkId(w.M_Warehouse_ID),   // fallback ke PK flat dulu
           name: w.Name,
         }));
         setWarehouses(whList);

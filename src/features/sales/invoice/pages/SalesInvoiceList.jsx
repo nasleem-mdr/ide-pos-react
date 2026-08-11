@@ -50,8 +50,8 @@ const SalesInvoiceList = () => {
         try {
             let filterClause =
                 ` IsSOTrx eq true` + // sisi penjualan saja (bukan purchase Order)
-                ` and Created ge ${startDate}T00:00:00Z` +
-                ` and Created le ${endDate}T23:59:59Z`;
+                ` and DateInvoiced ge ${startDate}T00:00:00Z` +
+                ` and DateInvoiced le ${endDate}T23:59:59Z`;
 
             if (search) {
                 filterClause += ` and contains(tolower(DocumentNo),'${search.toLowerCase()}')`;
@@ -104,8 +104,8 @@ const SalesInvoiceList = () => {
         try {
             let filterClause =
                 ` IsSOTrx eq true` +
-                ` and Created ge ${startDate}T00:00:00Z` +
-                ` and Created le ${endDate}T23:59:59Z`;
+                ` and DateInvoiced ge ${startDate}T00:00:00Z` +
+                ` and DateInvoiced le ${endDate}T23:59:59Z`;
 
             if (search) {
                 filterClause += ` and contains(tolower(DocumentNo),'${search.toLowerCase()}')`;
@@ -246,47 +246,74 @@ const SalesInvoiceList = () => {
             documentNo: header.DocumentNo,
         });
     };
+    
+    const fetchAllInvoicesForPrint = useCallback(async () => {
+        const loginUserId = localStorage.getItem("AD_User_ID");
+        if (!loginUserId) return [];
+    
+        let filterClause =
+            ` IsSOTrx eq true` +
+            ` and DateInvoiced ge ${startDate}T00:00:00Z` +
+            ` and DateInvoiced le ${endDate}T23:59:59Z`;
+    
+        if (search) {
+            filterClause += ` and contains(tolower(DocumentNo),'${search.toLowerCase()}')`;
+        }
+    
+        const res = await idempiereApi(
+            `/models/c_invoice` +
+            `?$filter=${filterClause}` +
+            `&$select=C_Invoice_ID,DocumentNo,DateInvoiced,C_BPartner_ID,GrandTotal` +
+            `&$orderby=DocumentNo desc` +
+            `&$top=5000`
+        );
+    
+        return Array.isArray(res.records) ? res.records : [];
+    }, [search, startDate, endDate]);
+
     const [printingList, setPrintingList] = useState(false);
 
     const handlePrintList = async () => {
-    setPrintingList(true);
-    try {
-        const allInvoices = await fetchAllInvoicesForPrint();
+        setPrintingList(true);
+        try {
+            const allInvoices = await fetchAllInvoicesForPrint();
 
-        if (allInvoices.length === 0) {
-            alert('Tidak ada data untuk dicetak pada periode ini.');
-            return;
+            if (allInvoices.length === 0) {
+                alert('Tidak ada data untuk dicetak pada periode ini.');
+                return;
+            }
+
+            const totalAmount = allInvoices.reduce((s, inv) => s + parseFloat(inv.GrandTotal || 0), 0);
+
+            await renderListPDF({
+                title: 'DAFTAR SALES',
+                logo: <LogoSMAMerahHitam />,
+                periodLabel: `PERIODE : ${formatDateService(startDate)}  ${formatDateService(endDate)}`,
+                columns: [
+                    { key: 'no',         label: 'No',                width: 30,  align: 'center' },
+                    { key: 'documentNo', label: 'Document No',       width: 'auto' },
+                    { key: 'dateInvoice', label: 'Date',       width: 'auto' },
+                    { key: 'partner',    label: 'Customer', width: 'flex' },
+                    { key: 'amount',     label: 'Amount',            width: 'auto', align: 'right' },
+                ],
+                rows: allInvoices.map((inv, idx) => ({
+                    no:         idx + 1,
+                    documentNo: inv.DocumentNo || `#${inv.id ?? inv.C_Invoice_ID}`,
+                    dateInvoice: inv.DateInvoiced || `#${inv.id ?? inv.DateInvoiced}`,
+                    partner:    inv.C_BPartner_ID?.identifier || '-',
+                    amount:     numberFormatter.format(inv.GrandTotal ?? 0),
+                })),
+                totalLabel: 'Total Semua',
+                totalValue: numberFormatter.format(totalAmount),
+                filenamePrefix: `DAFTAR-SALES-${startDate}_${endDate}`,
+            });
+        } catch (err) {
+            console.error('Gagal generate PDF daftar:', err.message);
+            alert('Gagal membuat PDF daftar.');
+        } finally {
+            setPrintingList(false);
         }
-
-        const totalAmount = allInvoices.reduce((s, inv) => s + parseFloat(inv.GrandTotal || 0), 0);
-
-        await renderListPDF({
-            title: 'DAFTAR SALES',
-            logo: <LogoSMAMerahHitam />,
-            periodLabel: `PERIODE : ${formatDateService(startDate)}  ${formatDateService(endDate)}`,
-            columns: [
-                { key: 'no',         label: 'No',                width: 30,  align: 'center' },
-                { key: 'documentNo', label: 'Document No',       width: 'auto' },
-                { key: 'partner',    label: 'Customer / Vendor', width: 'flex' },
-                { key: 'amount',     label: 'Amount',            width: 'auto', align: 'right' },
-            ],
-            rows: allInvoices.map((inv, idx) => ({
-                no:         idx + 1,
-                documentNo: inv.DocumentNo || `#${inv.id ?? inv.C_Invoice_ID}`,
-                partner:    inv.C_BPartner_ID?.identifier || '-',
-                amount:     numberFormatter.format(inv.GrandTotal ?? 0),
-            })),
-            totalLabel: 'Total Semua',
-            totalValue: numberFormatter.format(totalAmount),
-            filenamePrefix: `DAFTAR-SALES-${startDate}_${endDate}`,
-        });
-    } catch (err) {
-        console.error('Gagal generate PDF daftar:', err.message);
-        alert('Gagal membuat PDF daftar.');
-    } finally {
-        setPrintingList(false);
-    }
-};
+    };
     const handleDownload = async (invoice) => {
         const invoiceId = invoice._invoiceId ?? invoice.id;
         setDownloadingId(invoiceId);
@@ -391,24 +418,17 @@ const SalesInvoiceList = () => {
                 title="Purchasing Invoice"
                 onSearch={(val) => { setSearch(val); setOffset(0); }}
                 extraAction={
-                    <button
-                        onClick={() => navigate("/sales-invoice")}
-                        style={styles.newBtn}
-                    >
-                        + New Transactions 
-                    </button>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                        <button onClick={handlePrintList} disabled={printingList} style={styles.newBtn}>
+                            {printingList ? '⏳ ...' : '🖨️ Print PDF'}
+                        </button>
+                        <button onClick={() => navigate("/sales-invoice")} style={styles.newBtn}>
+                            + New
+                        </button>
+                    </div>
                 }
             />
-            extraAction={
-                <div style={{ display: 'flex', gap: '8px' }}>
-                    <button onClick={handlePrintList} disabled={printingList} style={styles.newBtn}>
-                        {printingList ? '⏳ ...' : '🖨️ Print PDF'}
-                    </button>
-                    <button onClick={() => navigate("/sales-invoice")} style={styles.newBtn}>
-                        + New Transactions
-                    </button>
-                </div>
-            }
+            
             <div style={styles.dateFilterRow}>
                 <div style={styles.dateField}>
                     <label style={styles.dateLabel}>Date from</label>
