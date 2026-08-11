@@ -249,40 +249,44 @@ const SalesInvoiceList = () => {
     const [printingList, setPrintingList] = useState(false);
 
     const handlePrintList = async () => {
-        setPrintingList(true);
-        try {
-            // List halaman saat ini pakai `invoices` (state yg sudah ada) — TAPI
-            // itu cuma 1 halaman (pageSize=10). Kalau maunya PDF berisi SEMUA
-            // baris sesuai filter tanggal/search (bukan cuma halaman yg sedang
-            // dilihat), perlu fetch ulang tanpa $top/$skip — lihat catatan di
-            // bawah kode ini.
-            await renderListPDF({
-                title: 'DAFTAR SALES',
-                logo: <LogoSMAMerahHitam />,
-                periodLabel: `PERIODE : ${formatDateService(startDate)}  ${formatDateService(endDate)}`,
-                columns: [
-                    { key: 'no',         label: 'No',                width: 30,  align: 'center' },
-                    { key: 'documentNo', label: 'Document No',       width: 'auto' },
-                    { key: 'partner',    label: 'Customer / Vendor', width: 'flex' },
-                    { key: 'amount',     label: 'Amount',            width: 'auto', align: 'right' },
-                ],
-                rows: invoices.map((inv, idx) => ({
-                    no:         idx + 1,
-                    documentNo: inv.DocumentNo || `#${inv.id ?? inv.C_Invoice_ID}`,
-                    partner:    inv.C_BPartner_ID?.identifier || '-',
-                    amount:     numberFormatter.format(inv.GrandTotal ?? 0),
-                })),
-                totalLabel: 'Total Semua',
-                totalValue: totalAmountAll != null ? numberFormatter.format(totalAmountAll) : null,
-                filenamePrefix: `DAFTAR-SALES-${startDate}_${endDate}`,
-            });
-        } catch (err) {
-            console.error('Gagal generate PDF daftar:', err.message);
-            alert('Gagal membuat PDF daftar.');
-        } finally {
-            setPrintingList(false);
+    setPrintingList(true);
+    try {
+        const allInvoices = await fetchAllInvoicesForPrint();
+
+        if (allInvoices.length === 0) {
+            alert('Tidak ada data untuk dicetak pada periode ini.');
+            return;
         }
-    };
+
+        const totalAmount = allInvoices.reduce((s, inv) => s + parseFloat(inv.GrandTotal || 0), 0);
+
+        await renderListPDF({
+            title: 'DAFTAR SALES',
+            logo: <LogoSMAMerahHitam />,
+            periodLabel: `PERIODE : ${formatDateService(startDate)}  ${formatDateService(endDate)}`,
+            columns: [
+                { key: 'no',         label: 'No',                width: 30,  align: 'center' },
+                { key: 'documentNo', label: 'Document No',       width: 'auto' },
+                { key: 'partner',    label: 'Customer / Vendor', width: 'flex' },
+                { key: 'amount',     label: 'Amount',            width: 'auto', align: 'right' },
+            ],
+            rows: allInvoices.map((inv, idx) => ({
+                no:         idx + 1,
+                documentNo: inv.DocumentNo || `#${inv.id ?? inv.C_Invoice_ID}`,
+                partner:    inv.C_BPartner_ID?.identifier || '-',
+                amount:     numberFormatter.format(inv.GrandTotal ?? 0),
+            })),
+            totalLabel: 'Total Semua',
+            totalValue: numberFormatter.format(totalAmount),
+            filenamePrefix: `DAFTAR-SALES-${startDate}_${endDate}`,
+        });
+    } catch (err) {
+        console.error('Gagal generate PDF daftar:', err.message);
+        alert('Gagal membuat PDF daftar.');
+    } finally {
+        setPrintingList(false);
+    }
+};
     const handleDownload = async (invoice) => {
         const invoiceId = invoice._invoiceId ?? invoice.id;
         setDownloadingId(invoiceId);
