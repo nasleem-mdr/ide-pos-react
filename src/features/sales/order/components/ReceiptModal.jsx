@@ -31,6 +31,7 @@ const ReceiptModal = ({ isOpen, onClose, receiptData }) => {
             </html>
         `);
         win.document.close();
+        onClose();
     };
 
     return (

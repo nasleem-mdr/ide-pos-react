@@ -21,9 +21,11 @@ import {
 import { useAccess } from '@/context/AccessContext';
 import { idempiereApi, fkId, fkLabel } from '@/api/idempiereApi';
 import { useIsDesktop } from '@/shared/hooks/useIsDesktop';
+import { getLoginInfo } from '@/shared/hooks/useLoginInfo';
 
 const POSContainer = () => {
      // 1. State untuk kontrol Loading & Data POS
+   
          const [posConfig, setPosConfig]               = useState(null);
          const [cart, setCart]                         = useState([]);
          const [products, setProducts]                 = useState([]);
@@ -96,17 +98,19 @@ const DIALOG_CLOSED = {
     useEffect(() => {
         const initPOS = async () => {
             try {
-                const loginUserId = localStorage.getItem("AD_User_ID");
+                
+                const { userId: loginUserId, orgId } = getLoginInfo();
+        
                 if (!loginUserId) { triggerAlert("Sesi user tidak ditemukan."); setLoading(false); return; }
-
+                if (!orgId) { triggerAlert("Organisasi aktif tidak ditemukan di sesi login. Coba login ulang."); setLoading(false); return; }
+        
                 const data = await idempiereApi(
-                    `/models/c_pos?$filter=SalesRep_ID eq ${loginUserId}`
+                    `/models/c_pos?$filter=SalesRep_ID eq ${loginUserId} and AD_Org_ID eq ${orgId}`
                 );
-
+        
                 if (data?.records?.length > 0) {
                     const terminalConfig = data.records[0];
                     setPosConfig(terminalConfig);
-
                     const priceListId = terminalConfig.M_PriceList_ID?.id ?? terminalConfig.M_PriceList_ID;
                     if (priceListId) {
                         const plName = terminalConfig.M_PriceList_ID?.identifier || terminalConfig.M_PriceList_ID?.Name || `PriceList #${priceListId}`;
@@ -129,11 +133,10 @@ const DIALOG_CLOSED = {
                     ]);
                 } else {
                     triggerAlert(
-                        `Terminal tidak ditemukan untuk SalesRep ID: ${loginUserId}`, 
-                        "Perhatian", 
-                        () => navigate("/dashboard") 
+                        `Terminal POS tidak ditemukan untuk SalesRep ID: ${loginUserId} di Org aktif (${orgId}). Pastikan C_POS sudah di-setup untuk Org ini.`,
+                        "Perhatian",
+                        () => navigate("/dashboard")
                     );
-
                 }
             } catch (err) {
                 console.error("Error loading C_POS:", err.message);
@@ -1114,7 +1117,29 @@ const DIALOG_CLOSED = {
     };
 
     if (loading && !posConfig) return <p style={{ padding: '20px' }}>Loading Config POS...</p>;
-
+    
+    const handleReceiptClose = async () => {
+        setReceiptOpen(false);
+        setCart([]);
+        setOffset(0);
+        setHasMore(true);
+    
+        // Refresh produk (termasuk QtyOnHand) setelah transaksi selesai,
+        // baik user pilih Print maupun langsung Tutup
+        try {
+            await fetchProducts(
+                searchValue || "",
+                getActivePriceListId(),
+                null,
+                "replace",
+                0
+            );
+        } catch (err) {
+            if (err?.name !== 'AbortError') {
+                console.error("Gagal refresh produk setelah struk ditutup:", err.message);
+            }
+        }
+    };
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '20px', fontFamily: 'Arial, sans-serif', height: '100vh', boxSizing: 'border-box', overflow: 'hidden' }}>
 
@@ -1363,9 +1388,10 @@ const DIALOG_CLOSED = {
                 />
                 <ReceiptModal
                     isOpen={isReceiptModalOpen}
-                    onClose={() => setIsReceiptModalOpen(false)}
+                    onClose={handleReceiptClose}
                     receiptData={receiptData}
                 />
+               
                 <BarcodeScanner
                     isOpen={scannerOpen}
                     onDetected={handleBarcodeDetected}
