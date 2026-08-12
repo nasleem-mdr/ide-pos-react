@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback} from 'react';
 import { useNavigate, useLocation } from "react-router-dom";
+import { usePOSOrderSubmit }   from '@/features/sales/order/hooks/usePOSOrderSubmit';
+import { usePOSPaymentSubmit } from '@/features/sales/order/hooks/usePOSPaymentSubmit';
 import { 
     ProductCard, 
     SearchBar, 
@@ -32,7 +34,26 @@ const POSContainer = () => {
          const [loading, setLoading]                   = useState(true);
          const [currentVersionId, setCurrentVersionId] = useState(null);
          const [versionMissing, setVersionMissing]     = useState(false);
-         const [isProcessingCheckout, setIsProcessingCheckout] = useState(false);
+         //const [isProcessingCheckout, setIsProcessingCheckout] = useState(false);
+    // State untuk combobox C_BPartner dan M_PriceList di config bar
+    const [bPartnerList, setBPartnerList]   = useState([]);
+    const [priceListList, setPriceListList] = useState([]);
+    const [selectedBPartner, setSelectedBPartner] = useState(null); // { id, name }
+    const [selectedPriceList, setSelectedPriceList] = useState(null); // { id, name }
+
+    
+         const {
+                isProcessingCheckout,
+                currentOrderData,
+                setCurrentOrderData,
+                submitOrder,
+            } = usePOSOrderSubmit({ posConfig, cart, selectedBPartner, selectedPriceList });
+         const {
+                isSettlingPayment,
+                lastPaymentStatus,
+                completeAndSettle,
+            } = usePOSPaymentSubmit();
+
          const [editOrderId, setEditOrderId] = useState(null); // ID order draft yang sedang diedit
          const [isEditMode, setIsEditMode]   = useState(false);
          const location = useLocation();
@@ -82,12 +103,7 @@ const DIALOG_CLOSED = {
   };
   
   const closeDialog = () => setDialog(DIALOG_CLOSED);
-    // State untuk combobox C_BPartner dan M_PriceList di config bar
-    const [bPartnerList, setBPartnerList]   = useState([]);
-    const [priceListList, setPriceListList] = useState([]);
-    const [selectedBPartner, setSelectedBPartner] = useState(null); // { id, name }
-    const [selectedPriceList, setSelectedPriceList] = useState(null); // { id, name }
-
+    
     //const API_BASE    = "/api/v1";
     const debounceRef = useRef(null);
     const uomCacheRef = useRef({});
@@ -835,280 +851,145 @@ const DIALOG_CLOSED = {
 };
 
     // ─── 8. Prepare payload ───────────────────────────────────────────────────
-    const preparePayloadForIdempiere = () => {
-        if (!posConfig) throw new Error("Konfigurasi C_POS belum dimuat.");
+    // const preparePayloadForIdempiere = () => {
+    //     if (!posConfig) throw new Error("Konfigurasi C_POS belum dimuat.");
 
-        const extractId = (field) => {
-            const extracted = field?.id?.id ?? field?.id ?? (typeof field === 'number' ? field : undefined);
-            const parsed = parseInt(extracted);
-            return isNaN(parsed) ? null : parsed;
-        };
+    //     const extractId = (field) => {
+    //         const extracted = field?.id?.id ?? field?.id ?? (typeof field === 'number' ? field : undefined);
+    //         const parsed = parseInt(extracted);
+    //         return isNaN(parsed) ? null : parsed;
+    //     };
 
-        const toIdMurni = (field, name) => {
-            const result = extractId(field);
-            if (result === null) {
-                console.warn(`Peringatan: Field ${name} tidak memiliki ID numerik valid.`, field);
-            }
-            return result;
-        };
+    //     const toIdMurni = (field, name) => {
+    //         const result = extractId(field);
+    //         if (result === null) {
+    //             console.warn(`Peringatan: Field ${name} tidak memiliki ID numerik valid.`, field);
+    //         }
+    //         return result;
+    //     };
 
-        const adClientId  = toIdMurni(posConfig.AD_Client_ID, "AD_Client_ID");
-        const adOrgId     = toIdMurni(posConfig.AD_Org_ID, "AD_Org_ID");
-        const bPartnerId  = selectedBPartner?.id ?? toIdMurni(posConfig.C_BPartner_ID, "C_BPartner_ID");
-        const warehouseId = toIdMurni(posConfig.M_Warehouse_ID, "M_Warehouse_ID");
-        const docTypeId   = toIdMurni(posConfig.C_DocType_ID, "C_DocType_ID");
-        const priceListId = selectedPriceList?.id ?? toIdMurni(posConfig.M_PriceList_ID, "M_PriceList_ID");
-        const salesRepId  = toIdMurni(posConfig.SalesRep_ID, "SalesRep_ID");
+    //     const adClientId  = toIdMurni(posConfig.AD_Client_ID, "AD_Client_ID");
+    //     const adOrgId     = toIdMurni(posConfig.AD_Org_ID, "AD_Org_ID");
+    //     const bPartnerId  = selectedBPartner?.id ?? toIdMurni(posConfig.C_BPartner_ID, "C_BPartner_ID");
+    //     const warehouseId = toIdMurni(posConfig.M_Warehouse_ID, "M_Warehouse_ID");
+    //     const docTypeId   = toIdMurni(posConfig.C_DocType_ID, "C_DocType_ID");
+    //     const priceListId = selectedPriceList?.id ?? toIdMurni(posConfig.M_PriceList_ID, "M_PriceList_ID");
+    //     const salesRepId  = toIdMurni(posConfig.SalesRep_ID, "SalesRep_ID");
 
-        // FIX: posConfig.id adalah sumber ID terminal POS yang valid (posConfig.C_POS_ID = undefined)
-        const posId = extractId(posConfig.id)
-                   ?? extractId(posConfig.C_POS_ID)
-                   ?? extractId(posConfig);
+    //     // FIX: posConfig.id adalah sumber ID terminal POS yang valid (posConfig.C_POS_ID = undefined)
+    //     const posId = extractId(posConfig.id)
+    //                ?? extractId(posConfig.C_POS_ID)
+    //                ?? extractId(posConfig);
 
-        if (!bPartnerId)  throw new Error("C_BPartner_ID tidak valid. Isi field Business Partner pada setup POS.");
-        if (!docTypeId)   throw new Error("C_DocType_ID tidak valid di konfigurasi POS.");
-        if (!warehouseId) throw new Error("M_Warehouse_ID tidak valid di konfigurasi POS.");
-        if (!posId) {
-            console.warn("⚠️ Peringatan: C_POS_ID tidak ditemukan dari semua sumber (C_POS_ID, id).");
-            throw new Error("C_POS_ID tidak valid. Pastikan variabel state posConfig memuat ID Terminal POS.");
-        }
+    //     if (!bPartnerId)  throw new Error("C_BPartner_ID tidak valid. Isi field Business Partner pada setup POS.");
+    //     if (!docTypeId)   throw new Error("C_DocType_ID tidak valid di konfigurasi POS.");
+    //     if (!warehouseId) throw new Error("M_Warehouse_ID tidak valid di konfigurasi POS.");
+    //     if (!posId) {
+    //         console.warn("⚠️ Peringatan: C_POS_ID tidak ditemukan dari semua sumber (C_POS_ID, id).");
+    //         throw new Error("C_POS_ID tidak valid. Pastikan variabel state posConfig memuat ID Terminal POS.");
+    //     }
 
-        const formattedLines = cart.map((item) => {
-            const multiplyRate = item.selectedUOM?.multiplyRate || 1;
-            // FIX: cart item dari addToCart/updateCartQty menyimpan qty di `item.Qty`.
-            // `item.QtyEntered` cuma terisi kalau cart di-load dari order lama (mode edit),
-            // jadi kalau cuma baca QtyEntered, order baru selalu fallback ke 1.
-            const qtyEntered   = parseFloat(item.Qty ?? item.QtyEntered ?? 1);
-            const priceEntered = parseFloat(item.PriceEntered || 0);
-            const qtyOrdered   = qtyEntered * multiplyRate;
-            const priceOrdered = multiplyRate ? priceEntered / multiplyRate : priceEntered;
+    //     const formattedLines = cart.map((item) => {
+    //         const multiplyRate = item.selectedUOM?.multiplyRate || 1;
+    //         // FIX: cart item dari addToCart/updateCartQty menyimpan qty di `item.Qty`.
+    //         // `item.QtyEntered` cuma terisi kalau cart di-load dari order lama (mode edit),
+    //         // jadi kalau cuma baca QtyEntered, order baru selalu fallback ke 1.
+    //         const qtyEntered   = parseFloat(item.Qty ?? item.QtyEntered ?? 1);
+    //         const priceEntered = parseFloat(item.PriceEntered || 0);
+    //         const qtyOrdered   = qtyEntered * multiplyRate;
+    //         const priceOrdered = multiplyRate ? priceEntered / multiplyRate : priceEntered;
 
-            const line = {
-                AD_Org_ID:    { id: adOrgId },
-                M_Product_ID: { id: parseInt(item.M_Product_ID?.id ?? item.M_Product_ID) },
-                QtyEntered:   qtyEntered,
-                QtyOrdered:   qtyOrdered,
-                PriceEntered: priceEntered,
-                PriceActual:  priceOrdered,  // ⚠️ lihat catatan di bawah soal nama field ini
-            };
+    //         const line = {
+    //             AD_Org_ID:    { id: adOrgId },
+    //             M_Product_ID: { id: parseInt(item.M_Product_ID?.id ?? item.M_Product_ID) },
+    //             QtyEntered:   qtyEntered,
+    //             QtyOrdered:   qtyOrdered,
+    //             PriceEntered: priceEntered,
+    //             PriceActual:  priceOrdered,  // ⚠️ lihat catatan di bawah soal nama field ini
+    //         };
 
-            const uomId = toIdMurni(item.selectedUOM, "C_UOM_ID");
-            if (uomId) line.C_UOM_ID = { id: uomId };
+    //         const uomId = toIdMurni(item.selectedUOM, "C_UOM_ID");
+    //         if (uomId) line.C_UOM_ID = { id: uomId };
 
-            return line;
-        });
+    //         return line;
+    //      });
 
-        const todayISO = new Date().toISOString().split('T')[0];
+    //     const todayISO = new Date().toISOString().split('T')[0];
 
-        const payload = {
-            AD_Client_ID:       { id: adClientId },
-            AD_Org_ID:          { id: adOrgId },
-            C_DocTypeTarget_ID: { id: docTypeId }, // DocType tujuan (untuk header)
-            C_DocType_ID:       { id: docTypeId }, // DocType aktif — wajib diisi eksplisit agar tidak 0/"** New **"
-            C_BPartner_ID:      { id: bPartnerId },
-            M_Warehouse_ID:     { id: warehouseId },
-            M_PriceList_ID:     { id: priceListId },
-            DateOrdered:        todayISO,
-            DatePromised:       todayISO, // Wajib eksplisit — iDempiere pakai ini sebagai movement date saat cek stok
-            PaymentRule:        "M",
-            c_orderline:        formattedLines,
-            IsSOTrx:            "Y",
-            Description:        "POS Transaction",
-            C_POS_ID:           { id: posId },
-        };
+    //     const payload = {
+    //         AD_Client_ID:       { id: adClientId },
+    //         AD_Org_ID:          { id: adOrgId },
+    //         C_DocTypeTarget_ID: { id: docTypeId }, // DocType tujuan (untuk header)
+    //         C_DocType_ID:       { id: docTypeId }, // DocType aktif — wajib diisi eksplisit agar tidak 0/"** New **"
+    //         C_BPartner_ID:      { id: bPartnerId },
+    //         M_Warehouse_ID:     { id: warehouseId },
+    //         M_PriceList_ID:     { id: priceListId },
+    //         DateOrdered:        todayISO,
+    //         DatePromised:       todayISO, // Wajib eksplisit — iDempiere pakai ini sebagai movement date saat cek stok
+    //         PaymentRule:        "M",
+    //         c_orderline:        formattedLines,
+    //         IsSOTrx:            "Y",
+    //         Description:        "POS Transaction",
+    //         C_POS_ID:           { id: posId },
+    //     };
 
-        if (salesRepId) payload.SalesRep_ID = { id: salesRepId };
+    //     if (salesRepId) payload.SalesRep_ID = { id: salesRepId };
 
-        return payload;
-    };
+    //     return payload;
+    // };
 
 
      const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
-     const [currentOrderData, setCurrentOrderData]     = useState(null);
+     //const [currentOrderData, setCurrentOrderData]     = useState(null);
      const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
      const [receiptData, setReceiptData]               = useState(null);
      //handle checkout
      const handleCheckout = async () => {
-         if (cart.length === 0) { triggerAlert("Keranjang masih kosong!"); return; }
-     
-         setIsProcessingCheckout(true);
-         try {
-             let orderId;
-             let createdOrder;
-     
-             if (isEditMode && editOrderId) {
-                 // ── MODE EDIT: update order yang sudah ada ────────────────────
-                 console.log(`Mode Edit: Mengupdate Order ID ${editOrderId}...`);
-     
-                 // Update header order jika BPartner/PriceList berubah
-                 await idempiereApi(`/models/c_order/${editOrderId}`, {
-                     method: "PUT",
-                     body: JSON.stringify({
-                         C_BPartner_ID:  { id: selectedBPartner?.id },
-                         M_PriceList_ID: { id: selectedPriceList?.id },
-                     }),
-                 });
-     
-                 // Hapus semua order line lama
-                 const oldLinesRes = await idempiereApi(
-                     `/models/c_orderline?$filter=C_Order_ID eq ${editOrderId}&$select=C_OrderLine_ID`
-                 );
-                 const oldLines = Array.isArray(oldLinesRes.records) ? oldLinesRes.records : [];
-                 for (const line of oldLines) {
-                     const lineId = line.id ?? line.C_OrderLine_ID;
-                     await idempiereApi(`/models/c_orderline/${lineId}`, { method: "DELETE" });
-                 }
-     
-                 // Insert ulang order lines dari cart
-                 const adOrgId = posConfig?.AD_Org_ID?.id ?? posConfig?.AD_Org_ID;
-                 for (const item of cart) {
-                    const multiplyRate = item.selectedUOM?.multiplyRate || 1;
-                    // FIX: sama seperti di preparePayloadForIdempiere — kalau cashier ubah qty
-                    // lewat updateCartQty() saat mode edit, nilainya masuk ke `item.Qty`, bukan
-                    // `item.QtyEntered`. Utamakan Qty dulu, baru fallback QtyEntered/1.
-                    const qtyEntered   = parseFloat(item.Qty ?? item.QtyEntered ?? 1);
-                    const priceEntered = parseFloat(item.PriceEntered || 0);
-                    const qtyOrdered   = qtyEntered * multiplyRate;
-                    const priceOrdered = multiplyRate ? priceEntered / multiplyRate : priceEntered;
-
-                    await idempiereApi("/models/c_orderline", {
-                        method: "POST",
-                        body: JSON.stringify({
-                            C_Order_ID:   { id: editOrderId },
-                            AD_Org_ID:    { id: adOrgId },
-                            M_Product_ID: { id: parseInt(item.M_Product_ID) },
-                            QtyEntered:   qtyEntered,
-                            QtyOrdered:   qtyOrdered,
-                            PriceEntered: priceEntered,
-                            PriceActual:  priceOrdered,
-                            C_UOM_ID:     { id: item.selectedUOM?.id },
-                        }),
-                    });
-                }     
-                 orderId      = editOrderId;
-                 createdOrder = await idempiereApi(`/models/c_order/${editOrderId}`);
-     
-             } else {
-                 // ── MODE NORMAL: buat order baru ─────────────────────────────
-                 const orderPayload = preparePayloadForIdempiere();
-                 createdOrder       = await idempiereApi("/models/c_order", {
-                     method: "POST",
-                     body: JSON.stringify(orderPayload),
-                 });
-                 orderId = createdOrder.id || createdOrder.C_Order_ID;
-             }
-     
-             if (!orderId) throw new Error("Gagal mengambil C_Order_ID dari server.");
-     
-             console.log(`✅ Order siap (ID: ${orderId}). Membuka payment...`);
-             setCurrentOrderData(createdOrder);
-             setIsPaymentModalOpen(true);
-     
-         } catch (err) {
-             console.error("Proses POS Checkout Gagal:", err.message);
-             triggerAlert("Checkout Gagal: " + err.message, "Error");
-         } finally {
-             setIsProcessingCheckout(false);
-         }
-     };
-     //handle proses pembayaran
-     const handleCompletePOSPaymentWorkflow = async (cleanPaymentsArray, bankAccountId) => {
-
+        if (cart.length === 0) { triggerAlert("Keranjang masih kosong!"); return; }
+        try {
+            await submitOrder({ isEditMode, editOrderId });
+            setIsPaymentModalOpen(true);
+        } catch (err) {
+            console.error("Proses POS Checkout Gagal:", err.message);
+            triggerAlert("Checkout Gagal: " + err.message, "Error");
+        }
+    };
+    // handle proses pembayaran
+    const handleCompletePOSPaymentWorkflow = async (cleanPaymentsArray, bankAccountId) => {
         if (!currentOrderData) return;
 
-        const orderId    = currentOrderData.id || currentOrderData.C_Order_ID;
-        const adClientId = currentOrderData.AD_Client_ID?.id ?? currentOrderData.AD_Client_ID;
-        const adOrgId    = currentOrderData.AD_Org_ID?.id    ?? currentOrderData.AD_Org_ID;
-
         try {
-            console.log("Memulai pengiriman multi-baris C_POSPayment...");
+            // ✅ PERBAIKAN: Teruskan bankAccountId ke completeAndSettle
+            const { completedOrder, invoice, settledVia } =
+                await completeAndSettle(currentOrderData, cleanPaymentsArray, bankAccountId);
 
-            for (const payment of cleanPaymentsArray) {
-                const rawTenderId = payment.C_POSTenderType_ID;
-                if (!rawTenderId || isNaN(parseInt(rawTenderId))) {
-                    console.warn("Melewati baris pembayaran kosong/tidak valid.");
-                    continue;
-                }
-
-                const paymentPayload = {
-                    AD_Client_ID:       { id: parseInt(adClientId) },
-                    AD_Org_ID:          { id: parseInt(adOrgId) },
-                    C_Order_ID:         { id: parseInt(orderId) },
-                    PayAmt:             parseFloat(payment.PayAmt || 0),
-                    TenderType:         String(payment.TenderType || "X"),
-                    C_POSTenderType_ID: { id: parseInt(rawTenderId) },
-                };
-
-                console.log("Mengirim baris pembayaran aman:", JSON.stringify(paymentPayload));
-                await idempiereApi("/models/c_pospayment", {
-                    method: "POST",
-                    body: JSON.stringify(paymentPayload),
-                });
+            if (settledVia === 'manual') {
+                console.warn(
+                    "⚠️ Payment/Receipt tidak ter-generate otomatis oleh backend — " +
+                    "dibuat manual via fallback. Cek setup Bank Account/DocType AR Receipt di client ini."
+                );
             }
 
-            // console.log("✅ Data C_POSPayment tersimpan. Menentukan aturan pembayaran final...");
+            const finalDocNo = completedOrder.DocumentNo || currentOrderData.DocumentNo || completedOrder.id;
 
-            let finalPaymentRule = "M";
-            // FIX: mapping sebelumnya cuma nangani X/K/D, dan "D" (Direct Deposit) malah
-            // salah di-mapping ke PaymentRule "T" (Direct Debit). Akibatnya tender apa pun
-            // di luar X/K/D (termasuk kode aslinya "D" atau "T") jatuh ke default "M" (Mixed).
-            // Kode TenderType (di C_POSTenderType/MPayment) dan PaymentRule (di C_Order) pada
-            // dasarnya sama persis KECUALI Cash: TenderType Cash="X" tapi PaymentRule Cash="B".
-            const TENDER_TO_PAYMENTRULE = {
-                X: "B", // Cash
-                K: "K", // Credit Card
-                D: "D", // Direct Deposit ("Bank")
-                T: "T", // Direct Debit
-                C: "S", // Check
-            };
-            if (cleanPaymentsArray?.length === 1) {
-                const singleTender = cleanPaymentsArray[0]?.TenderType;
-                finalPaymentRule = TENDER_TO_PAYMENTRULE[singleTender] || "M";
-            }
-            console.log("🧾 finalPaymentRule dihitung:", {
-                jumlahBarisPembayaran: cleanPaymentsArray?.length,
-                singleTender: cleanPaymentsArray?.length === 1 ? cleanPaymentsArray[0]?.TenderType : "(lebih dari 1 baris)",
-                finalPaymentRule,
+            setReceiptData({
+                documentNo:   finalDocNo,
+                date:         new Date().toLocaleString("id-ID"),
+                posName:      posConfig?.Name || "POS Terminal",
+                cashierName:  posConfig?.SalesRep_ID?.identifier || "-",
+                bPartnerName: selectedBPartner?.name || "-",
+                items:        [...cart],
+                total:        calculateTotal(),
+                payments:     cleanPaymentsArray,
+                paymentSettledVia: settledVia, // opsional: bisa dipakai ReceiptModal utk badge "Manual Settlement"
             });
 
-            // FIX: C_BankAccount_ID BUKAN kolom di C_Order (error "Column C_BankAccount_ID
-            // does not exist" konfirmasi ini). Kolom itu ada di C_Payment, dan sesuai kode Java
-            // referensi, nilainya di-resolve OTOMATIS oleh iDempiere lewat query Org+Currency
-            // (bukan dipilih user, bukan disimpan di Order). Jadi kita cukup kirim PaymentRule saja.
-            const orderUpdatePayload = { PaymentRule: finalPaymentRule };
-
-            await idempiereApi(`/models/c_order/${orderId}`, {
-                method: "PUT",
-                body: JSON.stringify(orderUpdatePayload),
-            });
-
-            // console.log(`✅ Aturan pembayaran diset ke [${finalPaymentRule}]. Mengunci transaksi ke Complete...`);
-
-            const completedOrder = await idempiereApi(`/models/c_order/${orderId}`, {
-                method: "PUT",
-                body: JSON.stringify({ "doc-action": "CO" }),
-            });
-
-            const finalDocNo = completedOrder.DocumentNo || currentOrderData.DocumentNo || orderId;
-               
-               // Tambah ini
-               setReceiptData({
-                   documentNo:   finalDocNo,
-                   date:         new Date().toLocaleString("id-ID"),
-                   posName:      posConfig?.Name || "POS Terminal",
-                   cashierName:  posConfig?.SalesRep_ID?.identifier || "-",
-                   bPartnerName: selectedBPartner?.name || "-",
-                   items:        [...cart],
-                   total:        calculateTotal(),
-                   payments:     cleanPaymentsArray,  // ← langsung pakai parameter fungsi
-               });
-               
-               setIsPaymentModalOpen(false);
-               setCurrentOrderData(null);
-               setCart([]);
-               setIsEditMode(false);
-               setEditOrderId(null);
-               setIsReceiptModalOpen(true);
+            setIsPaymentModalOpen(false);
+            setCurrentOrderData(null);
+            setCart([]);
+            setIsEditMode(false);
+            setEditOrderId(null);
+            setIsReceiptModalOpen(true);
 
         } catch (err) {
             console.error("Proses Pembayaran POS Gagal:", err.message);
@@ -1119,7 +1000,7 @@ const DIALOG_CLOSED = {
     if (loading && !posConfig) return <p style={{ padding: '20px' }}>Loading Config POS...</p>;
     
     const handleReceiptClose = async () => {
-        setReceiptOpen(false);
+        setIsReceiptModalOpen(false);
         setCart([]);
         setOffset(0);
         setHasMore(true);
@@ -1383,6 +1264,7 @@ const DIALOG_CLOSED = {
                     onClose={() => setIsPaymentModalOpen(false)}
                     totalOrderAmount={calculateTotal()}
                     onSubmitPayment={handleCompletePOSPaymentWorkflow}
+                    isSubmitting={isSettlingPayment}
                     idempiereApi={idempiereApi}
                     adOrgId={posConfig?.AD_Org_ID?.id ?? posConfig?.AD_Org_ID}
                 />
