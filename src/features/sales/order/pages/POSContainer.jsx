@@ -2,114 +2,88 @@ import React, { useState, useEffect, useRef, useCallback} from 'react';
 import { useNavigate, useLocation } from "react-router-dom";
 import { usePOSOrderSubmit }   from '@/features/sales/order/hooks/usePOSOrderSubmit';
 import { usePOSPaymentSubmit } from '@/features/sales/order/hooks/usePOSPaymentSubmit';
-import { 
-    ProductCard, 
-    SearchBar, 
-    CartItem, 
-    ScanIcon, 
-    ProductGrid , 
-    CartPanel, 
-    CartSidebar, 
-    BarcodeScanner 
-} from '@/shared/components';
-
-import { 
-    ConfirmModal, 
-    PaymentModal, 
-    ReceiptModal,
-    CartItemPOS 
-} from '@/features/sales/order/components';
-
+import { ProductCard, SearchBar, ScanIcon, ProductGrid, CartPanel, CartSidebar, BarcodeScanner } from '@/shared/components';
+import { ConfirmModal, PaymentModal, ReceiptModal, CartItemPOS } from '@/features/sales/order/components';
 import { useAccess } from '@/context/AccessContext';
 import { idempiereApi, fkId, fkLabel } from '@/api/idempiereApi';
 import { useIsDesktop } from '@/shared/hooks/useIsDesktop';
 import { getLoginInfo } from '@/shared/hooks/useLoginInfo';
 
 const POSContainer = () => {
-     // 1. State untuk kontrol Loading & Data POS
-   
-         const [posConfig, setPosConfig]               = useState(null);
-         const [cart, setCart]                         = useState([]);
-         const [products, setProducts]                 = useState([]);
-         const [loading, setLoading]                   = useState(true);
-         const [currentVersionId, setCurrentVersionId] = useState(null);
-         const [versionMissing, setVersionMissing]     = useState(false);
-         //const [isProcessingCheckout, setIsProcessingCheckout] = useState(false);
-    // State untuk combobox C_BPartner dan M_PriceList di config bar
+    // 1. State untuk kontrol Loading & Data POS
+    const [posConfig, setPosConfig]               = useState(null);
+    const [cart, setCart]                         = useState([]);
+    const [products, setProducts]                 = useState([]);
+    const [loading, setLoading]                   = useState(true);
+    const [currentVersionId, setCurrentVersionId] = useState(null);
+    const [versionMissing, setVersionMissing]     = useState(false);
     const [bPartnerList, setBPartnerList]   = useState([]);
     const [priceListList, setPriceListList] = useState([]);
-    const [selectedBPartner, setSelectedBPartner] = useState(null); // { id, name }
-    const [selectedPriceList, setSelectedPriceList] = useState(null); // { id, name }
-
+    const [selectedBPartner, setSelectedBPartner] = useState(null); 
+    const [selectedPriceList, setSelectedPriceList] = useState(null);
     
-         const {
-                isProcessingCheckout,
-                currentOrderData,
-                setCurrentOrderData,
-                submitOrder,
-            } = usePOSOrderSubmit({ posConfig, cart, selectedBPartner, selectedPriceList });
-         const {
-                isSettlingPayment,
-                lastPaymentStatus,
-                completeAndSettle,
-            } = usePOSPaymentSubmit();
+    const {
+        isProcessingCheckout,
+        currentOrderData,
+        setCurrentOrderData,
+        submitOrder,
+    } = usePOSOrderSubmit({ posConfig, cart, selectedBPartner, selectedPriceList });
+    const {
+        isSettlingPayment,
+        lastPaymentStatus,
+        completeAndSettle,
+    } = usePOSPaymentSubmit();
 
-         const [editOrderId, setEditOrderId] = useState(null); // ID order draft yang sedang diedit
-         const [isEditMode, setIsEditMode]   = useState(false);
-         const location = useLocation();
-         const navigate = useNavigate();
-         const [isCartOpen, setIsCartOpen] = useState(false);
-         const { canEdit } = useAccess();
-         const canSubmitRequisition = canEdit('requisition');
-         const [scannerOpen, setScannerOpen] = useState(false);
-         const [offset, setOffset]           = useState(0);
-        const [hasMore, setHasMore]         = useState(true);
-        const [loadingMore, setLoadingMore] = useState(false);
-        const pageSize = 20;
-    // ─── Unified Dialog State ─────────────────────────────────────────────────
-// mode: "confirm" → tampilkan tombol onConfirm + onCancel (produk harga 0)
-// mode: "alert"   → tampilkan tombol onClose saja (notifikasi/error)
-const DIALOG_CLOSED = { 
-    isOpen: false, 
-    mode: "alert", 
-    title: "", 
-    message: "", 
-    product: null,
-    onConfirmAction: null // ← Tambahkan ini untuk menyimpan aksi kustom dinamis
-  };
-  const [dialog, setDialog] = useState(DIALOG_CLOSED);
-  
-  // Perbarui triggerAlert agar bisa menerima parameter fungsi ketiga (opsional)
-  const triggerAlert = (message, title = "Perhatian", onConfirmAction = null) => {
-      setDialog({ 
+    const [editOrderId, setEditOrderId] = useState(null); // ID order draft yang sedang diedit
+    const [isEditMode, setIsEditMode]   = useState(false);
+    const location = useLocation();
+    const navigate = useNavigate();
+    const [isCartOpen, setIsCartOpen] = useState(false);
+    const { canEdit } = useAccess();
+    const canSubmitRequisition = canEdit('requisition');
+    const [scannerOpen, setScannerOpen] = useState(false);
+    const [offset, setOffset]           = useState(0);
+    const [hasMore, setHasMore]         = useState(true);
+    const [loadingMore, setLoadingMore] = useState(false);
+    const pageSize = 20;
+    
+    const DIALOG_CLOSED = { 
+        isOpen: false, 
+        mode: "alert", 
+        title: "", 
+        message: "", 
+        product: null,
+        onConfirmAction: null 
+    };
+    const [dialog, setDialog] = useState(DIALOG_CLOSED);
+    const triggerAlert = (message, title = "Perhatian", onConfirmAction = null) => {
+    setDialog({ 
         isOpen: true, 
         mode: "alert", 
         title, 
         message, 
         product: null,
         onConfirmAction // ← Simpan fungsi redirect ke dashboard di sini jika ada
-      });
-  };
-  
-  const triggerConfirm = (product) => {
-      setDialog({
-          isOpen:  true,
-          mode:    "confirm",
-          title:   "Produk Tanpa Harga",
-          message: null,
-          product,
+    });
+    };
+
+    const triggerConfirm = (product) => {
+    setDialog({
+        isOpen:  true,
+        mode:    "confirm",
+        title:   "Produk Tanpa Harga",
+        message: null,
+        product,
           onConfirmAction: null // ← Untuk konfirmasi produk biasa, kosongkan saja
-      });
-  };
-  
-  const closeDialog = () => setDialog(DIALOG_CLOSED);
+    });
+    };
+
+    const closeDialog = () => setDialog(DIALOG_CLOSED);
     
-    //const API_BASE    = "/api/v1";
     const debounceRef = useRef(null);
     const uomCacheRef = useRef({});
-    const searchRef   = useRef(null);   // Ref ke <input> di SearchBar untuk reset value setelah barcode scan
-    const [searchValue, setSearchValue] = useState(""); // Controlled value untuk input search
-
+    const searchRef   = useRef(null);   
+    const [searchValue, setSearchValue] = useState(""); 
     // ─── 1. Init (mengambil data C_POS) ──────────────────────────────────────
     useEffect(() => {
         const initPOS = async () => {
@@ -167,81 +141,81 @@ const DIALOG_CLOSED = {
         console.error("initPOS gagal:", err.message);
     });
     }, []);
-     // ─── Load draft order jika dari SalesOrderPage ────────────────────────────
-     useEffect(() => {
-         // Tunggu posConfig selesai dimuat dulu
-         if (!posConfig) return;
-     
-         const editOrder = location.state?.editOrder;
-         if (!editOrder) return;
-     
-         const loadDraftOrder = async () => {
-             try {
-                 setLoading(true);
-                 const orderId = editOrder.id ?? editOrder.C_Order_ID;
-                 setEditOrderId(orderId);
-                 setIsEditMode(true);
-     
-                 // Override BPartner dari order
-                 const bpId   = editOrder.C_BPartner_ID?.id ?? editOrder.C_BPartner_ID;
-                 const bpName = editOrder.C_BPartner_ID?.identifier || editOrder.C_BPartner_ID?.Name || `BPartner #${bpId}`;
-                 if (bpId) setSelectedBPartner({ id: bpId, name: bpName });
-     
-                 // Override PriceList dari order
-                 const plId   = editOrder.M_PriceList_ID?.id ?? editOrder.M_PriceList_ID;
-                 const plName = editOrder.M_PriceList_ID?.identifier || `PriceList #${plId}`;
-                 if (plId) setSelectedPriceList({ id: plId, name: plName });
-     
-                 // Fetch order lines
-                 const linesRes = await idempiereApi(
-                     `/models/c_orderline?$filter=C_Order_ID eq ${orderId}` +
-                     `&$select=C_OrderLine_ID,M_Product_ID,QtyEntered,PriceActual,PriceEntered,C_UOM_ID`
-                 );
-                 const lines = Array.isArray(linesRes.records) ? linesRes.records : [];
-     
-                 // Mapping lines ke format cart
-                 const cartItems = lines.map((line) => {
-                     const productId   = line.M_Product_ID?.id   ?? line.M_Product_ID;
-                     const productName = line.M_Product_ID?.identifier || line.M_Product_ID?.Name || `Product #${productId}`;
-                     const uomId       = line.C_UOM_ID?.id   ?? line.C_UOM_ID;
-                     const uomName     = line.C_UOM_ID?.identifier || line.C_UOM_ID?.Name || "EA";
-                     const price       = parseFloat(line.PriceActual || line.PriceEntered || 0);
-                     const qty         = parseFloat(line.QtyEntered || 1);
-                     const lineId      = line.id ?? line.C_OrderLine_ID;
-     
-                     const selectedUOM = { id: uomId, name: uomName, multiplyRate: 1 };
-                     
-                     return {
-                         C_OrderLine_ID: lineId,   // ← simpan untuk update line nanti
-                         M_Product_ID:   productId,
-                         Name:           productName,
-                         Value:          "",
-                         PriceEntered:    price,
-                         basePrice:      price,
-                         Qty:            qty,   // FIX: samakan dengan field yang dipakai calculateTotal()/totalQty
-                         QtyEntered:     qty,
-                         defaultUOM:     selectedUOM,
-                         uomOptions:     [selectedUOM],
-                         selectedUOM,
-                     };
-                 });
-     
-                 setCart(cartItems);
-     
-             } catch (err) {
-                 console.error("Gagal load draft order:", err.message);
-             } finally {
-                 setLoading(false);
-             }
-         };
-     
-         //loadDraftOrder();
-         loadDraftOrder().catch((err) => {
+    // ─── Load draft order jika dari SalesOrderPage ────────────────────────────
+    useEffect(() => {
+        // Tunggu posConfig selesai dimuat dulu
+        if (!posConfig) return;
+    
+        const editOrder = location.state?.editOrder;
+        if (!editOrder) return;
+    
+        const loadDraftOrder = async () => {
+            try {
+                setLoading(true);
+                const orderId = editOrder.id ?? editOrder.C_Order_ID;
+                setEditOrderId(orderId);
+                setIsEditMode(true);
+    
+                // Override BPartner dari order
+                const bpId   = editOrder.C_BPartner_ID?.id ?? editOrder.C_BPartner_ID;
+                const bpName = editOrder.C_BPartner_ID?.identifier || editOrder.C_BPartner_ID?.Name || `BPartner #${bpId}`;
+                if (bpId) setSelectedBPartner({ id: bpId, name: bpName });
+    
+                // Override PriceList dari order
+                const plId   = editOrder.M_PriceList_ID?.id ?? editOrder.M_PriceList_ID;
+                const plName = editOrder.M_PriceList_ID?.identifier || `PriceList #${plId}`;
+                if (plId) setSelectedPriceList({ id: plId, name: plName });
+    
+                // Fetch order lines
+                const linesRes = await idempiereApi(
+                    `/models/c_orderline?$filter=C_Order_ID eq ${orderId}` +
+                    `&$select=C_OrderLine_ID,M_Product_ID,QtyEntered,PriceActual,PriceEntered,C_UOM_ID`
+                );
+                const lines = Array.isArray(linesRes.records) ? linesRes.records : [];
+    
+                // Mapping lines ke format cart
+                const cartItems = lines.map((line) => {
+                    const productId   = line.M_Product_ID?.id   ?? line.M_Product_ID;
+                    const productName = line.M_Product_ID?.identifier || line.M_Product_ID?.Name || `Product #${productId}`;
+                    const uomId       = line.C_UOM_ID?.id   ?? line.C_UOM_ID;
+                    const uomName     = line.C_UOM_ID?.identifier || line.C_UOM_ID?.Name || "EA";
+                    const price       = parseFloat(line.PriceActual || line.PriceEntered || 0);
+                    const qty         = parseFloat(line.QtyEntered || 1);
+                    const lineId      = line.id ?? line.C_OrderLine_ID;
+    
+                    const selectedUOM = { id: uomId, name: uomName, multiplyRate: 1 };
+                    
+                    return {
+                        C_OrderLine_ID: lineId,   
+                        M_Product_ID:   productId,
+                        Name:           productName,
+                        Value:          "",
+                        PriceEntered:    price,
+                        basePrice:      price,
+                        Qty:            qty,   
+                        QtyEntered:     qty,
+                        defaultUOM:     selectedUOM,
+                        uomOptions:     [selectedUOM],
+                        selectedUOM,
+                    };
+                });
+    
+                setCart(cartItems);
+    
+            } catch (err) {
+                console.error("Gagal load draft order:", err.message);
+            } finally {
+                setLoading(false);
+            }
+        };
+    
+        //loadDraftOrder();
+        loadDraftOrder().catch((err) => {
             if (err?.name === 'AbortError') return;
             console.error("Gagal load draft order:", err.message);
         });
-     }, [posConfig]); // ← trigger setelah posConfig ready
-     
+    }, [posConfig]); // ← trigger setelah posConfig ready
+    
     useEffect(() => {
         return () => {
             clearTimeout(debounceRef.current);
@@ -296,8 +270,7 @@ const DIALOG_CLOSED = {
     };
 
     // ─── 1e. Handler ganti PriceList → reload produk ─────────────────────────
-    
-   const handlePriceListChange = async (e) => {
+    const handlePriceListChange = async (e) => {
         const id   = parseInt(e.target.value, 10);
         const name = e.target.options[e.target.selectedIndex].text;
         setSelectedPriceList({ id, name });
@@ -358,10 +331,7 @@ const DIALOG_CLOSED = {
     const productRecords = Array.isArray(productData.records)
         ? productData.records
         : productData.records ? [productData.records] : [];
-        // console.log('DEBUG raw product records:', productRecords.map(p => ({
-        //     name: p.Name,
-        //     C_UOM_ID_raw: p.C_UOM_ID,
-        //   })));
+        
     const relevantIds = new Set(productRecords.map(p => p.M_Product_ID?.id ?? p.M_Product_ID ?? p.id));
     const rawPriceRecords = Array.isArray(priceData.records)
         ? priceData.records
@@ -589,8 +559,7 @@ const DIALOG_CLOSED = {
         // Flag untuk mendeteksi apakah produk berupa Jasa/Service ('S')
         const productTypeId = product.ProductType?.id ?? product.ProductType;
         const isService = productTypeId === 'S';
-        console.log('Apakah produk ini layanan?:', isService, '| ProductType raw:', product.ProductType);
-        
+                
         let qtyOnHand = 0;
     
         // 1. Ambil nilai akumulasi stok terbaru HANYA jika BUKAN produk Jasa
@@ -946,6 +915,7 @@ const DIALOG_CLOSED = {
      //handle checkout
      const handleCheckout = async () => {
         if (cart.length === 0) { triggerAlert("Keranjang masih kosong!"); return; }
+        
         try {
             await submitOrder({ isEditMode, editOrderId });
             setIsPaymentModalOpen(true);
@@ -1258,7 +1228,6 @@ const DIALOG_CLOSED = {
                         />
                     </>
                 )}
-                            
                 <PaymentModal
                     isOpen={isPaymentModalOpen}
                     onClose={() => setIsPaymentModalOpen(false)}
@@ -1273,7 +1242,6 @@ const DIALOG_CLOSED = {
                     onClose={handleReceiptClose}
                     receiptData={receiptData}
                 />
-               
                 <BarcodeScanner
                     isOpen={scannerOpen}
                     onDetected={handleBarcodeDetected}

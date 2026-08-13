@@ -6,8 +6,17 @@ import { getLoginInfo } from '@/shared/hooks';
 
 const todayISO = () => new Date().toISOString().split('T')[0];
 
-const BankStatementImportModal = ({ isOpen, onClose, bankAccountId, bankAccountName, onImport }) => {
-  const { lines, loading, fetchLines } = useUnreconciledPaymentLines();
+
+const BankStatementImportModal = ({ isOpen, onClose, bankAccountId, bankAccountName, onImport, excludePaymentIds = [] }) => {
+  const { lines: rawLines, loading, fetchLines } = useUnreconciledPaymentLines();
+  // Filter out payment yang sudah ada di cart draft induk, supaya tidak
+  // bisa ter-import dobel sebelum proses reconcile benar-benar tersimpan
+  // di server (server belum tahu payment ini "terpakai").
+  const excludeSet = useMemo(() => new Set(excludePaymentIds), [excludePaymentIds]);
+  const lines = useMemo(
+    () => rawLines.filter(l => !excludeSet.has(l.C_Payment_ID)),
+    [rawLines, excludeSet]
+  );
   const { subordinates } = useSubordinates();
   const currentUserId = getLoginInfo()?.userId;
 
@@ -51,7 +60,25 @@ const BankStatementImportModal = ({ isOpen, onClose, bankAccountId, bankAccountN
 
   const toggle = (id) => setSelected(prev => { const n = { ...prev }; if (n[id]) delete n[id]; else n[id] = true; return n; });
 
+  // Select All — dievaluasi terhadap `lines` yang SUDAH difilter exclude
+  // (lihat useMemo di atas), jadi otomatis konsisten dengan baris yang
+  // benar-benar tampil & bisa dipilih di tabel.
+  const allSelected = lines.length > 0 && lines.every(l => selected[l.C_Payment_ID]);
+
+  const toggleSelectAll = () => {
+    setSelected(prev => {
+      const n = { ...prev };
+      if (allSelected) {
+        lines.forEach(l => { delete n[l.C_Payment_ID]; });
+      } else {
+        lines.forEach(l => { n[l.C_Payment_ID] = true; });
+      }
+      return n;
+    });
+  };
+
   const selectedLines = lines.filter(l => selected[l.C_Payment_ID]);
+
   const sumSelected = selectedLines.reduce((s, l) => s + (l.IsReceipt ? l.PayAmt : -l.PayAmt), 0);
 
   const handleConfirm = () => {
@@ -140,7 +167,15 @@ const BankStatementImportModal = ({ isOpen, onClose, bankAccountId, bankAccountN
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
               <thead>
                 <tr style={{ background: COLOR.bg, textAlign: 'left' }}>
-                  <th style={{ padding: '8px' }}></th>
+                  <th style={{ padding: '8px' }}>
+                    <input
+                      type="checkbox"
+                      checked={allSelected}
+                      onChange={toggleSelectAll}
+                      disabled={lines.length === 0}
+                      title={allSelected ? 'Uncheck all' : 'Select all'}
+                    />
+                  </th>
                   <th style={{ padding: '8px' }}>Date</th>
                   <th style={{ padding: '8px' }}>Payment</th>
                   <th style={{ padding: '8px' }}>Type</th>

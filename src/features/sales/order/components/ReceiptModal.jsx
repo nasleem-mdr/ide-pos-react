@@ -57,8 +57,8 @@ const ReceiptModal = ({ isOpen, onClose, receiptData }) => {
                         <div key={i} style={{ marginBottom: "6px", fontSize: "12px" }}>
                             <div style={{ fontWeight: "bold" }}>{item.Name}</div>
                             <div style={styles.row}>
-                                <span>{item.QtyOrdered} {item.selectedUOM?.name || "EA"} × Rp {item.PriceActual.toLocaleString("id-ID")}</span>
-                                <span>Rp {(item.QtyOrdered * item.PriceActual).toLocaleString("id-ID")}</span>
+                                <span>{item.Qty} {item.selectedUOM?.name || "EA"} × Rp {item.PriceEntered.toLocaleString("id-ID")}</span>
+                                <span>Rp {(item.Qty * item.PriceEntered).toLocaleString("id-ID")}</span>
                             </div>
                         </div>
                     ))}

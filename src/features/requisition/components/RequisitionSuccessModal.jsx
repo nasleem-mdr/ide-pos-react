@@ -34,8 +34,8 @@ const RequisitionSuccessModal = ({ isOpen, data, onClose }) => {
         >✕</button>
         <div style={{ 
           display: 'flex', 
-          justifyContent: 'center', /* Mengetengahkan secara horizontal */
-          alignItems: 'center',     /* Mengetengahkan secara vertikal */
+          justifyContent: 'center', 
+          alignItems: 'center',     
           fontSize: '52px', 
           marginBottom: '8px' 
         }}>

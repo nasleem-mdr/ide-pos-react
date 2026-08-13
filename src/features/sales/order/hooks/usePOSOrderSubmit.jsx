@@ -53,9 +53,9 @@ export function usePOSOrderSubmit({ posConfig, cart, selectedBPartner, selectedP
             const multiplyRate = item.selectedUOM?.multiplyRate || 1;
             const qtyEntered   = parseFloat(item.Qty ?? item.QtyEntered ?? 1);
             const priceEntered = parseFloat(item.PriceEntered || 0);
-            const qtyOrdered   = qtyEntered * multiplyRate;
-            const priceOrdered = multiplyRate ? priceEntered / multiplyRate : priceEntered;
-
+            const qtyOrdered   = multiplyRate ? qtyEntered / multiplyRate : qtyEntered;
+            const priceOrdered = priceEntered * multiplyRate;
+        
             const line = {
                 AD_Org_ID:    { id: adOrgId },
                 M_Product_ID: { id: parseInt(item.M_Product_ID?.id ?? item.M_Product_ID) },
@@ -64,10 +64,10 @@ export function usePOSOrderSubmit({ posConfig, cart, selectedBPartner, selectedP
                 PriceEntered: priceEntered,
                 PriceActual:  priceOrdered,
             };
-
+        
             const uomId = toIdMurni(item.selectedUOM, "C_UOM_ID");
             if (uomId) line.C_UOM_ID = { id: uomId };
-
+        
             return line;
         });
 
@@ -130,8 +130,9 @@ export function usePOSOrderSubmit({ posConfig, cart, selectedBPartner, selectedP
                     const multiplyRate = item.selectedUOM?.multiplyRate || 1;
                     const qtyEntered   = parseFloat(item.Qty ?? item.QtyEntered ?? 1);
                     const priceEntered = parseFloat(item.PriceEntered || 0);
-                    const qtyOrdered   = qtyEntered * multiplyRate;
-                    const priceOrdered = multiplyRate ? priceEntered / multiplyRate : priceEntered;
+                    const qtyOrdered   = multiplyRate ? qtyEntered / multiplyRate : qtyEntered;
+                    const priceOrdered = priceEntered * multiplyRate;
+
 
                     await idempiereApi("/models/c_orderline", {
                         method: "POST",

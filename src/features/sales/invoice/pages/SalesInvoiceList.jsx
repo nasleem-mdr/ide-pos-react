@@ -60,7 +60,7 @@ const SalesInvoiceList = () => {
                 `/models/c_invoice` +
                 `?$filter=${filterClause}` +
                 `&$select=C_Invoice_ID,DocumentNo,DateInvoiced,C_BPartner_ID,C_BPartner_Location_ID,` +
-                          `GrandTotal,DocStatus,C_DocType_ID,Description,C_BankAccount_ID` +
+                `GrandTotal,DocStatus,C_DocType_ID,Description,C_BankAccount_ID` +
                 `&$orderby=DocumentNo desc` +
                 `&$top=${pageSize}` +
                 `&$skip=${offset}`

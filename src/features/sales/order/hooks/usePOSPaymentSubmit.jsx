@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { idempiereApi } from '@/api/idempiereApi';
+import { resolveDocTypeId, DOC_BASE_TYPE, IS_SO_TRX } from '@/utils/docTypeResolver';
 
 // Mapping TenderType (C_POSTenderType / C_POSPayment) -> PaymentRule (C_Order).
 const TENDER_TO_PAYMENTRULE = {
@@ -13,19 +14,7 @@ const TENDER_TO_PAYMENTRULE = {
 export function usePOSPaymentSubmit() {
     const [isSettlingPayment, setIsSettlingPayment] = useState(false);
     const [lastPaymentStatus, setLastPaymentStatus] = useState(null); // 'auto' | 'manual' | null
-
-    // ── Cari DocType "AR Receipt" (DocBaseType = ARR, IsSOTrx = true) ─────────
-    const fetchARReceiptDocType = async (clientId, orgId) => {
-        const orgFilter = orgId ? ` and (AD_Org_ID eq 0 or AD_Org_ID eq ${orgId})` : '';
-        const res = await idempiereApi(
-            `/models/c_doctype?$filter=DocBaseType eq 'ARR' and IsSOTrx eq true and AD_Client_ID eq ${clientId}${orgFilter} and IsActive eq true&$select=C_DocType_ID&$top=1`
-        );
-        const rec = res?.records?.[0];
-        const id  = rec?.id ?? rec?.C_DocType_ID;
-        if (!id) throw new Error("Document Type 'AR Receipt' (DocBaseType ARR) tidak ditemukan/aktif untuk client ini.");
-        return id;
-    };
-
+   
     // ── Cari Bank Account default untuk kombinasi Org + Currency ────────────
     const fetchDefaultBankAccount = async (orgId, currencyId) => {
         const tryFetch = async (filter) => {
@@ -52,8 +41,6 @@ export function usePOSPaymentSubmit() {
         }
         return id;
     };
-
-    // ── Ambil Invoice hasil dari Order ──
     const fetchInvoiceForOrder = async (orderId) => {
         const res = await idempiereApi(
             `/models/c_invoice?$filter=C_Order_ID eq ${orderId}` +
@@ -61,7 +48,6 @@ export function usePOSPaymentSubmit() {
         );
         return res?.records?.[0] || null;
     };
-
     // ── Cek apakah Order/Invoice sudah lunas ──
     const isSettled = (invoice) => {
         if (!invoice) return false;
@@ -75,7 +61,10 @@ export function usePOSPaymentSubmit() {
         const currencyId = invoice.C_Currency_ID?.id ?? invoice.C_Currency_ID;
         const invoiceId  = invoice.id ?? invoice.C_Invoice_ID;
 
-        const arDocTypeId = await fetchARReceiptDocType(clientId, orgId);
+        const arDocTypeId = await resolveDocTypeId(DOC_BASE_TYPE.AR_RECEIPT, {
+            orgId,
+            isSOTrx: IS_SO_TRX.SALES, // AR Receipt = penerimaan uang dari Sales
+        });
         
         // Gunakan Bank Account yang dipilih user dari modal jika ada, jika tidak cari default
         const bankAccountId = customBankAccountId || await fetchDefaultBankAccount(orgId, currencyId);
@@ -127,18 +116,16 @@ export function usePOSPaymentSubmit() {
      */
     const completeAndSettle = async (currentOrderData, cleanPaymentsArray, targetBankAccountId = null) => {
         if (!currentOrderData) throw new Error("Order belum tersedia.");
-
+    
         const orderId    = currentOrderData.id || currentOrderData.C_Order_ID;
         const adClientId = currentOrderData.AD_Client_ID?.id ?? currentOrderData.AD_Client_ID;
         const adOrgId    = currentOrderData.AD_Org_ID?.id    ?? currentOrderData.AD_Org_ID;
-
+    
         setIsSettlingPayment(true);
         try {
-            // 1) Kirim baris tender C_POSPayment
             for (const payment of cleanPaymentsArray) {
                 const rawTenderId = payment.C_POSTenderType_ID;
                 if (!rawTenderId || isNaN(parseInt(rawTenderId))) continue;
-
                 await idempiereApi("/models/c_pospayment", {
                     method: "POST",
                     body: JSON.stringify({
@@ -151,8 +138,7 @@ export function usePOSPaymentSubmit() {
                     }),
                 });
             }
-
-            // 2) Tentukan PaymentRule final & set di header Order
+            
             let finalPaymentRule = "M";
             if (cleanPaymentsArray?.length === 1) {
                 const singleTender = cleanPaymentsArray[0]?.TenderType;
@@ -162,39 +148,32 @@ export function usePOSPaymentSubmit() {
                 method: "PUT",
                 body: JSON.stringify({ PaymentRule: finalPaymentRule }),
             });
-
-            // 3) Complete Order (→ Shipment → Invoice)
+        
             const completedOrder = await idempiereApi(`/models/c_order/${orderId}`, {
                 method: "PUT",
                 body: JSON.stringify({ "doc-action": "CO" }),
             });
-
-            // 4) VERIFIKASI: apakah Payment/Receipt sudah otomatis kebentuk & invoice lunas?
+            
             let invoice = await fetchInvoiceForOrder(orderId);
-
+            
             if (isSettled(invoice)) {
                 setLastPaymentStatus('auto');
                 return { completedOrder, invoice, settledVia: 'auto' };
             }
-
-            // 5) OUTSTANDING → Fallback ke pembuatan C_Payment manual
+    
             if (!invoice) {
                 throw new Error(
                     "Order berhasil Complete tapi C_Invoice belum terbentuk. " +
                     "Cek Document Type POS: Invoice Rule harus 'Immediate'."
                 );
             }
-
+            
             const totalPayAmt  = cleanPaymentsArray.reduce((s, p) => s + parseFloat(p.PayAmt || 0), 0);
             const singleTender = cleanPaymentsArray?.length === 1 ? cleanPaymentsArray[0]?.TenderType : "X";
-
-            // Panggil fallback payment dengan menyertakan targetBankAccountId
             await handleSubmitPayment(invoice, totalPayAmt, singleTender, targetBankAccountId);
-
-            // Re-fetch invoice untuk memastikan status ter-update
+    
             invoice = await fetchInvoiceForOrder(orderId);
             setLastPaymentStatus('manual');
-
             return { completedOrder, invoice, settledVia: 'manual' };
         } finally {
             setIsSettlingPayment(false);

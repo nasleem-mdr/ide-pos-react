@@ -59,7 +59,6 @@ export async function resolveDocTypeId(docBaseType, { orgId = null, docSubTypeIn
     throw new Error('AD_Client_ID tidak ditemukan di sesi login — silakan login kembali.');
   }
 
-  //const cacheKey = `${clientId}_${docBaseType}_${docSubTypeInv ?? '-'}_${orgId ?? 0}`;
   const cacheKey = `${clientId}_${docBaseType}_${docSubTypeInv ?? '-'}_${isSOTrx ?? '-'}_${orgId ?? 0}`;
   if (_cache.has(cacheKey)) return _cache.get(cacheKey);
 
@@ -67,8 +66,11 @@ export async function resolveDocTypeId(docBaseType, { orgId = null, docSubTypeIn
   if (docSubTypeInv) {
     filter += ` and DocSubTypeInv eq '${docSubTypeInv}'`;
   }
-  if (isSOTrx !== null){
-    filter += ` and IsSOTrx eq '${isSOTrx}'`;
+  if (isSOTrx !== null) {
+    // FIX: IsSOTrx serialize sebagai boolean literal (true/false) di instance
+    // ini, sama seperti IsCustomer/IsVendor — bukan string 'Y'/'N'. Jangan
+    // dikutip, dan pastikan caller mengirim boolean (lihat IS_SO_TRX di bawah).
+    filter += ` and IsSOTrx eq ${isSOTrx}`;
   }
 
   const res = await idempiereApi(
@@ -81,7 +83,7 @@ export async function resolveDocTypeId(docBaseType, { orgId = null, docSubTypeIn
     throw new Error(
       `Tidak ditemukan Document Type aktif dengan DocBaseType='${docBaseType}'` +
       (docSubTypeInv ? ` dan DocSubTypeInv='${docSubTypeInv}'` : '') +
-      (isSOTrx !== null ? ` dan IsSOTrx='${isSOTrx}'` : '') +
+      (isSOTrx !== null ? ` dan IsSOTrx=${isSOTrx}` : '') +
       ` untuk Client ini (AD_Client_ID=${clientId}).\n` +
       `Buat/aktifkan Document Type-nya dulu di iDempiere: Window "Document Type", ` +
       `set Document Base Type = ${docBaseType}` +
@@ -118,6 +120,7 @@ export const DOC_BASE_TYPE = {
   AP_INVOICE:            'API',  // ⬅️ baru
   AP_PAYMENT:            'APP', 
   AR_INVOICE:            'ARI', // DOC_SUB_TYPE_INV di bawah (lihat catatan di atas).
+  AR_RECEIPT:            'ARR',
 };
 
 // Referensi nilai DocSubTypeInv (AD_Reference_ID=200068) — pembeda transaksi
@@ -129,6 +132,6 @@ export const DOC_SUB_TYPE_INV = {
 };
 
 export const IS_SO_TRX = {
-  PURCHASE: 'N',
-  SALES:    'Y',
+  PURCHASE: false,
+  SALES:    true,
 };

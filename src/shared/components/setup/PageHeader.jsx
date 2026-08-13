@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import '@/css/Components.css';
 import '@/css/Header.css';
 import { COLOR, RADIUS } from '@/utils/styleTokens';
-import { HomeIcon, SearchIcon2 } from '@/shared/components/icon';
+import { HomeIcon, SearchIcon2, SearchIcon } from '@/shared/components/icon';
 
 // filters: [{ value: 'ALL', label: 'Semua' }, { value: 'DR', label: 'Draft' }, ...]
 // activeFilter / onFilterChange: controlled dari parent. Kalau `filters` tidak

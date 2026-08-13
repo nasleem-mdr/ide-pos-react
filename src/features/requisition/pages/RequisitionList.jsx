@@ -2,11 +2,11 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import ReactDOMServer from "react-dom/server";
 import { PageHeader, DataTable , LogoSMAMerahHitam}  from "@/shared/components";
-
+import { renderListPDF } from "@/utils/pdf/renderListPDF";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import QRCode from "qrcode";
-
+import { idempiereApi } from "@/api/idempiereApi";
 import "@/App.css";
 
 // Filter status ala Shopee — value 'ALL' berarti tanpa filter DocStatus sama
@@ -35,23 +35,23 @@ const RequisitionList = () => {
     const pageSize                        = 10;
     const navigate                        = useNavigate();
 
-    const API_BASE    = "/api/v1";
-    const customFetch = async (url, options = {}) => {
-        const token    = localStorage.getItem("token");
-        const response = await fetch(`${API_BASE}${url}`, {
-            ...options,
-            headers: {
-                ...options.headers,
-                Authorization:  `Bearer ${token}`,
-                "Content-Type": "application/json",
-            },
-        });
-        if (!response.ok) {
-            const text = await response.text().catch(() => "");
-            throw new Error(`[${response.status}] ${text}`);
-        }
-        return response.json();
-    };
+    // const API_BASE    = "/api/v1";
+    // const customFetch = async (url, options = {}) => {
+    //     const token    = localStorage.getItem("token");
+    //     const response = await fetch(`${API_BASE}${url}`, {
+    //         ...options,
+    //         headers: {
+    //             ...options.headers,
+    //             Authorization:  `Bearer ${token}`,
+    //             "Content-Type": "application/json",
+    //         },
+    //     });
+    //     if (!response.ok) {
+    //         const text = await response.text().catch(() => "");
+    //         throw new Error(`[${response.status}] ${text}`);
+    //     }
+    //     return response.json();
+    // };
 
     const getStatusLabel = (status) => {
         const map = { DR: "Draft", IP: "In Progress", CO: "Completed", VO: "Voided", RE: "Reversed", NA: "Ditolak" };
@@ -89,7 +89,7 @@ const RequisitionList = () => {
         try {
             const filterClause = buildFilterClause(loginUserId);
 
-            const res = await customFetch(
+            const res = await idempiereApi(
                 `/models/m_requisition` +
                 `?$filter=${filterClause}` +
                 `&$select=M_Requisition_ID,DocumentNo,DateDoc,M_Warehouse_ID,TotalLines,DocStatus,M_PriceList_ID,C_DocType_ID` +
@@ -134,7 +134,7 @@ const RequisitionList = () => {
             const filterClause = buildFilterClause(loginUserId);
 
             // Ambil hanya kolom GrandTotal tanpa pagination untuk dijumlahkan
-            const res = await customFetch(
+            const res = await idempiereApi(
                 `/models/m_requisition` +
                 `?$filter=${filterClause}` +
                 `&$select=TotalLines`
@@ -189,7 +189,7 @@ const RequisitionList = () => {
 
     const generateRequisitionPDF = async (requisitionId, documentNo, token) => {
         const API_BASE = "/api/v1";
-        const customFetch = async (url) => {
+        const idempiereApi = async (url) => {
             const res = await fetch(`${API_BASE}${url}`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
@@ -197,13 +197,13 @@ const RequisitionList = () => {
         };
     
         // 1. Fetch header data
-        const header = await customFetch(
+        const header = await idempiereApi(
             `/models/m_requisition/${requisitionId}` +
             `?$select=DocumentNo,DateDoc,Description,DocStatus,AD_Org_ID,CreatedBy,M_Warehouse_ID,M_Requisition_UU`
         );
         
         // 2. Fetch line items
-        const linesRes = await customFetch(
+        const linesRes = await idempiereApi(
             `/models/m_requisitionline` +
             `?$filter=M_Requisition_ID eq ${requisitionId}` +
             `&$select=Line,M_Product_ID,Qty,C_UOM_ID,Description` +
@@ -212,7 +212,7 @@ const RequisitionList = () => {
         const lines = linesRes.records || [];
     
         // 3. Fetch workflow history (AD_Table_ID 702 = M_Requisition)
-        const historyRes = await customFetch(
+        const historyRes = await idempiereApi(
             `/models/ad_wf_eventaudit` +
             `?$filter=AD_Table_ID eq 702 and Record_ID eq ${requisitionId}` +
             `&$select=AD_WF_Node_ID,AD_User_ID,Updated` +
@@ -224,8 +224,8 @@ const RequisitionList = () => {
             const nodeName = (h.AD_WF_Node_ID?.identifier || "").toLowerCase();
             
             return nodeName !== "(start)" && 
-                   nodeName !== "(docauto)" &&
-                   nodeName !== "(completedocument)";
+                nodeName !== "(docauto)" &&
+                nodeName !== "(completedocument)";
         });
     
         // 4. Generate QR code as data URL
@@ -428,6 +428,92 @@ const RequisitionList = () => {
             ),
         };
     });
+
+    const numberFormatter = new Intl.NumberFormat('en-US');
+    
+        const formatDateService = (dateStr) => {
+            if (!dateStr) return "-";
+            const d = new Date(dateStr);
+            if (isNaN(d)) return "-";
+            const day = d.getDate();
+            const month = d.getMonth() + 1; // getMonth() 0-based
+            const year = d.getFullYear();
+            return `${day}/${month}/${year}`;
+        };
+
+        const fetchAllRequisitionsForPrint = useCallback(async () => {
+                const loginUserId = localStorage.getItem("AD_User_ID");
+                if (!loginUserId) return [];
+            
+                let filterClause =
+                    ` CreatedBy eq ${loginUserId}` +
+                    ` and Created ge ${startDate}T00:00:00Z` +
+                    ` and Created le ${endDate}T23:59:59Z`;
+            
+                if (search) {
+                    filterClause += ` and contains(tolower(DocumentNo),'${search.toLowerCase()}')`;
+                }
+            
+                const res = await idempiereApi(
+                    `/models/m_requisition` +
+                    `?$filter=${filterClause}` +
+                    `&$select=M_Requisition_ID,DocumentNo,Createdby, DateRequired, DateDoc,M_Warehouse_ID,Description, TotalLines` +
+                    `&$orderby=DocumentNo desc` +
+                    `&$top=5000`
+                );
+            
+                return Array.isArray(res.records) ? res.records : [];
+            }, [search, startDate, endDate]);
+        
+            const [printingList, setPrintingList] = useState(false);
+        
+            const handlePrintList = async () => {
+                setPrintingList(true);
+                try {
+                    const allRequisitions = await fetchAllRequisitionsForPrint();
+        
+                    if (allRequisitions.length === 0) {
+                        alert('Tidak ada data untuk dicetak pada periode ini.');
+                        return;
+                    }
+        
+                    const totalAmount = allRequisitions.reduce((s, odr) => s + parseFloat(odr.TotalLines || 0), 0);
+        
+                    await renderListPDF({
+                        title: 'DAFTAR REQUISITION',
+                        logo: <LogoSMAMerahHitam />,
+                        periodLabel: `PERIODE : ${formatDateService(startDate)}  ${formatDateService(endDate)}`,
+                        columns: [
+                            { key: 'no',         label: 'No',                width: 30,  align: 'center' },
+                            { key: 'documentNo', label: 'Document No',       width: 'auto' },
+                            { key: 'dateDoc', label: 'Date Doc',       width: 'auto' },
+                            { key: 'dateReq', label: 'Date Required',       width: 'auto' },
+                            { key: 'createdBy',    label: 'Sales Rep', width: 'auto' },
+                            { key: 'partner',    label: 'Warhouse', width: 'auto' },
+                            { key: 'descript',     label: 'Description',            width: 'flex'},
+                        ],
+                        rows: allRequisitions.map((odr, idx) => ({
+                            no:         idx + 1,
+                            documentNo: odr.DocumentNo || `#${odr.id ?? odr.M_Requisition_ID}`,
+                            dateDoc: odr.DateDoc || `#${odr.id ?? odr.DateDoc}`,
+                            dateReq: odr.DateRequired || `#${odr.id ?? odr.DateRequired}`,
+                            createdBy:    odr.CreatedBy?.identifier || '-',
+                            partner:    odr.M_Warehouse_ID?.identifier || '-',
+                            descript: odr.Description || `#${odr.id ?? odr.Description}`,
+                        })),
+                        totalLabel: 'Total Semua',
+                        totalValue: numberFormatter.format(totalAmount),
+                        filenamePrefix: `DAFTAR-REQUISITION-${startDate}_${endDate}`,
+                    });
+                } catch (err) {
+                    console.error('Gagal generate PDF daftar:', err.message);
+                    alert('Gagal membuat PDF daftar.');
+                } finally {
+                    setPrintingList(false);
+                }
+            };
+    
+
     const actionRenderer = (item) => {
         const isEditDisabled = !["DR", "NA"].includes(item._status);
         const editTitle = item._status === "NA"
@@ -498,12 +584,14 @@ const RequisitionList = () => {
                 activeFilter={statusFilter}
                 onFilterChange={handleFilterChange}
                 extraAction={
-                    <button
-                        onClick={() => navigate("/requisition")}
-                        style={styles.newBtn}
-                    >
-                        + Transaksi Baru
-                    </button>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                        <button onClick={handlePrintList} disabled={printingList} style={styles.newBtn}>
+                            {printingList ? '⏳ ...' : '🖨️ Print PDF'}
+                        </button>
+                        <button onClick={() => navigate("/requisition")} style={styles.newBtn}>
+                            + New
+                        </button>
+                    </div>
                 }
             />
 

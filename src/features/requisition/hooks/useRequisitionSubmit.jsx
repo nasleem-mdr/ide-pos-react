@@ -3,7 +3,7 @@ import { idempiereApi } from '@/api/idempiereApi';
 import { getLoginInfo } from '@/shared/hooks/useLoginInfo';
 import { useUomConversion } from '@/shared/hooks/useUomConversion';
 
-export function useRequisitionSubmit({ docTypeId, description: defaultDescription, onError }) {
+export function useRequisitionSubmit({ docTypeId, description: defaultDescription, DateRequired, onError }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toBaseQty } = useUomConversion();
 
@@ -45,7 +45,8 @@ export function useRequisitionSubmit({ docTypeId, description: defaultDescriptio
     warehouseId,
     editRequisitionId = null,
     description = null,
-    submitMode = 'complete', // 'draft' | 'complete'
+    dateRequired = null,      // ← baru
+    submitMode = 'complete',  // 'draft' | 'complete'
   ) => {
     if (cart.length === 0) {
       onError?.('Daftar permintaan masih kosong!');
@@ -53,7 +54,10 @@ export function useRequisitionSubmit({ docTypeId, description: defaultDescriptio
     }
 
     const resolvedDescription = (description && description.trim()) ? description.trim() : defaultDescription;
-
+    const todayISO = new Date().toISOString().split('T')[0];
+    const resolvedDateRequired = (dateRequired && dateRequired.trim())
+      ? dateRequired.trim()
+      : todayISO;
     const { userId, orgId, clientId } = getLoginInfo();
 
     // warehouseId wajib ada — dari pilihan user atau fallback session
@@ -125,7 +129,7 @@ export function useRequisitionSubmit({ docTypeId, description: defaultDescriptio
           method: 'PUT',
           body: JSON.stringify({
             M_Warehouse_ID: { id: resolvedWarehouseId },
-            DateRequired:   todayISO,
+            DateRequired:   resolvedDateRequired,
             Description:    resolvedDescription,
           }),
         });
@@ -169,7 +173,7 @@ export function useRequisitionSubmit({ docTypeId, description: defaultDescriptio
             C_DocType_ID:   { id: docTypeId },
             M_Warehouse_ID: { id: resolvedWarehouseId }, // ← pakai yg dipilih user
             AD_User_ID:     { id: userId },
-            DateRequired:   todayISO,
+            DateRequired:   resolvedDateRequired,
             Description:    resolvedDescription,
             IsActive:       true,
           }),

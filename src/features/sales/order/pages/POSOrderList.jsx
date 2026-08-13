@@ -2,9 +2,13 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { PageHeader, DataTable } from "@/shared/components";
 import { idempiereApi } from "@/api/idempiereApi";
+import { LogoSMAMerahHitam } from "@/shared/components/icon";
+import { renderListPDF } from "@/utils/pdf/renderListPDF";
+import { useOrgInfo } from '@/shared/hooks/useOrgInfo';
 import "@/App.css";
 
 const POSOrderList = () => {
+    const todayStr = new Date().toISOString().split("T")[0];
     const [orders, setOrders]             = useState([]);
     const [loading, setLoading]           = useState(false);
     const [search, setSearch]             = useState("");
@@ -15,6 +19,8 @@ const POSOrderList = () => {
     const [startDate, setStartDate]       = useState(todayStr);
     const [endDate, setEndDate]           = useState(todayStr);
     const navigate                        = useNavigate();
+    const { orgInfo } = useOrgInfo();
+    if (loading) return null;
 
     // const API_BASE    = "/api/v1";
     // const customFetch = async (url, options = {}) => {
@@ -50,13 +56,13 @@ const POSOrderList = () => {
 
         setLoading(true);
         try {
-            const today = new Date().toISOString().split("T")[0];
+            //const today = new Date().toISOString().split("T")[0];
 
             let filterClause =
                 `IsSOTrx eq true` +
                 ` and CreatedBy eq ${loginUserId}` +
-                ` and Created ge ${today}T00:00:00Z` +
-                ` and Created le ${today}T23:59:59Z`;
+                ` and Created ge ${startDate}T00:00:00Z` +
+                ` and Created le ${endDate}T23:59:59Z`;
 
             if (search) {
                 filterClause += ` and contains(tolower(DocumentNo),'${search.toLowerCase()}')`;
@@ -78,7 +84,7 @@ const POSOrderList = () => {
         } finally {
             setLoading(false);
         }
-    }, [offset, search]);
+    }, [offset, startDate, endDate, search]);
 
     // Fetch total GrandTotal seluruh halaman — hanya dipicu saat filter berubah (bukan saat ganti halaman)
     const fetchGrandTotal = useCallback(async () => {
@@ -87,13 +93,13 @@ const POSOrderList = () => {
 
         setGrandTotalAll(null); // reset saat filter berubah
         try {
-            const today = new Date().toISOString().split("T")[0];
+            //const today = new Date().toISOString().split("T")[0];
 
             let filterClause =
                 `IsSOTrx eq true` +
                 ` and CreatedBy eq ${loginUserId}` +
-                ` and Created ge ${today}T00:00:00Z` +
-                ` and Created le ${today}T23:59:59Z`;
+                ` and Created ge ${startDate}T00:00:00Z` +
+                ` and Created le ${endDate}T23:59:59Z`;
 
             if (search) {
                 filterClause += ` and contains(tolower(DocumentNo),'${search.toLowerCase()}')`;
@@ -113,7 +119,7 @@ const POSOrderList = () => {
             console.error("Gagal fetch grand total:", err.message);
             setGrandTotalAll(0);
         }
-    }, [search]); // hanya search — bukan offset
+    }, [search, startDate, endDate]); // hanya search — bukan offset
 
     useEffect(() => {
         fetchOrders();
@@ -166,6 +172,87 @@ const POSOrderList = () => {
             ),
         };
     });
+    const numberFormatter = new Intl.NumberFormat('en-US');
+
+    const formatDateService = (dateStr) => {
+        if (!dateStr) return "-";
+        const d = new Date(dateStr);
+        if (isNaN(d)) return "-";
+        const day = d.getDate();
+        const month = d.getMonth() + 1; // getMonth() 0-based
+        const year = d.getFullYear();
+        return `${day}/${month}/${year}`;
+    };
+    const fetchAllOrdersForPrint = useCallback(async () => {
+            const loginUserId = localStorage.getItem("AD_User_ID");
+            if (!loginUserId) return [];
+        
+            let filterClause =
+                ` IsSOTrx eq true` +
+                ` and Created ge ${startDate}T00:00:00Z` +
+                ` and Created le ${endDate}T23:59:59Z`;
+        
+            if (search) {
+                filterClause += ` and contains(tolower(DocumentNo),'${search.toLowerCase()}')`;
+            }
+        
+            const res = await idempiereApi(
+                `/models/c_order` +
+                `?$filter=${filterClause}` +
+                `&$select=C_Order_ID,DocumentNo,Createdby, DateOrdered,C_BPartner_ID,GrandTotal` +
+                `&$orderby=DocumentNo desc` +
+                `&$top=5000`
+            );
+        
+            return Array.isArray(res.records) ? res.records : [];
+        }, [search, startDate, endDate]);
+    
+        const [printingList, setPrintingList] = useState(false);
+    
+        const handlePrintList = async () => {
+            setPrintingList(true);
+            try {
+                const allOrders = await fetchAllOrdersForPrint();
+    
+                if (allOrders.length === 0) {
+                    alert('Tidak ada data untuk dicetak pada periode ini.');
+                    return;
+                }
+    
+                const totalAmount = allOrders.reduce((s, odr) => s + parseFloat(odr.GrandTotal || 0), 0);
+    
+                await renderListPDF({
+                    title: 'DAFTAR SALES',
+                    logo: '{orgInfo?.logoUrl && <img src={orgInfo.logoUrl} alt="Logo" style={{ height: 48 }} />}',
+                    periodLabel: `PERIODE : ${formatDateService(startDate)}  ${formatDateService(endDate)}`,
+                    columns: [
+                        { key: 'no',         label: 'No',                width: 30,  align: 'center' },
+                        { key: 'documentNo', label: 'Document No',       width: 'auto' },
+                        { key: 'dateOrder', label: 'Date',       width: 'auto' },
+                        { key: 'createdBy',    label: 'Sales Rep', width: 'auto' },
+                        { key: 'partner',    label: 'Customer', width: 'flex' },
+                        { key: 'amount',     label: 'Amount',            width: 'auto', align: 'right' },
+                    ],
+                    rows: allOrders.map((odr, idx) => ({
+                        no:         idx + 1,
+                        documentNo: odr.DocumentNo || `#${odr.id ?? odr.C_Order_ID}`,
+                        dateOrder: odr.DateOrdered || `#${odr.id ?? odr.DateOrdered}`,
+                        createdBy:    odr.CreatedBy?.identifier || '-',
+                        partner:    odr.C_BPartner_ID?.identifier || '-',
+                        amount:     numberFormatter.format(odr.GrandTotal ?? 0),
+                    })),
+                    totalLabel: 'Total Semua',
+                    totalValue: numberFormatter.format(totalAmount),
+                    filenamePrefix: `DAFTAR-SALES-${startDate}_${endDate}`,
+                });
+            } catch (err) {
+                console.error('Gagal generate PDF daftar:', err.message);
+                alert('Gagal membuat PDF daftar.');
+            } finally {
+                setPrintingList(false);
+            }
+        };
+
 
     const actionRenderer = (item) => {
         const isEditDisabled = item._status !== "DR";
@@ -185,6 +272,15 @@ const POSOrderList = () => {
             </button>
         );
     };
+    const handleStartDateChange = (val) => {
+        setStartDate(val);
+        setOffset(0);
+    };
+
+    const handleEndDateChange = (val) => {
+        setEndDate(val);
+        setOffset(0);
+    };
 
     return (
         <div className="card-container">
@@ -192,15 +288,40 @@ const POSOrderList = () => {
                 title="📋 Sales Order — Hari ini"
                 onSearch={(val) => { setSearch(val); setOffset(0); }}
                 extraAction={
-                    <button
-                        onClick={() => navigate("/pos-order")}
-                        style={styles.newBtn}
-                    >
-                        + New Transaction
-                    </button>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                        <button onClick={handlePrintList} disabled={printingList} style={styles.newBtn}>
+                            {printingList ? '⏳ ...' : '🖨️ Print PDF'}
+                        </button>
+                        <button onClick={() => navigate("/pos-order")} style={styles.newBtn}>
+                            + New
+                        </button>
+                    </div>
+
+                   
                 }
             />
-
+            <div style={styles.dateFilterRow}>
+                <div style={styles.dateField}>
+                    <label style={styles.dateLabel}>Date from</label>
+                    <input
+                        type="date"
+                        value={startDate}
+                        max={endDate}
+                        onChange={(e) => handleStartDateChange(e.target.value)}
+                        style={styles.dateInput}
+                    />
+                </div>
+                <div style={styles.dateField}>
+                    <label style={styles.dateLabel}>Date To</label>
+                    <input
+                        type="date"
+                        value={endDate}
+                        min={startDate}
+                        onChange={(e) => handleEndDateChange(e.target.value)}
+                        style={styles.dateInput}
+                    />
+                </div>
+            </div>
             <DataTable
                 columns={columns}
                 data={tableData}
@@ -220,6 +341,10 @@ const styles = {
     newBtn:  { backgroundColor: "#1976d2", color: "#fff", border: "none", padding: "10px 18px", borderRadius: "6px", cursor: "pointer", fontWeight: "bold" },
     badge:   { color: "#fff", padding: "3px 10px", borderRadius: "12px", fontSize: "11px", fontWeight: "bold" },
     editBtn: { color: "#fff", border: "none", padding: "6px 14px", borderRadius: "6px", fontWeight: "bold", fontSize: "12px", transition: "all 0.2s ease" },
+    dateFilterRow: { display: "flex", gap: "16px", flexWrap: "wrap", margin: "12px 0 16px" },
+    dateField:     { display: "flex", flexDirection: "column", gap: "4px" },
+    dateLabel:     { fontSize: "12px", fontWeight: "600", color: "#555" },
+    dateInput:      { padding: "8px 10px", borderRadius: "6px", border: "1px solid #ccc", fontSize: "13px" },
 };
 
 export default POSOrderList;

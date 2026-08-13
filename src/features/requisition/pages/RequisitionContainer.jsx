@@ -66,7 +66,10 @@ const RequisitionContainer = () => {
   const [successOpen, setSuccessOpen]         = useState(false);
   const [detailOpen, setDetailOpen]           = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
-
+  
+  const [dateRequired, setDateRequired] = useState(
+    () => new Date().toISOString().split('T')[0]
+  );
   // ── edit mode state ─────────────────────────────────────────────────────────
   const [editRequisitionId, setEditRequisitionId] = useState(null);
   const [isEditMode, setIsEditMode]               = useState(false);
@@ -86,6 +89,7 @@ const RequisitionContainer = () => {
   const { submit, isSubmitting } = useRequisitionSubmit({
     docTypeId,
     description: REQUISITION_CONFIG.DESCRIPTION,
+    dateRequired,
     onError:     alert,
   });
 
@@ -178,9 +182,14 @@ const RequisitionContainer = () => {
         // Description lengkap, jadi diambil ulang langsung dari server.
         try {
           const headerRes = await idempiereApi(
-            `/models/m_requisition/${reqId}?$select=Description`
+            `/models/m_requisition/${reqId}?$select=Description,DateRequired`
           );
           setDescription(headerRes.Description || '');
+          setDateRequired(
+            headerRes.DateRequired
+              ? headerRes.DateRequired.split('T')[0]
+              : new Date().toISOString().split('T')[0]
+          );
         } catch (err) {
           console.error('[RequisitionContainer] gagal ambil Description draft:', err);
           setDescription('');
@@ -235,6 +244,7 @@ const RequisitionContainer = () => {
     setIsEditMode(false);
     setEditRequisitionId(null);
     setDescription('');
+    setDateRequired(new Date().toISOString().split('T')[0]);
     clearCart();
     navigate('/requisition', { replace: true, state: {} });
   }, [clearCart, navigate]);
@@ -282,11 +292,11 @@ const RequisitionContainer = () => {
   }, [products, addToCart, fetchProducts, setSearchValue, searchByUPC, selectedWarehouse]);
 
   // ── submit ────────────────────────────────────────────────────────────────
-  // ── submit ────────────────────────────────────────────────────────────────
   const handleSubmit = async (mode = 'complete') => {
-    // description manual (dari textarea di cart) diteruskan sebagai param ke-5,
-    // mode ('draft' | 'complete') sebagai param ke-6
-    const result = await submit(cart, requesterName, selectedWarehouse?.id, editRequisitionId, description, mode);
+    const result = await submit(
+      cart, requesterName, selectedWarehouse?.id,
+      editRequisitionId, description, dateRequired, mode
+    );
     if (result) {
       setSuccessData({ ...result, warehouseName: selectedWarehouse?.name });
       clearCart();
@@ -295,6 +305,7 @@ const RequisitionContainer = () => {
       setIsEditMode(false);
       setEditRequisitionId(null);
       setDescription('');
+      setDateRequired(new Date().toISOString().split('T')[0]);
       navigate('/requisition', { replace: true, state: {} });
     }
   };
@@ -356,33 +367,104 @@ const RequisitionContainer = () => {
           <RequisitionIcon />
           <span>Requisition</span>
         </span>
+        {/* ── Date Required + Warehouse ─────────────────────────────────────── */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
 
-        <select
-          value={selectedWarehouse?.id ?? ''}
-          onChange={handleWarehouseChange}
-          disabled={warehouses.length <= 1}
-          style={{
-            background: 'rgba(255,255,255,0.18)',
-            border: '1px solid rgba(255,255,255,0.3)',
-            borderRadius: '20px',
-            padding: '3px 10px',
-            fontSize: '11px',
-            color: '#e0eaff',
-            cursor: warehouses.length <= 1 ? 'default' : 'pointer',
-            outline: 'none',
-            maxWidth: isDesktop ? '200px' : '140px',
-            colorScheme: 'dark',
-          }}
-        >
-          {warehouses.length === 0 && (
-            <option value="">Memuat...</option>
-          )}
-          {warehouses.map((wh, idx) => (
-            <option key={wh.id || `wh-null-${idx}`} value={wh.id ?? ''} style={{ background: '#1e3a5f', color: '#e0eaff' }}>
-              🏭 {wh.name} 
-            </option>
-          ))}
-        </select>
+        {/* Date Required */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px',
+          background: 'rgba(255,255,255,0.12)',
+          border: '1px solid rgba(255,255,255,0.25)',
+          borderRadius: '20px',
+          padding: '3px 10px 3px 12px',
+          height: '25px',
+        }}>
+          <span style={{
+            fontSize: '10px',
+            fontWeight: 600,
+            color: 'rgba(224,234,255,0.75)',
+            textTransform: 'uppercase',
+            letterSpacing: '0.4px',
+            whiteSpace: 'nowrap',
+          }}>
+            Date Required:
+          </span>
+          <input
+            type="date"
+            value={dateRequired}
+            onChange={(e) => setDateRequired(e.target.value)}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              padding: '2px 0',
+              fontSize: '11px',
+              fontWeight: 500,
+              color: '#fff',
+              outline: 'none',
+              colorScheme: 'dark',
+              cursor: 'pointer',
+            }}
+          />
+        </div>
+
+        {/* Warehouse */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px',
+          background: 'rgba(255,255,255,0.12)',
+          border: '1px solid rgba(255,255,255,0.25)',
+          borderRadius: '20px',
+          padding: '3px 10px 3px 12px',
+          height: '25px',
+        }}>
+          <span style={{
+            fontSize: '10px',
+            fontWeight: 600,
+            color: 'rgba(224,234,255,0.75)',
+            textTransform: 'uppercase',
+            letterSpacing: '0.4px',
+            whiteSpace: 'nowrap',
+          }}>
+            Warehouse:
+          </span>
+          <select
+            value={selectedWarehouse?.id ?? ''}
+            onChange={handleWarehouseChange}
+            disabled={warehouses.length <= 1}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              padding: '2px 0',
+              fontSize: '11px',
+              fontWeight: 500,
+              color: '#fff',
+              cursor: warehouses.length <= 1 ? 'default' : 'pointer',
+              outline: 'none',
+              maxWidth: isDesktop ? '160px' : '110px',
+              colorScheme: 'dark',
+            }}
+          >
+            {warehouses.length === 0 && (
+              <option value="" style={{ background: '#1e3a5f', color: '#e0eaff' }}>
+                Memuat...
+              </option>
+            )}
+            {warehouses.map((wh, idx) => (
+              <option
+                key={wh.id || `wh-null-${idx}`}
+                value={wh.id ?? ''}
+                style={{ background: '#1e3a5f', color: '#e0eaff' }}
+              >
+                🏭 {wh.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        </div>
       </div>
 
       {/* ── Banner Edit Mode ─────────────────────────────────────────────── */}
@@ -552,5 +634,13 @@ const RequisitionContainer = () => {
     </div>
   );
 };
-
+const styles = {
+  newBtn:  { backgroundColor: "#1976d2", color: "#fff", border: "none", padding: "10px 18px", borderRadius: "6px", cursor: "pointer", fontWeight: "bold" },
+  badge:   { color: "#fff", padding: "3px 10px", borderRadius: "12px", fontSize: "11px", fontWeight: "bold" },
+  editBtn: { color: "#fff", border: "none", padding: "6px 14px", borderRadius: "6px", fontWeight: "bold", fontSize: "12px", transition: "all 0.2s ease" },
+  dateFilterRow: { display: "flex", gap: "16px", flexWrap: "wrap", margin: "12px 0 16px" },
+  dateField:     { display: "flex", flexDirection: "column", gap: "4px" },
+  dateLabel:     { fontSize: "12px", fontWeight: "600", color: "#555" },
+  dateInput:      { padding: "8px 10px", borderRadius: "6px", border: "1px solid #ccc", fontSize: "13px" },
+};
 export default RequisitionContainer;

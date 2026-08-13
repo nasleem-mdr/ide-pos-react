@@ -45,16 +45,26 @@ const BankStatementContainer = () => {
   return (
     <div style={{ flex: 1, minHeight: 0, background: COLOR.bg, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       <Dialog isOpen={dialog.isOpen} title={dialog.title} message={dialog.message} onClose={() => setDialog({ isOpen: false, title: '', message: '' })} />
-      <BankStatementImportModal isOpen={importOpen} onClose={() => setImportOpen(false)} bankAccountId={bankAccountId} bankAccountName={selectedBank?.name} onImport={addItems} />
+      <BankStatementImportModal
+        isOpen={importOpen}
+        onClose={() => setImportOpen(false)}
+        bankAccountId={bankAccountId}
+        bankAccountName={selectedBank?.name}
+        onImport={addItems}
+        excludePaymentIds={cart
+          .filter(item => item.type === 'payment')
+          .map(item => item.C_Payment_ID)
+        }
+      />
       <ChargeLineForm isOpen={chargeFormOpen} onClose={() => setChargeFormOpen(false)} onAdd={addChargeLine} />
   
       <div className='header-purchasing'>
         <span style={{ color: '#fff', fontWeight: 700, fontSize: '15px' }}>🏦 Cash/Bank Statement</span>
       </div>
   
-      <div style={{ padding: '14px', background: COLOR.surface, borderBottom: `1px solid ${COLOR.border}` }}>
+      <div style={{ padding: '14px', background: COLOR.surface, marginBottom:'3px', borderBottom: `1px solid ${COLOR.border}` }}>
           
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'stretch', marginTop: '4px' }}>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'stretch', height:'38px', marginTop: '4px' }}>
           <select
             value={bankAccountId || ''}
             onChange={e => setBankAccountId(e.target.value || null)}
@@ -82,6 +92,7 @@ const BankStatementContainer = () => {
                   border: 'none', borderRadius: RADIUS.md,
                   background: COLOR.primary, color: '#fff', fontWeight: 600,
                   whiteSpace: 'nowrap', flexShrink: 0,
+                  height:'38px',
                 }}
                 >
                 {isDesktop ? (
@@ -102,6 +113,7 @@ const BankStatementContainer = () => {
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   border: `1px solid ${COLOR.border}`, borderRadius: RADIUS.md,
                   background: 'none', fontWeight: 600, whiteSpace: 'nowrap', flexShrink: 0,
+                  height:'38px',
                 }}
                 >
                 {isDesktop ? (
@@ -127,11 +139,11 @@ const BankStatementContainer = () => {
         <>
           
 
-          <div style={{ flex: 1, overflowY: 'auto', padding: '0 14px 14px' }}>
+          <div style={{ flex: 1, overflowY: 'auto' }}>
             {cart.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '32px', color: COLOR.textLt }}>There is no statement line yet.</div>
             ) : cart.map(item => (
-              <div key={lineKey(item)} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px', background: COLOR.surface, border: `1px solid ${COLOR.border}`, borderRadius: RADIUS.md, marginBottom: '6px' }}>
+              <div key={lineKey(item)} style={{ display: 'flex', alignItems: 'center', gap: '8px', height: '32px', padding: '8px', background: COLOR.surface, border: `1px solid ${COLOR.border}`, marginBottom: '3px' }}>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: '12px', fontWeight: 600 }}>
                     {item.type === 'payment' ? `${item.DocumentNo} — ${item.BPName}` : `⚙️ ${item.ChargeName}`}
@@ -141,7 +153,7 @@ const BankStatementContainer = () => {
                 <input
                   type="number" value={item.StmtAmt}
                   onChange={e => updateStmtAmt(lineKey(item), parseFloat(e.target.value) || 0)}
-                  style={{ width: '120px', padding: '6px', textAlign: 'right', border: `1px solid ${COLOR.border}`, borderRadius: RADIUS.sm, color: item.StmtAmt >= 0 ? COLOR.success : '#dc2626', fontWeight: 700 }}
+                  style={{ width: '120px', padding: '6px', height: '28px',textAlign: 'right', border: `1px solid ${COLOR.border}`, borderRadius: RADIUS.sm, color: item.StmtAmt >= 0 ? COLOR.success : '#dc2626', fontWeight: 700 }}
                 />
                 <button onClick={() => removeItem(lineKey(item))} style={{ background: 'none', border: 'none', color: '#dc2626', fontSize: '16px', cursor: 'pointer' }}>✕</button>
               </div>
@@ -149,11 +161,61 @@ const BankStatementContainer = () => {
           </div>
 
           {canSubmit && cart.length > 0 && (
-            <div style={{ padding: '12px 14px', borderTop: `1px solid ${COLOR.border}`, display: 'flex', gap: '8px', background: COLOR.surface }}>
-              <button disabled={isSubmitting} onClick={() => handleSubmit('draft')} style={{ flex: 1, padding: '10px', border: `1px solid ${COLOR.border}`, borderRadius: RADIUS.md, background: 'none', fontWeight: 600 }}>Simpan Draft</button>
-              <button disabled={isSubmitting} onClick={() => handleSubmit('complete')} style={{ flex: 1, padding: '10px', border: 'none', borderRadius: RADIUS.md, background: COLOR.primary, color: '#fff', fontWeight: 700 }}>Complete</button>
+          <div style={{
+            padding: '10px 14px',
+            borderTop: `1px solid ${COLOR.border}`,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '10px',
+            background: COLOR.surface,
+          }}>
+            <div style={{ display: 'flex', gap: '6px' }}>
+              <button
+                disabled={isSubmitting}
+                onClick={() => handleSubmit('draft')}
+                style={{
+                  padding: '7px 12px',
+                  fontSize: '12px',
+                  border: `1px solid ${COLOR.border}`,
+                  borderRadius: RADIUS.md,
+                  background: 'none',
+                  fontWeight: 600,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                Simpan Draft
+              </button>
+              <button
+                disabled={isSubmitting}
+                onClick={() => handleSubmit('complete')}
+                style={{
+                  padding: '7px 14px',
+                  fontSize: '12px',
+                  border: 'none',
+                  borderRadius: RADIUS.md,
+                  background: COLOR.primary,
+                  color: '#fff',
+                  fontWeight: 700,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                Complete
+              </button>
             </div>
-          )}
+
+            <div style={{ fontSize: '12px', color: COLOR.textLt, textAlign: 'right', paddingRight: '20px' }}>
+              Total Amount
+              <div style={{
+                fontSize: '15px',
+                fontWeight: 700,
+                color: totalStmtAmt >= 0 ? COLOR.success : '#dc2626',
+              }}>
+                {totalStmtAmt.toLocaleString('id-ID')}
+              </div>
+            </div>
+          </div>
+        )}
         </>
       )}
     </div>
