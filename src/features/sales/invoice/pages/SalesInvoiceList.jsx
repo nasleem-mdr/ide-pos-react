@@ -1,22 +1,21 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import ReactDOMServer from "react-dom/server";
 import { PageHeader, DataTable } from "@/shared/components/setup";
-import { LogoSMAMerahHitam } from "@/shared/components/icon";
 import { idempiereApi } from "@/api/idempiereApi";
-import { renderDocumentPDF } from "@/utils/pdf/renderDocumentPDF";
 import { renderListPDF } from "@/utils/pdf/renderListPDF";
+import { generateInvoicePDF } from '@/features/sales/invoice/utils/generateInvoicePDF';
+import { useOrgInfo } from "@/shared/hooks/useOrgInfo";
 import "@/App.css";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // VendorInvoiceList.jsx
 // GET /api/v1/models/ad_table?$select=AD_Table_ID&$filter=TableName eq 'C_Order'
 // ─────────────────────────────────────────────────────────────────────────────
-const C_INVOICE_AD_TABLE_ID = 318; // ← GANTI kalau berbeda di instance Anda
+//const C_INVOICE_AD_TABLE_ID = 318; 
 
 const SalesInvoiceList = () => {
     const todayStr = new Date().toISOString().split("T")[0];
-
+    const { orgInfo } = useOrgInfo(); 
     const [invoices, setInvoices]             = useState([]);
     const [loading, setLoading]           = useState(false);
     const [search, setSearch]             = useState("");
@@ -179,74 +178,7 @@ const SalesInvoiceList = () => {
         return `${day}/${month}/${year}`;
     };
 
-    const generateInvoicePDF = async (invoiceId, documentNo) => {
-        const header = await idempiereApi(
-            `/models/c_invoice/${invoiceId}` +
-            `?$select=DocumentNo,DateInvoiced,POReference,Description,DocStatus,AD_Org_ID,CreatedBy,C_BPartner_ID,GrandTotal`
-        );
-
-        const linesRes = await idempiereApi(
-            `/models/c_invoiceline` +
-            `?$filter=C_Invoice_ID eq ${invoiceId}` +
-            `&$select=Line,M_Product_ID,QtyEntered,C_UOM_ID,PriceActual,LineNetAmt,Description,DateService` +
-            `&$orderby=Line`
-        );
-        const lines = linesRes.records || [];
-
-        const historyRes = await idempiereApi(
-            `/models/ad_wf_eventaudit` +
-            `?$filter=AD_Table_ID eq ${C_INVOICE_AD_TABLE_ID} and Record_ID eq ${invoiceId}` +
-            `&$select=AD_WF_Node_ID,AD_User_ID,Updated` +
-            `&$orderby=Updated asc`
-        );
-
-        const history = (historyRes.records || [])
-            .filter(h => !["(start)", "(docauto)", "(completedocument)"].includes((h.AD_WF_Node_ID?.identifier || "").toLowerCase()))
-            .map(h => ({
-                nodeName: h.AD_WF_Node_ID?.identifier || "-",
-                userName: h.AD_User_ID?.identifier || "-",
-                date: new Date(h.Updated).toLocaleDateString("id-ID"),
-            }));
-
-        const statusMap = { DR: "Draft", IP: "Dalam Proses Approval", CO: "Selesai / Disetujui", CL: "Ditutup", VO: "Dibatalkan", RE: "Ditolak" };
-        const statusCode = header.DocStatus?.id ?? header.DocStatus;
-
-        await renderDocumentPDF({
-            title: "SALES INVOICE",
-            subtitle: "Dokumen ini sah dengan histori approval terlampir",
-            logo: <LogoSMAMerahHitam />,
-            infoLeft: [
-                ["No. ", ": " + header.DocumentNo],
-                ["Customer", ": " + (header.C_BPartner_ID?.identifier || "-")],
-                ["Description", ": " + (header.Description || "-")],
-            ],
-            infoRight: [
-                ["Date", ": " + new Date(header.DateInvoiced).toLocaleDateString("id-ID")],
-                ["Status", ": " + (statusMap[statusCode] || statusCode)],
-                ["Grand Total", ": " + fmtRp(header.GrandTotal)],
-            ],
-            table: {
-                head: [["Date of Service", "Type of Service", "No of Unit", "Unit", "Price", "Amount"]],
-                body: lines.map((l, idx) => [
-                    formatDateService(l.DateService),
-                    l.Description || l.M_Product_ID?.identifier,
-                    numberFormatter.format(l.QtyEntered ?? 0),
-                    l.C_UOM_ID?.identifier || "-",
-                    numberFormatter.format(l.PriceActual ?? 0),
-                    numberFormatter.format(l.LineNetAmt ?? 0),
-                ]),
-                columnStyles: {
-                    2: { halign: 'right' }, // No of Unit / QtyEntered
-                },
-            },
-            history,
-            verifyUrl: `https://192.168.0.126:8432/view/invoice/${header.uid}`,
-            verifyCaption: "Scan untuk verifikasi keaslian & status approval dokumen {documentNo}",
-            filenamePrefix: "PI",
-            documentNo: header.DocumentNo,
-        });
-    };
-    
+        
     const fetchAllInvoicesForPrint = useCallback(async () => {
         const loginUserId = localStorage.getItem("AD_User_ID");
         if (!loginUserId) return [];
@@ -287,7 +219,7 @@ const SalesInvoiceList = () => {
 
             await renderListPDF({
                 title: 'DAFTAR SALES',
-                logo: <LogoSMAMerahHitam />,
+                logoDataUrl: orgInfo?.logoUrl,
                 periodLabel: `PERIODE : ${formatDateService(startDate)}  ${formatDateService(endDate)}`,
                 columns: [
                     { key: 'no',         label: 'No',                width: 30,  align: 'center' },
@@ -318,8 +250,7 @@ const SalesInvoiceList = () => {
         const invoiceId = invoice._invoiceId ?? invoice.id;
         setDownloadingId(invoiceId);
         try {
-            const token = localStorage.getItem("token");
-            await generateInvoicePDF(invoiceId, invoice.DocumentNo, token);
+            await generateInvoicePDF(invoiceId, invoice.DocumentNo, orgInfo?.logoUrl);
         } catch (err) {
             console.error("Failed to generate PDF:", err.message);
             alert("Failed to create PDF Document");

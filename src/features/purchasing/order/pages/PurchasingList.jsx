@@ -8,7 +8,15 @@ import QRCode from "qrcode";
 import { LogoSMAMerahHitam } from "@/shared/components/icon";
 import { idempiereApi } from "@/api/idempiereApi";
 import "@/App.css";
-
+// Filter status ala Shopee — value 'ALL' berarti tanpa filter DocStatus sama
+// sekali. Urutan di sini menentukan urutan tab yang tampil di PageHeader.
+const STATUS_FILTERS = [
+    { value: "ALL", label: "Semua" },
+    { value: "DR",  label: "Draft" },
+    { value: "IP",  label: "Diproses" },
+    { value: "NA",  label: "Ditolak" },
+    { value: "CO",  label: "Selesai" },
+];
 // ─────────────────────────────────────────────────────────────────────────────
 // PurchasingList.jsx
 // GET /api/v1/models/ad_table?$select=AD_Table_ID&$filter=TableName eq 'C_Order'
@@ -21,6 +29,7 @@ const PurchasingList = () => {
     const [orders, setOrders]             = useState([]);
     const [loading, setLoading]           = useState(false);
     const [search, setSearch]             = useState("");
+    const [statusFilter, setStatusFilter] = useState("ALL");
     const [offset, setOffset]             = useState(0);
     const [totalRecords, setTotalRecords] = useState(0);
     const [totalAmountAll, setTotalAmountAll] = useState(null);
@@ -41,6 +50,21 @@ const PurchasingList = () => {
         return map[status] || "#555";
     };
 
+     const buildFilterClause = useCallback((loginUserId) => {
+            let filterClause =
+                ` CreatedBy eq ${loginUserId}` +
+                ` and Created ge ${startDate}T00:00:00Z` +
+                ` and Created le ${endDate}T23:59:59Z`;
+    
+            if (search) {
+                filterClause += ` and contains(tolower(DocumentNo),'${search.toLowerCase()}')`;
+            }
+            if (statusFilter && statusFilter !== "ALL") {
+                filterClause += ` and DocStatus eq '${statusFilter}'`;
+            }
+            return filterClause;
+        }, [search, startDate, endDate, statusFilter]);
+
     // Purchasing bersifat sentral (tidak scoped ke 1 gudang), tapi tetap
     // hanya menampilkan PO yang dibuat oleh user yang sedang login — sama
     // seperti perilaku RequisitionList.jsx untuk FPB.
@@ -50,16 +74,16 @@ const PurchasingList = () => {
 
         setLoading(true);
         try {
-            let filterClause =
-                ` IsSOTrx eq false` + // sisi pembelian saja (bukan Sales Order)
-                //` and CreatedBy eq ${loginUserId}` +
-                ` and Created ge ${startDate}T00:00:00Z` +
-                ` and Created le ${endDate}T23:59:59Z`;
+            // let filterClause =
+            //     ` IsSOTrx eq false` + // sisi pembelian saja (bukan Sales Order)
+            //     //` and CreatedBy eq ${loginUserId}` +
+            //     ` and Created ge ${startDate}T00:00:00Z` +
+            //     ` and Created le ${endDate}T23:59:59Z`;
 
-            if (search) {
-                filterClause += ` and contains(tolower(DocumentNo),'${search.toLowerCase()}')`;
-            }
-
+            // if (search) {
+            //     filterClause += ` and contains(tolower(DocumentNo),'${search.toLowerCase()}')`;
+            // }
+            const filterClause = buildFilterClause(loginUserId);
             const res = await idempiereApi(
                 `/models/c_order` +
                 `?$filter=${filterClause}` +
@@ -76,7 +100,7 @@ const PurchasingList = () => {
         } finally {
             setLoading(false);
         }
-    }, [offset, search, startDate, endDate]);
+    }, [offset, buildFilterClause]);
 
     const svgToPngDataUrl = (svgString, width, height) => {
         return new Promise((resolve, reject) => {
@@ -105,16 +129,16 @@ const PurchasingList = () => {
 
         setTotalAmountAll(null); // reset saat filter berubah
         try {
-            let filterClause =
-                ` IsSOTrx eq false` +
-                //` and CreatedBy eq ${loginUserId}` +
-                ` and Created ge ${startDate}T00:00:00Z` +
-                ` and Created le ${endDate}T23:59:59Z`;
+            // let filterClause =
+            //     ` IsSOTrx eq false` +
+            //     //` and CreatedBy eq ${loginUserId}` +
+            //     ` and Created ge ${startDate}T00:00:00Z` +
+            //     ` and Created le ${endDate}T23:59:59Z`;
 
-            if (search) {
-                filterClause += ` and contains(tolower(DocumentNo),'${search.toLowerCase()}')`;
-            }
-
+            // if (search) {
+            //     filterClause += ` and contains(tolower(DocumentNo),'${search.toLowerCase()}')`;
+            // }
+            const filterClause = buildFilterClause(loginUserId);
             const res = await idempiereApi(
                 `/models/c_order` +
                 `?$filter=${filterClause}` +
@@ -128,7 +152,7 @@ const PurchasingList = () => {
             console.error("Gagal fetch total grand total:", err.message);
             setTotalAmountAll(0);
         }
-    }, [search, startDate, endDate]);
+    }, [buildFilterClause]);
 
     useEffect(() => {
         fetchOrders();
@@ -156,7 +180,7 @@ const PurchasingList = () => {
         navigate("/purchasing", { state: { editOrder: cleanOrder } });
     };
 
-    const fmtRp = (n) => `Rp ${Math.round(n || 0).toLocaleString("id-ID")}`;
+    const fmtRp = (n) => `${Math.round(n || 0).toLocaleString("id-ID")}`;
 
     // Format total seluruh halaman dari state (null = sedang loading)
     const totalAmountFormatted = totalAmountAll === null
@@ -459,13 +483,19 @@ const PurchasingList = () => {
         setEndDate(val);
         setOffset(0);
     };
-
+    const handleFilterChange = (val) => {
+        setStatusFilter(val);
+        setOffset(0);
+    };
     return (
         <div className="card-container">
 
             <PageHeader
                 title="Purchasing"
                 onSearch={(val) => { setSearch(val); setOffset(0); }}
+                filters={STATUS_FILTERS}
+                activeFilter={statusFilter}
+                onFilterChange={handleFilterChange}
                 extraAction={
                     <button
                         onClick={() => navigate("/purchasing")}

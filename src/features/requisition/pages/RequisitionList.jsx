@@ -1,12 +1,10 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import ReactDOMServer from "react-dom/server";
-import { PageHeader, DataTable , LogoSMAMerahHitam}  from "@/shared/components";
+import { PageHeader, DataTable }  from "@/shared/components";
 import { renderListPDF } from "@/utils/pdf/renderListPDF";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
-import QRCode from "qrcode";
+import { generateRequisitionPDF } from '@/features/requisition/utils/generateRequisitionPDF';
 import { idempiereApi } from "@/api/idempiereApi";
+import { useOrgInfo } from "@/shared/hooks/useOrgInfo";
 import "@/App.css";
 
 // Filter status ala Shopee — value 'ALL' berarti tanpa filter DocStatus sama
@@ -21,7 +19,7 @@ const STATUS_FILTERS = [
 
 const RequisitionList = () => {
     const todayStr = new Date().toISOString().split("T")[0];
-    
+    const { orgInfo } = useOrgInfo(); 
     const [requisitions, setRequisitions]             = useState([]);
     const [loading, setLoading]           = useState(false);
     const [search, setSearch]             = useState("");
@@ -34,24 +32,6 @@ const RequisitionList = () => {
     const [endDate, setEndDate]           = useState(todayStr);
     const pageSize                        = 10;
     const navigate                        = useNavigate();
-
-    // const API_BASE    = "/api/v1";
-    // const customFetch = async (url, options = {}) => {
-    //     const token    = localStorage.getItem("token");
-    //     const response = await fetch(`${API_BASE}${url}`, {
-    //         ...options,
-    //         headers: {
-    //             ...options.headers,
-    //             Authorization:  `Bearer ${token}`,
-    //             "Content-Type": "application/json",
-    //         },
-    //     });
-    //     if (!response.ok) {
-    //         const text = await response.text().catch(() => "");
-    //         throw new Error(`[${response.status}] ${text}`);
-    //     }
-    //     return response.json();
-    // };
 
     const getStatusLabel = (status) => {
         const map = { DR: "Draft", IP: "In Progress", CO: "Completed", VO: "Voided", RE: "Reversed", NA: "Ditolak" };
@@ -187,213 +167,13 @@ const RequisitionList = () => {
     ];
     
 
-    const generateRequisitionPDF = async (requisitionId, documentNo, token) => {
-        const API_BASE = "/api/v1";
-        const idempiereApi = async (url) => {
-            const res = await fetch(`${API_BASE}${url}`, {
-                headers: { Authorization: `Bearer ${token}` },
-            });
-            return res.json();
-        };
-    
-        // 1. Fetch header data
-        const header = await idempiereApi(
-            `/models/m_requisition/${requisitionId}` +
-            `?$select=DocumentNo,DateDoc,Description,DocStatus,AD_Org_ID,CreatedBy,M_Warehouse_ID,M_Requisition_UU`
-        );
-        
-        // 2. Fetch line items
-        const linesRes = await idempiereApi(
-            `/models/m_requisitionline` +
-            `?$filter=M_Requisition_ID eq ${requisitionId}` +
-            `&$select=Line,M_Product_ID,Qty,C_UOM_ID,Description` +
-            `&$orderby=Line`
-        );
-        const lines = linesRes.records || [];
-    
-        // 3. Fetch workflow history (AD_Table_ID 702 = M_Requisition)
-        const historyRes = await idempiereApi(
-            `/models/ad_wf_eventaudit` +
-            `?$filter=AD_Table_ID eq 702 and Record_ID eq ${requisitionId}` +
-            `&$select=AD_WF_Node_ID,AD_User_ID,Updated` +
-            `&$orderby=Updated asc`
-        );
-        
-        // Filter node "(Start)" di client-side, case-insensitive
-        const history = (historyRes.records || []).filter((h) => {
-            const nodeName = (h.AD_WF_Node_ID?.identifier || "").toLowerCase();
-            
-            return nodeName !== "(start)" && 
-                nodeName !== "(docauto)" &&
-                nodeName !== "(completedocument)";
-        });
-    
-        // 4. Generate QR code as data URL
-        const qrUrl = `https://192.168.0.126:8432/view/requisition/${header.uid}`;
-        const qrDataUrl = await QRCode.toDataURL(qrUrl, { margin: 1, width: 200 });
-    
-        // 5. Status label mapping (sama seperti di RequisitionList.jsx)
-        const statusMap = { DR: "Draft", IP: "Dalam Proses Approval", CO: "Selesai / Disetujui", CL: "Ditutup", VO: "Dibatalkan", RE: "Ditolak" };
-        const statusCode = header.DocStatus?.id ?? header.DocStatus;
-    
-        // 6. Logo
-        const logoSvgString = ReactDOMServer.renderToStaticMarkup(<LogoSMAMerahHitam />);
-        const logoDataUrl = await svgToPngDataUrl(logoSvgString, 70, 42);// width, height dalam pt
-        // 7. Build PDF
-        const doc = new jsPDF({ unit: "pt", format: "a4" }); // 595 x 842 pt, sama seperti jrxml
-        const pageWidth = doc.internal.pageSize.getWidth();
-        
-        // Header
-        doc.addImage(logoDataUrl, "PNG", 20, 5, 70, 42);
-        doc.setFontSize(14).setFont(undefined, "bold");
-        doc.text("FORMULIR PERMINTAAN BARANG (FPB)", pageWidth / 2, 30, { align: "center" });
-        doc.setFontSize(9).setFont(undefined, "italic");
-        doc.text("Purchase Requisition - Dokumen ini sah dengan histori approval terlampir", pageWidth / 2, 44, { align: "center" });
-        doc.line(20, 55, pageWidth - 20, 55);
-    
-        // Info fields
-        doc.setFont(undefined, "normal").setFontSize(9);
-        let y = 75;
-        const infoLeft = [
-            ["No. Dokumen", ": "+header.DocumentNo],
-            ["Pemohon", ": "+header.CreatedBy?.identifier || "-"],
-            ["Gudang Tujuan", ": "+header.M_Warehouse_ID?.identifier || "-"],
-            ["Keterangan", ": "+header.Description || "-"],
-        ];
-        const infoRight = [
-            ["Tanggal", ": "+new Date(header.DateDoc).toLocaleDateString("id-ID")],
-            ["Departemen", ": "+header.AD_Org_ID?.identifier || "-"],
-            ["Status", ": "+statusMap[statusCode] || statusCode],
-        ];
-        infoLeft.forEach(([label, val], i) => {
-            doc.text(label, 20, y + i * 16);
-            doc.text(String(val), 100, y + i * 16);
-        });
-        infoRight.forEach(([label, val], i) => {
-            doc.text(label, 320, y + i * 16);
-            doc.text(String(val), 400, y + i * 16);
-        });
-    
-        // Table item
-        autoTable(doc, {
-            startY: y + infoLeft.length * 16 + 20,
-            head: [["No", "Nama Barang", "Qty", "UOM", "Keterangan"]],
-            body: lines.map((l, idx) => [
-                idx + 1,
-                l.M_Product_ID?.identifier || "-",
-                l.Qty,
-                l.C_UOM_ID?.identifier || "-",
-                l.Description || "",
-            ]),
-            theme: "grid",
-            styles: { fontSize: 8 },
-            headStyles: {
-                fillColor: [0, 0, 0],   //hitam
-                textColor: [255, 255, 255], //putih
-                fontStyle: "bold",
-            },
-            margin: { left: 20, right: 20 }, 
-            tableWidth: pageWidth - 40, 
-        });
-        // Histori Approval - horizontal layout (kiri ke kanan)
-        let finalY = doc.lastAutoTable.finalY + 20;
-        doc.setFont(undefined, "bold").setFontSize(10);
-        doc.text("Histori Approval / Workflow", 20, finalY);
-        doc.line(20, finalY + 6, pageWidth - 20, finalY + 6);
-
-        finalY += 20;
-
-        const marginLeft = 20;
-        const marginRight = 20;
-        const usableWidth = pageWidth - marginLeft - marginRight;
-        const colCount = 5;
-        const colWidth = usableWidth / colCount;
-        const rowHeight = 65; // tinggi tiap baris histori
-
-        history.forEach((h, idx) => {
-            const col = idx % colCount;
-            const row = Math.floor(idx / colCount);
-            const x = marginLeft + col * colWidth;
-            const y = finalY + row * rowHeight;
-        
-            // --- TAMBAHAN: Garis Dotted Pembatas Antar Baris ---
-            // Jika data sudah masuk ke baris 2, 3, dst (row > 0) dan berada di awal kolom (col === 0)
-            if (row > 0 && col === 0) {
-                // [jarak_garis, jarak_spasi] -> [2, 2] artiinya garis pendek 2 unit, spasi 2 unit
-                doc.setLineDashPattern([2, 2], 0); 
-                doc.setDrawColor(150, 150, 150); // Set warna abu-abu agar tidak terlalu mencolok
-                
-                // Gambar garis sedikit di atas teks baris baru (misal: y - 10)
-                doc.line(20, y - 10, pageWidth - 20, y - 10);
-                
-                // RESET kembali ke mode garis normal (solid) agar garis di bawah nama user tidak ikut putus-putus
-                doc.setLineDashPattern([], 0);
-                doc.setDrawColor(0, 0, 0); // Kembalikan ke warna hitam default
-            }
-            // ---------------------------------------------------
-        
-            // Jaga-jaga batas aman agar teks panjang tidak menabrak kolom sebelah (beri padding 5 unit)
-            const maxTextWidth = colWidth - 5; 
-        
-            // 1. Nama Node / Status
-            doc.setFont(undefined, "bold").setFontSize(7.5);
-            const nodeName = `${h.AD_WF_Node_ID?.identifier || "-"}`;
-            const splitNode = doc.splitTextToSize(nodeName, maxTextWidth);
-            doc.text(splitNode, x, y);
-        
-            // Hitung offset dinamis jika statusnya ternyata membungkus ke 2 baris
-            const nodeHeightOffset = (splitNode.length - 1) * 9;
-        
-            // 2. Nama User
-            doc.setFont(undefined, "normal").setFontSize(7.5);
-            const userName = h.AD_User_ID?.identifier || "-";
-            const splitUser = doc.splitTextToSize(userName, maxTextWidth);
-            
-            const userY = y + 22 + nodeHeightOffset;
-            doc.text(splitUser, x, userY);
-            
-            // Garis bawah nama user (menggunakan garis solid karena dash pattern sudah di-reset)
-            const textWidth = doc.getTextWidth(splitUser[0] || "");
-            doc.line(x, userY + 2, x + Math.min(textWidth, maxTextWidth), userY + 2); 
-        
-            // 3. Tanggal
-            const userHeightOffset = (splitUser.length - 1) * 9;
-            doc.text(new Date(h.Updated).toLocaleDateString("id-ID"), x, userY + 15 + userHeightOffset);
-        });
-        
-        // Update posisi Y setelah histori (untuk QR code, dsb) - hitung berapa baris dipakai
-        const totalRows = Math.ceil(history.length / colCount);
-        finalY += totalRows * rowHeight + 20;
-        
-        
-        // QR Code
-        finalY += 20;
-        doc.setFont(undefined, "bold").setFontSize(9);
-        doc.text("Verifikasi Dokumen Digital", pageWidth / 2, finalY, { align: "center" });
-        doc.addImage(qrDataUrl, "PNG", pageWidth / 2 - 30, finalY + 10, 60, 60);
-        doc.setFont(undefined, "normal").setFontSize(6.5);
-        doc.text(
-            `Scan untuk verifikasi keaslian & status approval dokumen ${header.DocumentNo}`,
-            pageWidth / 2, finalY + 80, { align: "center" }
-        );
-    
-        // Footer
-        const pageHeight = doc.internal.pageSize.getHeight();
-        doc.setFont(undefined, "italic").setFontSize(7);
-        doc.text(
-            `Dokumen ini dicetak otomatis dari sistem dan sah tanpa tanda tangan basah selama status approval di atas terverifikasi pada sistem - dicetak ${new Date().toLocaleDateString("id-ID")}`,
-            pageWidth / 2, pageHeight - 20, { align: "center" }
-        );
-    
-        doc.save(`Requisition-${documentNo}.pdf`);
-    };
-
+   
     const handleDownload = async (requisition) => {
         const requisitionId = requisition._requisitionId ?? requisition.id;
         setDownloadingId(requisitionId);
         try {
             const token = localStorage.getItem("token");
-            await generateRequisitionPDF(requisitionId, requisition.DocumentNo, token);
+            await generateRequisitionPDF(requisitionId, requisition.DocumentNo, token, orgInfo?.logoUrl);
         } catch (err) {
             console.error("Gagal generate PDF:", err.message);
             alert("Gagal membuat dokumen PDF.");
@@ -481,7 +261,7 @@ const RequisitionList = () => {
         
                     await renderListPDF({
                         title: 'DAFTAR REQUISITION',
-                        logo: <LogoSMAMerahHitam />,
+                        logoDataUrl: orgInfo?.logoUrl,
                         periodLabel: `PERIODE : ${formatDateService(startDate)}  ${formatDateService(endDate)}`,
                         columns: [
                             { key: 'no',         label: 'No',                width: 30,  align: 'center' },

@@ -40,22 +40,27 @@ const svgToPngDataUrl = (svgString, width, height) => {
  */
 export async function renderDocumentPDF(config) {
     const {
-        title, subtitle, logo,
+        title, subtitle, logo,logoDataUrl: providedLogoDataUrl,
         infoLeft = [], infoRight = [],
         table, history = [],
         verifyUrl, verifyCaption,
         filenamePrefix, documentNo,
     } = config;
 
-    const logoSvgString = ReactDOMServer.renderToStaticMarkup(logo);
-    const logoDataUrl = await svgToPngDataUrl(logoSvgString, 70, 42);
+    //const logoSvgString = ReactDOMServer.renderToStaticMarkup(logo);
+    //const logoDataUrl = await svgToPngDataUrl(logoSvgString, 70, 42);
     const qrDataUrl = await QRCode.toDataURL(verifyUrl, { margin: 1, width: 200 });
 
     const doc = new jsPDF({ unit: "pt", format: "a4" });
     const pageWidth = doc.internal.pageSize.getWidth();
-
-    // Header
-    doc.addImage(logoDataUrl, "PNG", 20, 5, 70, 42);
+    let logoDataUrl = providedLogoDataUrl || null;
+    if (!logoDataUrl && logo) {
+        const logoSvgString = ReactDOMServer.renderToStaticMarkup(logo);
+        logoDataUrl = await svgToPngDataUrl(logoSvgString, 70, 42);
+    }
+    if (logoDataUrl) {
+        doc.addImage(logoDataUrl, "PNG", 20, 5, 70, 42);
+    }
     doc.setFontSize(14).setFont(undefined, "bold");
     doc.text(title, pageWidth / 2, 30, { align: "center" });
     doc.setFontSize(9).setFont(undefined, "italic");
@@ -82,10 +87,10 @@ export async function renderDocumentPDF(config) {
         theme: "grid",
         styles: { fontSize: 8 },
         headStyles: { fillColor: [0, 0, 0], textColor: [255, 255, 255], fontStyle: "bold" },
+        columnStyles: table.columnStyles || {},   // ← FIX: sebelumnya tidak pernah diteruskan
         margin: { left: 20, right: 20 },
         tableWidth: pageWidth - 40,
     });
-
     // Histori Approval
     let finalY = doc.lastAutoTable.finalY + 20;
     doc.setFont(undefined, "bold").setFontSize(10);

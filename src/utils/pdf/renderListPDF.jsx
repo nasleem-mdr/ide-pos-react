@@ -26,7 +26,11 @@ import { svgToPngDataUrl } from "./svgToPngDataUrl";
 /**
  * @param {Object} config
  * @param {string} config.title            - mis. "DAFTAR SALES"
- * @param {JSX.Element} config.logo        - mis. <LogoSMAMerahHitam />
+ * @param {JSX.Element} [config.logo]      - komponen SVG statis, mis. <LogoSMAMerahHitam />
+ * @param {string} [config.logoDataUrl]    - alternatif: data URL siap pakai (mis. dari AD_OrgInfo.Logo_ID via useOrgInfo)
+ * @param {string} [config.orgName]        - Nama organisasi, mis. dari useOrgInfo().orgInfo?.name
+ * @param {string} [config.orgPhone]       - mis. dari useOrgInfo().orgInfo?.phone
+ * @param {string} [config.orgEmail]       - mis. dari useOrgInfo().orgInfo?.email
  * @param {string} config.periodLabel      - mis. "PERIODE : 01/01/2026  31/01/2026"
  * @param {Array<{key:string,label:string,width?:'auto'|'flex'|number,align?:'left'|'center'|'right'}>} config.columns
  * @param {Array<Object>} config.rows      - array objek, key sesuai columns[].key
@@ -36,21 +40,26 @@ import { svgToPngDataUrl } from "./svgToPngDataUrl";
  */
 export async function renderListPDF(config) {
     const {
-        title, logo, periodLabel,
+        title, logo, logoDataUrl: providedLogoDataUrl,
+        orgName, orgPhone, orgEmail,
+        periodLabel,
         columns, rows,
         totalLabel, totalValue,
         filenamePrefix,
     } = config;
 
-    const logoSvgString = ReactDOMServer.renderToStaticMarkup(logo);
-    const logoDataUrl = await svgToPngDataUrl(logoSvgString, 70, 42);
+    let logoDataUrl = providedLogoDataUrl || null;
+    if (!logoDataUrl && logo) {
+        const logoSvgString = ReactDOMServer.renderToStaticMarkup(logo);
+        logoDataUrl = await svgToPngDataUrl(logoSvgString, 70, 42);
+    }
 
     const doc = new jsPDF({ unit: "pt", format: "a4" });
     const pageWidth = doc.internal.pageSize.getWidth();
     const marginLeft = 20, marginRight = 20;
     const usableWidth = pageWidth - marginLeft - marginRight;
 
-    const HEADER_HEIGHT = 70; // ruang dicadangkan di tiap halaman utk logo+title+periode
+    const HEADER_HEIGHT = 110; // ruang dicadangkan di tiap halaman utk logo+title+periode
 
     // ── Hitung lebar kolom: 'flex' ambil sisa setelah semua 'auto' dihitung ─
     // autoTable butuh angka pt eksplisit per kolom di columnStyles supaya
@@ -94,15 +103,52 @@ export async function renderListPDF(config) {
         ]]
         : undefined;
 
-    const drawHeader = () => {
-        doc.addImage(logoDataUrl, "PNG", marginLeft, 5, 70, 42);
-        doc.setFontSize(16).setFont(undefined, "bold");
-        doc.text(title, pageWidth / 2, 30, { align: "center" });
-        if (periodLabel) {
-            doc.setFontSize(10).setFont(undefined, "normal");
-            doc.text(periodLabel, pageWidth / 2, 48, { align: "center" });
-        }
-    };
+        const drawHeader = () => {
+            const headerCenterX = pageWidth / 2;
+        
+            // Logo — sedikit lebih besar & diberi margin atas lebih proporsional
+            if (logoDataUrl) {
+                doc.addImage(logoDataUrl, "PNG", marginLeft, 12, 60, 60);
+            }
+        
+            // Baris 1: Nama Organisasi — identitas utama, paling besar & tegas
+            doc.setFontSize(15).setFont(undefined, "bold");
+            doc.text(orgName || "-", headerCenterX, 26, { align: "center" });
+        
+            // Baris 2: Kontak — normal (bukan bold), ukuran lebih wajar (9pt),
+            // beri jarak lebih lega dari baris nama org (26 → 40, bukan 22 → 34)
+            const contactParts = [];
+            if (orgPhone) contactParts.push(`Telp: ${orgPhone}`);
+            if (orgEmail) contactParts.push(`Email: ${orgEmail}`);
+            if (contactParts.length) {
+                doc.setFontSize(9).setFont(undefined, "normal");
+                doc.text(contactParts.join("   •   "), headerCenterX, 40, { align: "center" });
+            }
+        
+            // Garis pemisah tipis antara blok "identitas Org" dan "identitas laporan"
+            // — memberi jeda visual, bukan cuma jarak kosong
+            doc.setDrawColor(180, 180, 180);
+            doc.setLineWidth(0.5);
+            doc.line(headerCenterX - 60, 50, headerCenterX + 60, 50);
+            doc.setDrawColor(0, 0, 0);
+        
+            // Baris 3: Judul dokumen — paling menonjol, beri jarak cukup dari garis pemisah
+            doc.setFontSize(17).setFont(undefined, "bold");
+            doc.text(title, headerCenterX, 68, { align: "center" });
+        
+            // Baris 4: Periode — sedikit lebih besar dari sebelumnya (10 → 9.5 normal),
+            // beri jarak wajar dari judul
+            if (periodLabel) {
+                doc.setFontSize(9.5).setFont(undefined, "normal");
+                doc.text(periodLabel, headerCenterX, 82, { align: "center" });
+            }
+        
+            // Garis pembatas tegas di bawah seluruh blok header, sebelum tabel mulai
+            doc.setDrawColor(0, 0, 0);
+            doc.setLineWidth(0.75);
+            doc.line(marginLeft, HEADER_HEIGHT - 15, pageWidth - marginRight, HEADER_HEIGHT - 15);
+            doc.setLineWidth(0.5); // reset ke default styles tabel
+        };
 
     autoTable(doc, {
         startY: HEADER_HEIGHT,

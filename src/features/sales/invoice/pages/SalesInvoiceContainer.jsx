@@ -56,10 +56,8 @@ const SalesInvoiceContainer = () => {
   const [invoiceDocTypeId, setInvoiceDocTypeId] = useState(null);
   const [submitModalOpen, setSubmitModalOpen] = useState(false);
   const [description, setDescription] = useState('');
-  const today = new Date().toISOString().split('T')[0];
 
-  const [dateRequired, setDateRequired] = useState(today);
-  // ...
+    // ...
   const supportsBankAccount = useColumnSupport('c_invoice', 'C_BankAccount_ID');
   const supportsDateService = useColumnSupport('c_invoiceline', 'DateService');
   const [bankAccountId, setBankAccountId] = useState(null);

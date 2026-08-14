@@ -5,30 +5,29 @@ import { getLoginInfo } from './useLoginInfo';
 
 // Cache in-memory per AD_Org_ID — info Org jarang berubah dalam satu sesi,
 // jadi tidak perlu re-fetch tiap kali komponen report header di-mount.
-// Pola sama seperti _cache di docTypeResolver.jsx.
 const _cache = new Map(); // orgId -> Promise<orgInfo | null>
 
 async function fetchOrgInfoRaw(orgId) {
   const res = await getModelRecords('ad_orginfo', {
     '$filter': `AD_Org_ID eq ${orgId}`,
-    '$select': 'AD_Org_ID,Name,Phone,Email,Logo_ID',
+    '$select': 'AD_Org_ID,Phone,Email,Logo_ID',
     '$top': 1,
   });
   const record = res?.records?.[0];
   if (!record) return null;
 
+  // Name diambil dari identifier FK AD_Org_ID (bawaan iDempiere REST —
+  // FK selalu membawa {id, identifier}, dan identifier AD_Org = Name-nya).
+  // TIDAK perlu query kedua ke ad_org kalau ini konsisten di instance kalian.
+  let name = record.AD_Org_ID?.identifier || '';
+
   let logoUrl = null;
   const logoId = fkId(record.Logo_ID);
   if (logoId) {
     try {
-      // PENTING: nama kolom binary/mimetype di AD_Image belum dikonfirmasi
-      // di instance bxservice kalian — cek dulu lewat GET manual ke
-      // /models/ad_image/{id} untuk lihat nama field persisnya (kemungkinan
-      // BinaryData / Data, dan MimeType), lalu sesuaikan $select di bawah.
-      const img = await idempiereApi(`/models/ad_image/${logoId}?$select=BinaryData,MimeType`);
+      const img = await idempiereApi(`/models/ad_image/${logoId}?$select=AD_Image_ID,Name,BinaryData`);
       if (img?.BinaryData) {
-        const mime = img.MimeType || 'image/png';
-        logoUrl = `data:${mime};base64,${img.BinaryData}`;
+        logoUrl = `data:image/png;base64,${img.BinaryData}`;
       }
     } catch (err) {
       console.warn('[useOrgInfo] Gagal ambil logo AD_Image:', err.message);
@@ -37,7 +36,7 @@ async function fetchOrgInfoRaw(orgId) {
 
   return {
     orgId,
-    name:  record.Name  || '',
+    name,
     phone: record.Phone || '',
     email: record.Email || '',
     logoUrl,
@@ -76,7 +75,6 @@ export function useOrgInfo(orgIdParam) {
   return { orgInfo, loading };
 }
 
-// Manual refetch kalau admin ubah data Org tanpa reload aplikasi.
 export function clearOrgInfoCache(orgId) {
   if (orgId) _cache.delete(orgId);
   else _cache.clear();
