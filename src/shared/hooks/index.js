@@ -20,3 +20,4 @@ export * from './useUomConversion';
 export * from './useVendorSearch';
 export * from './useWindowAccess';
 export * from './useSchemaCapability';
+export * from './useScannerInput';

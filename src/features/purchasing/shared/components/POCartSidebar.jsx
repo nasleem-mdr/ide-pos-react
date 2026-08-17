@@ -30,6 +30,7 @@ const POCartSidebar = ({
   title = '🧾 Daftar Purchase Order',
   onSubmitDraft, onSubmitComplete, 
   onSubmit, submitLabel,  
+  onSubmitCash, cashSubmitLabel = '💵 Bayar Tunai Sekarang',
   isSubmitting = false,
   emptyLabel = 'Belum ada produk dipilih.',
   width = '380px',
@@ -130,7 +131,7 @@ const POCartSidebar = ({
           ))
         )}
       </div>
-     {totalItems > 0 && (onSubmitDraft || onSubmitComplete || onSubmit) && (
+     {totalItems > 0 && (onSubmitDraft || onSubmitComplete || onSubmit || onSubmitCash) && (
         <div style={{ borderTop: `1px solid ${COLOR.border}`, padding: '14px 16px', flexShrink: 0 }}>
           <div style={{
             background: '#f0f4ff', borderRadius: RADIUS.md, padding: '10px 14px',
@@ -199,6 +200,28 @@ const POCartSidebar = ({
                   </button>
               </div>
             )}
+
+            {onSubmitCash && (() => {
+              // Cash Purchase (PO→Receipt→Invoice→Payment otomatis) hanya
+              // mendukung 1 vendor per transaksi — lihat useCashPurchaseSubmit.
+              const cashDisabled = isSubmitting || hasIncompleteVendor || vendorCount > 1;
+              return (
+                <button
+                  onClick={onSubmitCash}
+                  disabled={cashDisabled}
+                  title={vendorCount > 1 ? 'Cash Purchase hanya mendukung 1 vendor per transaksi.' : undefined}
+                  style={{
+                    marginTop: '10px', width: '100%',
+                    background: cashDisabled ? '#9ca3af' : '#16a34a',
+                    color: '#fff', border: 'none', padding: '14px',
+                    borderRadius: RADIUS.md, fontWeight: 700, fontSize: '14px',
+                    cursor: cashDisabled ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  {isSubmitting ? '⏳ Memproses...' : cashSubmitLabel}
+                </button>
+              );
+            })()}
       </div>
        )}
       </div>

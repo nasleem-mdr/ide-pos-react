@@ -1,6 +1,8 @@
 import { useState, useCallback } from 'react';
 import { idempiereApi, fkId } from '@/api/idempiereApi';
 import { getLoginInfo } from '@/shared/hooks/useLoginInfo';
+import { useAPPaymentSubmit } from '@/features/purchasing/order/hooks/useAPPaymentSubmit';
+import { waitForDocStatus } from '@/utils/docStatusWaiter';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // useCashPurchaseSubmit.jsx
@@ -16,6 +18,10 @@ import { getLoginInfo } from '@/shared/hooks/useLoginInfo';
 //     sambil tetap mengisi field penghubung yang sama seperti kalau proses
 //     ini dilakukan manual oleh staff (C_OrderLine_ID, M_InOutLine_ID, dst)
 //     — supaya 3-way matching & AP Aging tetap akurat.
+//   - TAHAP PAYMENT memakai pola yang SAMA dengan usePOSPaymentSubmit (AR):
+//     resolve DocType via DocBaseType, bank account dari pilihan user (fallback
+//     auto-resolve), isi C_Invoice_ID di Payment supaya Complete otomatis
+//     membuat Allocation. Lihat useAPPaymentSubmit.jsx.
 //
 // Kalau ada step yang gagal di tengah jalan, proses BERHENTI di situ dan
 // mengembalikan info dokumen mana saja yang SUDAH berhasil dibuat — supaya
@@ -26,6 +32,8 @@ export function useCashPurchaseSubmit({ poDocTypeId, receiptDocTypeId, invoiceDo
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [progressStep, setProgressStep] = useState(null); // 'po' | 'receipt' | 'invoice' | 'payment' | 'allocation'
 
+  const { submitPaymentAllocation } = useAPPaymentSubmit();
+
   const submit = useCallback(async (cart, {
     warehouseId,
     locatorId,
@@ -33,7 +41,7 @@ export function useCashPurchaseSubmit({ poDocTypeId, receiptDocTypeId, invoiceDo
     vendorLocationId,
     vendorName,
     paymentTenderType = 'K', // 'K' = Cash, sesuaikan dengan tender type kamu
-    bankAccountId,           // C_BankAccount_ID untuk C_Payment (wajib untuk tender non-cash)
+    bankAccountId,           // C_BankAccount_ID pilihan user untuk C_Payment (opsional — fallback auto-resolve kalau kosong)
   } = {}) => {
     if (cart.length === 0) {
       onError?.('Keranjang pembelian masih kosong!');
@@ -55,8 +63,44 @@ export function useCashPurchaseSubmit({ poDocTypeId, receiptDocTypeId, invoiceDo
       return null;
     }
 
+    // ── VALIDASI HARGA DI DEPAN ──────────────────────────────────────────
+    // Root cause "/ by zero" di server, kemungkinan besar: kode ini tadinya
+    // baca item.PriceActual / item.PriceEntered — field yang TIDAK PERNAH ADA
+    // di objek cart. Cart Anda (lihat handleConfirmAddToCart di
+    // PurchasingContainer.jsx) menyimpan harga di field `Price`. Akibatnya
+    // C_OrderLine.PriceActual tersimpan 0 ke iDempiere walau di UI harga
+    // sudah diisi — lalu proses matching PO/Receipt/Invoice di server
+    // (dipicu karena Invoice line di-link ke C_OrderLine_ID + M_InOutLine_ID)
+    // menghitung variance harga dan membagi dengan angka 0 itu. Sekarang
+    // dibaca dari `item.Price` (field yang benar-benar ada), dan ditolak di
+    // sini SEBELUM PO dibuat kalau memang masih 0, supaya tidak nyangkut
+    // dokumen setengah jadi lagi.
+    const zeroLinePriceItems = cart.filter(
+      item => parseFloat(item.PriceEntered ?? item.Price ?? 0) <= 0
+    );
+    if (zeroLinePriceItems.length > 0) {
+      const names = zeroLinePriceItems.map(i => i.Name || `#${i.M_Product_ID}`).join(', ');
+      onError?.(
+        `Item berikut belum punya harga (Rp 0) di cart: ${names}.\n` +
+        `Isi harga manual dulu di cart (kolom harga per item) sebelum submit Cash Purchase.`,
+        'Harga Item Kosong'
+      );
+      return null;
+    }
+
     setIsSubmitting(true);
-    const created = { poId: null, receiptId: null, invoiceId: null, paymentId: null };
+    setProgressStep(null);
+    // Dilacak via variabel lokal, BUKAN state `progressStep` — closure `submit`
+    // di-capture sekali per render, jadi `setProgressStep('x')` di dalam fungsi
+    // yang sedang berjalan TIDAK langsung terlihat oleh variabel `progressStep`
+    // di closure yang sama (baru kelihatan di render berikutnya). Kalau
+    // catch/finally di bawah ini baca state `progressStep`, yang kebaca justru
+    // nilai lama dari run sebelumnya (biasanya `null`, sisa reset di finally
+    // run sebelumnya) — makanya kemarin errornya keluar sebagai
+    // 'Gagal pada tahap "null"' padahal sebenarnya gagal di tahap invoice.
+    let currentStep = null;
+    const setStep = (step) => { currentStep = step; setProgressStep(step); };
+    const created = { poId: null, receiptId: null, invoiceId: null, paymentId: null, invoiceLinesCreated: 0 };
 
     try {
       const todayISO = new Date().toISOString().split('T')[0];
@@ -64,7 +108,7 @@ export function useCashPurchaseSubmit({ poDocTypeId, receiptDocTypeId, invoiceDo
       // ═══════════════════════════════════════════════════════════════════
       // TAHAP 1 — Purchase Order
       // ═══════════════════════════════════════════════════════════════════
-      setProgressStep('po');
+      setStep('po');
       onStepUpdate?.('po', 'pending');
       const poRes = await idempiereApi('/models/c_order', {
         method: 'POST',
@@ -89,9 +133,20 @@ export function useCashPurchaseSubmit({ poDocTypeId, receiptDocTypeId, invoiceDo
 
       const poLineIds = [];
       for (const item of cart) {
-        const uom = item.selectedUom || { C_UOM_ID: item.C_UOM_ID, multiplyRate: 1 };
-        const qtyEntered = parseFloat(item.Qty);
-        const qtyOrdered = qtyEntered * (uom.multiplyRate || 1);
+        // FIX: field UOM yang benar adalah `selectedUOM` (huruf besar), bukan
+        // `selectedUom` — sebelumnya selalu fallback ke multiplyRate:1 dan
+        // diam-diam mengabaikan konversi UOM non-dasar. Formula qty/price di
+        // bawah ini disamakan persis dengan hook PO normal Anda yang sudah
+        // terbukti benar (usePurchaseOrderSubmit.jsx).
+        const uom          = item.selectedUOM || { C_UOM_ID: item.C_UOM_ID, multiplyRate: 1 };
+        const multiplyRate = uom.multiplyRate || 1;
+        const qtyEntered   = parseFloat(item.Qty ?? item.QtyEntered ?? 1);
+        // Fallback ke `item.Price` tetap dipertahankan (itu yang bikin Cash
+        // Purchase kepakai harganya kemarin) untuk jaga-jaga kalau item tidak
+        // punya `PriceEntered`.
+        const priceEntered = parseFloat(item.PriceEntered ?? item.Price ?? 0);
+        const qtyOrdered   = multiplyRate ? qtyEntered / multiplyRate : qtyEntered;
+        const priceOrdered = priceEntered * multiplyRate;
 
         const lineRes = await idempiereApi('/models/c_orderline', {
           method: 'POST',
@@ -102,15 +157,21 @@ export function useCashPurchaseSubmit({ poDocTypeId, receiptDocTypeId, invoiceDo
             C_UOM_ID:     { id: parseInt(uom.C_UOM_ID) },
             QtyEntered:   qtyEntered,
             QtyOrdered:   qtyOrdered,
-            PriceActual:  parseFloat(item.PriceActual || 0),
-            PriceEntered: parseFloat(item.PriceEntered || item.PriceActual || 0),
+            PriceActual:  priceOrdered,
+            PriceEntered: priceEntered,
           }),
         });
         poLineIds.push({
           orderLineId: fkId(lineRes.id) ?? lineRes.id,
           productId:   item.M_Product_ID,
-          qty:         qtyEntered,
           uom,
+          // Disimpan LENGKAP (entered & ordered/base) supaya Receipt & Invoice
+          // di bawah tinggal PAKAI, bukan hitung ulang dengan rumus berbeda
+          // (sumber ketidaksinkronan sebelumnya).
+          qtyEntered,
+          qtyOrdered,
+          priceEntered,
+          priceOrdered,
         });
       }
 
@@ -124,7 +185,7 @@ export function useCashPurchaseSubmit({ poDocTypeId, receiptDocTypeId, invoiceDo
       // ═══════════════════════════════════════════════════════════════════
       // TAHAP 2 — Material Receipt (link ke C_OrderLine_ID per baris)
       // ═══════════════════════════════════════════════════════════════════
-      setProgressStep('receipt');
+      setStep('receipt');
       onStepUpdate?.('receipt', 'pending');
       const receiptRes = await idempiereApi('/models/m_inout', {
         method: 'POST',
@@ -147,7 +208,6 @@ export function useCashPurchaseSubmit({ poDocTypeId, receiptDocTypeId, invoiceDo
 
       const inOutLineIds = [];
       for (const line of poLineIds) {
-        const movementQty = line.qty * (line.uom.multiplyRate || 1);
         const lineRes = await idempiereApi('/models/m_inoutline', {
           method: 'POST',
           body: JSON.stringify({
@@ -156,8 +216,8 @@ export function useCashPurchaseSubmit({ poDocTypeId, receiptDocTypeId, invoiceDo
             M_Product_ID:   { id: parseInt(line.productId) },
             M_Locator_ID:   { id: parseInt(locatorId) },
             C_UOM_ID:       { id: parseInt(line.uom.C_UOM_ID) },
-            QtyEntered:     line.qty,
-            MovementQty:    movementQty,
+            QtyEntered:     line.qtyEntered,
+            MovementQty:    line.qtyOrdered, // pakai hasil TAHAP 1, jangan hitung ulang dgn rumus berbeda
             C_OrderLine_ID: { id: line.orderLineId }, // ← kunci 3-way matching
           }),
         });
@@ -174,46 +234,85 @@ export function useCashPurchaseSubmit({ poDocTypeId, receiptDocTypeId, invoiceDo
       const receiptStatus = await waitForDocStatus('m_inout', receiptId);
       if (!receiptStatus.success) throw new Error(`Receipt gagal Complete (status: ${receiptStatus.status})`);
       onStepUpdate?.('receipt', 'success', { id: receiptId, documentNo: receiptStatus.documentNo });
-      
+
       // ═══════════════════════════════════════════════════════════════════
       // TAHAP 3 — Vendor Invoice (link ke C_OrderLine_ID + M_InOutLine_ID)
       // ═══════════════════════════════════════════════════════════════════
-      setProgressStep('invoice');
+      setStep('invoice');
       onStepUpdate?.('invoice', 'pending');
-      const invoiceRes = await idempiereApi('/models/c_invoice', {
-        method: 'POST',
-        body: JSON.stringify({
-          AD_Client_ID: { id: clientId },
-          AD_Org_ID:    { id: orgId },
-          C_DocType_ID: { id: invoiceDocTypeId },
-          C_DocTypeTarget_ID: { id: invoiceDocTypeId },
-          C_Order_ID:   { id: poId },
-          C_BPartner_ID: { id: parseInt(vendorId) },
-          C_BPartner_Location_ID: { id: parseInt(vendorLocationId) },
-          DateInvoiced: todayISO,
-          IsSOTrx:      false,
-          PaymentRule:  'P',
-          Description:  description,
-        }),
-      });
+
+      const invoicePayload = {
+        AD_Client_ID: { id: clientId },
+        AD_Org_ID:    { id: orgId },
+        C_DocType_ID: { id: invoiceDocTypeId },
+        C_DocTypeTarget_ID: { id: invoiceDocTypeId },
+        C_Order_ID:   { id: poId },
+        C_BPartner_ID: { id: parseInt(vendorId) },
+        C_BPartner_Location_ID: { id: parseInt(vendorLocationId) },
+        DateInvoiced: todayISO,
+        IsSOTrx:      false,
+        PaymentRule:  'P',
+        Description:  description,
+      };
+      console.log('[CashPurchase] POST /models/c_invoice — payload:', invoicePayload);
+
+      let invoiceRes;
+      try {
+        invoiceRes = await idempiereApi('/models/c_invoice', {
+          method: 'POST',
+          body: JSON.stringify(invoicePayload),
+        });
+        console.log('[CashPurchase] POST /models/c_invoice — response:', invoiceRes);
+      } catch (err) {
+        console.error('[CashPurchase] POST /models/c_invoice — GAGAL. Payload:', invoicePayload);
+        console.error('[CashPurchase] Error object lengkap:', err);
+        console.error('[CashPurchase] Error.message:', err?.message);
+        console.error('[CashPurchase] Error.response:', err?.response);
+        console.error('[CashPurchase] Error.body / Error.data:', err?.body ?? err?.data);
+        throw err;
+      }
+
       const invoiceId = fkId(invoiceRes.id) ?? invoiceRes.id ?? invoiceRes.C_Invoice_ID;
       if (!invoiceId) throw new Error('Gagal mendapatkan C_Invoice_ID.');
       created.invoiceId = invoiceId;
 
-      for (const line of poLineIds) {
+      for (const [idx, line] of poLineIds.entries()) {
         const matchedInOutLine = inOutLineIds.find(io => io.orderLineId === line.orderLineId);
-        await idempiereApi('/models/c_invoiceline', {
-          method: 'POST',
-          body: JSON.stringify({
-            AD_Org_ID:      { id: orgId },
-            C_Invoice_ID:   { id: invoiceId },
-            M_Product_ID:   { id: parseInt(line.productId) },
-            C_UOM_ID:       { id: parseInt(line.uom.C_UOM_ID) },
-            QtyInvoiced:    line.qty,
-            C_OrderLine_ID: { id: line.orderLineId },
-            ...(matchedInOutLine ? { M_InOutLine_ID: { id: matchedInOutLine.inOutLineId } } : {}),
-          }),
-        });
+        const invoiceLinePayload = {
+          AD_Org_ID:      { id: orgId },
+          C_Invoice_ID:   { id: invoiceId },
+          M_Product_ID:   { id: parseInt(line.productId) },
+          C_UOM_ID:       { id: parseInt(line.uom.C_UOM_ID) },
+          QtyEntered:     line.qtyEntered, // FIX: sebelumnya tidak dikirim sama sekali → LineNetAmt/GrandTotal kosong
+          QtyInvoiced:    line.qtyOrdered, // FIX: harus qty di UOM DASAR (= QtyEntered / MultiplyRate), bukan qty entered
+          PriceActual:    line.priceOrdered,
+          PriceEntered:   line.priceEntered,
+          C_OrderLine_ID: { id: line.orderLineId },
+          ...(matchedInOutLine ? { M_InOutLine_ID: { id: matchedInOutLine.inOutLineId } } : {}),
+        };
+        console.log(`[CashPurchase] POST /models/c_invoiceline — baris ${idx + 1}/${poLineIds.length}, payload:`, invoiceLinePayload);
+        console.log('[CashPurchase]   ↳ raw line source (dari cart/PO):', line);
+        console.log('[CashPurchase]   ↳ matchedInOutLine:', matchedInOutLine);
+
+        try {
+          const lineRes = await idempiereApi('/models/c_invoiceline', {
+            method: 'POST',
+            body: JSON.stringify(invoiceLinePayload),
+          });
+          console.log(`[CashPurchase] POST /models/c_invoiceline — baris ${idx + 1} SUKSES, response:`, lineRes);
+        } catch (err) {
+          console.error(`[CashPurchase] POST /models/c_invoiceline — baris ${idx + 1} GAGAL. Payload:`, invoiceLinePayload);
+          console.error('[CashPurchase] Error object lengkap:', err);
+          console.error('[CashPurchase] Error.message:', err?.message);
+          console.error('[CashPurchase] Error.response:', err?.response);
+          console.error('[CashPurchase] Error.body / Error.data:', err?.body ?? err?.data);
+          // Kalau idempiereApi menyimpan Response object mentah, coba baca teks-nya juga.
+          if (err?.response?.text) {
+            try { console.error('[CashPurchase] Error.response.text():', await err.response.text()); } catch { /* no-op */ }
+          }
+          throw err;
+        }
+        created.invoiceLinesCreated++; // supaya kalau gagal di baris ke-N, doneList di catch tahu berapa yang sempat masuk
       }
 
       const completedInvoice = await idempiereApi(`/models/c_invoice/${invoiceId}`, {
@@ -225,24 +324,44 @@ export function useCashPurchaseSubmit({ poDocTypeId, receiptDocTypeId, invoiceDo
       if (!invoiceGrandTotal) {
         console.warn('GrandTotal invoice tidak terbaca dari response Complete — payment mungkin perlu jumlah manual.');
       }
-     
+
       onStepUpdate?.('invoice', 'success', { id: invoiceId, documentNo: completedInvoice.DocumentNo });
+
       // ═══════════════════════════════════════════════════════════════════
-      // TAHAP 4 — Payment
+      // TAHAP 4 — Payment (pola sama dengan usePOSPaymentSubmit / AR)
       // ═══════════════════════════════════════════════════════════════════
-      setProgressStep('payment');
+      setStep('payment');
       onStepUpdate?.('payment', 'pending');
       const paymentResult = await submitPaymentAllocation(
         [{ invoiceId, grandTotal: invoiceGrandTotal }],
         { vendorId, bankAccountId, paymentTenderType }
       );
-      if (!paymentResult) throw new Error('Payment/Allocation gagal — lihat detail error sebelumnya.');
+      if (!paymentResult || !paymentResult.paymentId) {
+        throw new Error('Payment/Allocation gagal — lihat detail error sebelumnya.');
+      }
       created.paymentId = paymentResult.paymentId;
       onStepUpdate?.('payment', 'success', { id: paymentResult.paymentId, documentNo: paymentResult.documentNo });
+
       // ═══════════════════════════════════════════════════════════════════
-            
+      // TAHAP 5 — Allocation (bukan request terpisah — sudah otomatis terjadi
+      // saat Payment di-CO karena C_Invoice_ID diisi. Di sini kita cuma
+      // memverifikasi, bukan membuat, supaya baris "Allocation" di progress
+      // modal tidak berbohong kalau ternyata gagal auto-allocate).
+      // ═══════════════════════════════════════════════════════════════════
+      if (paymentResult.allocated) {
+        onStepUpdate?.('allocation', 'success', { documentNo: paymentResult.documentNo });
+      } else {
+        onStepUpdate?.('allocation', 'error', {
+          message: 'Payment sudah Complete tapi Allocation belum terverifikasi. Cek manual di window "Payment Allocation".',
+        });
+      }
+      // ═══════════════════════════════════════════════════════════════════
+
       return {
-        poId, receiptId, invoiceId, paymentId,
+        poId,
+        receiptId,
+        invoiceId,
+        paymentId: created.paymentId, // FIX: sebelumnya `paymentId` bare — tidak pernah dideklarasikan, ReferenceError
         grandTotal: invoiceGrandTotal,
         vendorName: vendorName || `#${vendorId}`,
         date: new Date().toLocaleString('id-ID'),
@@ -258,18 +377,17 @@ export function useCashPurchaseSubmit({ poDocTypeId, receiptDocTypeId, invoiceDo
         .join(', ');
 
       onError?.(
-        `Gagal pada tahap "${progressStep}": ${err.message}` +
+        `Gagal pada tahap "${currentStep}": ${err.message}` +
         (doneList ? `\n\nDokumen yang SUDAH berhasil dibuat (perlu ditindaklanjuti manual):\n${doneList}` : ''),
         'Proses Terhenti'
       );
-      onStepUpdate?.(progressStep, 'error', { message: err.message });
-      onError?.(`Gagal pada tahap "${progressStep}": ${err.message}`, 'Proses Terhenti');
+      onStepUpdate?.(currentStep, 'error', { message: err.message });
       return null;
     } finally {
       setIsSubmitting(false);
       setProgressStep(null);
     }
-  }, [poDocTypeId, receiptDocTypeId, invoiceDocTypeId, description, onError, onStepUpdate, progressStep]);
+  }, [poDocTypeId, receiptDocTypeId, invoiceDocTypeId, description, onError, onStepUpdate, submitPaymentAllocation]);
 
   return { submit, isSubmitting, progressStep };
 }

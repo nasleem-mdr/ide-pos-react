@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback} from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useLocation } from "react-router-dom";
 import { usePOSOrderSubmit }   from '@/features/sales/order/hooks/usePOSOrderSubmit';
 import { usePOSPaymentSubmit } from '@/features/sales/order/hooks/usePOSPaymentSubmit';
@@ -6,8 +6,7 @@ import { ProductCard, SearchBar, ScanIcon, ProductGrid, CartPanel, CartSidebar, 
 import { ConfirmModal, PaymentModal, ReceiptModal, CartItemPOS } from '@/features/sales/order/components';
 import { useAccess } from '@/context/AccessContext';
 import { idempiereApi, fkId, fkLabel } from '@/api/idempiereApi';
-import { useIsDesktop } from '@/shared/hooks/useIsDesktop';
-import { getLoginInfo } from '@/shared/hooks/useLoginInfo';
+import { useIsDesktop, useScannerInput, getLoginInfo } from '@/shared/hooks';
 
 const POSContainer = () => {
     // 1. State untuk kontrol Loading & Data POS
@@ -19,9 +18,9 @@ const POSContainer = () => {
     const [versionMissing, setVersionMissing]     = useState(false);
     const [bPartnerList, setBPartnerList]   = useState([]);
     const [priceListList, setPriceListList] = useState([]);
-    const [selectedBPartner, setSelectedBPartner] = useState(null); 
+    const [selectedBPartner, setSelectedBPartner] = useState(null);
     const [selectedPriceList, setSelectedPriceList] = useState(null);
-    
+
     const {
         isProcessingCheckout,
         currentOrderData,
@@ -46,58 +45,55 @@ const POSContainer = () => {
     const [hasMore, setHasMore]         = useState(true);
     const [loadingMore, setLoadingMore] = useState(false);
     const pageSize = 20;
-    
-    const DIALOG_CLOSED = { 
-        isOpen: false, 
-        mode: "alert", 
-        title: "", 
-        message: "", 
+
+    const DIALOG_CLOSED = {
+        isOpen: false,
+        mode: "alert",
+        title: "",
+        message: "",
         product: null,
-        onConfirmAction: null 
+        onConfirmAction: null
     };
     const [dialog, setDialog] = useState(DIALOG_CLOSED);
     const triggerAlert = (message, title = "Perhatian", onConfirmAction = null) => {
-    setDialog({ 
-        isOpen: true, 
-        mode: "alert", 
-        title, 
-        message, 
-        product: null,
-        onConfirmAction // ← Simpan fungsi redirect ke dashboard di sini jika ada
-    });
+        setDialog({
+            isOpen: true,
+            mode: "alert",
+            title,
+            message,
+            product: null,
+            onConfirmAction // ← Simpan fungsi redirect ke dashboard di sini jika ada
+        });
     };
 
     const triggerConfirm = (product) => {
-    setDialog({
-        isOpen:  true,
-        mode:    "confirm",
-        title:   "Produk Tanpa Harga",
-        message: null,
-        product,
-          onConfirmAction: null // ← Untuk konfirmasi produk biasa, kosongkan saja
-    });
+        setDialog({
+            isOpen:  true,
+            mode:    "confirm",
+            title:   "Produk Tanpa Harga",
+            message: null,
+            product,
+            onConfirmAction: null // ← Untuk konfirmasi produk biasa, kosongkan saja
+        });
     };
 
     const closeDialog = () => setDialog(DIALOG_CLOSED);
-    
-    const debounceRef = useRef(null);
+
     const uomCacheRef = useRef({});
-    const searchRef   = useRef(null);   
-    const [searchValue, setSearchValue] = useState(""); 
+
     // ─── 1. Init (mengambil data C_POS) ──────────────────────────────────────
     useEffect(() => {
         const initPOS = async () => {
             try {
-                
                 const { userId: loginUserId, orgId } = getLoginInfo();
-        
+
                 if (!loginUserId) { triggerAlert("Sesi user tidak ditemukan."); setLoading(false); return; }
                 if (!orgId) { triggerAlert("Organisasi aktif tidak ditemukan di sesi login. Coba login ulang."); setLoading(false); return; }
-        
+
                 const data = await idempiereApi(
                     `/models/c_pos?$filter=SalesRep_ID eq ${loginUserId} and AD_Org_ID eq ${orgId}`
                 );
-        
+
                 if (data?.records?.length > 0) {
                     const terminalConfig = data.records[0];
                     setPosConfig(terminalConfig);
@@ -135,45 +131,40 @@ const POSContainer = () => {
                 setLoading(false);
             }
         };
-        //initPOS();
         initPOS().catch((err) => {
-        if (err?.name === 'AbortError') return; // abaikan, ini normal (StrictMode dev / unmount)
-        console.error("initPOS gagal:", err.message);
-    });
+            if (err?.name === 'AbortError') return; // abaikan, ini normal (StrictMode dev / unmount)
+            console.error("initPOS gagal:", err.message);
+        });
     }, []);
+
     // ─── Load draft order jika dari SalesOrderPage ────────────────────────────
     useEffect(() => {
-        // Tunggu posConfig selesai dimuat dulu
         if (!posConfig) return;
-    
+
         const editOrder = location.state?.editOrder;
         if (!editOrder) return;
-    
+
         const loadDraftOrder = async () => {
             try {
                 setLoading(true);
                 const orderId = editOrder.id ?? editOrder.C_Order_ID;
                 setEditOrderId(orderId);
                 setIsEditMode(true);
-    
-                // Override BPartner dari order
+
                 const bpId   = editOrder.C_BPartner_ID?.id ?? editOrder.C_BPartner_ID;
                 const bpName = editOrder.C_BPartner_ID?.identifier || editOrder.C_BPartner_ID?.Name || `BPartner #${bpId}`;
                 if (bpId) setSelectedBPartner({ id: bpId, name: bpName });
-    
-                // Override PriceList dari order
+
                 const plId   = editOrder.M_PriceList_ID?.id ?? editOrder.M_PriceList_ID;
                 const plName = editOrder.M_PriceList_ID?.identifier || `PriceList #${plId}`;
                 if (plId) setSelectedPriceList({ id: plId, name: plName });
-    
-                // Fetch order lines
+
                 const linesRes = await idempiereApi(
                     `/models/c_orderline?$filter=C_Order_ID eq ${orderId}` +
                     `&$select=C_OrderLine_ID,M_Product_ID,QtyEntered,PriceActual,PriceEntered,C_UOM_ID`
                 );
                 const lines = Array.isArray(linesRes.records) ? linesRes.records : [];
-    
-                // Mapping lines ke format cart
+
                 const cartItems = lines.map((line) => {
                     const productId   = line.M_Product_ID?.id   ?? line.M_Product_ID;
                     const productName = line.M_Product_ID?.identifier || line.M_Product_ID?.Name || `Product #${productId}`;
@@ -182,46 +173,38 @@ const POSContainer = () => {
                     const price       = parseFloat(line.PriceActual || line.PriceEntered || 0);
                     const qty         = parseFloat(line.QtyEntered || 1);
                     const lineId      = line.id ?? line.C_OrderLine_ID;
-    
+
                     const selectedUOM = { id: uomId, name: uomName, multiplyRate: 1 };
-                    
+
                     return {
-                        C_OrderLine_ID: lineId,   
+                        C_OrderLine_ID: lineId,
                         M_Product_ID:   productId,
                         Name:           productName,
                         Value:          "",
                         PriceEntered:    price,
                         basePrice:      price,
-                        Qty:            qty,   
+                        Qty:            qty,
                         QtyEntered:     qty,
                         defaultUOM:     selectedUOM,
                         uomOptions:     [selectedUOM],
                         selectedUOM,
                     };
                 });
-    
+
                 setCart(cartItems);
-    
+
             } catch (err) {
                 console.error("Gagal load draft order:", err.message);
             } finally {
                 setLoading(false);
             }
         };
-    
-        //loadDraftOrder();
+
         loadDraftOrder().catch((err) => {
             if (err?.name === 'AbortError') return;
             console.error("Gagal load draft order:", err.message);
         });
     }, [posConfig]); // ← trigger setelah posConfig ready
-    
-    useEffect(() => {
-        return () => {
-            clearTimeout(debounceRef.current);
-            abortRef.current?.abort();
-        };
-    }, []);
 
     // ─── 1b. Fetch opsi BPartner untuk combobox ──────────────────────────────
     const fetchBPartnerOptions = async () => {
@@ -281,6 +264,7 @@ const POSContainer = () => {
             if (err?.name !== 'AbortError') console.error(err);
         }
     };
+
     // Ambil M_PriceList_Version_ID aktif dari sebuah price list
     const fetchActiveVersionId = async (priceListId, signal) => {
         const versionRes = await idempiereApi(
@@ -293,90 +277,172 @@ const POSContainer = () => {
             || versionRes?.records?.[0]?.M_PriceList_Version_ID
             || null;
     };
-    const handleBarcodeDetected = async (code) => {
+
+    // Ambil priceListId aktif (helper internal)
+    const getActivePriceListId = () =>
+        selectedPriceList?.id || posConfig?.M_PriceList_ID?.id || posConfig?.M_PriceList_ID;
+
+    // 7a. Fetch produk by barcode — cari exact match di field Value (SKU/barcode iDempiere)
+    const fetchProductByBarcode = async (barcode) => {
+        const priceListId = getActivePriceListId();
+        if (!priceListId) return null;
+
+        const versionId = await fetchActiveVersionId(priceListId);
+        if (!versionId) return null;
+
+        const safeBarcode = barcode.replace(/'/g, "''").toUpperCase();
+        const productRes  = await idempiereApi(
+            `/models/m_product?$select=M_Product_ID,Name,Value,UPC,ProductType,C_UOM_ID` +
+            `&$filter=IsSold eq true and IsActive eq true and ` +
+            `(toupper(Value) eq '${safeBarcode}' or toupper(UPC) eq '${safeBarcode}')&$top=1`
+        );
+        const productRec = productRes?.records?.[0];
+        if (!productRec) return null;
+        const pId = productRec.M_Product_ID?.id ?? productRec.M_Product_ID ?? productRec.id;
+
+        const priceRes = await idempiereApi(
+            `/models/m_productprice?$filter=M_PriceList_Version_ID eq ${versionId} and M_Product_ID eq ${pId}&$select=M_Product_ID,PriceStd&$top=1`
+        );
+        const priceRec = priceRes?.records?.[0];
+
+        const defaultUOM = {
+            id:           productRec.C_UOM_ID?.id ?? productRec.C_UOM_ID,
+            name:         productRec.C_UOM_ID?.Name || productRec.C_UOM_ID?.identifier || 'EA',
+            multiplyRate: 1,
+        };
+
+        return {
+            M_Product_ID: pId,
+            Name:         productRec.Name,
+            Value:        productRec.Value,
+            UPC:          productRec.UPC,
+            PriceActual:  priceRec?.PriceStd ?? 0,
+            basePrice:    priceRec?.PriceStd ?? 0,
+            ProductType:  productRec.ProductType?.id ?? productRec.ProductType ?? null,
+            defaultUOM,
+        };
+    };
+
+    // ── Search + Scan unified (pola sama seperti RequisitionContainer) ──
+    const {
+        value: searchInput,
+        inputRef: scanInputRef,
+        handleChange: handleSearchInputChange,
+        handleKeyDown: handleSearchKeyDown,
+        reset: resetSearchInput,
+    } = useScannerInput({
+        onScanDetected: (code) => handleBarcodeDetectedRef.current(code), // via ref, hindari TDZ
+        onManualSearch: (value) => {
+            setOffset(0);
+            fetchProducts(value, getActivePriceListId(), null, 'replace', 0)
+                .catch((err) => { if (err?.name !== 'AbortError') console.error(err); });
+        },
+    });
+
+    const handleBarcodeDetected = useCallback(async (code) => {
         setScannerOpen(false);
+        const trimmed = code.trim();
+        if (!trimmed) return;
+
+        const priceListId = getActivePriceListId();
+
         try {
-            const found = await fetchProductByBarcode(code);
-            if (found) {
-                await addToCart(found);   // addToCart POS hanya terima 1 arg, beda dari RequisitionContainer
-                setSearchValue("");
-            } else {
-                // Tidak exact match — fallback ke pencarian teks, biar user bisa pilih dari grid
-                setSearchValue(code);
+            // Langkah 1: exact match barcode/SKU (field Value)
+            const barcodeProduct = await fetchProductByBarcode(trimmed);
+            if (barcodeProduct) {
+                await addToCart(barcodeProduct);   // sudah otomatis nambah qty kalau produk sama
+                resetSearchInput();
                 setOffset(0);
-                await fetchProducts(code, getActivePriceListId(), null, "replace", 0);
+                await fetchProducts('', priceListId, null, 'replace', 0); // reset grid ke tampilan normal
+                scanInputRef.current?.focus();
+                return;
             }
+
+            // Langkah 2: tidak exact match → fallback filter teks, biarkan input tetap terisi
+            setOffset(0);
+            await fetchProducts(trimmed, priceListId, null, 'replace', 0);
         } catch (err) {
             if (err?.name === 'AbortError') return;
-            console.error("Gagal proses barcode:", err.message);
-            triggerAlert("Gagal memproses barcode: " + err.message, "Error");
+            console.error('Gagal proses barcode:', err.message);
+            triggerAlert('Gagal memproses barcode: ' + err.message, 'Error');
         }
-    };
+        // ⬇️ FIX: `cart` ditambahkan — addToCart membaca `cart` lewat closure untuk
+        // menentukan existingIndex (nambah qty vs item baru). Tanpa `cart` di deps,
+        // handleBarcodeDetected bisa memakai versi `addToCart` yang basi saat scan
+        // berturut-turut, berisiko qty tidak ter-update dengan benar.
+    }, [cart, selectedPriceList, posConfig, resetSearchInput]);
+
+    // ref jembatan — sama persis pola di RequisitionContainer
+    const handleBarcodeDetectedRef = useRef(handleBarcodeDetected);
+    useEffect(() => {
+        handleBarcodeDetectedRef.current = handleBarcodeDetected;
+    }, [handleBarcodeDetected]);
+
     // Ambil produk + harga + stok berdasarkan filter & version yang sudah diketahui.
-    // Dipakai oleh fetchProducts (grid awal/search debounce) dan handleSearchEnter (barcode/Enter).
     const resolveProducts = async (productFilter, versionId, config, signal, top = 20, skip = 0) => {
-    const [priceData, productData] = await Promise.all([
-        idempiereApi(
-            `/models/m_productprice?$filter=M_PriceList_Version_ID eq ${versionId}` +
-            `&$select=M_Product_ID,PriceStd`,
-            { signal }
-        ),
-        idempiereApi(
-            `/models/m_product?$select=M_Product_ID,Name,Value,C_UOM_ID,M_Product_Category_ID,ProductType` +
-            `&$filter=${productFilter}&$top=${top}&$skip=${skip}`,
-            { signal }
-        ),
-    ]);
+        const [priceData, productData] = await Promise.all([
+            idempiereApi(
+                `/models/m_productprice?$filter=M_PriceList_Version_ID eq ${versionId}` +
+                `&$select=M_Product_ID,PriceStd`,
+                { signal }
+            ),
+            idempiereApi(
+                `/models/m_product?$select=M_Product_ID,Name,Value,UPC,C_UOM_ID,M_Product_Category_ID,ProductType` +
+                `&$filter=${productFilter}&$top=${top}&$skip=${skip}`,
+                { signal }
+            ),
+        ]);
 
-    const productRecords = Array.isArray(productData.records)
-        ? productData.records
-        : productData.records ? [productData.records] : [];
-        
-    const relevantIds = new Set(productRecords.map(p => p.M_Product_ID?.id ?? p.M_Product_ID ?? p.id));
-    const rawPriceRecords = Array.isArray(priceData.records)
-        ? priceData.records
-        : priceData.records ? [priceData.records] : [];
+        const productRecords = Array.isArray(productData.records)
+            ? productData.records
+            : productData.records ? [productData.records] : [];
 
-    const priceMap = new Map();
-    rawPriceRecords
-        .filter(p => relevantIds.has(p.M_Product_ID?.id ?? p.M_Product_ID))
-        .forEach(p => {
-            const pid = p.M_Product_ID?.id ?? p.M_Product_ID;
-            if (pid != null) priceMap.set(pid, p.PriceStd);
-        });
+        const relevantIds = new Set(productRecords.map(p => p.M_Product_ID?.id ?? p.M_Product_ID ?? p.id));
+        const rawPriceRecords = Array.isArray(priceData.records)
+            ? priceData.records
+            : priceData.records ? [priceData.records] : [];
 
-    const productIds   = [...relevantIds];
-    const qtyOnHandMap = await fetchQtyOnHandBatch(productIds, config);
+        const priceMap = new Map();
+        rawPriceRecords
+            .filter(p => relevantIds.has(p.M_Product_ID?.id ?? p.M_Product_ID))
+            .forEach(p => {
+                const pid = p.M_Product_ID?.id ?? p.M_Product_ID;
+                if (pid != null) priceMap.set(pid, p.PriceStd);
+            });
 
-    const list = productRecords.map((p) => {
-        const pId  = p.M_Product_ID?.id ?? p.M_Product_ID ?? p.id;
-        const price = priceMap.get(pId);
-        if (price === undefined) return null;
-        const uomName = p.C_UOM_ID?.Name || p.C_UOM_ID?.identifier || 'EA';
-    
-        return {
-            M_Product_ID:    pId,
-            Name:            p.Name,
-            Value:           p.Value,
-            PriceActual:     price ?? 0,
-            basePrice:       price ?? 0,
-            C_UOM_Name:      uomName,
-            defaultUOM: {
-                id:           p.C_UOM_ID?.id ?? p.C_UOM_ID,
-                name:         uomName,
-                multiplyRate: 1,
-            },
-            ProductCategory: {
-                id:   p.M_Product_Category_ID?.id ?? p.M_Product_Category_ID,
-                name: p.M_Product_Category_ID?.Name || p.M_Product_Category_ID?.identifier || 'N/A',
-            },
-            ProductType:  p.ProductType?.id ?? p.ProductType ?? null,
-            QtyOnHand:    qtyOnHandMap.get(pId) ?? 0,
-        };
-    }).filter(Boolean);
+        const productIds   = [...relevantIds];
+        const qtyOnHandMap = await fetchQtyOnHandBatch(productIds, config);
 
-    return { list, count: productRecords.length };
-};
+        const list = productRecords.map((p) => {
+            const pId  = p.M_Product_ID?.id ?? p.M_Product_ID ?? p.id;
+            const price = priceMap.get(pId);
+            if (price === undefined) return null;
+            const uomName = p.C_UOM_ID?.Name || p.C_UOM_ID?.identifier || 'EA';
+
+            return {
+                M_Product_ID:    pId,
+                Name:            p.Name,
+                Value:           p.Value,
+                PriceActual:     price ?? 0,
+                basePrice:       price ?? 0,
+                C_UOM_Name:      uomName,
+                defaultUOM: {
+                    id:           p.C_UOM_ID?.id ?? p.C_UOM_ID,
+                    name:         uomName,
+                    multiplyRate: 1,
+                },
+                ProductCategory: {
+                    id:   p.M_Product_Category_ID?.id ?? p.M_Product_Category_ID,
+                    name: p.M_Product_Category_ID?.Name || p.M_Product_Category_ID?.identifier || 'N/A',
+                },
+                ProductType:  p.ProductType?.id ?? p.ProductType ?? null,
+                QtyOnHand:    qtyOnHandMap.get(pId) ?? 0,
+            };
+        }).filter(Boolean);
+
+        return { list, count: productRecords.length };
+    };
+
     // ─── 2. Fetch products ────────────────────────────────────────────────────
     const isDesktop = useIsDesktop();
     const abortRef = useRef(null);
@@ -410,16 +476,9 @@ const POSContainer = () => {
             let productFilter = "IsSold eq true and IsActive eq true";
             if (query) {
                 const safeQuery = query.toUpperCase().replace(/'/g, "''");
-                productFilter += ` and (contains(toupper(Name),'${safeQuery}') or contains(toupper(Value),'${safeQuery}'))`;
+                productFilter += ` and (contains(toupper(Name),'${safeQuery}') or contains(toupper(Value),'${safeQuery}') or contains(toupper(UPC),'${safeQuery}'))`;
             }
 
-            // FIX: filter harga (M_ProductPrice) jalan di CLIENT setelah $skip/$top
-            // di SERVER — satu halaman mentah bisa kebetulan 0 hasil (semua produk
-            // belum ada harga di version ini) walau count raw = pageSize (masih
-            // ada halaman berikutnya). Kalau langsung berhenti, sentinel infinite-
-            // scroll tidak akan bergerak & observer TIDAK retrigger otomatis
-            // (intersection ratio-nya tidak berubah) — grid macet kosong selamanya.
-            // Jadi loop di sini sampai dapat produk, atau server benar-benar habis.
             let skip = currentOffset;
             let collected = [];
             let serverExhausted = false;
@@ -437,7 +496,7 @@ const POSContainer = () => {
                 console.warn(`[POS] ${MAX_SCAN_ROUNDS * pageSize} produk di-scan tanpa hasil — mayoritas produk mungkin belum punya M_ProductPrice di version ${versionId}.`);
             }
 
-            setOffset(skip); // simpan skip absolut terakhir yang sudah difetch, bukan currentOffset+pageSize
+            setOffset(skip);
             setProducts(prev => mode === "append" ? [...prev, ...collected] : collected);
             setHasMore(!serverExhausted);
         } catch (err) {
@@ -451,37 +510,31 @@ const POSContainer = () => {
     };
 
     const loadMore = useCallback(() => {
-        // FIX: offset sekarang sudah merepresentasikan skip absolut terakhir
-        // (di-update oleh fetchProducts sendiri di akhir loop-nya), jadi TIDAK
-        // perlu ditambah pageSize lagi di sini — cukup lanjut dari situ.
-        fetchProducts(searchValue, getActivePriceListId(), null, "append", offset)
+        fetchProducts(searchInput, getActivePriceListId(), null, "append", offset)
             .catch((err) => {
                 if (err?.name !== 'AbortError') console.error("loadMore gagal:", err.message);
             });
-    }, [offset, searchValue, selectedPriceList, posConfig]);
+    }, [offset, searchInput, selectedPriceList, posConfig]);
 
     // ─── 3a. Fetch UOM options untuk satu produk ───────────────────────────────
     const fetchUOMOptions = async (product) => {
         const productId = product.M_Product_ID;
-        
+
         if (uomCacheRef.current[productId]) {
             return uomCacheRef.current[productId];
         }
-    
-        // Object produk di POSContainer (dari resolveProducts, fetchProductByBarcode,
-        // maupun draft order loader) SUDAH punya field `defaultUOM` flat — TIDAK
-        // perlu fkId() di sini, karena bukan C_UOM_ID FK mentah dari API.
+
         const defaultUomId   = product.defaultUOM?.id ?? null;
         const defaultUomName = product.defaultUOM?.name || 'EA';
         const defaultOption  = { id: defaultUomId, name: defaultUomName, multiplyRate: 1 };
-    
+
         if (!defaultUomId) {
             uomCacheRef.current[productId] = [defaultOption];
             return [defaultOption];
         }
-    
+
         const options = [defaultOption];
-    
+
         const buildOptions = (records) => {
             records.forEach(conv => {
                 const toId   = conv.C_UOM_To_ID?.id  ?? conv.C_UOM_To_ID;
@@ -492,7 +545,7 @@ const POSContainer = () => {
                 }
             });
         };
-    
+
         try {
             const resProduct = await idempiereApi(
                 `/models/c_uom_conversion?$filter=C_UOM_ID eq ${defaultUomId} and M_Product_ID eq ${productId} and IsActive eq true&$select=C_UOM_ID,C_UOM_To_ID,MultiplyRate,M_Product_ID`
@@ -501,7 +554,7 @@ const POSContainer = () => {
         } catch (err) {
             console.warn("Gagal fetch UOM spesifik produk", productId, err.message);
         }
-    
+
         try {
             const resGlobal = await idempiereApi(
                 `/models/c_uom_conversion?$filter=C_UOM_ID eq ${defaultUomId} and IsActive eq true&$select=C_UOM_ID,C_UOM_To_ID,MultiplyRate,M_Product_ID&$top=50`
@@ -512,68 +565,57 @@ const POSContainer = () => {
         } catch (err) {
             console.warn("Gagal fetch UOM global untuk UOM", defaultUomId, err.message);
         }
-    
+
         uomCacheRef.current[productId] = options;
         return options;
     };
 
-     // ─── 3b. Fetch QtyOnHand dari M_StorageOnHand ────────────────────────────
+    // ─── 3b. Fetch QtyOnHand dari M_StorageOnHand ────────────────────────────
+    const fetchQtyOnHandBatch = async (productIds, config) => {
+        const cfg         = config || posConfig;
+        const warehouseId = cfg?.M_Warehouse_ID?.id ?? cfg?.M_Warehouse_ID;
+        if (!warehouseId || productIds.length === 0) return new Map();
 
-  const fetchQtyOnHandBatch = async (productIds, config) => {
-    const cfg         = config || posConfig;
-    const warehouseId = cfg?.M_Warehouse_ID?.id ?? cfg?.M_Warehouse_ID;
-    if (!warehouseId || productIds.length === 0) return new Map();
+        try {
+            const locatorRes = await idempiereApi(
+                `/models/m_locator?$filter=M_Warehouse_ID eq ${warehouseId} and IsActive eq true&$select=M_Locator_ID`
+            );
+            const locatorIds = (locatorRes.records || [])
+                .map(l => l.id ?? l.M_Locator_ID)
+                .filter(Boolean);
+            if (locatorIds.length === 0) return new Map();
 
-    try {
-        // Step 1: ambil semua locator milik warehouse ini
-        const locatorRes = await idempiereApi(
-            `/models/m_locator?$filter=M_Warehouse_ID eq ${warehouseId} and IsActive eq true&$select=M_Locator_ID`
-        );
-        const locatorIds = (locatorRes.records || [])
-            .map(l => l.id ?? l.M_Locator_ID)
-            .filter(Boolean);
-        if (locatorIds.length === 0) return new Map();
+            const productOrClause = productIds.map(pid => `M_Product_ID eq ${pid}`).join(' or ');
+            const locatorOrClause = locatorIds.map(lid => `M_Locator_ID eq ${lid}`).join(' or ');
+            const filter = `(${locatorOrClause}) and IsActive eq true and (${productOrClause})`;
 
-        // Step 2: fetch storage berdasarkan locator + produk
-        const productOrClause = productIds.map(pid => `M_Product_ID eq ${pid}`).join(' or ');
-        const locatorOrClause = locatorIds.map(lid => `M_Locator_ID eq ${lid}`).join(' or ');
-        const filter = `(${locatorOrClause}) and IsActive eq true and (${productOrClause})`;
-
-        const res = await idempiereApi(
-            `/models/m_storage?$filter=${filter}&$select=M_Product_ID,QtyOnHand`
-        );
-        const map = new Map();
-        (res.records || []).forEach(r => {
-            const pid = r.M_Product_ID?.id ?? r.M_Product_ID;
-            map.set(pid, (map.get(pid) ?? 0) + parseFloat(r.QtyOnHand || 0));
-        });
-        return map;
-    } catch (err) {
-        if (err.name === 'AbortError') return new Map();
-        console.error("Gagal fetch QtyOnHand batch:", err.message);
-        return new Map();
-    }
-};
+            const res = await idempiereApi(
+                `/models/m_storage?$filter=${filter}&$select=M_Product_ID,QtyOnHand`
+            );
+            const map = new Map();
+            (res.records || []).forEach(r => {
+                const pid = r.M_Product_ID?.id ?? r.M_Product_ID;
+                map.set(pid, (map.get(pid) ?? 0) + parseFloat(r.QtyOnHand || 0));
+            });
+            return map;
+        } catch (err) {
+            if (err.name === 'AbortError') return new Map();
+            console.error("Gagal fetch QtyOnHand batch:", err.message);
+            return new Map();
+        }
+    };
 
     const addToCart = async (product) => {
-        // Flag untuk mendeteksi apakah produk berupa Jasa/Service ('S')
         const productTypeId = product.ProductType?.id ?? product.ProductType;
         const isService = productTypeId === 'S';
-                
+
         let qtyOnHand = 0;
-    
-        // 1. Ambil nilai akumulasi stok terbaru HANYA jika BUKAN produk Jasa
+
         if (!isService) {
-            // Ambil ID produk (antisipasi jika berupa objek atau langsung ID)
             const productId = product.M_Product_ID?.id ?? product.M_Product_ID;
-            
-            // Panggil fungsi batch dengan membungkus ID ke dalam array [productId]
             const stockMap = await fetchQtyOnHandBatch([productId]);
-            
-            // Ambil nilai dari Map, jika tidak ada set ke 0
             qtyOnHand = stockMap.get(productId) ?? 0;
-    
-            // 2. Validasi awal jika stok benar-benar kosong atau minus
+
             if (qtyOnHand <= 0) {
                 triggerAlert(
                     `Stok produk "${product.Name}" habis (QtyOnHand = ${qtyOnHand}). Produk tidak dapat ditambahkan ke keranjang.`,
@@ -582,13 +624,11 @@ const POSContainer = () => {
                 return;
             }
         }
-    
-        // 3. Hitung jumlah item yang akan dipesan (Akan bertambah 1)
+
         const existingIndex = cart.findIndex(item => item.M_Product_ID === product.M_Product_ID);
         const existingQty = existingIndex >= 0 ? cart[existingIndex].Qty : 0;
         const targetQty = existingQty + 1;
-    
-        // 4. Validasi batas stok HANYA jika BUKAN produk Jasa
+
         if (!isService && targetQty > qtyOnHand) {
             triggerAlert(
                 `Stok "${product.Name}" tidak mencukupi. Tersedia: ${qtyOnHand}, di keranjang: ${existingQty}.`,
@@ -596,19 +636,15 @@ const POSContainer = () => {
             );
             return;
         }
-    
-        // 5. Interupsi jika harga produk belum ditentukan
+
         if (product.PriceActual === 0) {
             triggerConfirm(product);
             return;
         }
-    
-        // 6. Ambil data satuan unit (UOM)
-        const uomOptions  = await fetchUOMOptions(product);
 
+        const uomOptions  = await fetchUOMOptions(product);
         const selectedUOM = uomOptions[0];
-    
-        // 7. Perbarui State Cart
+
         if (existingIndex >= 0) {
             setCart(prev => prev.map((item, i) =>
                 i === existingIndex
@@ -619,7 +655,7 @@ const POSContainer = () => {
             setCart(prev => [...prev, {
                 ...product,
                 Qty:  1,
-                PriceEntered: product.PriceActual,  // harga per base UOM (default UOM, multiplyRate=1)
+                PriceEntered: product.PriceActual,
                 basePrice:    product.PriceActual,
                 uomOptions,
                 selectedUOM,
@@ -650,34 +686,34 @@ const POSContainer = () => {
     const calculateTotal = () => cart.reduce((s, i) => s + (i.PriceEntered * i.Qty), 0);
 
     const updateCartQty = (productId, rawQty) => {
-    const newQty = parseFloat(rawQty);
-    if (isNaN(newQty)) return;
+        const newQty = parseFloat(rawQty);
+        if (isNaN(newQty)) return;
 
-    setCart(prev => {
-        const item = prev.find(i => i.M_Product_ID === productId);
-        if (!item) return prev;
-        if (!item.isService) {
-            const multiplyRate  = item.selectedUOM?.multiplyRate || 1;
-            const qtyOnHandBase = item.QtyOnHand ?? Infinity;
-            const qtyOrderedBase = newQty * multiplyRate;
-      
-            if (qtyOrderedBase > qtyOnHandBase) {
-              setTimeout(() => {
-                triggerAlert(
-                  `Kuantitas melebihi stok untuk "${item.Name}". Stok tersedia: ${qtyOnHandBase} ` +
-                  `(setara ${(qtyOnHandBase / multiplyRate).toFixed(2)} ${item.selectedUOM?.name || ''}).`,
-                  "Stok Tidak Cukup"
-                );
-              }, 0);
-              return prev;
+        setCart(prev => {
+            const item = prev.find(i => i.M_Product_ID === productId);
+            if (!item) return prev;
+            if (!item.isService) {
+                const multiplyRate  = item.selectedUOM?.multiplyRate || 1;
+                const qtyOnHandBase = item.QtyOnHand ?? Infinity;
+                const qtyOrderedBase = newQty * multiplyRate;
+
+                if (qtyOrderedBase > qtyOnHandBase) {
+                    setTimeout(() => {
+                        triggerAlert(
+                            `Kuantitas melebihi stok untuk "${item.Name}". Stok tersedia: ${qtyOnHandBase} ` +
+                            `(setara ${(qtyOnHandBase / multiplyRate).toFixed(2)} ${item.selectedUOM?.name || ''}).`,
+                            "Stok Tidak Cukup"
+                        );
+                    }, 0);
+                    return prev;
+                }
             }
-          }
-      
-          if (newQty <= 0) return prev.filter(i => i.M_Product_ID !== productId);
-      
-          return prev.map(i => i.M_Product_ID === productId ? { ...i, Qty: newQty } : i);
+
+            if (newQty <= 0) return prev.filter(i => i.M_Product_ID !== productId);
+
+            return prev.map(i => i.M_Product_ID === productId ? { ...i, Qty: newQty } : i);
         });
-};
+    };
 
     const updateCartPrice = (id, value) => {
         const price = parseFloat(value);
@@ -696,226 +732,13 @@ const POSContainer = () => {
         }));
     };
 
-    // ─── 7. Search ────────────────────────────────────────────────────────────
+    const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+    const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
+    const [receiptData, setReceiptData]               = useState(null);
 
-    // Ambil priceListId aktif (helper internal)
-    const getActivePriceListId = () =>
-        selectedPriceList?.id || posConfig?.M_PriceList_ID?.id || posConfig?.M_PriceList_ID;
-
-    // 7a. Fetch produk by barcode — cari exact match di field Value (SKU/barcode iDempiere)
-    //     Juga coba field UPC/EAN jika tersedia (m_product_gtin atau field UPC).
-    const fetchProductByBarcode = async (barcode) => {
-    const priceListId = getActivePriceListId();
-    if (!priceListId) return null;
-
-    const versionId = await fetchActiveVersionId(priceListId); // ⬅️ reuse helper juga di sini
-
-    if (!versionId) return null;
-
-    const safeBarcode = barcode.replace(/'/g, "''");
-    const productRes  = await idempiereApi(
-        `/models/m_product?$select=M_Product_ID,Name,Value,ProductType,C_UOM_ID&$filter=IsSold eq true and IsActive eq true and toupper(Value) eq '${safeBarcode.toUpperCase()}'&$top=1`
-    );
-    const productRec = productRes?.records?.[0];
-    if (!productRec) return null;
-
-    const pId = productRec.M_Product_ID?.id ?? productRec.M_Product_ID ?? productRec.id;
-
-    const priceRes = await idempiereApi(
-        `/models/m_productprice?$filter=M_PriceList_Version_ID eq ${versionId} and M_Product_ID eq ${pId}&$select=M_Product_ID,PriceStd&$top=1`
-    );
-    const priceRec = priceRes?.records?.[0];
-
-    const defaultUOM = {
-        id:           productRec.C_UOM_ID?.id ?? productRec.C_UOM_ID,
-        name:         productRec.C_UOM_ID?.Name || productRec.C_UOM_ID?.identifier || 'EA',
-        multiplyRate: 1,
-    };
-
-    return {
-        M_Product_ID: pId,
-        Name:         productRec.Name,
-        Value:        productRec.Value,
-        PriceActual:  priceRec?.PriceStd ?? 0,
-        basePrice:    priceRec?.PriceStd ?? 0,
-        ProductType:  productRec.ProductType?.id ?? productRec.ProductType ?? null, // ⬅️ ikut ditambahkan, sebelumnya hilang juga di sini
-        defaultUOM,
-    };
-};
-
-    // 7b. onChange — debounce biasa untuk pencarian teks (ketik manual)
-    const handleSearchChange = (e) => {
-        const val = e.target.value;
-        setSearchValue(val);
-        clearTimeout(debounceRef.current);
-        debounceRef.current = setTimeout(() => {
-            fetchProducts(val, getActivePriceListId());
-        }, 400);
-    };
-
-    // 7c. onKeyDown — deteksi Enter untuk barcode scanner maupun keyboard manual
-    //     Alur:
-    //       1. Coba exact match barcode (field Value) — cocok untuk scan barcode fisik
-    //       2. Jika tidak ketemu, fetch pencarian teks (Name/Value contains)
-    //       3. Tepat 1 hasil → auto addToCart + reset input (fokus kembali ke search)
-    //       4. > 1 hasil    → tampilkan di grid, biarkan user pilih
-    //       5. 0 hasil      → alert "tidak ditemukan"
-    const handleSearchEnter = async (e) => {
-    if (e.key !== "Enter") return;
-    e.preventDefault();
-
-    const val = searchValue.trim();
-    if (!val) return;
-
-    clearTimeout(debounceRef.current);
-    const priceListId = getActivePriceListId();
-
-    const resetSearch = () => {
-        setSearchValue("");
-        setOffset(0);
-        fetchProducts("", priceListId, null, "replace", 0).catch((err) => {
-            if (err?.name !== 'AbortError') console.error(err);
-        });
-        setTimeout(() => searchRef.current?.focus(), 50);
-    };
-
-    try {
-        // ── Langkah 1: barcode exact match ───────────────────────────────
-        const barcodeProduct = await fetchProductByBarcode(val);
-        if (barcodeProduct) {
-            await addToCart(barcodeProduct);
-            resetSearch();
-            return;
-        }
-
-        // ── Langkah 2: fetch pencarian teks — reuse helper yang sama ──────
-        const versionId = await fetchActiveVersionId(priceListId);
-        if (!versionId) {
-            triggerAlert("Price List version tidak ditemukan.", "Error");
-            return;
-        }
-
-        const safeQuery = val.toUpperCase().replace(/'/g, "''");
-        const productFilter =
-            `IsSold eq true and IsActive eq true and ` +
-            `(contains(toupper(Name),'${safeQuery}') or contains(toupper(Value),'${safeQuery}'))`;
-
-        const matched = await resolveProducts(productFilter, versionId, posConfig);
-
-        // ── Langkah 3: keputusan berdasarkan jumlah hasil ─────────────────
-        if (matched.length === 1) {
-            await addToCart(matched[0]);
-            resetSearch();
-        } else if (matched.length === 0) {
-            triggerAlert(`Produk "${val}" tidak ditemukan di Price List aktif.`, "Tidak Ditemukan");
-        } else {
-            setProducts(matched.list ?? matched); // sesuaikan kalau resolveProducts dipanggil dengan default top/skip di sini
-            setHasMore(false);
-        }
-
-    } catch (err) {
-        console.error("handleSearchEnter error:", err.message);
-        triggerAlert("Gagal mencari produk: " + err.message, "Error");
-    }
-};
-
-    // ─── 8. Prepare payload ───────────────────────────────────────────────────
-    // const preparePayloadForIdempiere = () => {
-    //     if (!posConfig) throw new Error("Konfigurasi C_POS belum dimuat.");
-
-    //     const extractId = (field) => {
-    //         const extracted = field?.id?.id ?? field?.id ?? (typeof field === 'number' ? field : undefined);
-    //         const parsed = parseInt(extracted);
-    //         return isNaN(parsed) ? null : parsed;
-    //     };
-
-    //     const toIdMurni = (field, name) => {
-    //         const result = extractId(field);
-    //         if (result === null) {
-    //             console.warn(`Peringatan: Field ${name} tidak memiliki ID numerik valid.`, field);
-    //         }
-    //         return result;
-    //     };
-
-    //     const adClientId  = toIdMurni(posConfig.AD_Client_ID, "AD_Client_ID");
-    //     const adOrgId     = toIdMurni(posConfig.AD_Org_ID, "AD_Org_ID");
-    //     const bPartnerId  = selectedBPartner?.id ?? toIdMurni(posConfig.C_BPartner_ID, "C_BPartner_ID");
-    //     const warehouseId = toIdMurni(posConfig.M_Warehouse_ID, "M_Warehouse_ID");
-    //     const docTypeId   = toIdMurni(posConfig.C_DocType_ID, "C_DocType_ID");
-    //     const priceListId = selectedPriceList?.id ?? toIdMurni(posConfig.M_PriceList_ID, "M_PriceList_ID");
-    //     const salesRepId  = toIdMurni(posConfig.SalesRep_ID, "SalesRep_ID");
-
-    //     // FIX: posConfig.id adalah sumber ID terminal POS yang valid (posConfig.C_POS_ID = undefined)
-    //     const posId = extractId(posConfig.id)
-    //                ?? extractId(posConfig.C_POS_ID)
-    //                ?? extractId(posConfig);
-
-    //     if (!bPartnerId)  throw new Error("C_BPartner_ID tidak valid. Isi field Business Partner pada setup POS.");
-    //     if (!docTypeId)   throw new Error("C_DocType_ID tidak valid di konfigurasi POS.");
-    //     if (!warehouseId) throw new Error("M_Warehouse_ID tidak valid di konfigurasi POS.");
-    //     if (!posId) {
-    //         console.warn("⚠️ Peringatan: C_POS_ID tidak ditemukan dari semua sumber (C_POS_ID, id).");
-    //         throw new Error("C_POS_ID tidak valid. Pastikan variabel state posConfig memuat ID Terminal POS.");
-    //     }
-
-    //     const formattedLines = cart.map((item) => {
-    //         const multiplyRate = item.selectedUOM?.multiplyRate || 1;
-    //         // FIX: cart item dari addToCart/updateCartQty menyimpan qty di `item.Qty`.
-    //         // `item.QtyEntered` cuma terisi kalau cart di-load dari order lama (mode edit),
-    //         // jadi kalau cuma baca QtyEntered, order baru selalu fallback ke 1.
-    //         const qtyEntered   = parseFloat(item.Qty ?? item.QtyEntered ?? 1);
-    //         const priceEntered = parseFloat(item.PriceEntered || 0);
-    //         const qtyOrdered   = qtyEntered * multiplyRate;
-    //         const priceOrdered = multiplyRate ? priceEntered / multiplyRate : priceEntered;
-
-    //         const line = {
-    //             AD_Org_ID:    { id: adOrgId },
-    //             M_Product_ID: { id: parseInt(item.M_Product_ID?.id ?? item.M_Product_ID) },
-    //             QtyEntered:   qtyEntered,
-    //             QtyOrdered:   qtyOrdered,
-    //             PriceEntered: priceEntered,
-    //             PriceActual:  priceOrdered,  // ⚠️ lihat catatan di bawah soal nama field ini
-    //         };
-
-    //         const uomId = toIdMurni(item.selectedUOM, "C_UOM_ID");
-    //         if (uomId) line.C_UOM_ID = { id: uomId };
-
-    //         return line;
-    //      });
-
-    //     const todayISO = new Date().toISOString().split('T')[0];
-
-    //     const payload = {
-    //         AD_Client_ID:       { id: adClientId },
-    //         AD_Org_ID:          { id: adOrgId },
-    //         C_DocTypeTarget_ID: { id: docTypeId }, // DocType tujuan (untuk header)
-    //         C_DocType_ID:       { id: docTypeId }, // DocType aktif — wajib diisi eksplisit agar tidak 0/"** New **"
-    //         C_BPartner_ID:      { id: bPartnerId },
-    //         M_Warehouse_ID:     { id: warehouseId },
-    //         M_PriceList_ID:     { id: priceListId },
-    //         DateOrdered:        todayISO,
-    //         DatePromised:       todayISO, // Wajib eksplisit — iDempiere pakai ini sebagai movement date saat cek stok
-    //         PaymentRule:        "M",
-    //         c_orderline:        formattedLines,
-    //         IsSOTrx:            "Y",
-    //         Description:        "POS Transaction",
-    //         C_POS_ID:           { id: posId },
-    //     };
-
-    //     if (salesRepId) payload.SalesRep_ID = { id: salesRepId };
-
-    //     return payload;
-    // };
-
-
-     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
-     //const [currentOrderData, setCurrentOrderData]     = useState(null);
-     const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
-     const [receiptData, setReceiptData]               = useState(null);
-     //handle checkout
-     const handleCheckout = async () => {
+    const handleCheckout = async () => {
         if (cart.length === 0) { triggerAlert("Keranjang masih kosong!"); return; }
-        
+
         try {
             await submitOrder({ isEditMode, editOrderId });
             setIsPaymentModalOpen(true);
@@ -924,12 +747,11 @@ const POSContainer = () => {
             triggerAlert("Checkout Gagal: " + err.message, "Error");
         }
     };
-    // handle proses pembayaran
+
     const handleCompletePOSPaymentWorkflow = async (cleanPaymentsArray, bankAccountId) => {
         if (!currentOrderData) return;
 
         try {
-            // ✅ PERBAIKAN: Teruskan bankAccountId ke completeAndSettle
             const { completedOrder, invoice, settledVia } =
                 await completeAndSettle(currentOrderData, cleanPaymentsArray, bankAccountId);
 
@@ -951,7 +773,7 @@ const POSContainer = () => {
                 items:        [...cart],
                 total:        calculateTotal(),
                 payments:     cleanPaymentsArray,
-                paymentSettledVia: settledVia, // opsional: bisa dipakai ReceiptModal utk badge "Manual Settlement"
+                paymentSettledVia: settledVia,
             });
 
             setIsPaymentModalOpen(false);
@@ -968,18 +790,16 @@ const POSContainer = () => {
     };
 
     if (loading && !posConfig) return <p style={{ padding: '20px' }}>Loading Config POS...</p>;
-    
+
     const handleReceiptClose = async () => {
         setIsReceiptModalOpen(false);
         setCart([]);
         setOffset(0);
         setHasMore(true);
-    
-        // Refresh produk (termasuk QtyOnHand) setelah transaksi selesai,
-        // baik user pilih Print maupun langsung Tutup
+
         try {
             await fetchProducts(
-                searchValue || "",
+                searchInput || "",
                 getActivePriceListId(),
                 null,
                 "replace",
@@ -991,13 +811,10 @@ const POSContainer = () => {
             }
         }
     };
+
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '20px', fontFamily: 'Arial, sans-serif', height: '100vh', boxSizing: 'border-box', overflow: 'hidden' }}>
 
-            {/* ─── Unified Dialog ───────────────────────────────────────────────
-                mode "confirm" → ConfirmModal dengan dua tombol (Tambahkan / Batal)
-                mode "alert"   → ConfirmModal tanpa tombol Confirm (hanya Tutup)
-            ──────────────────────────────────────────────────────────────────── */}
             <ConfirmModal
                 isOpen={dialog.isOpen}
                 title={dialog.title}
@@ -1033,8 +850,6 @@ const POSContainer = () => {
                     flexWrap: 'wrap',
                     flexDirection: isDesktop ? 'row' : 'column'
                 }}>
-
-                    {/* Info debug: POS / SalesRep / Version — hanya tampil di desktop */}
                     {isDesktop && (
                         <div style={{ display: 'flex', gap: '16px', color: '#555', flexShrink: 0 }}>
                             <span><strong>POS:</strong> {posConfig?.Name || '...'}</span>
@@ -1047,9 +862,7 @@ const POSContainer = () => {
                     )}
 
                     <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
+                        display: 'flex', alignItems: 'center', gap: '8px',
                         flex: isDesktop ? 1 : undefined,
                         width: isDesktop ? undefined : '100%',
                         minWidth: isDesktop ? '200px' : undefined
@@ -1071,9 +884,7 @@ const POSContainer = () => {
                     </div>
 
                     <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
+                        display: 'flex', alignItems: 'center', gap: '8px',
                         flex: isDesktop ? 1 : undefined,
                         width: isDesktop ? undefined : '100%',
                         minWidth: isDesktop ? '200px' : undefined
@@ -1095,35 +906,27 @@ const POSContainer = () => {
             </div>
 
             {/* Main Layout */}
-            <div style={{ 
-                    display: 'flex', 
-                    flexDirection: isDesktop ? 'row' : 'column',  
-                    gap: '0px', 
-                    flex: '1', 
-                    overflow: 'hidden' 
-                }}>
-
+            <div style={{
+                display: 'flex',
+                flexDirection: isDesktop ? 'row' : 'column',
+                gap: '0px',
+                flex: '1',
+                overflow: 'hidden'
+            }}>
                 {/* Kiri: Search + Product Grid */}
-                <div style={{ 
-                    flex: 1, 
-                    display: 'flex', 
-                    flexDirection: 'column', 
-                    gap: '0px', 
-                    overflow: 'hidden' ,
+                <div style={{
+                    flex: 1,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0px',
+                    overflow: 'hidden',
                     paddingRight: isDesktop ? '16px' : '0',
                 }}>
-                    {/* Banner Edit Mode */}
                     {isEditMode && (
                         <div style={{
-                            backgroundColor: "#fff3e0",
-                            border: "1px solid #f57c00",
-                            borderRadius: "6px",
-                            padding: "8px 14px",
-                            marginBottom: "10px",
-                            fontSize: "13px",
-                            display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: "center",
+                            backgroundColor: "#fff3e0", border: "1px solid #f57c00", borderRadius: "6px",
+                            padding: "8px 14px", marginBottom: "10px", fontSize: "13px",
+                            display: "flex", justifyContent: "space-between", alignItems: "center",
                         }}>
                             <span>✏️ <strong>Mode Edit</strong> — Draft Order ID: {editOrderId}</span>
                             <button
@@ -1142,12 +945,12 @@ const POSContainer = () => {
                     <div style={{ display: 'flex', gap: '8px', alignItems: 'stretch', marginBottom: '10px' }}>
                         <div style={{ flex: 1, display: 'flex' }}>
                             <SearchBar
-                                value={searchValue}
-                                onChange={handleSearchChange}
-                                onKeyDown={handleSearchEnter}
-                                inputRef={searchRef}
+                                value={searchInput}
+                                onChange={handleSearchInputChange}
+                                onKeyDown={handleSearchKeyDown}
+                                inputRef={scanInputRef}
                                 disabled={versionMissing}
-                                placeholder="Cari nama / kode produk, atau scan barcode lalu Enter..."
+                                placeholder="Cari nama / kode produk, atau scan barcode..."
                             />
                         </div>
                         <button
@@ -1162,20 +965,20 @@ const POSContainer = () => {
                         ><ScanIcon /></button>
                     </div>
 
-                <ProductGrid
-                    products={products}
-                    loading={loading}
-                    loadingMore={loadingMore}
-                    hasMore={hasMore}
-                    fetchMore={loadMore}
-                    onProductClick={addToCart}
-                    isDesktop={isDesktop}
-                    CardComponent={ProductCard}
-                    emptyHint={versionMissing ? null : "Tidak ada produk ditemukan dengan harga aktif."}
-                />
+                    <ProductGrid
+                        products={products}
+                        loading={loading}
+                        loadingMore={loadingMore}
+                        hasMore={hasMore}
+                        fetchMore={loadMore}
+                        onProductClick={addToCart}
+                        isDesktop={isDesktop}
+                        CardComponent={ProductCard}
+                        emptyHint={versionMissing ? null : "Tidak ada produk ditemukan dengan harga aktif."}
+                    />
                 </div>
-                
-                    {isDesktop ? (
+
+                {isDesktop ? (
                     <CartSidebar
                         cart={cart}
                         onRemove={removeFromCart}
@@ -1189,45 +992,45 @@ const POSContainer = () => {
                         submitLabel={isProcessingCheckout ? 'Memproses...' : 'PROSES BAYAR'}
                         onSubmit={handleCheckout}
                         isSubmitting={isProcessingCheckout}
-                        CartItemComponent={CartItemPOS}   // ⬅️ CartItem versi POS (support price)
-                    />
-                    ) : (
-                    <>
-                    {/* Tombol melayang — muncul hanya kalau cart tidak kosong */}
-                    {cart.length > 0 && (
-                        <button
-                            onClick={() => setIsCartOpen(true)}
-                            style={{
-                                position: 'fixed', bottom: '20px', left: '16px', right: '16px',
-                                zIndex: 200, background: '#28a745', color: '#fff', border: 'none',
-                                borderRadius: '12px', padding: '14px 18px', fontWeight: 700, fontSize: '15px',
-                                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                                boxShadow: '0 4px 16px rgba(0,0,0,0.2)', cursor: 'pointer',
-                        }}
-                        >
-                        <span>🛒 {cart.length} item</span>
-                        <span>{calculateTotal().toLocaleString('id-ID')} · Lihat Cart</span>
-                        </button>
-                    )}
-                    <CartPanel
-                        isOpen={isCartOpen}
-                        onClose={() => setIsCartOpen(false)}
-                        cart={cart}
-                        onRemove={removeFromCart}
-                        onQtyChange={updateCartQty}
-                        onUomChange={updateCartUOM}
-                        onPriceChange={updateCartPrice}
-                        totalItems={cart.length}
-                        totalQty={cart.reduce((s, i) => s + i.Qty, 0)}
-                        summaryRight={`Rp ${calculateTotal().toLocaleString('id-ID')}`}
-                        title="🛒 Cart"
-                        submitLabel={isProcessingCheckout ? 'Memproses...' : 'PROSES BAYAR'}
-                        onSubmit={() => { handleCheckout(); }}
-                        isSubmitting={isProcessingCheckout}
                         CartItemComponent={CartItemPOS}
+                    />
+                ) : (
+                    <>
+                        {cart.length > 0 && (
+                            <button
+                                onClick={() => setIsCartOpen(true)}
+                                style={{
+                                    position: 'fixed', bottom: '20px', left: '16px', right: '16px',
+                                    zIndex: 200, background: '#28a745', color: '#fff', border: 'none',
+                                    borderRadius: '12px', padding: '14px 18px', fontWeight: 700, fontSize: '15px',
+                                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                                    boxShadow: '0 4px 16px rgba(0,0,0,0.2)', cursor: 'pointer',
+                                }}
+                            >
+                                <span>🛒 {cart.length} item</span>
+                                <span>{calculateTotal().toLocaleString('id-ID')} · Lihat Cart</span>
+                            </button>
+                        )}
+                        <CartPanel
+                            isOpen={isCartOpen}
+                            onClose={() => setIsCartOpen(false)}
+                            cart={cart}
+                            onRemove={removeFromCart}
+                            onQtyChange={updateCartQty}
+                            onUomChange={updateCartUOM}
+                            onPriceChange={updateCartPrice}
+                            totalItems={cart.length}
+                            totalQty={cart.reduce((s, i) => s + i.Qty, 0)}
+                            summaryRight={`Rp ${calculateTotal().toLocaleString('id-ID')}`}
+                            title="🛒 Cart"
+                            submitLabel={isProcessingCheckout ? 'Memproses...' : 'PROSES BAYAR'}
+                            onSubmit={() => { handleCheckout(); }}
+                            isSubmitting={isProcessingCheckout}
+                            CartItemComponent={CartItemPOS}
                         />
                     </>
                 )}
+
                 <PaymentModal
                     isOpen={isPaymentModalOpen}
                     onClose={() => setIsPaymentModalOpen(false)}

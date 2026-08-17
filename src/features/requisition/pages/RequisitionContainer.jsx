@@ -14,7 +14,8 @@ import {
   getMissingSessionFields, 
   useCart, 
   useProductSearch, 
-  useIsDesktop 
+  useIsDesktop,
+  useScannerInput 
 } from '@/shared/hooks'; 
 
 // 5. Shared Components
@@ -95,7 +96,7 @@ const RequisitionContainer = () => {
 
   const { canEdit } = useAccess();
   const canSubmitRequisition = canEdit('requisition');
-
+  
   // ── init ──────────────────────────────────────────────────────────────────
   useEffect(() => {
     const init = async () => {
@@ -273,25 +274,50 @@ const RequisitionContainer = () => {
     closeProductDetail();
   }, [addToCart, closeProductDetail]);
 
-  // ── barcode ───────────────────────────────────────────────────────────────
-  const handleBarcodeDetected = useCallback(async (code) => {
-    setScannerOpen(false);
-    const whId = selectedWarehouse?.id ?? null;
+    // ── input search: lokal, terpisah dari trigger request ──
+ 
+// ── 1. Panggil useScannerInput duluan, TANPA onScanDetected langsung ──
+const {
+  value: searchInput,
+  inputRef: scanInputRef,
+  handleChange: handleSearchInputChange,
+  handleKeyDown: handleSearchKeyDown,
+  reset: resetSearchInput,
+} = useScannerInput({
+  onScanDetected: (code) => handleBarcodeDetectedRef.current(code), // panggil lewat ref
+  onManualSearch: (value) => search(value, selectedWarehouse?.id ?? null),
+});
 
-    let found = await searchByUPC(code);
-    if (!found) {
-      found = products.find(p => p.Value?.toUpperCase() === code.toUpperCase()) ?? null;
-    }
+// ── 2. handleBarcodeDetected didefinisikan seperti biasa, tanpa peduli urutan ──
+const handleBarcodeDetected = useCallback(async (code) => {
+  setScannerOpen(false);
+  const trimmed = code.trim();
+  if (!trimmed) return;
 
-    if (found) {
-      addToCart(found, 1, { C_UOM_ID: found.C_UOM_ID, Name: found.C_UOM_Name, multiplyRate: 1 });
-    } else {
-      setSearchValue(code);
-      fetchProducts(code, whId);
-    }
-  }, [products, addToCart, fetchProducts, setSearchValue, searchByUPC, selectedWarehouse]);
+  const whId = selectedWarehouse?.id ?? null;
 
-  // ── submit ────────────────────────────────────────────────────────────────
+  let found = await searchByUPC(trimmed);
+  if (!found) {
+    found = products.find(p => p.Value?.toUpperCase() === trimmed.toUpperCase()) ?? null;
+  }
+
+  if (found) {
+    addToCart(found, 1, { C_UOM_ID: found.C_UOM_ID, Name: found.C_UOM_Name, multiplyRate: 1 });
+    resetSearchInput();
+    fetchProducts('', whId);
+    scanInputRef.current?.focus();
+  } else {
+    fetchProducts(trimmed, whId);
+  }
+}, [products, addToCart, fetchProducts, searchByUPC, selectedWarehouse, resetSearchInput]);
+
+// ── 3. Ref jembatan, selalu sinkron ke versi terbaru ──
+const handleBarcodeDetectedRef = useRef(handleBarcodeDetected);
+useEffect(() => {
+  handleBarcodeDetectedRef.current = handleBarcodeDetected;
+}, [handleBarcodeDetected]);
+
+// ── submit ────────────────────────────────────────────────────────────────
   const handleSubmit = async (mode = 'complete') => {
     const result = await submit(
       cart, requesterName, selectedWarehouse?.id,
@@ -312,6 +338,11 @@ const RequisitionContainer = () => {
   
   const cartSummaryRight = `📦 ${selectedWarehouse?.name || '...'}`;
 
+  useEffect(() => {
+    const t = setTimeout(() => scanInputRef.current?.focus(), 150);
+    return () => clearTimeout(t);
+  }, []);
+  
   // ── render ────────────────────────────────────────────────────────────────
   return (
     <div style={{
@@ -341,8 +372,8 @@ const RequisitionContainer = () => {
           setSuccessOpen(false);
           setSuccessData(null);
           fetchProducts('', selectedWarehouse?.id ?? null);
-          setSearchValue('');
-          setTimeout(() => searchRef.current?.focus(), 150);
+          resetSearchInput();
+          setTimeout(() => scanInputRef.current?.focus(), 150);
         }}
       />
 
@@ -506,18 +537,13 @@ const RequisitionContainer = () => {
                 transform: 'translateY(-50%)', fontSize: '15px', pointerEvents: 'none',
               }}>🔍</span>
               <input
-                ref={searchRef}
+                ref={scanInputRef}
                 type="text"
-                value={searchValue}
-                onChange={e => search(e.target.value, selectedWarehouse?.id ?? null)}
-                onKeyDown={e => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    fetchProducts(searchValue.trim(), selectedWarehouse?.id ?? null);
-                  }
-                }}
+                value={searchInput}
+                onChange={handleSearchInputChange}
+                onKeyDown={handleSearchKeyDown}
                 placeholder="Cari nama / kode produk..."
-                style={{
+                  style={{
                   width: '100%', boxSizing: 'border-box',
                   padding: '10px 12px 10px 34px',
                   border: `1.5px solid ${COLOR.border}`, borderRadius: RADIUS.md,
@@ -527,7 +553,7 @@ const RequisitionContainer = () => {
               {searchValue && (
                 <button
                   onClick={() => {
-                    setSearchValue('');
+                    resetSearchInput();
                     fetchProducts('', selectedWarehouse?.id ?? null);
                   }}
                   style={{

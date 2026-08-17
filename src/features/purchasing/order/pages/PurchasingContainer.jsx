@@ -76,6 +76,7 @@ const PurchasingContainer = () => {
   const { bankAccounts } = useBankAccounts();
   const [selectedBankAccountId, setSelectedBankAccountId] = useState(null);
   const [submitModalOpen, setSubmitModalOpen] = useState(false);
+  const [submitModalMode, setSubmitModalMode] = useState('normal'); 
   const [progressModalOpen, setProgressModalOpen] = useState(false);
   const [progressSteps, setProgressSteps] = useState({});
   const [progressDone, setProgressDone] = useState(false);
@@ -152,6 +153,19 @@ const handleModalCashPurchase = async () => {
         clearCart();
         setSelectedBankAccountId(null);
     }
+};
+const openNormalSubmitModal = () => {
+    setSubmitModalMode('normal');
+    setSubmitModalOpen(true);
+};
+ 
+const openCashSubmitModal = () => {
+    if (vendorGroups.length > 1) {
+        alert('Cash Purchase hanya mendukung 1 vendor per transaksi.\nPisahkan item vendor lain ke Draft/Complete biasa.', 'Tidak Didukung');
+        return;
+    }
+    setSubmitModalMode('cash');
+    setSubmitModalOpen(true);
 };
   
 useEffect(() => {
@@ -765,9 +779,9 @@ useEffect(() => {
             )}
           </div>
         </div>
-        
         <PurchaseSubmitModal
           isOpen={submitModalOpen}
+          mode={submitModalMode}          
           onClose={() => setSubmitModalOpen(false)}
           onDraft={handleModalDraft}
           onComplete={handleModalComplete}
@@ -778,6 +792,7 @@ useEffect(() => {
           isSubmitting={isSubmitting || cashPurchaseSubmitting}
           totalAmount={totalAmount}
         />
+        
         <CashPurchaseProgressModal
            isOpen={progressModalOpen}
            steps={progressSteps}
@@ -800,7 +815,8 @@ useEffect(() => {
             totalItems={totalItems}
             totalAmount={totalAmount}
             summaryRight={cartSummaryRight}
-            onSubmit={canSubmitPO ? () => setSubmitModalOpen(true) : undefined}
+            onSubmit={canSubmitPO ? openNormalSubmitModal : undefined}
+            onSubmitCash={canSubmitPO ? openCashSubmitModal : undefined}
             isSubmitting={isSubmitting}
             description={description}
             onDescriptionChange={canSubmitPO ? setDescription : undefined}
@@ -827,8 +843,9 @@ useEffect(() => {
           onClearCart={canSubmitPO ? handleClearCart : undefined}
           totalItems={totalItems}
           totalAmount={totalAmount}
-          summaryRight={cartSummaryRight}
-          onSubmit={canSubmitPO ? () => setSubmitModalOpen(true) : undefined}
+          summaryRight={cartSummaryRight}         
+          onSubmit={canSubmitPO ? openNormalSubmitModal : undefined}
+          onSubmitCash={canSubmitPO ? openCashSubmitModal : undefined}
           isSubmitting={isSubmitting}
         />
       )}
