@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from "react";
 
-const PaymentModal = ({ 
-    isOpen, 
-    onClose, 
-    totalOrderAmount = 0, 
+const PaymentModal = ({
+    isOpen,
+    onClose,
+    totalOrderAmount = 0,
     onSubmitPayment,
-    idempiereApi, 
+    idempiereApi,
     adOrgId
 }) => {
     // ─── STATE MANAGEMENT ──────────────────────────────────────────────────
@@ -64,7 +64,7 @@ const PaymentModal = ({
         if (isOpen) {
             const fetchBankAccounts = async () => {
                 try {
-                    const orgId  = adOrgId ? parseInt(adOrgId) : null;
+                    const orgId = adOrgId ? parseInt(adOrgId) : null;
                     const filter = orgId
                         ? `IsActive eq true and (AD_Org_ID eq 0 or AD_Org_ID eq ${orgId})`
                         : `IsActive eq true`;
@@ -101,6 +101,11 @@ const PaymentModal = ({
         if (!name && b.identifier) name = typeof b.identifier === "object" ? b.identifier.identifier : b.identifier;
         const acctNo = typeof b.AccountNo === "object" ? (b.AccountNo?.identifier || "") : (b.AccountNo || "");
         return acctNo ? `${name || "Kas"} - ${acctNo}` : (name || "Kas Tanpa Nama");
+    };
+
+    // Helper Format Angka Ribuan
+    const formatCurrency = (val) => {
+        return (parseFloat(val) || 0).toLocaleString("id-ID");
     };
 
     // ─── HANDLER FORM ──────────────────────────────────────────────────────
@@ -148,14 +153,14 @@ const PaymentModal = ({
         e.preventDefault();
         
         if (totalPaid < totalOrderAmount) {
-            alert(`Pembayaran masih kurang! Kurang: Rp ${remainingAmount.toLocaleString()}`);
+            alert(`Pembayaran masih kurang! Kurang: Rp ${formatCurrency(remainingAmount)}`);
             return;
         }
 
         if (payments.length > 1 && Math.abs(remainingAmount) > 0.01) {
             alert(
                 `Untuk pembayaran gabungan (lebih dari 1 metode), total bayar harus PERSIS sama ` +
-                `dengan total tagihan (tidak boleh ada kembalian). Selisih saat ini: Rp ${remainingAmount.toLocaleString()}.`
+                `dengan total tagihan (tidak boleh ada kembalian). Selisih saat ini: Rp ${formatCurrency(remainingAmount)}.`
             );
             return;
         }
@@ -171,7 +176,6 @@ const PaymentModal = ({
 
             const bankAccountId = selectedBankAccountId ? parseInt(selectedBankAccountId) : null;
 
-            // Panggil onSubmitPayment (yang terhubung ke completeAndSettle)
             await onSubmitPayment(cleanPayments, bankAccountId);
             onClose();
         } catch (error) {
@@ -184,119 +188,139 @@ const PaymentModal = ({
 
     return (
         <div style={styles.overlay}>
-            <div style={styles.modalBox}>
-                <div style={styles.header}>
-                    <h3 style={{ margin: 0 }}>Pembayaran POS</h3>
-                    <button onClick={onClose} style={styles.closeBtn} disabled={isLoading}>✕</button>
-                </div>
-
-                <div style={styles.summaryContainer}>
-                    <div style={styles.summaryRow}>
-                        <span>Total Tagihan:</span>
-                        <strong>Rp {totalOrderAmount.toLocaleString()}</strong>
-                    </div>
-                    <div style={styles.summaryRow}>
-                        <span>Total Dibayar:</span>
-                        <span style={{ color: "green", fontWeight: "bold" }}>Rp {totalPaid.toLocaleString()}</span>
-                    </div>
-                    <div style={styles.summaryRow}>
-                        <span>Status Nominal:</span>
-                        <strong style={{ color: remainingAmount <= 0 ? "blue" : "red" }}>
-                            {remainingAmount <= 0 
-                                ? `Kembalian: Rp ${Math.abs(remainingAmount).toLocaleString()}` 
-                                : `Kurang: Rp ${remainingAmount.toLocaleString()}`}
-                        </strong>
-                    </div>
+            <div style={styles.modalCard}>
+                {/* Header Banner */}
+                <div style={styles.headerBanner}>
+                    POS PAYMENT
                 </div>
 
                 <form onSubmit={handleSubmit}>
-                    <div style={styles.tableWrapper}>
-                        <table style={styles.table}>
-                            <thead>
-                                <tr>
-                                    <th style={{ textAlign: "left" }}>Metode Pembayaran</th>
-                                    <th style={{ textAlign: "left" }}>Jumlah Bayar</th>
-                                    <th style={{ width: "50px" }}>Aksi</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {payments.map((row) => (
-                                    <tr key={row.id}>
-                                        <td style={{ padding: "4px" }}>
-                                            <select
-                                                required
-                                                value={row.C_POSTenderType_ID}
-                                                onChange={(e) => handleRowChange(row.id, "C_POSTenderType_ID", e.target.value)}
-                                                style={styles.input}
-                                                disabled={isLoading}
-                                            >
-                                                <option value="">-- Pilih Cara Bayar --</option>
-                                                {tenderTypes.map((t) => {
-                                                    const rawId = t.id?.id ?? t.id ?? t.C_POSTenderType_ID;
-                                                    const stringId = rawId ? String(rawId) : "";
+                    {/* Ringkasan Nominal Utama */}
+                    <div style={styles.summarySection}>
+                        {/* Total Tagihan */}
+                        <div style={styles.summaryRow}>
+                            <div style={styles.summaryLabelGroup}>
+                                <span style={styles.summaryLabel}>TOTAL TAGIHAN</span>
+                                <span style={styles.summaryColon}>:</span>
+                            </div>
+                            <div style={styles.summaryValueBox}>
+                                {formatCurrency(totalOrderAmount)}
+                            </div>
+                        </div>
 
-                                                    let displayName = "Cara Bayar";
-                                                    if (t.Name) {
-                                                        displayName = typeof t.Name === "object" ? (t.Name.identifier || t.Name.propertyLabel) : t.Name;
-                                                    } else if (t.identifier) {
-                                                        displayName = typeof t.identifier === "object" ? t.identifier.identifier : t.identifier;
-                                                    }
+                        {/* Total Pembayaran */}
+                        <div style={styles.summaryRow}>
+                            <div style={styles.summaryLabelGroup}>
+                                <span style={styles.summaryLabel}>TOTAL PEMBAYARAN</span>
+                                <span style={styles.summaryColon}>:</span>
+                            </div>
+                            <div style={styles.summaryValueBox}>
+                                {formatCurrency(totalPaid)}
+                            </div>
+                        </div>
 
-                                                    const tenderCode = typeof t.TenderType === "object" ? (t.TenderType.id || "X") : (t.TenderType || "X");
-
-                                                    return (
-                                                        <option key={stringId || Math.random()} value={stringId}>
-                                                            {displayName} ({tenderCode})
-                                                        </option>
-                                                    );
-                                                })}
-                                            </select>
-                                        </td>
-                                        <td style={{ padding: "4px" }}>
-                                            <input
-                                                type="number"
-                                                required
-                                                min="1"
-                                                placeholder="0"
-                                                value={row.PayAmt}
-                                                onChange={(e) => handleRowChange(row.id, "PayAmt", e.target.value)}
-                                                style={styles.input}
-                                                disabled={isLoading}
-                                            />
-                                        </td>
-                                        <td style={{ textAlign: "center", padding: "4px" }}>
-                                            <button 
-                                                type="button" 
-                                                onClick={() => handleRemoveRow(row.id)} 
-                                                style={styles.deleteRowBtn}
-                                                disabled={payments.length === 1 || isLoading}
-                                            >
-                                                ✕
-                                            </button>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                        {/* Status (Kembalian / Kurang) */}
+                        <div style={styles.summaryRow}>
+                            <div style={styles.summaryLabelGroup}>
+                                <span style={styles.summaryLabel}>
+                                    STATUS ({remainingAmount <= 0 ? (
+                                        <span style={{ color: "#008a00" }}>KEMBALIAN</span>
+                                    ) : (
+                                        <span style={{ color: "#d32f2f" }}>KURANG</span>
+                                    )})
+                                </span>
+                                <span style={styles.summaryColon}>:</span>
+                            </div>
+                            <div style={{
+                                ...styles.summaryValueBox,
+                                color: remainingAmount <= 0 ? "#008a00" : "#d32f2f"
+                            }}>
+                                {formatCurrency(Math.abs(remainingAmount))}
+                            </div>
+                        </div>
                     </div>
 
-                    <button 
-                        type="button" 
-                        onClick={handleAddRow} 
-                        style={styles.addBtn}
-                        disabled={isLoading}
-                    >
-                        + Tambah Metode
-                    </button>
+                    {/* Baris Input Pembayaran */}
+                    <div style={styles.paymentsList}>
+                        {payments.map((row) => (
+                            <div key={row.id} style={styles.paymentRow}>
+                                <div style={styles.colMethod}>
+                                    <label style={styles.fieldLabel}>Metode Pembayaran</label>
+                                    <select
+                                        required
+                                        value={row.C_POSTenderType_ID}
+                                        onChange={(e) => handleRowChange(row.id, "C_POSTenderType_ID", e.target.value)}
+                                        style={styles.selectInput}
+                                        disabled={isLoading}
+                                    >
+                                        <option value="">-- Pilih Cara Bayar --</option>
+                                        {tenderTypes.map((t) => {
+                                            const rawId = t.id?.id ?? t.id ?? t.C_POSTenderType_ID;
+                                            const stringId = rawId ? String(rawId) : "";
 
+                                            let displayName = "Cara Bayar";
+                                            if (t.Name) {
+                                                displayName = typeof t.Name === "object" ? (t.Name.identifier || t.Name.propertyLabel) : t.Name;
+                                            } else if (t.identifier) {
+                                                displayName = typeof t.identifier === "object" ? t.identifier.identifier : t.identifier;
+                                            }
+
+                                            return (
+                                                <option key={stringId || Math.random()} value={stringId}>
+                                                    {displayName}
+                                                </option>
+                                            );
+                                        })}
+                                    </select>
+                                </div>
+
+                                <div style={styles.colAmount}>
+                                    <label style={styles.fieldLabel}>Jumlah Pembayaran</label>
+                                    <input
+                                        type="number"
+                                        required
+                                        min="1"
+                                        placeholder="0"
+                                        value={row.PayAmt}
+                                        onChange={(e) => handleRowChange(row.id, "PayAmt", e.target.value)}
+                                        style={styles.numberInput}
+                                        disabled={isLoading}
+                                    />
+                                </div>
+
+                                <div style={styles.colActions}>
+                                    <button
+                                        type="button"
+                                        onClick={() => handleRemoveRow(row.id)}
+                                        style={styles.removeBtn}
+                                        disabled={payments.length === 1 || isLoading}
+                                        title="Hapus Metode"
+                                    >
+                                        X
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={handleAddRow}
+                                        style={styles.addBtn}
+                                        disabled={isLoading}
+                                        title="Tambah Metode"
+                                    >
+                                        +
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* Kas / Bank Tujuan Box */}
                     {isSingleCashPayment && (
                         <div style={styles.bankAccountContainer}>
-                            <label style={styles.bankAccountLabel}>Kas Tujuan (Penerimaan Cash):</label>
+                            <label style={styles.bankAccountLabel}>Kas / Bank Tujuan</label>
                             <select
                                 required
                                 value={selectedBankAccountId}
                                 onChange={(e) => setSelectedBankAccountId(e.target.value)}
-                                style={styles.input}
+                                style={styles.selectInput}
                                 disabled={isLoading}
                             >
                                 <option value="">-- Pilih Kas/Bank --</option>
@@ -313,12 +337,22 @@ const PaymentModal = ({
                         </div>
                     )}
 
+                    {/* Footer / Action Buttons */}
                     <div style={styles.footer}>
-                        <button type="button" onClick={onClose} style={styles.cancelBtn} disabled={isLoading}>
+                        <button 
+                            type="button" 
+                            onClick={onClose} 
+                            style={styles.cancelBtn} 
+                            disabled={isLoading}
+                        >
                             Batal
                         </button>
-                        <button type="submit" style={styles.submitBtn} disabled={isLoading}>
-                            {isLoading ? "Memproses Transaksi..." : "Bayar & Selesai"}
+                        <button 
+                            type="submit" 
+                            style={styles.submitBtn} 
+                            disabled={isLoading}
+                        >
+                            {isLoading ? "Memproses..." : "Bayar / Selesai"}
                         </button>
                     </div>
                 </form>
@@ -327,23 +361,207 @@ const PaymentModal = ({
     );
 };
 
+// ─── STYLES (SESUAI DENGAN DESAIN GAMBAR) ─────────────────────────────────
 const styles = {
-    overlay: { position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.6)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1000 },
-    modalBox: { backgroundColor: "#fff", padding: "20px", borderRadius: "8px", width: "550px", maxWidth: "90%", boxShadow: "0 4px 15px rgba(0,0,0,0.2)" },
-    header: { display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #ddd", paddingBottom: "10px", marginBottom: "15px" },
-    closeBtn: { background: "none", border: "none", fontSize: "18px", cursor: "pointer" },
-    summaryContainer: { backgroundColor: "#f9f9f9", padding: "12px", borderRadius: "6px", marginBottom: "15px", border: "1px solid #eee" },
-    summaryRow: { display: "flex", justifyContent: "space-between", marginBottom: "6px" },
-    tableWrapper: { maxHeight: "200px", overflowY: "auto", marginBottom: "10px" },
-    table: { width: "100%", borderCollapse: "collapse" },
-    input: { width: "100%", padding: "8px", borderRadius: "4px", border: "1px solid #ccc", boxSizing: "border-box" },
-    deleteRowBtn: { backgroundColor: "#ff4d4d", color: "#fff", border: "none", padding: "6px 10px", borderRadius: "4px", cursor: "pointer" },
-    addBtn: { backgroundColor: "#2196F3", color: "#fff", border: "none", padding: "6px 12px", borderRadius: "4px", cursor: "pointer", marginBottom: "15px" },
-    bankAccountContainer: { backgroundColor: "#fff8e1", border: "1px solid #ffe082", borderRadius: "6px", padding: "10px 12px", marginBottom: "16px" },
-    bankAccountLabel: { display: "block", fontSize: "13px", fontWeight: "bold", marginBottom: "6px", color: "#5d4a00" },
-    footer: { display: "flex", justifyContent: "flex-end", gap: "10px", borderTop: "1px solid #ddd", paddingTop: "15px" },
-    cancelBtn: { backgroundColor: "#ccc", border: "none", padding: "10px 20px", borderRadius: "4px", cursor: "pointer" },
-    submitBtn: { backgroundColor: "#4CAF50", color: "#fff", border: "none", padding: "10px 20px", borderRadius: "4px", cursor: "pointer", fontWeight: "bold" }
+    overlay: {
+        position: "fixed",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: "rgba(0, 0, 0, 0.4)",
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        zIndex: 1000,
+        fontFamily: "'Aptos', 'Segoe UI', Arial, sans-serif"
+    },
+    modalCard: {
+        backgroundColor: "#fcfcfc",
+        padding: "24px",
+        borderRadius: "28px",
+        border: "1.5px solid #1e1e1e",
+        width: "520px",
+        maxWidth: "95%",
+        boxShadow: "0 10px 25px rgba(0,0,0,0.15)",
+        boxSizing: "border-box"
+    },
+    headerBanner: {
+        backgroundColor: "#1e1e1e",
+        color: "#ffffff",
+        textAlign: "center",
+        fontWeight: "900",
+        fontSize: "24px",
+        padding: "10px 0",
+        borderRadius: "20px",
+        marginBottom: "24px",
+        letterSpacing: "0.5px"
+    },
+    summarySection: {
+        display: "flex",
+        flexDirection: "column",
+        gap: "14px",
+        marginBottom: "20px"
+    },
+    summaryRow: {
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between"
+    },
+    summaryLabelGroup: {
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        width: "210px",
+        fontWeight: "800",
+        fontSize: "17px",
+        color: "#1e1e1e"
+    },
+    summaryLabel: {
+        letterSpacing: "-0.2px"
+    },
+    summaryColon: {
+        fontWeight: "bold",
+        marginRight: "8px"
+    },
+    summaryValueBox: {
+        flex: 1,
+        border: "1.5px solid #222222",
+        borderRadius: "20px",
+        padding: "8px 16px",
+        textAlign: "right",
+        fontWeight: "900",
+        fontSize: "32px",
+        lineHeight: "1",
+        backgroundColor: "#ffffff",
+        color: "#1e1e1e",
+        minHeight: "42px",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "flex-end"
+    },
+    paymentsList: {
+        marginBottom: "16px"
+    },
+    paymentRow: {
+        display: "flex",
+        alignItems: "flex-end",
+        gap: "10px",
+        marginBottom: "10px"
+    },
+    colMethod: {
+        flex: 1
+    },
+    colAmount: {
+        flex: 1
+    },
+    colActions: {
+        display: "flex",
+        gap: "6px",
+        alignItems: "center",
+        paddingBottom: "2px"
+    },
+    fieldLabel: {
+        display: "block",
+        fontSize: "14px",
+        fontWeight: "bold",
+        marginBottom: "4px",
+        color: "#1e1e1e",
+        textAlign: "center"
+    },
+    selectInput: {
+        width: "100%",
+        padding: "8px 12px",
+        borderRadius: "16px",
+        border: "1.5px solid #222222",
+        backgroundColor: "#ffffff",
+        fontSize: "15px",
+        fontWeight: "bold",
+        color: "#1e1e1e",
+        outline: "none",
+        boxSizing: "border-box",
+        cursor: "pointer"
+    },
+    numberInput: {
+        width: "100%",
+        padding: "8px 12px",
+        borderRadius: "16px",
+        border: "1.5px solid #222222",
+        backgroundColor: "#ffffff",
+        fontSize: "20px",
+        fontWeight: "800",
+        textAlign: "right",
+        color: "#1e1e1e",
+        outline: "none",
+        boxSizing: "border-box"
+    },
+    removeBtn: {
+        backgroundColor: "#ff0000",
+        color: "#ffffff",
+        border: "none",
+        borderRadius: "6px",
+        width: "36px",
+        height: "36px",
+        fontWeight: "bold",
+        fontSize: "18px",
+        cursor: "pointer",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center"
+    },
+    addBtn: {
+        backgroundColor: "#008a00",
+        color: "#ffffff",
+        border: "none",
+        borderRadius: "6px",
+        width: "36px",
+        height: "36px",
+        fontWeight: "bold",
+        fontSize: "22px",
+        cursor: "pointer",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center"
+    },
+    bankAccountContainer: {
+        backgroundColor: "#fcd6b5",
+        borderRadius: "14px",
+        padding: "12px",
+        marginBottom: "20px"
+    },
+    bankAccountLabel: {
+        display: "block",
+        fontSize: "15px",
+        fontWeight: "bold",
+        marginBottom: "6px",
+        color: "#1e1e1e"
+    },
+    footer: {
+        display: "flex",
+        justifyContent: "center",
+        gap: "16px",
+        marginTop: "10px"
+    },
+    cancelBtn: {
+        backgroundColor: "#b0b0b0",
+        color: "#1e1e1e",
+        border: "none",
+        padding: "10px 36px",
+        borderRadius: "20px",
+        fontSize: "16px",
+        fontWeight: "bold",
+        cursor: "pointer"
+    },
+    submitBtn: {
+        backgroundColor: "#008a00",
+        color: "#ffffff",
+        border: "none",
+        padding: "10px 28px",
+        borderRadius: "20px",
+        fontSize: "16px",
+        fontWeight: "bold",
+        cursor: "pointer"
+    }
 };
 
 export default PaymentModal;
