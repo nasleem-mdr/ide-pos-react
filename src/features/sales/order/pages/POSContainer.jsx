@@ -2,8 +2,9 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useLocation } from "react-router-dom";
 import { usePOSOrderSubmit }   from '@/features/sales/order/hooks/usePOSOrderSubmit';
 import { usePOSPaymentSubmit } from '@/features/sales/order/hooks/usePOSPaymentSubmit';
+import { usePOSARSubmit }      from '@/features/sales/order/hooks/usePOSARSubmit';
+import { ConfirmModal, PaymentModal, ARModal, ReceiptModal, CartItemPOS } from '@/features/sales/order/components';
 import { ProductCard, SearchBar, ScanIcon, ProductGrid, CartPanel, CartSidebar, BarcodeScanner } from '@/shared/components';
-import { ConfirmModal, PaymentModal, ReceiptModal, CartItemPOS } from '@/features/sales/order/components';
 import { useAccess } from '@/context/AccessContext';
 import { idempiereApi, fkId, fkLabel } from '@/api/idempiereApi';
 import { useIsDesktop, useScannerInput, getLoginInfo } from '@/shared/hooks';
@@ -32,7 +33,10 @@ const POSContainer = () => {
         lastPaymentStatus,
         completeAndSettle,
     } = usePOSPaymentSubmit();
-
+    const {
+        isProcessingAR,
+        completeAsAR,
+    } = usePOSARSubmit();
     const [editOrderId, setEditOrderId] = useState(null); // ID order draft yang sedang diedit
     const [isEditMode, setIsEditMode]   = useState(false);
     const location = useLocation();
@@ -45,7 +49,7 @@ const POSContainer = () => {
     const [hasMore, setHasMore]         = useState(true);
     const [loadingMore, setLoadingMore] = useState(false);
     const pageSize = 20;
-
+    const [isARModalOpen, setIsARModalOpen] = useState(false);
     const DIALOG_CLOSED = {
         isOpen: false,
         mode: "alert",
@@ -748,6 +752,72 @@ const POSContainer = () => {
         }
     };
 
+    const handleCheckoutCash = async () => {
+        if (cart.length === 0) { triggerAlert("Keranjang masih kosong!"); return; }
+    
+        try {
+            await submitOrder({ isEditMode, editOrderId });
+            setIsPaymentModalOpen(true);
+        } catch (err) {
+            console.error("Proses POS Checkout Gagal:", err.message);
+            triggerAlert("Checkout Gagal: " + err.message, "Error");
+        }
+    };
+    
+    const handleCheckoutAR = async () => {
+        if (cart.length === 0) { triggerAlert("Keranjang masih kosong!"); return; }
+    
+        const cashPartnerId = posConfig?.C_BPartnerCashTrx_ID?.id ?? posConfig?.C_BPartnerCashTrx_ID;
+        if (!selectedBPartner || (cashPartnerId && selectedBPartner.id === cashPartnerId)) {
+            triggerAlert(
+                "Piutang wajib menggunakan Customer spesifik (bukan Customer Cash default POS). " +
+                "Pilih Customer dulu di bagian atas sebelum memproses Piutang.",
+                "Customer Wajib Dipilih"
+            );
+            return;
+        }
+    
+        try {
+            await submitOrder({ isEditMode, editOrderId });
+            setIsARModalOpen(true);
+        } catch (err) {
+            console.error("Proses Piutang Gagal (submit order):", err.message);
+            triggerAlert("Gagal menyiapkan order Piutang: " + err.message, "Error");
+        }
+    };
+    
+    const handleConfirmAR = async () => {
+        if (!currentOrderData) return;
+    
+        try {
+            const { completedOrder, shipment, invoice } = await completeAsAR(currentOrderData);
+            const finalDocNo = completedOrder.DocumentNo || currentOrderData.DocumentNo || completedOrder.id;
+    
+            setReceiptData({
+                documentNo:        finalDocNo,
+                date:               new Date().toLocaleString("id-ID"),
+                posName:            posConfig?.Name || "POS Terminal",
+                cashierName:        posConfig?.SalesRep_ID?.identifier || "-",
+                bPartnerName:       selectedBPartner?.name || "-",
+                items:              [...cart],
+                total:              calculateTotal(),
+                payments:           [],
+                paymentSettledVia:  'ar',
+                invoiceNo:          invoice?.DocumentNo || invoice?.id,
+                shipmentNo:         shipment?.DocumentNo || shipment?.id,
+            });
+    
+            setIsARModalOpen(false);
+            setCurrentOrderData(null);
+            setCart([]);
+            setIsEditMode(false);
+            setEditOrderId(null);
+            setIsReceiptModalOpen(true);
+        } catch (err) {
+            console.error("Proses Piutang Gagal:", err.message);
+            triggerAlert("Eror saat memproses Piutang: " + err.message, "Error");
+        }
+    };
     const handleCompletePOSPaymentWorkflow = async (cleanPaymentsArray, bankAccountId) => {
         if (!currentOrderData) return;
 
@@ -989,9 +1059,11 @@ const POSContainer = () => {
                         totalQty={cart.reduce((s, i) => s + i.Qty, 0)}
                         summaryRight={`Rp ${calculateTotal().toLocaleString('id-ID')}`}
                         title="🛒 Cart"
-                        submitLabel={isProcessingCheckout ? 'Memproses...' : 'PROSES BAYAR'}
-                        onSubmit={handleCheckout}
-                        isSubmitting={isProcessingCheckout}
+                        submitDraftLabel="💵 CASH"
+                        submitCompleteLabel="📋 PIUTANG"
+                        onSubmitDraft={handleCheckoutCash}
+                        onSubmitComplete={handleCheckoutAR}
+                        isSubmitting={isProcessingCheckout || isSettlingPayment || isProcessingAR}
                         CartItemComponent={CartItemPOS}
                     />
                 ) : (
@@ -1023,14 +1095,23 @@ const POSContainer = () => {
                             totalQty={cart.reduce((s, i) => s + i.Qty, 0)}
                             summaryRight={`Rp ${calculateTotal().toLocaleString('id-ID')}`}
                             title="🛒 Cart"
-                            submitLabel={isProcessingCheckout ? 'Memproses...' : 'PROSES BAYAR'}
-                            onSubmit={() => { handleCheckout(); }}
-                            isSubmitting={isProcessingCheckout}
+                            submitDraftLabel="💵 CASH"
+                            submitCompleteLabel="📋 PIUTANG"
+                            onSubmitDraft={handleCheckoutCash}
+                            onSubmitComplete={handleCheckoutAR}
+                            isSubmitting={isProcessingCheckout || isSettlingPayment || isProcessingAR}
                             CartItemComponent={CartItemPOS}
                         />
                     </>
                 )}
-
+                <ARModal
+                    isOpen={isARModalOpen}
+                    onClose={() => setIsARModalOpen(false)}
+                    totalOrderAmount={calculateTotal()}
+                    bPartnerName={selectedBPartner?.name}
+                    onConfirm={handleConfirmAR}
+                    isSubmitting={isProcessingAR}
+                />
                 <PaymentModal
                     isOpen={isPaymentModalOpen}
                     onClose={() => setIsPaymentModalOpen(false)}
