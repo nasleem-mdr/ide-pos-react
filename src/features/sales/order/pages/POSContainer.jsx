@@ -326,7 +326,10 @@ const POSContainer = () => {
             defaultUOM,
         };
     };
-
+    useEffect(() => {
+        const t = setTimeout(() => scanInputRef.current?.focus(), 150);
+        return () => clearTimeout(t);
+      }, []);
     // ── Search + Scan unified (pola sama seperti RequisitionContainer) ──
     const {
         value: searchInput,
@@ -1114,7 +1117,14 @@ const POSContainer = () => {
                 />
                 <PaymentModal
                     isOpen={isPaymentModalOpen}
-                    onClose={() => setIsPaymentModalOpen(false)}
+                    //onClose={() => setIsPaymentModalOpen(false)}
+                    onClose={() => {
+                        setIsPaymentModalOpen(false);
+                        //setSuccessData(null);
+                        fetchProducts('');
+                        resetSearchInput();
+                        setTimeout(() => scanInputRef.current?.focus(), 150);
+                      }}
                     totalOrderAmount={calculateTotal()}
                     onSubmitPayment={handleCompletePOSPaymentWorkflow}
                     isSubmitting={isSettlingPayment}

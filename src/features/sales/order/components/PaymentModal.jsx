@@ -387,7 +387,7 @@ const styles = {
         boxSizing: "border-box"
     },
     headerBanner: {
-        backgroundColor: "#1e1e1e",
+        backgroundColor: "#fcd6b5",
         color: "#ffffff",
         textAlign: "center",
         fontWeight: "900",
@@ -450,10 +450,12 @@ const styles = {
         marginBottom: "10px"
     },
     colMethod: {
-        flex: 1
+        flex: 1,
+        height: "36px",
     },
     colAmount: {
-        flex: 1
+        flex: 1,
+        height: "36px",
     },
     colActions: {
         display: "flex",
@@ -488,7 +490,7 @@ const styles = {
         borderRadius: "16px",
         border: "1.5px solid #222222",
         backgroundColor: "#ffffff",
-        fontSize: "20px",
+        fontSize: "10px",
         fontWeight: "800",
         textAlign: "right",
         color: "#1e1e1e",
@@ -525,7 +527,7 @@ const styles = {
     },
     bankAccountContainer: {
         backgroundColor: "#fcd6b5",
-        borderRadius: "14px",
+        borderRadius: "20px",
         padding: "12px",
         marginBottom: "20px"
     },
