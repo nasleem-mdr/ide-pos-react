@@ -90,7 +90,7 @@ export async function generateInvoicePDF(invoiceId, documentNo, logoDataUrl) {
       head: [["Date of Service", "Type of Service", "No of Unit", "Unit", "Price", "Amount"]],
       body: lines.map((l) => [
         formatDateService(l.DateService),
-        l.Description || l.M_Product_ID?.identifier,
+        l.Description || cleanIdentifier(l.M_Product_ID?.identifier),
         numberFormatter.format(l.QtyEntered ?? 0),
         l.C_UOM_ID?.identifier || "-",
         numberFormatter.format(l.PriceActual ?? 0),
