@@ -22,20 +22,30 @@ export function useSalesCart() {
   const [cart, setCart] = useState([]);
   const [customer, setCustomerState] = useState(null); // { C_BPartner_ID, Name, locationId }
 
-  const addItems = useCallback((items) => {
-  setCart(prev => {
-    const next = [...prev];
-    items.forEach(item => {
+  const addItem = useCallback((item) => {
+    setCart(prev => {
       const key = lineKey(item);
-      const idx = next.findIndex(i => lineKey(i) === key);
-      if (idx >= 0) next[idx] = { ...next[idx], ...item };
-      else next.push(item);
+      const existing = prev.find(i => lineKey(i) === key);
+      if (existing) {
+        return prev.map(i => lineKey(i) === key ? { ...i, Qty: i.Qty + item.Qty } : i);
+      }
+      return [...prev, item];
     });
-    return next;
-  });
-}, []);
+  }, []);
 
-  const addItems = useCallback((items) => setCart(items), []);
+  //const addItems = useCallback((items) => setCart(items), []);
+  const addItems = useCallback((items) => {
+    setCart(prev => {
+      const next = [...prev];
+      items.forEach(item => {
+        const key = lineKey(item);
+        const idx = next.findIndex(i => lineKey(i) === key);
+        if (idx >= 0) next[idx] = { ...next[idx], ...item };
+        else next.push(item);
+      });
+      return next;
+    });
+  }, []);
 
   const removeItem = useCallback((itemKey) => {
     setCart(prev => prev.filter(i => lineKey(i) !== itemKey));
