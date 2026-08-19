@@ -24,6 +24,7 @@ import ProductDetail from "@/features/master/product/pages/ProductDetail";
 
 // Sales Management
 import POSContainer from "@/features/sales/order/pages/POSContainer"; 
+import SalesOrderContainer from "@/features/sales/order/pages/SalesOrderContainer"; 
 import SalesInvoiceContainer from "@/features/sales/invoice/pages/SalesInvoiceContainer";
 import POSOrderList from "@/features/sales/order/pages/POSOrderList";
 import SalesInvoiceList from "@/features/sales/invoice/pages/SalesInvoiceList";
@@ -211,8 +212,13 @@ function AppContent() {
                             <BankStatementContainer />
                           </ProtectedRoute>
                         } />
+                        <Route path="/sales-order" element={
+                          <ProtectedRoute windowKey="salesOrder">
+                            <SalesOrderContainer />
+                          </ProtectedRoute>
+                        } />
                         <Route path="/sales-invoice" element={
-                          <ProtectedRoute windowKey="salesinvoice">
+                          <ProtectedRoute windowKey="salesInvoice">
                             <SalesInvoiceContainer />
                           </ProtectedRoute>
                         } />

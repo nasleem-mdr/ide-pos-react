@@ -1,4 +1,5 @@
 import { HomeIcon, ImportIcon, BankIcon, VendorIcon, RequisitionIcon, ShoppingCartIcon, DeliveryIcon, UserTake, ListIcon, PartnerIcon, BoxIcon, CashierIcon, } from '@/shared/components/icon';
+import { ShoppingBagIcon } from '@/shared/components/icon/ShoppingBagIcon';
 
 export const menuSections = [ 
     {
@@ -20,7 +21,8 @@ export const menuSections = [
         defaultCollapsed: true,
         items: [
             { key: 'pos-order',     windowKey: 'pos',    path: '/pos-order',        label: 'Pos Sales',     icon: <CashierIcon size={20}/> },
-            { key: 'salesInvoice',       windowKey: 'salesInvoice', path: '/sales-invoice',         label: 'Sales Invoice',  icon: <ImportIcon /> },
+            { key: 'salesOrder',     windowKey: 'salesOrder',    path: '/sales-order',        label: 'Sales Order',     icon: <ShoppingBagIcon size={24}/> },
+            { key: 'salesInvoice',       windowKey: 'salesInvoice', path: '/sales-invoice',         label: 'Sales Invoice',  icon: <ImportIcon size={20}/> },
             ]
     },
     {

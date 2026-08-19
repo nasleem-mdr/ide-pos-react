@@ -115,12 +115,14 @@ export const DOC_BASE_TYPE = {
   PURCHASE_REQUISITION: 'POR', // FPB — Requisition
   PURCHASE_ORDER:        'POO', // Purchasing
   MATERIAL_RECEIPT:      'MMR', // Goods Receipt (Vendor Receipt)
+  MATERIAL_SHIPMENT:     'MMS',
   MATERIAL_MOVEMENT:     'MMM', // Perpindahan gudang↔gudang (TIDAK dipakai Internal Use)
   MATERIAL_INVENTORY:    'MMI', // M_Inventory — WAJIB dikombinasikan dengan
   AP_INVOICE:            'API',  // ⬅️ baru
   AP_PAYMENT:            'APP', 
   AR_INVOICE:            'ARI', // DOC_SUB_TYPE_INV di bawah (lihat catatan di atas).
   AR_RECEIPT:            'ARR',
+  SALES_ORDER:            'SOO',
 };
 
 // Referensi nilai DocSubTypeInv (AD_Reference_ID=200068) — pembeda transaksi
