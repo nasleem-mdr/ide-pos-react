@@ -121,6 +121,8 @@ export function useSalesInvoiceSubmit({ invoiceDocTypeId, description, onError, 
             Description:   item.Description || item.Name,
           };
           if (item.DateService) linePayload.DateService = item.DateService;
+          if (item.M_InOutLine_ID) linePayload.M_InOutLine_ID = { id: parseInt(item.M_InOutLine_ID) }; 
+          if (item.C_OrderLine_ID) linePayload.C_OrderLine_ID = { id: parseInt(item.C_OrderLine_ID) }; 
 
           if (item.sourceInvoiceLineId) {
             await idempiereApi(`/models/c_invoiceline/${item.sourceInvoiceLineId}`, {
@@ -173,16 +175,18 @@ export function useSalesInvoiceSubmit({ invoiceDocTypeId, description, onError, 
           await idempiereApi('/models/c_invoiceline', {
             method: 'POST',
             body: JSON.stringify({
-              AD_Org_ID:     { id: orgId },
-              C_Invoice_ID:  { id: invoiceId },
-              M_Product_ID:  { id: parseInt(item.M_Product_ID) },
-              C_UOM_ID:      { id: parseInt(uom.C_UOM_ID) },
-              QtyEntered:    qtyEntered,
-              QtyInvoiced:   qtyInvoiced,
-              PriceActual:   parseFloat(item.PriceActual || item.Price || 0),
-              PriceEntered:  parseFloat(item.PriceEntered || item.PriceActual || item.Price || 0),
-              Description: item.Description || item.Name,
-            }),
+            AD_Org_ID:     { id: orgId },
+            C_Invoice_ID:  { id: invoiceId },
+            M_Product_ID:  { id: parseInt(item.M_Product_ID) },
+            C_UOM_ID:      { id: parseInt(uom.C_UOM_ID) },
+            QtyEntered:    qtyEntered,
+            QtyInvoiced:   qtyInvoiced,
+            PriceActual:   parseFloat(item.PriceActual || item.Price || 0),
+            PriceEntered:  parseFloat(item.PriceEntered || item.PriceActual || item.Price || 0),
+            Description:   item.Description || item.Name,
+            ...(item.M_InOutLine_ID ? { M_InOutLine_ID: { id: parseInt(item.M_InOutLine_ID) } } : {}), // ⬅️ TAMBAHKAN
+            ...(item.C_OrderLine_ID ? { C_OrderLine_ID: { id: parseInt(item.C_OrderLine_ID) } } : {}), // ⬅️ TAMBAHKAN
+          }),
           });
         }
       }
