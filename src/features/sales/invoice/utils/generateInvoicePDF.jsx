@@ -1,5 +1,6 @@
 import { idempiereApi } from '@/api/idempiereApi';
 import { renderDocumentPDF } from '@/utils/pdf/renderDocumentPDF';
+import { cleanIdentifier } from '@/utils/pdf/formatIdentifier';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // generateInvoicePDF.js
