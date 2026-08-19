@@ -1,5 +1,6 @@
 import { idempiereApi } from '@/api/idempiereApi';
 import { renderDocumentPDF } from '@/utils/pdf/renderDocumentPDF';
+import { cleanIdentifier } from '@/utils/pdf/formatIdentifier';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // generateShipmentPDF.js
@@ -86,7 +87,7 @@ export async function generateShipmentPDF(shipmentId, documentNo, logoDataUrl) {
       head: [["No", "Produk", "Qty Order", "UOM", "Qty Dikirim", "Keterangan"]],
       body: lines.map((l, idx) => [
         l.Line ?? idx + 1,
-        l.M_Product_ID?.identifier || "-",
+        cleanIdentifier(l.M_Product_ID?.identifier) || "-",
         numberFormatter.format(l.QtyEntered ?? 0),
         l.C_UOM_ID?.identifier || "-",
         numberFormatter.format(l.MovementQty ?? 0),
