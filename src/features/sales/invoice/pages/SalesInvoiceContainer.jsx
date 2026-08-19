@@ -27,6 +27,8 @@ import { useBankAccounts } from '@/shared/hooks/useBankAccounts'; // sesuaikan p
 import { useCustomerSearch } from '@/shared/hooks/useCustomerSearch';
 import SalesInvoiceSubmitModal from '@/features/sales/invoice/components/SalesInvoiceSubmitModal';
 import SalesInvoiceSuccessModal from '@/features/sales/invoice/components/SalesInvoiceSuccessModal';
+import SalesInvoiceImportFromShipment from '@/features/sales/invoice/components/SalesInvoiceImportFromShipment';
+
 import { useSalesCart, lineKey } from '@/features/sales/invoice/hooks/useSalesCart';
 import { useSalesInvoiceSubmit } from '@/features/sales/invoice/hooks/useSalesInvoiceSubmit';
 
@@ -56,7 +58,7 @@ const SalesInvoiceContainer = () => {
   const [invoiceDocTypeId, setInvoiceDocTypeId] = useState(null);
   const [submitModalOpen, setSubmitModalOpen] = useState(false);
   const [description, setDescription] = useState('');
-
+  const [importShipmentOpen, setImportShipmentOpen] = useState(false);
     // ...
   const supportsBankAccount = useColumnSupport('c_invoice', 'C_BankAccount_ID');
   const supportsDateService = useColumnSupport('c_invoiceline', 'DateService');
@@ -210,9 +212,10 @@ const SalesInvoiceContainer = () => {
     setEditInvoiceDocNo(null);
     setEditInvoiceStatus(null);
   }, [clearCart, setCustomer]);
-
+  
+  const handleImportFromShipment = (chosenLines) => addItems(chosenLines);
   // ── Klik di luar box search customer → tutup dropdown ───────────────────
- // ── Klik di luar box search customer → tutup dropdown ───────────────────
+  // ── Klik di luar box search customer → tutup dropdown ───────────────────
  useEffect(() => {
   const handler = (e) => {
     if (customerBoxRef.current && !customerBoxRef.current.contains(e.target)) {
@@ -590,7 +593,14 @@ const openProductDetail = (product) => { setSelectedProduct(product); setDetailO
               <ScanIcon />
             </button>
           </div>
-
+        <button
+          onClick={() => setImportShipmentOpen(true)}
+          disabled={!customer}
+          title={!customer ? 'Pilih customer dulu' : 'Import dari Shipment'}
+          style={{ background: !customer ? '#9ca3af' : COLOR.success, border: 'none', color: '#fff', borderRadius: RADIUS.md, padding: '10px 14px', cursor: !customer ? 'not-allowed' : 'pointer', fontWeight: 600, fontSize: '13px', flexShrink: 0 }}
+        >
+          📥 Import Shipment
+        </button>
           {/* Product Grid */}
           <div style={{
             flex: 1, overflowY: 'auto', padding: '12px 14px',
@@ -624,7 +634,13 @@ const openProductDetail = (product) => { setSelectedProduct(product); setDetailO
             )}
           </div>
         </div>
-
+        <SalesInvoiceImportFromShipment
+          isOpen={importShipmentOpen}
+          onClose={() => setImportShipmentOpen(false)}
+          customerId={customer?.C_BPartner_ID}
+          customerName={customer?.Name}
+          onImport={handleImportFromShipment}
+        />
         {isDesktop && (
           <SICartSidebar
           isOpen={cartOpen}
