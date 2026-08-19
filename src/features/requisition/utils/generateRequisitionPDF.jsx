@@ -1,5 +1,5 @@
 import { renderDocumentPDF } from '@/utils/pdf/renderDocumentPDF';
-
+import { cleanIdentifier } from '@/utils/pdf/formatIdentifier';
 // ─────────────────────────────────────────────────────────────────────────────
 // generateRequisitionPDF.js
 // Wrapper tipis: fetch data spesifik Requisition (header + lines + histori
@@ -95,7 +95,7 @@ export async function generateRequisitionPDF(requisitionId, documentNo, token, l
       head: [["No", "Nama Barang", "Qty", "UOM", "Keterangan"]],
       body: lines.map((l, idx) => [
         idx + 1,
-        l.M_Product_ID?.identifier || "-",
+        cleanIdentifier(l.M_Product_ID?.identifier) || "-",
         l.Qty,
         l.C_UOM_ID?.identifier || "-",
         l.Description || "",
