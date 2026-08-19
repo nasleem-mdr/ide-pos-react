@@ -13,22 +13,27 @@ import { useState, useCallback, useMemo } from 'react';
 // '@/shared/hooks') supaya key konsisten across modul; import ulang di sini
 // biar file ini standalone.
 // ─────────────────────────────────────────────────────────────────────────────
-export const lineKey = (item) => `${item.M_Product_ID}__${item.C_UOM_ID}`;
+export const lineKey = (item) =>
+  item.M_InOutLine_ID != null
+    ? `shipline-${item.M_InOutLine_ID}`
+    : `${item.M_Product_ID}__${item.C_UOM_ID}`;
 
 export function useSalesCart() {
   const [cart, setCart] = useState([]);
   const [customer, setCustomerState] = useState(null); // { C_BPartner_ID, Name, locationId }
 
-  const addItem = useCallback((item) => {
-    setCart(prev => {
+  const addItems = useCallback((items) => {
+  setCart(prev => {
+    const next = [...prev];
+    items.forEach(item => {
       const key = lineKey(item);
-      const existing = prev.find(i => lineKey(i) === key);
-      if (existing) {
-        return prev.map(i => lineKey(i) === key ? { ...i, Qty: i.Qty + item.Qty } : i);
-      }
-      return [...prev, item];
+      const idx = next.findIndex(i => lineKey(i) === key);
+      if (idx >= 0) next[idx] = { ...next[idx], ...item };
+      else next.push(item);
     });
-  }, []);
+    return next;
+  });
+}, []);
 
   const addItems = useCallback((items) => setCart(items), []);
 
