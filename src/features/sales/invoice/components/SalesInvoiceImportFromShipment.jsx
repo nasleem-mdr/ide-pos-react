@@ -42,7 +42,7 @@ const SalesInvoiceImportFromShipment = ({ isOpen, onClose, customerId, customerN
       C_OrderLine_ID: l.C_OrderLine_ID,
       M_Product_ID:   l.M_Product_ID,
       Name:           l.ProductName,
-      Description:    l.ProductName,
+      Description:    `${l.ProductName} - ${l.ShipmentDocumentNo}`, 
       C_UOM_ID:       l.C_UOM_ID,
       UomName:        l.UomName,
       Qty:            selected[l.M_InOutLine_ID],
