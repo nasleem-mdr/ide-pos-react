@@ -1,35 +1,53 @@
-import React from 'react';
+import React, { useState } from "react";
 import { useNavigate } from 'react-router-dom';
 import { COLOR, RADIUS } from '@/utils/styleTokens';
 import { formatCurrency } from '@/utils/currency';
-import { ShoppingCartIcon } from '@/shared/components'; // ⬅️ ganti icon kalau ada icon invoice/receipt tersendiri
+import { ShoppingCartIcon } from '@/shared/components';
+import { generateInvoicePDF } from '@/features/sales/invoice/utils/generateInvoicePDF';
+import { useOrgInfo } from "@/shared/hooks/useOrgInfo";
 
-// ─────────────────────────────────────────────────────────────────────────────
-// SalesInvoiceSuccessModal.jsx
-// Padanan PurchaseOrderSuccessModal.jsx untuk Sales Invoice. `data` array
-// disiapkan sama seperti versi PO (biar konsisten kalau nanti mau dukung
-// submit multi-customer sekaligus), tapi untuk alur normal isinya cuma 1
-// elemen — hasil dari useSalesInvoiceSubmit.jsx.
-//
-// Tiap elemen data: { documentNo, status, grandTotal, customerName, date, items }
-// (nama field grandTotal di sini dipetakan dari `total` supaya konsisten
-// dengan properti balikan hook — sesuaikan kalau kamu rename di container).
-// ─────────────────────────────────────────────────────────────────────────────
-const SalesInvoiceSuccessModal = ({ isOpen, data, onClose }) => {
+const SalesInvoiceSuccessModal = ({
+  isOpen,
+  data,
+  onClose,
+}) => {
+  const { orgInfo } = useOrgInfo(); 
   const navigate = useNavigate();
   const handleClose = () => { onClose(); navigate('/dashboard'); };
+  const [isPrinting, setIsPrinting] = useState(false);
   if (!isOpen || !data || data.length === 0) return null;
 
   const grandTotal = data.reduce((s, inv) => s + (inv.grandTotal ?? inv.total ?? 0), 0);
   const isAllDraft = data.every(inv => inv.status === 'Draft');
+  const isMulti = data.length > 1;
 
   const headerTitle = isAllDraft
-    ? (data.length > 1 ? `${data.length} Draft Invoice Berhasil Dibuat!` : 'Draft Invoice Berhasil Dibuat!')
-    : (data.length > 1 ? `${data.length} Sales Invoice Berhasil Dibuat!` : 'Sales Invoice Berhasil Dibuat!');
+    ? (isMulti ? `${data.length} Draft Invoice Berhasil Dibuat!` : 'Draft Invoice Berhasil Dibuat!')
+    : (isMulti ? `${data.length} Sales Invoice Berhasil Dibuat!` : 'Sales Invoice Berhasil Dibuat!');
 
   const headerSubtitle = isAllDraft
     ? 'Invoice masih Draft — periksa & tekan Complete dari iDempiere kalau sudah siap.'
     : 'Dokumen telah di-Complete.';
+
+  // ── Print hanya masuk akal untuk 1 invoice sekaligus. Kalau multi-invoice
+  //    (misal nanti ada mode submit banyak customer), print per-baris via
+  //    handlePrintOne — tombol footer utama disembunyikan untuk kasus multi.
+  const handlePrintOne = async (inv) => {
+    if (!inv?.invoiceId) {
+      console.warn('SalesInvoiceSuccessModal: invoiceId kosong pada data item, tidak bisa print.', inv);
+      alert('Tidak bisa mencetak — ID Invoice tidak ditemukan pada data ini.');
+      return;
+    }
+    setIsPrinting(true);
+    try {
+      await generateInvoicePDF(inv.invoiceId, inv.documentNo, orgInfo?.logoUrl);
+    } catch (err) {
+      console.error("Gagal membuat PDF Invoice:", err.message);
+      alert("Gagal membuat PDF Invoice: " + (err.message || "Terjadi kesalahan."));
+    } finally {
+      setIsPrinting(false);
+    }
+  };
 
   return (
     <div style={{
@@ -94,10 +112,28 @@ const SalesInvoiceSuccessModal = ({ isOpen, data, onClose }) => {
                 </span>
               </div>
             ))}
+
+            {/* ── Print per invoice — muncul kalau multi-invoice ────────── */}
+            {isMulti && !isAllDraft && (
+              <button
+                onClick={() => handlePrintOne(inv)}
+                disabled={isPrinting || !inv.invoiceId}
+                style={{
+                  marginTop: '10px', width: '100%',
+                  background: 'transparent', color: COLOR.primary,
+                  border: `1.5px solid ${COLOR.primary}`, borderRadius: RADIUS.sm,
+                  padding: '8px', fontSize: '12px', fontWeight: 700,
+                  cursor: (isPrinting || !inv.invoiceId) ? 'not-allowed' : 'pointer',
+                  opacity: (isPrinting || !inv.invoiceId) ? 0.5 : 1,
+                }}
+              >
+                {isPrinting ? '⏳ Menyiapkan PDF...' : '🖨️ Print Invoice Ini'}
+              </button>
+            )}
           </div>
         ))}
 
-        {data.length > 1 && (
+        {isMulti && (
           <div style={{
             display: 'flex', justifyContent: 'space-between', padding: '10px 14px',
             background: '#f0f4ff', borderRadius: RADIUS.md, marginBottom: '18px',
@@ -107,13 +143,37 @@ const SalesInvoiceSuccessModal = ({ isOpen, data, onClose }) => {
           </div>
         )}
 
-        <button onClick={onClose} style={{
-          background: COLOR.primary, color: '#fff', border: 'none',
-          borderRadius: RADIUS.md, padding: '14px', fontWeight: 700,
-          fontSize: '15px', cursor: 'pointer', width: '100%',
-        }}>
-          Buat Invoice Baru
-        </button>
+        {/* ── Footer actions — konsisten pakai token warna, bukan style lama ── */}
+        <div style={{ display: 'flex', gap: '10px', marginTop: isMulti ? 0 : '4px' }}>
+          {!isMulti && !isAllDraft && (
+            <button
+              onClick={() => handlePrintOne(data[0])}
+              disabled={isPrinting || !data[0]?.invoiceId}
+              style={{
+                flex: 1,
+                background: 'transparent', color: COLOR.primary,
+                border: `1.5px solid ${COLOR.primary}`, borderRadius: RADIUS.md,
+                padding: '14px', fontWeight: 700, fontSize: '14px',
+                cursor: (isPrinting || !data[0]?.invoiceId) ? 'not-allowed' : 'pointer',
+                opacity: (isPrinting || !data[0]?.invoiceId) ? 0.6 : 1,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+              }}
+            >
+              {isPrinting ? '⏳ Menyiapkan...' : '🖨️ Print Invoice'}
+            </button>
+          )}
+          <button
+            onClick={onClose}
+            style={{
+              flex: 1,
+              background: COLOR.primary, color: '#fff', border: 'none',
+              borderRadius: RADIUS.md, padding: '14px', fontWeight: 700,
+              fontSize: '14px', cursor: 'pointer',
+            }}
+          >
+            Buat Invoice Baru
+          </button>
+        </div>
       </div>
     </div>
   );

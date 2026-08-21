@@ -84,7 +84,8 @@ export function useSalesInvoiceSubmit({ invoiceDocTypeId, description, onError, 
           body: JSON.stringify(headerPayload),
         });
         invoiceRes.DocumentNo = invoiceRes.DocumentNo || existing.DocumentNo;
-
+        
+        
         // ── Diff line items ────────────────────────────────────────────
         // cart item dengan `sourceInvoiceLineId` = line lama yang masih
         // dipertahankan (mungkin diedit qty/price/uom-nya). Item tanpa
@@ -120,7 +121,7 @@ export function useSalesInvoiceSubmit({ invoiceDocTypeId, description, onError, 
             PriceEntered:  parseFloat(item.PriceEntered || item.PriceActual || item.Price || 0),
             Description:   item.Description || item.Name,
           };
-          if (item.DateService) linePayload.DateService = item.DateService;
+          if (item.DateService) linePayload.DateService = toIdempiereTimestamp(item.DateService);
           if (item.M_InOutLine_ID) linePayload.M_InOutLine_ID = { id: parseInt(item.M_InOutLine_ID) }; 
           if (item.C_OrderLine_ID) linePayload.C_OrderLine_ID = { id: parseInt(item.C_OrderLine_ID) }; 
 
@@ -171,6 +172,12 @@ export function useSalesInvoiceSubmit({ invoiceDocTypeId, description, onError, 
           const uom = item.selectedUom || { C_UOM_ID: item.C_UOM_ID, multiplyRate: 1 };
           const qtyEntered = parseFloat(item.Qty);
           const qtyInvoiced = qtyEntered * (uom.multiplyRate || 1);
+          const toIdempiereTimestamp = (dateInput) => {
+            if (!dateInput) return null;
+            const d = dateInput instanceof Date ? dateInput : new Date(dateInput);
+            if (isNaN(d)) return null;
+            return d.toISOString().replace(/\.\d{3}Z$/, 'Z'); // "2026-08-20T00:00:00Z"
+          };
 
           await idempiereApi('/models/c_invoiceline', {
             method: 'POST',
@@ -186,6 +193,7 @@ export function useSalesInvoiceSubmit({ invoiceDocTypeId, description, onError, 
             Description:   item.Description || item.Name,
             ...(item.M_InOutLine_ID ? { M_InOutLine_ID: { id: parseInt(item.M_InOutLine_ID) } } : {}), // ⬅️ TAMBAHKAN
             ...(item.C_OrderLine_ID ? { C_OrderLine_ID: { id: parseInt(item.C_OrderLine_ID) } } : {}), // ⬅️ TAMBAHKAN
+            ...(item.DateService ? { DateService: toIdempiereTimestamp(item.DateService) } : {}),
           }),
           });
         }
@@ -251,6 +259,6 @@ export function useSalesInvoiceSubmit({ invoiceDocTypeId, description, onError, 
       setProgressStep(null);
     }
   }, [invoiceDocTypeId, description, onError, onStepUpdate, progressStep]);
-
+  
   return { submit, isSubmitting, progressStep };
 }

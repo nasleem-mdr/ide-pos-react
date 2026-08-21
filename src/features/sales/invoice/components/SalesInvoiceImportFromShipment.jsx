@@ -1,15 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { COLOR, RADIUS } from '@/utils/styleTokens';
 import { useShipmentInvoiceLines } from '../hooks/useShipmentInvoiceLines';
 
-// Flat multi-select (pola BankStatementImportModal) — 1 baris = 1 M_InOutLine
-// yang masih ada sisa qty belum ditagih. Filter customer OPSIONAL: kalau
-// customer sudah dipilih di container, otomatis dikunci ke customer itu
-// (invoice = 1 customer selalu, tidak masuk akal import lintas customer).
 const SalesInvoiceImportFromShipment = ({ isOpen, onClose, customerId, customerName, onImport }) => {
   const { shipments, loading, fetchLines } = useShipmentInvoiceLines();
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState({}); // { [M_InOutLine_ID]: qty }
+  const selectAllRef = useRef(null);
 
   const runFilter = () => fetchLines({ term: query, customerId });
 
@@ -18,6 +15,18 @@ const SalesInvoiceImportFromShipment = ({ isOpen, onClose, customerId, customerN
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
+  // ── Select All — HARUS di atas early return, dihitung tetap aman ────────
+  // walau shipments masih [] (isOpen=false) karena .every/.some pada array
+  // kosong tidak error (every → true, some → false), cuma perlu dijaga
+  // supaya allSelected tidak "true" secara keliru saat shipments kosong.
+  const allSelected  = shipments.length > 0 && shipments.every(l => selected[l.M_InOutLine_ID] != null);
+  const someSelected = shipments.some(l => selected[l.M_InOutLine_ID] != null) && !allSelected;
+
+  useEffect(() => {
+    if (selectAllRef.current) selectAllRef.current.indeterminate = someSelected;
+  }, [someSelected]);
+
+  // ── Early return — SEKARANG aman, semua hooks sudah dipanggil di atas ───
   if (!isOpen) return null;
 
   const toggle = (line) => {
@@ -36,15 +45,26 @@ const SalesInvoiceImportFromShipment = ({ isOpen, onClose, customerId, customerN
 
   const selectedLines = shipments.filter(l => selected[l.M_InOutLine_ID] > 0);
 
+  const toggleSelectAll = () => {
+    if (allSelected) {
+      setSelected({});
+    } else {
+      const next = {};
+      shipments.forEach(l => { next[l.M_InOutLine_ID] = l.qtyOutstanding; });
+      setSelected(next);
+    }
+  };
+
   const handleConfirm = () => {
     const chosen = selectedLines.map(l => ({
       M_InOutLine_ID: l.M_InOutLine_ID,
       C_OrderLine_ID: l.C_OrderLine_ID,
       M_Product_ID:   l.M_Product_ID,
       Name:           l.ProductName,
-      Description:    `${l.ProductName} - ${l.ShipmentDocumentNo}`, 
+      Description:    `${l.ProductName} - DO No ${l.ShipmentDocumentNo}`,
       C_UOM_ID:       l.C_UOM_ID,
       UomName:        l.UomName,
+      DateService:    l.MovementDate,
       Qty:            selected[l.M_InOutLine_ID],
       Price:          l.Price,
       ShipmentDocumentNo: l.ShipmentDocumentNo,
@@ -106,7 +126,19 @@ const SalesInvoiceImportFromShipment = ({ isOpen, onClose, customerId, customerN
         </div>
 
         <div style={{ padding: '12px 16px', borderTop: `1px solid ${COLOR.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ fontSize: '12px', fontWeight: 600 }}>{selectedLines.length} dipilih</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', cursor: shipments.length === 0 ? 'default' : 'pointer' }}>
+              <input
+                ref={selectAllRef}
+                type="checkbox"
+                checked={allSelected}
+                onChange={toggleSelectAll}
+                disabled={shipments.length === 0}
+              />
+              Pilih Semua
+            </label>
+            <span style={{ fontSize: '12px', fontWeight: 600 }}>{selectedLines.length} dipilih</span>
+          </div>
           <div style={{ display: 'flex', gap: '8px' }}>
             <button onClick={onClose} style={{ padding: '8px 14px', border: `1px solid ${COLOR.border}`, borderRadius: RADIUS.md, background: 'none' }}>Batal</button>
             <button onClick={handleConfirm} disabled={selectedLines.length === 0}
