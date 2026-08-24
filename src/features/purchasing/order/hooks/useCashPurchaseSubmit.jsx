@@ -3,6 +3,7 @@ import { idempiereApi, fkId } from '@/api/idempiereApi';
 import { getLoginInfo } from '@/shared/hooks/useLoginInfo';
 import { useAPPaymentSubmit } from '@/features/purchasing/order/hooks/useAPPaymentSubmit';
 import { waitForDocStatus } from '@/utils/docStatusWaiter';
+import { useUomConversion } from '@/shared/hooks/useUomConversion';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // useCashPurchaseSubmit.jsx
@@ -27,12 +28,94 @@ import { waitForDocStatus } from '@/utils/docStatusWaiter';
 // mengembalikan info dokumen mana saja yang SUDAH berhasil dibuat — supaya
 // tidak ada transaksi "hilang tanpa jejak" dan staff bisa lanjutkan manual
 // dari titik yang gagal (lihat bagian error handling di bawah).
+//
+// ── UOM/PRICE — DISAMAKAN DENGAN usePurchaseOrderSubmit.jsx (versi yang
+// SUDAH TERBUKTI BENAR) ────────────────────────────────────────────────────
+// Sebelumnya hook ini percaya begitu saja pada `item.selectedUOM.multiplyRate`
+// yang nempel di objek cart (kadang undefined/tidak sinkron dengan
+// `item.C_UOM_ID` → diam-diam fallback ke rate 1 → qty tidak terkonversi).
+// Sekarang konversi di-fetch FRESH dari server tiap submit lewat
+// `useUomConversion` (sama seperti hook PO normal):
+//   1. `resolveLineUom(item)` cari baris C_UOM_Conversion yang cocok untuk
+//      M_Product_ID + C_UOM_ID yang dipilih user (return null kalau item
+//      sudah dalam UOM dasar, atau kalau conversion tidak ditemukan).
+//   2. `toBaseQty(qtyEntered, selectedUom)` → QtyOrdered (UOM dasar).
+//   3. `priceOrdered` DITURUNKAN dari rasio qty (priceEntered × qtyEntered
+//      ÷ qtyOrdered) — BUKAN dari multiplyRate terpisah — supaya price dan
+//      qty selalu konsisten satu sama lain walau ada pembulatan di
+//      C_UOM_Conversion.
+// `C_UOM_ID` yang dikirim ke server SELALU `item.C_UOM_ID` (satu sumber),
+// bukan field dari objek UOM lain, supaya UOM yang tersimpan selalu sama
+// dengan UOM yang dipakai untuk menghitung konversi.
 // ─────────────────────────────────────────────────────────────────────────────
 export function useCashPurchaseSubmit({ poDocTypeId, receiptDocTypeId, invoiceDocTypeId, description, onError, onStepUpdate }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [progressStep, setProgressStep] = useState(null); // 'po' | 'receipt' | 'invoice' | 'payment' | 'allocation'
 
   const { submitPaymentAllocation } = useAPPaymentSubmit();
+  const { fetchUomOptions, toBaseQty } = useUomConversion();
+
+  // Cari objek UOM (untuk toBaseQty) — dipanggil per item saat submit,
+  // sama pola dengan resolveSelectedUom di usePurchaseOrderSubmit.jsx.
+  //
+  // LOGGING: dipertebal sementara untuk debugging kenapa qty tidak
+  // terkonversi — hapus/kecilkan lagi kalau sudah confirmed beres.
+  const resolveLineUom = useCallback(async (item) => {
+    const enteredUomId = parseInt(item.C_UOM_ID);
+    const baseUomId = parseInt(item.BaseUOM_ID || item.C_UOM_ID);
+
+    console.log('[UOM-DEBUG] ── item mentah dari cart ──', {
+      Name: item.Name,
+      M_Product_ID: item.M_Product_ID,
+      C_UOM_ID: item.C_UOM_ID,
+      BaseUOM_ID: item.BaseUOM_ID,
+      selectedUOM: item.selectedUOM, // cek isinya, siapa tau masih ada sisa pemakaian lama
+      enteredUomId_parsed: enteredUomId,
+      baseUomId_parsed: baseUomId,
+    });
+
+    if (!baseUomId) {
+      console.warn('[UOM-DEBUG] baseUomId kosong/NaN → item.BaseUOM_ID dan item.C_UOM_ID dua-duanya tidak ada. Konversi dilewati (dianggap tidak perlu).');
+      return null;
+    }
+    if (enteredUomId === baseUomId) {
+      console.log('[UOM-DEBUG] enteredUomId === baseUomId → item memang sudah dalam UOM dasar, tidak perlu konversi. Ini NORMAL kalau produk memang selalu dijual dalam UOM dasar.');
+      return null;
+    }
+
+    console.log(`[UOM-DEBUG] Memanggil fetchUomOptions(M_Product_ID=${item.M_Product_ID}, baseUomId=${baseUomId}, null)...`);
+    let options;
+    try {
+      options = await fetchUomOptions(item.M_Product_ID, baseUomId, null);
+    } catch (err) {
+      console.error('[UOM-DEBUG] fetchUomOptions MELEMPAR ERROR:', err);
+      throw err;
+    }
+    console.log('[UOM-DEBUG] Hasil fetchUomOptions (daftar C_UOM_Conversion yang ditemukan):', options);
+
+    if (!Array.isArray(options) || options.length === 0) {
+      console.warn(
+        `[UOM-DEBUG] fetchUomOptions mengembalikan array KOSONG untuk produk #${item.M_Product_ID}. ` +
+        `Kemungkinan: (a) tidak ada baris C_UOM_Conversion untuk produk ini sama sekali di iDempiere, ` +
+        `atau (b) endpoint/hook useUomConversion mengembalikan struktur data yang beda dari yang diharapkan.`
+      );
+    }
+
+    const match = options.find(o => o.C_UOM_ID === enteredUomId);
+    console.log(`[UOM-DEBUG] Mencari C_UOM_ID === ${enteredUomId} (tipe: ${typeof enteredUomId}) di antara options. Tipe C_UOM_ID di options[0]:`, options[0]?.C_UOM_ID, typeof options[0]?.C_UOM_ID);
+
+    if (!match) {
+      console.warn(
+        `[UOM-DEBUG] TIDAK ADA MATCH untuk C_UOM_ID=${enteredUomId} di antara ${options.length} opsi yang ditemukan. ` +
+        `Opsi yang ada: ${JSON.stringify(options.map(o => o.C_UOM_ID))}. ` +
+        `→ Qty TIDAK dikonversi (fallback ke qtyEntered apa adanya) untuk produk #${item.M_Product_ID} — CEK MANUAL.`
+      );
+      return null;
+    }
+
+    console.log('[UOM-DEBUG] MATCH ditemukan:', match);
+    return match;
+  }, [fetchUomOptions]);
 
   const submit = useCallback(async (cart, {
     warehouseId,
@@ -133,38 +216,54 @@ export function useCashPurchaseSubmit({ poDocTypeId, receiptDocTypeId, invoiceDo
 
       const poLineIds = [];
       for (const item of cart) {
-        // FIX: field UOM yang benar adalah `selectedUOM` (huruf besar), bukan
-        // `selectedUom` — sebelumnya selalu fallback ke multiplyRate:1 dan
-        // diam-diam mengabaikan konversi UOM non-dasar. Formula qty/price di
-        // bawah ini disamakan persis dengan hook PO normal Anda yang sudah
-        // terbukti benar (usePurchaseOrderSubmit.jsx).
-        const uom          = item.selectedUOM || { C_UOM_ID: item.C_UOM_ID, multiplyRate: 1 };
-        const multiplyRate = uom.multiplyRate || 1;
         const qtyEntered   = parseFloat(item.Qty ?? item.QtyEntered ?? 1);
         // Fallback ke `item.Price` tetap dipertahankan (itu yang bikin Cash
         // Purchase kepakai harganya kemarin) untuk jaga-jaga kalau item tidak
         // punya `PriceEntered`.
         const priceEntered = parseFloat(item.PriceEntered ?? item.Price ?? 0);
-        const qtyOrdered   = multiplyRate ? qtyEntered / multiplyRate : qtyEntered;
-        const priceOrdered = priceEntered * multiplyRate;
+
+        // Konversi UOM di-fetch FRESH dari server (C_UOM_Conversion), sama
+        // pola dengan usePurchaseOrderSubmit.jsx — bukan baca field mentah
+        // dari cart yang bisa tidak sinkron.
+        const selectedUom = await resolveLineUom(item);
+        const qtyOrdered   = toBaseQty(qtyEntered, selectedUom);
+        // Price DITURUNKAN dari rasio qty (bukan dikali multiplyRate
+        // terpisah) supaya price & qty selalu konsisten satu sama lain.
+        const priceOrdered = qtyOrdered > 0 ? (priceEntered * qtyEntered) / qtyOrdered : priceEntered;
+
+        console.log('[UOM-DEBUG] ── hasil akhir per line ──', {
+          Name: item.Name,
+          qtyEntered,
+          selectedUom,
+          qtyOrdered,
+          priceEntered,
+          priceOrdered,
+          '⚠️ qtyOrdered === qtyEntered?': qtyOrdered === qtyEntered
+            ? 'YA — kalau UOM seharusnya beda dari base, ini tandanya konversi TIDAK jalan'
+            : 'tidak (beda, berarti konversi jalan)',
+        });
+
+        const orderLinePayload = {
+          AD_Org_ID:    { id: orgId },
+          C_Order_ID:   { id: poId },
+          M_Product_ID: { id: parseInt(item.M_Product_ID) },
+          C_UOM_ID:     { id: parseInt(item.C_UOM_ID) }, // satu sumber, konsisten dgn resolveLineUom
+          QtyEntered:   qtyEntered,
+          QtyOrdered:   qtyOrdered,
+          PriceActual:  priceOrdered,
+          PriceEntered: priceEntered,
+        };
+        console.log('[UOM-DEBUG] Payload POST /models/c_orderline:', orderLinePayload);
 
         const lineRes = await idempiereApi('/models/c_orderline', {
           method: 'POST',
-          body: JSON.stringify({
-            AD_Org_ID:    { id: orgId },
-            C_Order_ID:   { id: poId },
-            M_Product_ID: { id: parseInt(item.M_Product_ID) },
-            C_UOM_ID:     { id: parseInt(uom.C_UOM_ID) },
-            QtyEntered:   qtyEntered,
-            QtyOrdered:   qtyOrdered,
-            PriceActual:  priceOrdered,
-            PriceEntered: priceEntered,
-          }),
+          body: JSON.stringify(orderLinePayload),
         });
+        console.log('[UOM-DEBUG] Response c_orderline (cek QtyOrdered/PriceActual yang benar-benar TERSIMPAN di server):', lineRes);
         poLineIds.push({
           orderLineId: fkId(lineRes.id) ?? lineRes.id,
           productId:   item.M_Product_ID,
-          uom,
+          uom: { C_UOM_ID: item.C_UOM_ID }, // dipakai lagi di Receipt/Invoice line di bawah
           // Disimpan LENGKAP (entered & ordered/base) supaya Receipt & Invoice
           // di bawah tinggal PAKAI, bukan hitung ulang dengan rumus berbeda
           // (sumber ketidaksinkronan sebelumnya).
@@ -284,7 +383,7 @@ export function useCashPurchaseSubmit({ poDocTypeId, receiptDocTypeId, invoiceDo
           M_Product_ID:   { id: parseInt(line.productId) },
           C_UOM_ID:       { id: parseInt(line.uom.C_UOM_ID) },
           QtyEntered:     line.qtyEntered, // FIX: sebelumnya tidak dikirim sama sekali → LineNetAmt/GrandTotal kosong
-          QtyInvoiced:    line.qtyOrdered, // FIX: harus qty di UOM DASAR (= QtyEntered / MultiplyRate), bukan qty entered
+          QtyInvoiced:    line.qtyOrdered, // FIX: harus qty di UOM DASAR (= hasil toBaseQty), bukan qty entered
           PriceActual:    line.priceOrdered,
           PriceEntered:   line.priceEntered,
           C_OrderLine_ID: { id: line.orderLineId },
@@ -387,7 +486,7 @@ export function useCashPurchaseSubmit({ poDocTypeId, receiptDocTypeId, invoiceDo
       setIsSubmitting(false);
       setProgressStep(null);
     }
-  }, [poDocTypeId, receiptDocTypeId, invoiceDocTypeId, description, onError, onStepUpdate, submitPaymentAllocation]);
+  }, [poDocTypeId, receiptDocTypeId, invoiceDocTypeId, description, onError, onStepUpdate, submitPaymentAllocation, resolveLineUom, toBaseQty]);
 
   return { submit, isSubmitting, progressStep };
 }

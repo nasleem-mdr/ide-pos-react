@@ -152,6 +152,7 @@ const handleModalCashPurchase = async () => {
     if (result) {
         clearCart();
         setSelectedBankAccountId(null);
+        fetchProducts(searchValue.trim()); 
     }
 };
 const openNormalSubmitModal = () => {
