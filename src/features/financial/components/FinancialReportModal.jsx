@@ -1,147 +1,190 @@
 import { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
+import { X, FileText, Info } from 'lucide-react';
+import { useReportLineSets } from '@/features/financial/hooks/useReportLineSets';
+import '@/css/FinancialReport.css';
 
-/**
- * FinancialReportModal
- * ---------------------
- * Modal untuk memilih jenis laporan keuangan (Neraca / Laba Rugi) beserta
- * parameternya (periode tanggal), sebelum dikirim ke useFinancialReport.
- *
- * Modal ini standalone (tidak bergantung ke komponen Dialog existing kamu),
- * supaya gampang di-drop-in. Kalau mau konsisten pakai Dialog generic yang
- * sudah ada di project, tinggal bungkus <div className="fixed inset-0..."> di
- * bawah ini dengan komponen Dialog kamu.
- *
- * @param {Object} props
- * @param {boolean} props.open
- * @param {() => void} props.onClose
- * @param {(params: { reportType: string, reportLineSetId: number, dateFrom: string, dateTo: string }) => void} props.onApply
- * @param {Array<{ id: string, label: string, reportLineSetId: number, isPeriodic: boolean }>} props.reportTypes
- *        Konfigurasi jenis laporan yang tersedia. Contoh:
- *        [
- *          { id: 'neraca', label: 'Neraca', reportLineSetId: 1000123, isPeriodic: false },
- *          { id: 'labarugi', label: 'Laba Rugi', reportLineSetId: 1000124, isPeriodic: true },
- *        ]
- *        reportLineSetId WAJIB diisi sesuai PA_ReportLineSet_ID di instance kamu.
- */
-export default function FinancialReportModal({ open, onClose, onApply, reportTypes = [] }) {
-  const [selectedTypeId, setSelectedTypeId] = useState(reportTypes[0]?.id ?? '');
+export default function FinancialReportModal({ open, onClose, onApply, token }) {
+  const { reportLineSets, loading: loadingTypes, error: typesError } = useReportLineSets(open ? token : null);
+
+  const [selectedId, setSelectedId] = useState('');
+  const [manualIsPeriodic, setManualIsPeriodic] = useState(false);
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
 
-  const selectedType = reportTypes.find((t) => t.id === selectedTypeId);
+  //const selectedType = reportLineSets.find((t) => t.id === selectedId);
+  const selectedType = reportLineSets.find((t) => String(t.id) === String(selectedId));
+  // isPeriodic hasil deteksi otomatis (true/false), atau null kalau tidak terdeteksi.
+  // Kalau null, pakai pilihan manual sebagai fallback.
+  const resolvedIsPeriodic =
+    selectedType?.isPeriodic !== null && selectedType?.isPeriodic !== undefined
+      ? selectedType.isPeriodic
+      : manualIsPeriodic;
 
-  // Reset form tiap kali modal dibuka
+  // Reset tiap kali modal dibuka
   useEffect(() => {
     if (open) {
-      setSelectedTypeId(reportTypes[0]?.id ?? '');
+      setSelectedId('');
+      setManualIsPeriodic(false);
       const today = new Date().toISOString().slice(0, 10);
       const firstOfMonth = new Date();
       firstOfMonth.setDate(1);
       setDateFrom(firstOfMonth.toISOString().slice(0, 10));
       setDateTo(today);
     }
-  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  // Auto-select laporan pertama begitu daftar selesai di-fetch
+  useEffect(() => {
+    if (open && reportLineSets.length > 0 && !selectedId) {
+      setSelectedId(reportLineSets[0].id);
+    }
+  }, [open, reportLineSets, selectedId]);
 
   if (!open) return null;
 
-  const isValid = selectedType && dateTo && (!selectedType.isPeriodic || dateFrom);
+  const isValid = selectedType && dateTo && (!resolvedIsPeriodic || dateFrom);
 
   const handleApply = () => {
     if (!isValid) return;
     onApply({
-      reportType: selectedType.id,
-      reportLineSetId: selectedType.reportLineSetId,
-      dateFrom: selectedType.isPeriodic ? dateFrom : undefined,
+      reportLineSetId: selectedType.id,
+      reportLabel: selectedType.name,
+      isPeriodic: resolvedIsPeriodic,
+      dateFrom: resolvedIsPeriodic ? dateFrom : undefined,
       dateTo,
     });
     onClose();
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
-      <div className="w-full max-w-md rounded-xl bg-white shadow-xl">
-        {/* Header */}
-        <div className="flex items-center justify-between border-b px-5 py-4">
-          <h2 className="text-lg font-semibold text-gray-800">Cetak Laporan Keuangan</h2>
-          <button
-            onClick={onClose}
-            className="rounded-full p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-            aria-label="Tutup"
-          >
-            <X size={20} />
+    <div className="frm-overlay">
+      <div className="frm-modal">
+        <div className="frm-header">
+          <div className="frm-header-left">
+            <div className="frm-icon-box">
+              <FileText size={18} />
+            </div>
+            <div>
+              <h2 className="frm-title">Parameter Laporan Keuangan</h2>
+              <p className="frm-subtitle">Tentukan jenis laporan dan periode tanggal</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="frm-close-btn" aria-label="Tutup">
+            <X size={18} />
           </button>
         </div>
 
-        {/* Body */}
-        <div className="space-y-4 px-5 py-4">
-          {/* Pilihan jenis laporan */}
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Jenis Laporan</label>
-            <div className="grid grid-cols-2 gap-2">
-              {reportTypes.map((type) => (
-                <button
-                  key={type.id}
-                  onClick={() => setSelectedTypeId(type.id)}
-                  className={`rounded-lg border px-3 py-2 text-sm font-medium transition ${
-                    selectedTypeId === type.id
-                      ? 'border-blue-600 bg-blue-50 text-blue-700'
-                      : 'border-gray-200 text-gray-600 hover:border-gray-300'
-                  }`}
-                >
-                  {type.label}
-                </button>
-              ))}
-            </div>
-          </div>
+        <div className="frm-body">
+          {/* Pilihan Jenis Laporan — dari API, pakai dropdown */}
+        <div>
+          <label className="frm-label" htmlFor="frm-report-select">Jenis Laporan</label>
 
-          {/* Tanggal mulai — hanya untuk laporan periodik (Laba Rugi) */}
-          {selectedType?.isPeriodic && (
+          {loadingTypes && <p className="frm-subtitle">Memuat daftar laporan...</p>}
+          {typesError && <p style={{ color: '#dc2626', fontSize: 12 }}>{typesError}</p>}
+
+          {!loadingTypes && !typesError && (
+            <select
+              id="frm-report-select"
+              className="frm-select"
+              value={selectedId}
+              onChange={(e) => setSelectedId(e.target.value)}
+              disabled={reportLineSets.length === 0}
+            >
+              {reportLineSets.length === 0 && (
+                <option value="">Tidak ada Report Line Set aktif</option>
+              )}
+              {reportLineSets.map((type) => (
+                <option key={type.id} value={type.id}>
+                  {type.name}
+                </option>
+              ))}
+            </select>
+          )}
+
+          {selectedType && (
+            <span className={`frm-select-badge ${selectedType.isPeriodic == null ? 'unknown' : ''}`}>
+              {selectedType.isPeriodic === true && 'Terdeteksi: Periodik'}
+              {selectedType.isPeriodic === false && 'Terdeteksi: Posisi (Cutoff)'}
+              {(selectedType.isPeriodic === null || selectedType.isPeriodic === undefined) && 'Tipe tidak terdeteksi'}
+            </span>
+          )}
+        </div>
+
+          {/* Fallback manual — cuma muncul kalau deteksi otomatis gagal */}
+          {selectedType && (selectedType.isPeriodic === null || selectedType.isPeriodic === undefined) && (
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
-                Dari Tanggal
-              </label>
-              <input
-                type="date"
-                value={dateFrom}
-                onChange={(e) => setDateFrom(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
-              />
+              <label className="frm-label">Tipe Periode (tidak terdeteksi otomatis)</label>
+              <div className="frm-type-grid">
+                <button
+                  type="button"
+                  onClick={() => setManualIsPeriodic(false)}
+                  className={`frm-type-btn ${!manualIsPeriodic ? 'selected' : ''}`}
+                >
+                  <p className={`frm-type-name ${!manualIsPeriodic ? 'selected' : ''}`}>Posisi (Cutoff)</p>
+                  <p className="frm-type-desc">Saldo per satu tanggal, mis. Neraca</p>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setManualIsPeriodic(true)}
+                  className={`frm-type-btn ${manualIsPeriodic ? 'selected' : ''}`}
+                >
+                  <p className={`frm-type-name ${manualIsPeriodic ? 'selected' : ''}`}>Periodik</p>
+                  <p className="frm-type-desc">Rentang tanggal, mis. Laba Rugi</p>
+                </button>
+              </div>
             </div>
           )}
 
-          {/* Tanggal akhir / cutoff */}
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              {selectedType?.isPeriodic ? 'Sampai Tanggal' : 'Per Tanggal (Cutoff)'}
-            </label>
-            <input
-              type="date"
-              value={dateTo}
-              onChange={(e) => setDateTo(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
-            />
-            {!selectedType?.isPeriodic && (
-              <p className="mt-1 text-xs text-gray-400">
-                Neraca dihitung kumulatif sejak awal buku sampai tanggal ini.
-              </p>
+          <div className="frm-date-section">
+            {resolvedIsPeriodic ? (
+              <div className="frm-date-grid">
+                <div>
+                  <label className="frm-field-label">Dari Tanggal</label>
+                  <input
+                    type="date"
+                    value={dateFrom}
+                    onChange={(e) => setDateFrom(e.target.value)}
+                    className="frm-input"
+                  />
+                </div>
+                <div>
+                  <label className="frm-field-label">Sampai Tanggal</label>
+                  <input
+                    type="date"
+                    value={dateTo}
+                    onChange={(e) => setDateTo(e.target.value)}
+                    className="frm-input"
+                  />
+                </div>
+              </div>
+            ) : (
+              <div>
+                <label className="frm-field-label">Per Tanggal (Cutoff)</label>
+                <input
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) => setDateTo(e.target.value)}
+                  className="frm-input"
+                />
+              </div>
+            )}
+
+            {!resolvedIsPeriodic && (
+              <div className="frm-info">
+                <Info size={14} />
+                <span>
+                  Laporan posisi menyajikan saldo kumulatif dari awal operasional hingga tanggal penutupan yang dipilih.
+                </span>
+              </div>
             )}
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="flex justify-end gap-2 border-t px-5 py-4">
-          <button
-            onClick={onClose}
-            className="rounded-lg px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100"
-          >
+        <div className="frm-footer">
+          <button type="button" onClick={onClose} className="frm-btn-cancel">
             Batal
           </button>
-          <button
-            onClick={handleApply}
-            disabled={!isValid}
-            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40"
-          >
+          <button type="button" onClick={handleApply} disabled={!isValid} className="frm-btn-apply">
             Tampilkan Laporan
           </button>
         </div>

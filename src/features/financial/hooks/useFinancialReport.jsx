@@ -75,14 +75,12 @@ export function useFinancialReport({
 
         const json = await res.json();
         const rows = json.records || json.value || [];
-
-        // Menggunakan push beruntun lebih cepat & hemat memori dibanding concat()
         for (let i = 0; i < rows.length; i++) {
           allRows.push(rows[i]);
         }
 
-        if (rows.length < pageSize) break; // Halaman terakhir
-        skip += pageSize;
+        if (rows.length === 0) break;   // ganti kondisi berhenti
+        skip += rows.length;            // pakai jumlah row ASLI yang balik, bukan pageSize yang diminta
       }
       return allRows;
     },
@@ -103,7 +101,7 @@ export function useFinancialReport({
     const line = linesById.get(lineId);
     if (!line) return 0;
 
-    if (line.LineType !== 'C') {
+    if (line.LineType?.id !== 'C') {   // ganti dari line.LineType !== 'C'
       const val = segmentAmounts.get(lineId) || 0;
       cache.set(lineId, val);
       return val;
@@ -118,7 +116,7 @@ export function useFinancialReport({
     const b = op2Id ? evaluateLine(op2Id, linesById, segmentAmounts, cache, visiting, depth + 1) : 0;
 
     let result = 0;
-    switch (line.CalculationType) {
+    switch (line.CalculationType?.id) { 
       case '+':
         result = a + b;
         break;
@@ -156,34 +154,35 @@ export function useFinancialReport({
         // ------------------------------------------------------------------
         const [lines, allSources, allAccounts] = await Promise.all([
           fetchAllPages(
-            `/api/v1/models/PA_ReportLine?$filter=PA_ReportLineSet_ID eq ${reportLineSetId} and IsActive eq 'Y'&$orderby=SeqNo`,
+            `/api/v1/models/PA_ReportLine?$filter=PA_ReportLineSet_ID eq ${reportLineSetId} and IsActive eq true&$orderby=SeqNo`,
             1000,
             signal
           ),
           fetchAllPages(
-            `/api/v1/models/PA_ReportSource?$filter=ElementType eq 'AC' and IsActive eq 'Y'`,
+            `/api/v1/models/PA_ReportSource?$filter=ElementType eq 'AC' and IsActive eq true`,
             1000,
             signal
           ),
           fetchAllPages(
-            `/api/v1/models/C_ElementValue?$filter=IsActive eq 'Y'&$select=C_ElementValue_ID,Name,Value,AccountType,AccountSign,IsSummary`,
+            `/api/v1/models/C_ElementValue?$filter=IsActive eq true&$select=C_ElementValue_ID,Name,Value,AccountType,AccountSign,IsSummary`,
             1000,
             signal
           ),
         ]);
-
+        
         if (lines.length === 0) {
+          console.warn('useFinancialReport — PA_ReportLine kosong untuk reportLineSetId ini, report akan kosong');
           setReportLines([]);
           setLoading(false);
           return;
         }
-
+        
         // ------------------------------------------------------------------
         // 2. PRE-PROCESSING & INDEXING MAPS
         // ------------------------------------------------------------------
         const accountMap = new Map();
         for (const acc of allAccounts) {
-          accountMap.set(getId(acc.C_ElementValue_ID), acc);
+          accountMap.set(acc.id, acc);  
         }
 
         // Sort akun berdasarkan Value (String) untuk pencarian Range cepat
@@ -206,6 +205,9 @@ export function useFinancialReport({
         // Cache untuk resolusi Range Akun agar tidak dihitung berulang
         const resolvedAccountsCache = new Map();
 
+        // Helper: cek IsSummary secara toleran terhadap boolean atau 'Y'/'N'
+        const isSummaryAccount = (acc) => acc?.IsSummary === true || acc?.IsSummary === 'Y';
+
         const resolveAccountIds = (source) => {
           const sourceId = getId(source.PA_ReportSource_ID);
           if (sourceId && resolvedAccountsCache.has(sourceId)) {
@@ -214,29 +216,42 @@ export function useFinancialReport({
 
           const fromId = getId(source.C_ElementValue_ID);
           const toId = getId(source.C_ElementValue_To_ID);
-
           if (!fromId) return [];
-          if (!toId || toId === fromId) return [fromId];
 
           const fromAcc = accountMap.get(fromId);
+
+          // Kalau 'From' adalah akun Summary tanpa 'To' eksplisit,
+          // treat sebagai parent: rollup ke semua child non-summary
+          // yang Value-nya diawali prefix Value akun summary ini.
+          if ((!toId || toId === fromId) && isSummaryAccount(fromAcc)) {
+            const prefix = String(fromAcc.Value);
+            const matched = [];
+            for (const acc of accountsByValue) {
+              if (!isSummaryAccount(acc) && String(acc.Value).startsWith(prefix)) {
+                matched.push(acc.id);
+              }
+            }
+            if (sourceId) resolvedAccountsCache.set(sourceId, matched);
+            return matched;
+          }
+
+          if (!toId || toId === fromId) return [fromId];
+
           const toAcc = accountMap.get(toId);
           if (!fromAcc || !toAcc) return [fromId, toId].filter(Boolean);
 
           const fromVal = String(fromAcc.Value);
           const toVal = String(toAcc.Value);
 
-          // Early-exit scan pada array yang sudah terurut
           const matchedIds = [];
           for (let i = 0; i < accountsByValue.length; i++) {
             const acc = accountsByValue[i];
             const accVal = String(acc.Value);
-
             if (accVal >= fromVal && accVal <= toVal) {
-              if (acc.IsSummary !== 'Y') {
-                matchedIds.push(getId(acc.C_ElementValue_ID));
+              if (!isSummaryAccount(acc)) {
+                matchedIds.push(acc.id);
               }
             } else if (accVal > toVal) {
-              // Berhenti lebih awal karena array terurut
               break;
             }
           }
@@ -244,7 +259,14 @@ export function useFinancialReport({
           if (sourceId) resolvedAccountsCache.set(sourceId, matchedIds);
           return matchedIds;
         };
-
+        console.log('Value akun summary 1000057:', accountMap.get(1000057)?.Value, accountMap.get(1000057)?.Name);
+        console.log('Semua akun (Value, IsSummary, Name):',
+          JSON.stringify(
+            Array.from(accountMap.values())
+              .map(a => ({ id: a.id, value: a.Value, isSummary: a.IsSummary, name: a.Name }))
+              .sort((a, b) => String(a.value).localeCompare(String(b.value)))
+          , null, 2)
+        );
         // ------------------------------------------------------------------
         // 3. FETCH DATA TRANSKASI (Fact_Acct)
         // ------------------------------------------------------------------
@@ -253,12 +275,14 @@ export function useFinancialReport({
             ? `DateAcct le '${dateTo}'`
             : `DateAcct ge '${dateFrom}' and DateAcct le '${dateTo}'`;
 
-        const factRows = await fetchAllPages(
-          `/api/v1/models/Fact_Acct?$filter=C_AcctSchema_ID eq ${acctSchemaId} and PostingType eq 'A' and ${dateFilter}&$select=Account_ID,AmtAcctDr,AmtAcctCr`,
-          2000, // Page size lebih besar untuk transaksi
-          signal
-        );
-
+            const factRows = await fetchAllPages(
+              `/api/v1/models/Fact_Acct?$filter=C_AcctSchema_ID eq ${acctSchemaId} and PostingType eq 'A' and ${dateFilter}&$select=Account_ID,AmtAcctDr,AmtAcctCr`,
+              2000,
+              signal
+            );
+            
+            console.log('useFinancialReport — dateFilter:', dateFilter);
+            console.log('useFinancialReport — jumlah Fact_Acct rows:', factRows.length, factRows.slice(0, 5));
         // ------------------------------------------------------------------
         // 4. AGREGASI SALDO PER AKUN
         // ------------------------------------------------------------------
@@ -293,38 +317,43 @@ export function useFinancialReport({
         // 5. KALKULASI SEGMENT LINES ('S')
         // ------------------------------------------------------------------
         const segmentAmounts = new Map();
+        console.log('Semua lines:', lines.map(l => ({ id: l.id, name: l.Name, type: l.LineType })));
         for (let i = 0; i < lines.length; i++) {
           const line = lines[i];
-          const lineId = getId(line.PA_ReportLine_ID);
-
-          if (line.LineType !== 'S') continue;
-
+          const lineId = line.id;
+          if (line.LineType?.id !== 'S') continue;
+        
           const sourcesForLine = sourcesByLineId.get(lineId) || [];
           let total = 0;
-
+        
+          console.log(`Line "${line.Name}" (${lineId}) — jumlah PA_ReportSource:`, sourcesForLine.length);
+        
           for (let j = 0; j < sourcesForLine.length; j++) {
             const accIds = resolveAccountIds(sourcesForLine[j]);
+            console.log(`  Source #${j} —`, sourcesForLine[j], '-> resolved accIds:', accIds);
             for (let k = 0; k < accIds.length; k++) {
-              total += getAccountBalance(accIds[k]);
+              const bal = getAccountBalance(accIds[k]);
+              console.log(`    accId ${accIds[k]} -> balance:`, bal);
+              total += bal;
             }
           }
-
+        
+          console.log(`Line "${line.Name}" total:`, total);
           segmentAmounts.set(lineId, total);
         }
-
         // ------------------------------------------------------------------
         // 6. EVALUASI BARIS KALKULASI ('C') VIA REKURSION & MEMOIZATION
         // ------------------------------------------------------------------
         const linesById = new Map();
         for (let i = 0; i < lines.length; i++) {
-          linesById.set(getId(lines[i].PA_ReportLine_ID), lines[i]);
+          linesById.set(lines[i].id, lines[i]);
         }
 
         const cache = new Map();
         const finalAmounts = new Map();
 
         for (let i = 0; i < lines.length; i++) {
-          const lineId = getId(lines[i].PA_ReportLine_ID);
+          const lineId = lines[i].id;
           finalAmounts.set(
             lineId,
             evaluateLine(lineId, linesById, segmentAmounts, cache, new Set())
@@ -335,18 +364,19 @@ export function useFinancialReport({
         // 7. HASIL AKHIR
         // ------------------------------------------------------------------
         const result = lines.map((line) => {
-          const lineId = getId(line.PA_ReportLine_ID);
+          const lineId = line.id;
           return {
             id: lineId,
             name: line.Name,
+            description: line.Description,   // ← baris baru
             seqNo: line.SeqNo,
-            lineType: line.LineType,
-            isDetail: line.IsDetail === 'Y',
-            isPageBreak: line.IsPageBreak === 'Y',
+            lineType: line.LineType?.id, 
+            isDetail: line.IsDetail === true || line.IsDetail === 'Y',
+            isPageBreak: line.IsPageBreak === true || line.IsPageBreak === 'Y',
             amount: finalAmounts.get(lineId) || 0,
           };
         });
-
+        console.log('Sample line mentah:', JSON.stringify(lines[0]));
         setReportLines(result);
       } catch (err) {
         if (err.name === 'AbortError') {

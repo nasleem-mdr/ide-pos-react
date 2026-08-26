@@ -71,7 +71,26 @@
         }
         return safeJson(text);
     }
+    // Ambil C_AcctSchema aktif milik client ini
+    export async function apiGetAcctSchema(token, clientId) {
+        const res = await fetch(
+            `api/v1/models/C_AcctSchema?$filter=IsActive eq true`,
+            { headers: { Accept: "application/json", Authorization: `Bearer ${token}` } }
+        );
+        const text = await res.text();
+        if (!res.ok) {
+            const err = safeJson(text);
+            throw new Error(err.detail || err.message || `Gagal ambil accounting schema (${res.status})`);
+        }
+        const data = safeJson(text);
+        const all = normaliseList(data, "records");
     
+        // Filter client-side, karena filter server-side pada FK (AD_Client_ID) tidak reliable
+        return all.filter((s) => {
+            const fkClientId = s.AD_Client_ID?.id ?? s.AD_Client_ID;
+            return Number(fkClientId) === Number(clientId);
+        });
+    }
     export async function apiSetSession(token, clientId, roleId, orgId, warehouseId, language) {
         const payload = {
         clientId: parseInt(clientId, 10),
@@ -99,20 +118,52 @@
         }
     
         const data = safeJson(text);
-    
+
         if (data.token) {
-        localStorage.setItem('token', data.token);
-        const userId = data.userId || (data.userContext && data.userContext.userId);
-        if (userId) {
-            localStorage.setItem('AD_User_ID', userId);
-        } else {
-            console.warn("AD_User_ID tidak ditemukan di respon API.");
-        }
-        localStorage.setItem('AD_Client_ID', clientId);
-        localStorage.setItem('AD_Role_ID', roleId);
-        localStorage.setItem('AD_Org_ID', orgId);
-        localStorage.setItem('M_Warehouse_ID', warehouseId);
+            localStorage.setItem('token', data.token);
+            const userId = data.userId || (data.userContext && data.userContext.userId);
+            if (userId) {
+                localStorage.setItem('AD_User_ID', userId);
+            } else {
+                console.warn("AD_User_ID tidak ditemukan di respon API.");
+            }
+            localStorage.setItem('AD_Client_ID', clientId);
+            localStorage.setItem('AD_Role_ID', roleId);
+            localStorage.setItem('AD_Org_ID', orgId);
+            localStorage.setItem('M_Warehouse_ID', warehouseId);
+    
+            try {
+                const schemas = await apiGetAcctSchema(data.token, clientId);
+                const acctSchemaId = schemas[0]?.id;   // ← ganti dari C_AcctSchema_ID ke id
+            
+                if (acctSchemaId) {
+                    localStorage.setItem('C_AcctSchema_ID', acctSchemaId);
+                    data.acctSchemaId = acctSchemaId;
+                } else {
+                    console.warn("C_AcctSchema_ID tidak ditemukan untuk client ini.");
+                }
+            } catch (e) {
+                console.warn("Gagal mengambil accounting schema:", e.message);
+            }
         }
     
         return data;
+
+        // const data = safeJson(text);
+    
+        // if (data.token) {
+        // localStorage.setItem('token', data.token);
+        // const userId = data.userId || (data.userContext && data.userContext.userId);
+        // if (userId) {
+        //     localStorage.setItem('AD_User_ID', userId);
+        // } else {
+        //     console.warn("AD_User_ID tidak ditemukan di respon API.");
+        // }
+        // localStorage.setItem('AD_Client_ID', clientId);
+        // localStorage.setItem('AD_Role_ID', roleId);
+        // localStorage.setItem('AD_Org_ID', orgId);
+        // localStorage.setItem('M_Warehouse_ID', warehouseId);
+        // }
+    
+        // return data;
     }

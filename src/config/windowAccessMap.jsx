@@ -27,7 +27,7 @@ export const WINDOW_ACCESS_MAP = {
   vendorInvoie:         null,
   bankstatement:         null,
   salesInvoice:         null,
-
+  
   // ===== List / Report =====
   requisitionList:      null, 
   posOrderList:         null,
@@ -36,6 +36,7 @@ export const WINDOW_ACCESS_MAP = {
   internalUseList:      null,
   vendorInvoiceList:      null,
   salesInvoiceList:      null,
+  financialReport:        null,
 };
 
 // Helper: ambil AD_Window_ID dari key, atau null kalau tidak terdaftar/tidak dibatasi.

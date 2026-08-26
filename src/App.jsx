@@ -39,6 +39,8 @@ import { AccessProvider } from '@/context/AccessContext';
 
 // Banking
 import BankStatementContainer  from '@/features/banking/statement/pages/BankStatementContainer';
+//financial Report
+import FinancialReportPage from '@/features/financial/pages/FinancialReportPage';
 
 import ProtectedRoute from '@/shared/components/ProtectedRoute';
 import IDempiereAuth from "@/features/login/pages/IDempiereAuth";
@@ -210,6 +212,11 @@ function AppContent() {
                         <Route path="/bank-statement" element={
                           <ProtectedRoute windowKey="bankstatement">
                             <BankStatementContainer />
+                          </ProtectedRoute>
+                        } />
+                        <Route path="/financial-report" element={
+                          <ProtectedRoute windowKey="financialReport">
+                            <FinancialReportPage token={session?.token} acctSchemaId={session?.acctSchemaId} />
                           </ProtectedRoute>
                         } />
                         <Route path="/sales-order" element={
