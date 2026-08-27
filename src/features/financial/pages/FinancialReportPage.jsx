@@ -157,9 +157,9 @@ export default function FinancialReportPage({ token, acctSchemaId }) {
             <table className="frp-table">
             <thead>
               <tr>
-                <th style={{ width: '15%' }}>No Rek</th>
+                <th style={{ width: '10%', textAlign:'center' }}>No Rek</th>
                 <th style={{ width: '55%' }}>Keterangan</th>
-                <th style={{ width: '30%' }}>Jumlah</th>
+                <th style={{ width: '35%' }}>Jumlah</th>
               </tr>
             </thead>
             <tbody>

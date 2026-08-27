@@ -219,7 +219,7 @@ const SalesInvoiceList = () => {
 
             await renderListPDF({
                 title: 'DAFTAR SALES',
-                logoDataUrl: orgInfo?.logoUrl,
+                orgInfo,
                 periodLabel: `PERIODE : ${formatDateService(startDate)}  ${formatDateService(endDate)}`,
                 columns: [
                     { key: 'no',         label: 'No',                width: 30,  align: 'center' },
@@ -250,7 +250,7 @@ const SalesInvoiceList = () => {
         const invoiceId = invoice._invoiceId ?? invoice.id;
         setDownloadingId(invoiceId);
         try {
-            await generateInvoicePDF(invoiceId, invoice.DocumentNo, orgInfo?.logoUrl);
+            await generateInvoicePDF(invoiceId, invoice.DocumentNo, orgInfo);
         } catch (err) {
             console.error("Failed to generate PDF:", err.message);
             alert("Failed to create PDF Document");

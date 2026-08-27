@@ -4,15 +4,9 @@ import { cleanIdentifier } from '@/utils/pdf/formatIdentifier';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // generateInvoicePDF.js
-// Wrapper tipis: fetch data spesifik Sales Invoice (header + lines + histori
-// workflow), lalu delegasikan seluruh rendering PDF ke renderDocumentPDF —
-// pola sama seperti generateRequisitionPDF.js. TIDAK membangun jsPDF manual.
-//
-// idempiereApi (bukan fetch+token manual) sudah otomatis baca token dari
-// localStorage, jadi tidak perlu parameter token terpisah di sini.
 // ─────────────────────────────────────────────────────────────────────────────
 
-const C_INVOICE_AD_TABLE_ID = 318; // GET /models/ad_table?$select=AD_Table_ID&$filter=TableName eq 'C_Invoice'
+const C_INVOICE_AD_TABLE_ID = 318;
 
 const STATUS_MAP = {
   DR: "Draft",
@@ -41,9 +35,9 @@ const formatDateService = (dateStr) => {
 /**
  * @param {number} invoiceId
  * @param {string} documentNo
- * @param {string} [logoDataUrl]  - mis. dari useOrgInfo().orgInfo?.logoUrl
+ * @param {Object} [orgInfo] - hasil useOrgInfo(): { name, address, phone, email, logoUrl }.
  */
-export async function generateInvoicePDF(invoiceId, documentNo, logoDataUrl) {
+export async function generateInvoicePDF(invoiceId, documentNo, orgInfo) {
   const header = await idempiereApi(
     `/models/c_invoice/${invoiceId}` +
     `?$select=DocumentNo,DateInvoiced,POReference,Description,DocStatus,AD_Org_ID,CreatedBy,C_BPartner_ID,GrandTotal`
@@ -52,7 +46,7 @@ export async function generateInvoicePDF(invoiceId, documentNo, logoDataUrl) {
   const linesRes = await idempiereApi(
     `/models/c_invoiceline` +
     `?$filter=C_Invoice_ID eq ${invoiceId}` +
-    `&$select=Line,M_Product_ID,QtyEntered,C_UOM_ID,PriceActual,LineNetAmt,Description,DateService` +
+    `&$select=Line,M_Product_ID,QtyEntered,C_UOM_ID,PriceActual,PriceEntered,LineNetAmt,Description,DateService` +
     `&$orderby=Line`
   );
   const lines = linesRes.records || [];
@@ -76,7 +70,7 @@ export async function generateInvoicePDF(invoiceId, documentNo, logoDataUrl) {
   await renderDocumentPDF({
     title: "SALES INVOICE",
     subtitle: "Dokumen ini sah dengan histori approval terlampir",
-    logoDataUrl, 
+    orgInfo,
     infoLeft: [
       ["No. ",        ": " + header.DocumentNo],
       ["Customer",    ": " + (header.C_BPartner_ID?.identifier || "-")],
@@ -94,9 +88,15 @@ export async function generateInvoicePDF(invoiceId, documentNo, logoDataUrl) {
         l.Description || cleanIdentifier(l.M_Product_ID?.identifier),
         numberFormatter.format(l.QtyEntered ?? 0),
         l.C_UOM_ID?.identifier || "-",
-        numberFormatter.format(l.PriceActual ?? 0),
+        numberFormatter.format(l.PriceEntered ?? 0),
         numberFormatter.format(l.LineNetAmt ?? 0),
       ]),
+      foot: [
+        [
+          { content: "Grand Total", colSpan: 5, styles: { halign: 'right', fontStyle: 'bold' } },
+          { content: numberFormatter.format(header.GrandTotal ?? 0), styles: { halign: 'right', fontStyle: 'bold' } }
+        ]
+      ],
       columnStyles: {
         0: { cellWidth: 75 },
         1: { cellWidth: 215 },

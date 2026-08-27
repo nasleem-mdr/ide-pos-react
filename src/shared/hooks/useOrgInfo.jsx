@@ -8,7 +8,10 @@ const _cache = new Map(); // orgId -> Promise<orgInfo | null>
 async function fetchOrgInfoRaw(orgId) {
   const res = await getModelRecords('ad_orginfo', {
     '$filter': `AD_Org_ID eq ${orgId}`,
-    '$select': 'AD_Org_ID,Phone,Email,Logo_ID,AD_OrgType_ID', // ← tambahkan di sini
+    // C_Location_ID ditambahkan agar identifier-nya (alamat terformat lengkap
+    // dari C_Location, mis. "Jl. ..., Kel. ... Kec. ... - Kota") bisa langsung
+    // dipakai di kop surat, tanpa fetch terpisah ke model c_location.
+    '$select': 'AD_Org_ID,Phone,Email,Logo_ID,AD_OrgType_ID,C_Location_ID',
     '$top': 1,
   });
   const record = res?.records?.[0];
@@ -35,11 +38,30 @@ async function fetchOrgInfoRaw(orgId) {
     }
   }
 
+  // Address1/Address2 diambil terpisah dari C_Location (bukan cuma identifier
+  // gabungan) supaya kop surat bisa menampilkan 2 baris alamat persis sesuai
+  // entri Address 1 / Address 2 di iDempiere.
+  let addressLines = [];
+  const locId = fkId(record.C_Location_ID);
+  if (locId) {
+    try {
+      const loc = await idempiereApi(`/models/c_location/${locId}?$select=Address1,Address2`);
+      addressLines = [loc?.Address1, loc?.Address2].filter(Boolean);
+    } catch (err) {
+      console.warn('[useOrgInfo] Gagal ambil Address1/Address2:', err.message);
+    }
+  }
+  // Fallback ke identifier gabungan kalau fetch Address1/Address2 gagal/kosong
+  if (addressLines.length === 0 && record.C_Location_ID?.identifier) {
+    addressLines = [record.C_Location_ID.identifier];
+  }
   return {
     orgId,
     name,
-    phone: record.Phone || '',
-    email: record.Email || '',
+    phone: record.Phone || record.phone || '',
+    email: record.EMail || record.email || '',
+    address: addressLines.join(', '),
+    addressLines,
     logoUrl,
   };
 }
