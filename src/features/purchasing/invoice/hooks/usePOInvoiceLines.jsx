@@ -115,6 +115,15 @@ export function usePOInvoiceLines() {
         const qtyOrdered     = parseFloat(l.QtyOrdered ?? l.QtyEntered ?? 0);
         const qtyInvoiced    = invoicedByLine.get(String(lineId)) || 0;
         const qtyOutstanding = Math.max(qtyOrdered - qtyInvoiced, 0);
+        // Rasio konversi UOM per baris — dihitung dari QtyOrdered (base)
+        // vs QtyEntered (UOM yang dipilih user saat PO dibuat, mis. Kotak).
+        // Sudah tersedia dari API c_orderline di atas, TIDAK perlu fetch
+        // C_UOM_Conversion terpisah. Dipakai oleh POLineDetailSheet untuk
+        // menampilkan & menghitung qty dalam UOM entered (bukan base),
+        // supaya "Sisa X Kotak" dan QtyEntered yang dikirim ke invoice line
+        // konsisten satu sama lain (lihat POLineDetailSheet.jsx).
+        const qtyEnteredOriginal = parseFloat(l.QtyEntered ?? qtyOrdered ?? 0);
+        const multiplyRate = qtyEnteredOriginal > 0 ? (qtyOrdered / qtyEnteredOriginal) : 1;
         if (!linesByOrder.has(oId)) linesByOrder.set(oId, []);
         linesByOrder.get(oId).push({
           C_OrderLine_ID: lineId,
@@ -123,6 +132,7 @@ export function usePOInvoiceLines() {
           C_UOM_ID:     fkId(l.C_UOM_ID) ?? l.C_UOM_ID?.id,
           UomName:      fkLabel(l.C_UOM_ID) || '',
           PriceEntered: parseFloat(l.PriceEntered ?? l.PriceActual ?? 0),
+          multiplyRate,
           qtyOrdered, qtyInvoiced, qtyOutstanding,
         });
       });

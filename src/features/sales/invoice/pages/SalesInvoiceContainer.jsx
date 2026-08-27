@@ -252,7 +252,7 @@ const openProductDetail = (product) => { setSelectedProduct(product); setDetailO
       C_UOM_ID:     uom.C_UOM_ID,
       UomName:      uom.Name,
       selectedUom:  uom,
-      DateService:  DateService,
+      DateService:  new Date().toISOString().slice(0, 10),
       Qty:          qty,
       Price:        parseFloat(product.PriceActual || product.Price || 0),
     });

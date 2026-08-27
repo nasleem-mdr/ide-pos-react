@@ -3,48 +3,53 @@ import POCartItem from '../../order/components/POCartItem';
 import { lineKey } from '@/shared/hooks/usePOCart';
 import { COLOR, RADIUS } from '@/utils/styleTokens';
 import { formatCurrency } from '@/utils/currency';
+import { FcProcess } from "react-icons/fc";
+import { MdAddBusiness } from "react-icons/md";
+import { FaTruck, FaMoneyBillWave } from 'react-icons/fa';
+import { AiOutlineDeliveredProcedure } from 'react-icons/ai';
 
 //const fmtRp = (n) => `Rp ${Math.round(n).toLocaleString('id-ID')}`;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // POCartSidebar.jsx
-// Padanan CartSidebar.jsx untuk Purchasing. Perbedaan utama: baris di-render
-// per KELOMPOK VENDOR (bukan list datar), dengan subtotal per grup — supaya
-// user bisa lihat langsung "kalau saya submit sekarang, akan jadi berapa PO
-// dan masing-masing senilai berapa" SEBELUM benar-benar submit.
-//
-// Field Description ditempatkan di bawah header (sebelum daftar item) —
-// kalau dikosongkan user, PurchasingContainer akan fallback ke
-// PURCHASING_CONFIG.DESCRIPTION saat submit (lihat descriptionPlaceholder).
-//
-// CHANGES (backward-compatible, default behavior unchanged for PO callers):
-// - `group.VendorName` -> `group.VendorName || group.CustomerName` so this
-//   same component can render Sales (customer-grouped) carts too.
-// - Added `partnerIcon` (default 🚚) and `partnerLabel` (default 'vendor')
-//   props so the group badge/summary text isn't hardcoded to Purchasing.
-//   Sales callers can pass partnerIcon="🏢" partnerLabel="customer".
 // ─────────────────────────────────────────────────────────────────────────────
 const POCartSidebar = ({
   vendorGroups, onRemove, onQtyChange, onPriceChange, onUomChange, onVendorClick,
   onClearCart, totalItems, totalAmount, summaryRight,
   title = '🧾 Daftar Purchase Order',
   onSubmitDraft, onSubmitComplete, 
-  onSubmit, submitLabel,  
-  onSubmitCash, cashSubmitLabel = '💵 Bayar Tunai Sekarang',
+  onSubmit,   
+  onSubmitCash, 
   isSubmitting = false,
   emptyLabel = 'Belum ada produk dipilih.',
   width = '380px',
   description = '',
   onDescriptionChange,
   descriptionPlaceholder = 'Keterangan Purchase Order...',
-  partnerIcon = '🚚',
+  partnerIcon = <><MdAddBusiness /></>,
   partnerLabel = 'vendor',
   docLabel = 'PO',
 }) => {
   const vendorCount = vendorGroups.length;
   const hasIncompleteVendor = vendorGroups.some(g => !g.C_BPartner_ID);
   const isSingleButtonMode = !!onSubmit && !onSubmitDraft && !onSubmitComplete;
-
+  const flexStyle = {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '8px' // Memberi jarak antara ikon dan teks
+  };
+  
+  const submitLabel = (
+    <span style={flexStyle}>
+      <AiOutlineDeliveredProcedure /> Prosedur
+    </span>
+  );
+  
+  const cashSubmitLabel = (
+    <span style={flexStyle}>
+      <FaMoneyBillWave /> Tunai
+    </span>
+  );
   return (
     <div style={{
       width, flexShrink: 0, background: COLOR.surface,
@@ -131,7 +136,8 @@ const POCartSidebar = ({
           ))
         )}
       </div>
-     {totalItems > 0 && (onSubmitDraft || onSubmitComplete || onSubmit || onSubmitCash) && (
+
+      {totalItems > 0 && (onSubmitDraft || onSubmitComplete || onSubmit || onSubmitCash) && (
         <div style={{ borderTop: `1px solid ${COLOR.border}`, padding: '14px 16px', flexShrink: 0 }}>
           <div style={{
             background: '#f0f4ff', borderRadius: RADIUS.md, padding: '10px 14px',
@@ -144,66 +150,81 @@ const POCartSidebar = ({
             </div>
             <div style={{ fontSize: '13px', fontWeight: 700, color: COLOR.textDk }}>{formatCurrency(totalAmount)}</div>
           </div>
+
           {summaryRight && (
             <div style={{ fontSize: '11px', color: COLOR.textLt, marginBottom: '10px' }}>{summaryRight}</div>
           )}
 
           {hasIncompleteVendor && (
-              <div style={{
-                fontSize: '11px', color: COLOR.danger, background: COLOR.dangerLt,
-                borderRadius: RADIUS.sm, padding: '8px 10px', marginBottom: '10px',
-              }}>
-                ⚠ Masih ada item tanpa {partnerLabel}. Ketuk badge {partnerIcon} pada item untuk memilih {partnerLabel}.
-              </div>
-            )}
+            <div style={{
+              fontSize: '11px', color: COLOR.danger, background: COLOR.dangerLt,
+              borderRadius: RADIUS.sm, padding: '8px 10px', marginBottom: '10px',
+            }}>
+              ⚠ Masih ada item tanpa {partnerLabel}. Ketuk badge {partnerIcon} pada item untuk memilih {partnerLabel}.
+            </div>
+          )}
 
+          {/* Wrapper Flexbox Kanan-Kiri */}
+          <div style={{ display: 'flex', gap: '10px' }}>
             {isSingleButtonMode ? (
               <button
                 onClick={onSubmit}
                 disabled={isSubmitting || hasIncompleteVendor}
                 style={{
+                  flex: 1,
+                  display: 'inline-flex',
                   background: (isSubmitting || hasIncompleteVendor) ? '#9ca3af' : COLOR.primary,
-                  color: '#fff', border: 'none', padding: '14px', width: '100%',
+                  color: '#fff', border: 'none', padding: '14px',
                   borderRadius: RADIUS.md, fontWeight: 700, fontSize: '14px',
                   cursor: (isSubmitting || hasIncompleteVendor) ? 'not-allowed' : 'pointer',
                 }}
               >
-                {isSubmitting ? '⏳ Memproses...' : (submitLabel || 'Kirim')}
+                {isSubmitting ? (
+                  <>
+                    <FcProcess /> Memproses...
+                  </>
+                ) : (
+                  submitLabel || 'Procedure'
+                )}
               </button>
             ) : (
-              <div style={{ display: 'flex', gap: '10px' }}>
-                <button
-                  onClick={onSubmitDraft}
-                  disabled={isSubmitting || hasIncompleteVendor}
-                  style={{
-                    background: (isSubmitting || hasIncompleteVendor) ? '#f3f4f6' : '#fff',
-                    color: (isSubmitting || hasIncompleteVendor) ? '#9ca3af' : COLOR.primary,
-                    border: `1.5px solid ${(isSubmitting || hasIncompleteVendor) ? '#d1d5db' : COLOR.primary}`,
-                    padding: '14px', width: '100%',
-                    borderRadius: RADIUS.md, fontWeight: 700, fontSize: '14px',
-                    cursor: (isSubmitting || hasIncompleteVendor) ? 'not-allowed' : 'pointer',
-                  }}
-                >
-                  {isSubmitting ? '⏳ Memproses...' : `📝 DRAFT ${vendorCount} ${docLabel}${vendorCount > 1 ? ' (terpisah)' : ''}`}
-                </button>
-                <button
-                  onClick={onSubmitComplete}
-                  disabled={isSubmitting || hasIncompleteVendor}
-                  style={{
-                    background: (isSubmitting || hasIncompleteVendor) ? '#9ca3af' : '#16a34a',
-                    color: '#fff', border: 'none', padding: '14px', width: '100%',
-                    borderRadius: RADIUS.md, fontWeight: 700, fontSize: '14px',
-                    cursor: (isSubmitting || hasIncompleteVendor) ? 'not-allowed' : 'pointer',
-                  }}
-                >
-                  {isSubmitting ? '⏳ Memproses...' : `✅ COMPLETE ${vendorCount} ${docLabel}${vendorCount > 1 ? ' (terpisah)' : ''}`}
+              <>
+                {onSubmitDraft && (
+                  <button
+                    onClick={onSubmitDraft}
+                    disabled={isSubmitting || hasIncompleteVendor}
+                    style={{
+                      flex: 1,
+                      background: (isSubmitting || hasIncompleteVendor) ? '#f3f4f6' : '#fff',
+                      color: (isSubmitting || hasIncompleteVendor) ? '#9ca3af' : COLOR.primary,
+                      border: `1.5px solid ${(isSubmitting || hasIncompleteVendor) ? '#d1d5db' : COLOR.primary}`,
+                      padding: '14px',
+                      borderRadius: RADIUS.md, fontWeight: 700, fontSize: '14px',
+                      cursor: (isSubmitting || hasIncompleteVendor) ? 'not-allowed' : 'pointer',
+                    }}
+                  >
+                    {isSubmitting ? '⏳ Memproses...' : `📝 DRAFT ${vendorCount} ${docLabel}`}
                   </button>
-              </div>
+                )}
+                {onSubmitComplete && (
+                  <button
+                    onClick={onSubmitComplete}
+                    disabled={isSubmitting || hasIncompleteVendor}
+                    style={{
+                      flex: 1,
+                      background: (isSubmitting || hasIncompleteVendor) ? '#9ca3af' : '#16a34a',
+                      color: '#fff', border: 'none', padding: '14px',
+                      borderRadius: RADIUS.md, fontWeight: 700, fontSize: '14px',
+                      cursor: (isSubmitting || hasIncompleteVendor) ? 'not-allowed' : 'pointer',
+                    }}
+                  >
+                    {isSubmitting ? '⏳ Memproses...' : `✅ COMPLETE ${vendorCount} ${docLabel}`}
+                  </button>
+                )}
+              </>
             )}
 
             {onSubmitCash && (() => {
-              // Cash Purchase (PO→Receipt→Invoice→Payment otomatis) hanya
-              // mendukung 1 vendor per transaksi — lihat useCashPurchaseSubmit.
               const cashDisabled = isSubmitting || hasIncompleteVendor || vendorCount > 1;
               return (
                 <button
@@ -211,7 +232,7 @@ const POCartSidebar = ({
                   disabled={cashDisabled}
                   title={vendorCount > 1 ? 'Cash Purchase hanya mendukung 1 vendor per transaksi.' : undefined}
                   style={{
-                    marginTop: '10px', width: '100%',
+                    flex: 1,
                     background: cashDisabled ? '#9ca3af' : '#16a34a',
                     color: '#fff', border: 'none', padding: '14px',
                     borderRadius: RADIUS.md, fontWeight: 700, fontSize: '14px',
@@ -222,9 +243,11 @@ const POCartSidebar = ({
                 </button>
               );
             })()}
-      </div>
-       )}
-      </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 };
+
 export default POCartSidebar;

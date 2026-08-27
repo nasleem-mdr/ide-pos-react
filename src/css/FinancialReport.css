@@ -1,4 +1,7 @@
-.frm-overlay {
+/* ==========================================
+   1. MODAL & OVERLAY STYLES (.frm-*)
+   ========================================== */
+   .frm-overlay {
     position: fixed;
     inset: 0;
     z-index: 50;
@@ -19,7 +22,7 @@
     overflow: hidden;
   }
   
-  /* Header */
+  /* Header Modal */
   .frm-header {
     display: flex;
     align-items: center;
@@ -68,12 +71,13 @@
     cursor: pointer;
     transition: background 0.15s, color 0.15s;
   }
+  
   .frm-close-btn:hover {
     background: #f3f4f6;
     color: #4b5563;
   }
   
-  /* Body */
+  /* Body Modal */
   .frm-body {
     padding: 20px 24px;
     display: flex;
@@ -91,11 +95,13 @@
     color: #4b5563;
   }
   
+  /* Selection Grid & Option Buttons */
   .frm-type-grid {
     display: grid;
     grid-template-columns: 1fr;
     gap: 10px;
   }
+  
   @media (min-width: 640px) {
     .frm-type-grid {
       grid-template-columns: 1fr 1fr;
@@ -114,10 +120,12 @@
     cursor: pointer;
     transition: all 0.15s;
   }
+  
   .frm-type-btn:hover {
     border-color: #d1d5db;
     background: #fafafa;
   }
+  
   .frm-type-btn.selected {
     border-color: #2563eb;
     background: rgba(239, 246, 255, 0.6);
@@ -130,6 +138,7 @@
     color: #1f2937;
     margin: 0;
   }
+  
   .frm-type-name.selected {
     color: #1e3a8a;
   }
@@ -140,6 +149,7 @@
     margin: 2px 0 0;
   }
   
+  /* Radio Custom Component */
   .frm-radio {
     width: 16px;
     height: 16px;
@@ -150,10 +160,12 @@
     justify-content: center;
     flex-shrink: 0;
   }
+  
   .frm-radio.selected {
     border-color: #2563eb;
     background: #2563eb;
   }
+  
   .frm-radio-dot {
     width: 6px;
     height: 6px;
@@ -161,7 +173,7 @@
     background: #fff;
   }
   
-  /* Date section */
+  /* Date Section */
   .frm-date-section {
     display: flex;
     flex-direction: column;
@@ -177,6 +189,7 @@
     grid-template-columns: 1fr;
     gap: 16px;
   }
+  
   @media (min-width: 640px) {
     .frm-date-grid {
       grid-template-columns: 1fr 1fr;
@@ -191,7 +204,9 @@
     color: #374151;
   }
   
-  .frm-input {
+  /* Inputs & Selects */
+  .frm-input,
+  .frm-select {
     width: 100%;
     border-radius: 8px;
     border: 1px solid #d1d5db;
@@ -201,10 +216,42 @@
     color: #1f2937;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
   }
-  .frm-input:focus {
+  
+  .frm-select {
+    cursor: pointer;
+  }
+  
+  .frm-input:focus,
+  .frm-select:focus {
     outline: none;
     border-color: #3b82f6;
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+  }
+  
+  .frm-select:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+    background: #f9fafb;
+  }
+  
+  .frm-select-badge {
+    margin-top: 8px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border-radius: 999px;
+    background: #eff6ff;
+    border: 1px solid #dbeafe;
+    padding: 3px 10px;
+    font-size: 11px;
+    font-weight: 500;
+    color: #2563eb;
+  }
+  
+  .frm-select-badge.unknown {
+    background: #fef9c3;
+    border-color: #fef08a;
+    color: #a16207;
   }
   
   .frm-info {
@@ -214,13 +261,14 @@
     font-size: 12px;
     color: #6b7280;
   }
+  
   .frm-info svg {
     margin-top: 2px;
     flex-shrink: 0;
     color: #3b82f6;
   }
   
-  /* Footer */
+  /* Footer Modal */
   .frm-footer {
     display: flex;
     align-items: center;
@@ -242,6 +290,7 @@
     cursor: pointer;
     transition: background 0.15s;
   }
+  
   .frm-btn-cancel:hover {
     background: #f9fafb;
   }
@@ -258,15 +307,22 @@
     cursor: pointer;
     transition: background 0.15s;
   }
+  
   .frm-btn-apply:hover {
     background: #1d4ed8;
   }
+  
   .frm-btn-apply:disabled {
     cursor: not-allowed;
     opacity: 0.5;
   }
+  
+  
+  /* ==========================================
+     2. REPORT PAGE STYLES (.frp-*)
+     ========================================== */
   .frp-page {
-    max-width: 56rem;
+    width: 96%;
     margin: 0 auto;
     padding: 24px;
     min-height: 100vh;
@@ -341,6 +397,7 @@
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
     transition: background 0.15s;
   }
+  
   .frp-btn-primary:hover {
     background: #1d4ed8;
   }
@@ -368,12 +425,13 @@
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
     transition: background 0.15s, color 0.15s;
   }
+  
   .frp-btn-secondary:hover {
     background: #f9fafb;
     color: #111827;
   }
   
-  /* Empty state */
+  /* Page States (Empty, Loading, Error) */
   .frp-empty {
     display: flex;
     flex-direction: column;
@@ -427,11 +485,11 @@
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
     transition: background 0.15s;
   }
+  
   .frp-empty-btn:hover {
     background: #1d4ed8;
   }
   
-  /* Loading state */
   .frp-loading {
     display: flex;
     flex-direction: column;
@@ -455,11 +513,13 @@
     animation: frp-spin 1s linear infinite;
     color: #2563eb;
   }
+  
   @keyframes frp-spin {
-    to { transform: rotate(360deg); }
+    to {
+      transform: rotate(360deg);
+    }
   }
   
-  /* Error state */
   .frp-error {
     display: flex;
     align-items: center;
@@ -484,7 +544,7 @@
     margin: 2px 0 0;
   }
   
-  /* Report document */
+  /* Document View */
   .frp-doc {
     overflow: hidden;
     border-radius: 12px;
@@ -494,10 +554,46 @@
   }
   
   .frp-doc-header {
+    position: relative;
     border-bottom: 1px solid #f3f4f6;
     background: #fafafa;
     padding: 24px;
     text-align: center;
+  }
+  
+  .frp-org-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+  
+  .frp-org-logo {
+    width: 40px;
+    height: 40px;
+    object-fit: contain;
+    border-radius: 6px;
+  }
+  
+  .frp-org-logo-corner {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    width: 72px;
+    height: 72px;
+    object-fit: contain;
+    border-radius: 8px;
+  }
+  
+  .frp-org-text {
+    text-align: left;
+  }
+      
+  .frp-org-contact {
+    font-size: 11px;
+    color: #6b7280;
+    margin: 1px 0 0;
   }
   
   .frp-doc-title {
@@ -510,24 +606,20 @@
   }
   
   .frp-doc-badge {
-    margin-top: 8px;
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    border-radius: 999px;
-    background: #fff;
-    border: 1px solid #e5e7eb;
-    padding: 4px 12px;
+    padding: 2px 12px;
     font-size: 12px;
     font-weight: 500;
     color: #4b5563;
-    box-shadow: 0 1px 1px rgba(0, 0, 0, 0.03);
   }
   
   .frp-doc-body {
     padding: 24px;
   }
   
+  /* Data Table Component */
   .frp-table {
     width: 100%;
     font-size: 14px;
@@ -546,131 +638,79 @@
     text-transform: uppercase;
     letter-spacing: 0.05em;
     color: #6b7280;
-  }
-  .frp-table th:last-child {
+}
+
+.frp-table th:last-child {
     text-align: right;
-  }
-  
-  .frp-table tbody tr {
+}
+
+.frp-table tbody tr {
     border-bottom: 1px solid #f3f4f6;
     transition: background 0.15s;
-  }
-  .frp-table tbody tr:hover {
+}
+
+.frp-table tbody tr:hover {
     background: rgba(249, 250, 251, 0.6);
-  }
-  .frp-table tbody tr.total-line {
+}
+
+.frp-table tbody tr.total-line {
     background: rgba(249, 250, 251, 0.8);
     font-weight: 700;
     color: #111827;
-  }
-  
-  .frp-table td {
+}
+
+.frp-table td {
     padding: 10px 0;
     color: #374151;
-  }
-  .frp-table td.name-cell {
-    padding-left: 24px;
-  }
-  .frp-table td.name-cell.total {
+}
+
+.frp-table td.name-cell {
+    text-align: right;
+    padding: 5px 20px 5px 5px;
+}
+
+.frp-table td.name-cell.total {
     padding-left: 12px;
     font-weight: 600;
-  }
-  .frp-table td.amount-cell {
-    padding-right: 12px;
+}
+
+.frp-table td.desc-cell {
+    text-align: left;
+    color: #6b7280;
+    font-size: 13px;
+    padding: 0 20px 5px 5px;
+}
+
+.frp-table td.desc-cell.total {
+    font-weight: 600;
+    color: #374151;
+}
+
+.frp-table td.amount-cell {
+    padding-right: 20px;
     text-align: right;
     font-variant-numeric: tabular-nums;
     color: #1f2937;
-  }
-  .frp-table td.amount-cell.total {
+}
+
+.frp-table td.amount-cell.total {
     font-weight: 700;
     color: #111827;
-  }
-  
-  .frp-doc-footer {
+}
+
+.frp-doc-footer {
     border-top: 1px solid #f3f4f6;
     padding: 12px 24px;
     background: rgba(249, 250, 251, 0.5);
     text-align: right;
     font-size: 11px;
     color: #9ca3af;
-  }
-  .frm-select {
-    width: 100%;
-    border-radius: 8px;
-    border: 1px solid #d1d5db;
-    background: #fff;
-    padding: 8px 12px;
-    font-size: 14px;
-    color: #1f2937;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
-    cursor: pointer;
-  }
-  .frm-select:focus {
-    outline: none;
-    border-color: #3b82f6;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
-  }
-  .frm-select:disabled {
-    cursor: not-allowed;
-    opacity: 0.6;
-    background: #f9fafb;
-  }
-  
-  .frm-select-badge {
-    margin-top: 8px;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    border-radius: 999px;
-    background: #eff6ff;
-    border: 1px solid #dbeafe;
-    padding: 3px 10px;
-    font-size: 11px;
-    font-weight: 500;
-    color: #2563eb;
-  }
-  .frm-select-badge.unknown {
-    background: #fef9c3;
-    border-color: #fef08a;
-    color: #a16207;
-  }
-  .frp-table td.desc-cell {
-    text-align: left;
-    color: #6b7280;
-    font-size: 13px;
-  }
-  .frp-table td.desc-cell.total {
-    font-weight: 600;
-    color: #374151;
-  }
-  .frp-org-header {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 12px;
-    margin-bottom: 12px;
-  }
-  
-  .frp-org-logo {
-    width: 40px;
-    height: 40px;
-    object-fit: contain;
-    border-radius: 6px;
-  }
-  
-  .frp-org-text {
-    text-align: left;
-  }
-  
-  .frp-org-name {
-    font-size: 14px;
+}
+
+.frp-org-name {
+    font-size: 24px;
     font-weight: 700;
-    color: #111827;
+    color: #04256b;
     margin: 0;
-  }
-  
-  .frp-org-contact {
-    font-size: 11px;
-    color: #6b7280;
-    margin: 1px 0 0;
-  }
+    text-transform: uppercase;
+}

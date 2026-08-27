@@ -129,37 +129,36 @@ export default function FinancialReportPage({ token, acctSchemaId }) {
       {!loading && !error && activeParams && (
         <div ref={printAreaRef} id="financial-report-print-area" className="frp-doc">
           <div className="frp-doc-header">
-          {orgInfo && (
-            <div className="frp-org-header">
-              {orgInfo.logoUrl && (
-                <img src={orgInfo.logoUrl} alt={orgInfo.name} className="frp-org-logo" />
-              )}
-              <div className="frp-org-text">
+            {orgInfo?.logoUrl && (
+              <img src={orgInfo.logoUrl} alt={orgInfo.name} className="frp-org-logo-corner" />
+            )}
+
+            {orgInfo && (
+              <div className="frp-org-text-center">
                 <p className="frp-org-name">{orgInfo.name}</p>
                 {(orgInfo.phone || orgInfo.email) && (
-                  <p className="frp-org-contact">
+                  <p className="frp-org-contact"> Telp / Email: 
                     {[orgInfo.phone, orgInfo.email].filter(Boolean).join(' • ')}
                   </p>
                 )}
               </div>
-            </div>
-          )}
+            )}
 
-          <h2 className="frp-doc-title">{activeTypeLabel}</h2>
-          <div className="frp-doc-badge">
-            <Calendar size={13} style={{ color: '#9ca3af' }} />
-            {activeParams.isPeriodic
-              ? `Periode ${activeParams.dateFrom} s/d ${activeParams.dateTo}`
-              : `Per ${activeParams.dateTo}`}
+            <h2 className="frp-doc-title">LAPORAN {activeTypeLabel}</h2>
+            <div className="frp-doc-badge">
+              <Calendar size={13} style={{ color: '#9ca3af' }} />
+              {activeParams.isPeriodic
+                ? `Periode ${activeParams.dateFrom} s/d ${activeParams.dateTo}`
+                : `Per ${activeParams.dateTo}`}
+            </div>
           </div>
-        </div>
 
           <div className="frp-doc-body">
             <table className="frp-table">
             <thead>
               <tr>
-                <th style={{ width: '20%' }}>No Rekening</th>
-                <th style={{ width: '50%' }}>Keterangan</th>
+                <th style={{ width: '15%' }}>No Rek</th>
+                <th style={{ width: '55%' }}>Keterangan</th>
                 <th style={{ width: '30%' }}>Jumlah</th>
               </tr>
             </thead>

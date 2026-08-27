@@ -74,10 +74,10 @@
   color: #94a3b8;
 }
 
-/* ── Info cards (4 kolom) ───────────────────────────────────────────────── */
+/* ── Info cards (5 kolom) ───────────────────────────────────────────────── */
 .welcome-cards {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 12px;
   width: 100%;
 }
@@ -265,6 +265,9 @@
 @media (max-width: 900px) {
   .ds-container {
     grid-template-columns: 1fr;
+  }
+  .welcome-cards {
+    grid-template-columns: repeat(3, 1fr);
   }
 }
 

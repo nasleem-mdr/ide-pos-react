@@ -382,8 +382,8 @@ export function useCashPurchaseSubmit({ poDocTypeId, receiptDocTypeId, invoiceDo
           C_Invoice_ID:   { id: invoiceId },
           M_Product_ID:   { id: parseInt(line.productId) },
           C_UOM_ID:       { id: parseInt(line.uom.C_UOM_ID) },
-          QtyEntered:     line.qtyEntered, // FIX: sebelumnya tidak dikirim sama sekali → LineNetAmt/GrandTotal kosong
-          QtyInvoiced:    line.qtyOrdered, // FIX: harus qty di UOM DASAR (= hasil toBaseQty), bukan qty entered
+          QtyEntered:     line.qtyEntered, 
+          QtyInvoiced:    line.qtyOrdered, 
           PriceActual:    line.priceOrdered,
           PriceEntered:   line.priceEntered,
           C_OrderLine_ID: { id: line.orderLineId },

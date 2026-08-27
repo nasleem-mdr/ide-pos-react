@@ -4,8 +4,6 @@ import { lineKey } from '@/shared/hooks/usePOCart';
 import { COLOR, RADIUS } from '@/utils/styleTokens';
 import { formatCurrency } from '@/utils/currency';
 
-//const fmtRp = (n) => `Rp ${Math.round(n).toLocaleString('id-ID')}`;
-
 // Padanan CartPanel.jsx untuk Purchasing — konten sama dengan POCartSidebar
 // (grouped-by-vendor), tapi dibungkus sebagai bottom-sheet mobile.
 // Field Description ditempatkan di bawah header, sebelum daftar item —
@@ -21,7 +19,7 @@ const POCartPanel = ({
   title = '🧾 Daftar Purchase Order',
   onSubmitDraft, onSubmitComplete, 
   onSubmit, submitLabel, 
-  onSubmitCash, cashSubmitLabel = '💵 Bayar Tunai Sekarang',
+  onSubmitCash, cashSubmitLabel = '💵 Tunai',
   isSubmitting = false,
   emptyLabel = 'Belum ada produk dipilih.',
   description = '',
@@ -35,6 +33,7 @@ const POCartPanel = ({
   const vendorCount = vendorGroups.length;
   const hasIncompleteVendor = vendorGroups.some(g => !g.C_BPartner_ID);
   const isSingleButtonMode = !!onSubmit && !onSubmitDraft && !onSubmitComplete;
+
   return (
     <div
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
@@ -137,7 +136,7 @@ const POCartPanel = ({
           )}
         </div>
 
-         {totalItems > 0 && (onSubmitDraft || onSubmitComplete || onSubmit || onSubmitCash) && (
+        {totalItems > 0 && (onSubmitDraft || onSubmitComplete || onSubmit || onSubmitCash) && (
           <div style={{
             borderTop: `1px solid ${COLOR.border}`, padding: '12px 14px', flexShrink: 0,
             paddingBottom: 'max(14px, env(safe-area-inset-bottom))',
@@ -153,11 +152,12 @@ const POCartPanel = ({
               </div>
               <div style={{ fontSize: '13px', fontWeight: 700, color: COLOR.textDk }}>{formatCurrency(totalAmount)}</div>
             </div>
+
             {summaryRight && (
               <div style={{ fontSize: '11px', color: COLOR.textLt, marginBottom: '10px' }}>{summaryRight}</div>
             )}
 
-           {hasIncompleteVendor && (
+            {hasIncompleteVendor && (
               <div style={{
                 fontSize: '11px', color: COLOR.danger, background: COLOR.dangerLt,
                 borderRadius: RADIUS.sm, padding: '8px 10px', marginBottom: '10px',
@@ -166,73 +166,81 @@ const POCartPanel = ({
               </div>
             )}
 
-            {isSingleButtonMode ? (
-              <button
-                onClick={onSubmit}
-                disabled={isSubmitting || hasIncompleteVendor}
-                style={{
-                  background: (isSubmitting || hasIncompleteVendor) ? '#9ca3af' : COLOR.primary,
-                  color: '#fff', border: 'none', padding: '14px', width: '100%',
-                  borderRadius: RADIUS.md, fontWeight: 700, fontSize: '14px',
-                  cursor: (isSubmitting || hasIncompleteVendor) ? 'not-allowed' : 'pointer',
-                }}
-              >
-                {isSubmitting ? '⏳ Memproses...' : (submitLabel || 'Kirim')}
-              </button>
-            ) : (
-              <div style={{ display: 'flex', gap: '10px' }}>
+            {/* Container Flexbox untuk tombol sejajar horizontal */}
+            <div style={{ display: 'flex', gap: '10px' }}>
+              {isSingleButtonMode ? (
                 <button
-                  onClick={onSubmitDraft}
+                  onClick={onSubmit}
                   disabled={isSubmitting || hasIncompleteVendor}
                   style={{
-                    background: (isSubmitting || hasIncompleteVendor) ? '#f3f4f6' : '#fff',
-                    color: (isSubmitting || hasIncompleteVendor) ? '#9ca3af' : COLOR.primary,
-                    border: `1.5px solid ${(isSubmitting || hasIncompleteVendor) ? '#d1d5db' : COLOR.primary}`,
-                    padding: '14px', width: '100%',
-                    borderRadius: RADIUS.md, fontWeight: 700, fontSize: '14px',
-                    cursor: (isSubmitting || hasIncompleteVendor) ? 'not-allowed' : 'pointer',
-                  }}
-                >
-                  {isSubmitting ? '⏳ Memproses...' : `📝 DRAFT ${vendorCount} ${docLabel}${vendorCount > 1 ? ' (terpisah)' : ''}`}
-                </button>
-                <button
-                  onClick={onSubmitComplete}
-                  disabled={isSubmitting || hasIncompleteVendor}
-                  style={{
-                    background: (isSubmitting || hasIncompleteVendor) ? '#9ca3af' : '#16a34a',
-                    color: '#fff', border: 'none', padding: '14px', width: '100%',
-                    borderRadius: RADIUS.md, fontWeight: 700, fontSize: '14px',
-                    cursor: (isSubmitting || hasIncompleteVendor) ? 'not-allowed' : 'pointer',
-                  }}
-                >
-                  {isSubmitting ? '⏳ Memproses...' : `✅ COMPLETE ${vendorCount} ${docLabel}${vendorCount > 1 ? ' (terpisah)' : ''}`}
-                </button>
-              </div>
-            )}
-
-            {onSubmitCash && (() => {
-              // Cash Purchase (PO→Receipt→Invoice→Payment otomatis) hanya
-              // mendukung 1 vendor per transaksi — lihat useCashPurchaseSubmit.
-              const cashDisabled = isSubmitting || hasIncompleteVendor || vendorCount > 1;
-              return (
-                <button
-                  onClick={onSubmitCash}
-                  disabled={cashDisabled}
-                  title={vendorCount > 1 ? 'Cash Purchase hanya mendukung 1 vendor per transaksi.' : undefined}
-                  style={{
-                    marginTop: '10px', width: '100%',
-                    background: cashDisabled ? '#9ca3af' : '#16a34a',
+                    flex: 1,
+                    background: (isSubmitting || hasIncompleteVendor) ? '#9ca3af' : COLOR.primary,
                     color: '#fff', border: 'none', padding: '14px',
                     borderRadius: RADIUS.md, fontWeight: 700, fontSize: '14px',
-                    cursor: cashDisabled ? 'not-allowed' : 'pointer',
+                    cursor: (isSubmitting || hasIncompleteVendor) ? 'not-allowed' : 'pointer',
                   }}
                 >
-                  {isSubmitting ? '⏳ Memproses...' : cashSubmitLabel}
+                  {isSubmitting ? '⏳ Memproses...' : (submitLabel || 'Kirim')}
                 </button>
-              );
-            })()}
-      </div>
-       )}
+              ) : (
+                <>
+                  {onSubmitDraft && (
+                    <button
+                      onClick={onSubmitDraft}
+                      disabled={isSubmitting || hasIncompleteVendor}
+                      style={{
+                        flex: 1,
+                        background: (isSubmitting || hasIncompleteVendor) ? '#f3f4f6' : '#fff',
+                        color: (isSubmitting || hasIncompleteVendor) ? '#9ca3af' : COLOR.primary,
+                        border: `1.5px solid ${(isSubmitting || hasIncompleteVendor) ? '#d1d5db' : COLOR.primary}`,
+                        padding: '14px',
+                        borderRadius: RADIUS.md, fontWeight: 700, fontSize: '14px',
+                        cursor: (isSubmitting || hasIncompleteVendor) ? 'not-allowed' : 'pointer',
+                      }}
+                    >
+                      {isSubmitting ? '⏳ Memproses...' : `📝 DRAFT ${vendorCount} ${docLabel}`}
+                    </button>
+                  )}
+                  {onSubmitComplete && (
+                    <button
+                      onClick={onSubmitComplete}
+                      disabled={isSubmitting || hasIncompleteVendor}
+                      style={{
+                        flex: 1,
+                        background: (isSubmitting || hasIncompleteVendor) ? '#9ca3af' : '#16a34a',
+                        color: '#fff', border: 'none', padding: '14px',
+                        borderRadius: RADIUS.md, fontWeight: 700, fontSize: '14px',
+                        cursor: (isSubmitting || hasIncompleteVendor) ? 'not-allowed' : 'pointer',
+                      }}
+                    >
+                      {isSubmitting ? '⏳ Memproses...' : `✅ COMPLETE ${vendorCount} ${docLabel}`}
+                    </button>
+                  )}
+                </>
+              )}
+
+              {onSubmitCash && (() => {
+                const cashDisabled = isSubmitting || hasIncompleteVendor || vendorCount > 1;
+                return (
+                  <button
+                    onClick={onSubmitCash}
+                    disabled={cashDisabled}
+                    title={vendorCount > 1 ? 'Cash Purchase hanya mendukung 1 vendor per transaksi.' : undefined}
+                    style={{
+                      flex: 1,
+                      background: cashDisabled ? '#9ca3af' : '#16a34a',
+                      color: '#fff', border: 'none', padding: '14px',
+                      borderRadius: RADIUS.md, fontWeight: 700, fontSize: '14px',
+                      cursor: cashDisabled ? 'not-allowed' : 'pointer',
+                    }}
+                  >
+                    {isSubmitting ? '⏳ Memproses...' : cashSubmitLabel}
+                  </button>
+                );
+              })()}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
