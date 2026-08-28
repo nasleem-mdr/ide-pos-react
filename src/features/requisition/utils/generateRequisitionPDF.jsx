@@ -1,5 +1,6 @@
 import { renderDocumentPDF } from '@/utils/pdf/renderDocumentPDF';
 import { cleanIdentifier } from '@/utils/pdf/formatIdentifier';
+import { idempiereApi } from '@/api/idempiereApi';
 // ─────────────────────────────────────────────────────────────────────────────
 // generateRequisitionPDF.js
 // Wrapper tipis: fetch data spesifik Requisition (header + lines + histori
@@ -28,23 +29,15 @@ const VERIFY_BASE_URL = "https://192.168.0.126:8432/view/requisition";
  * @param {string} token          - Bearer token untuk fetch API
  * @param {string} [logoDataUrl]  - mis. dari useOrgInfo().orgInfo?.logoUrl
  */
-export async function generateRequisitionPDF(requisitionId, documentNo, token, logoDataUrl) {
-  const API_BASE = "/api/v1";
-  const fetchApi = async (url) => {
-    const res = await fetch(`${API_BASE}${url}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    return res.json();
-  };
-
+export async function generateRequisitionPDF(requisitionId, documentNo, orgInfo) {
   // 1. Header
-  const header = await fetchApi(
+  const header = await idempiereApi(
     `/models/m_requisition/${requisitionId}` +
     `?$select=DocumentNo,DateDoc,Description,DocStatus,AD_Org_ID,CreatedBy,M_Warehouse_ID,M_Requisition_UU`
   );
 
   // 2. Lines
-  const linesRes = await fetchApi(
+  const linesRes = await idempiereApi(
     `/models/m_requisitionline` +
     `?$filter=M_Requisition_ID eq ${requisitionId}` +
     `&$select=Line,M_Product_ID,Qty,C_UOM_ID,Description` +
@@ -53,7 +46,7 @@ export async function generateRequisitionPDF(requisitionId, documentNo, token, l
   const lines = linesRes.records || [];
 
   // 3. Workflow history (AD_Table_ID 702 = M_Requisition)
-  const historyRes = await fetchApi(
+  const historyRes = await idempiereApi(
     `/models/ad_wf_eventaudit` +
     `?$filter=AD_Table_ID eq 702 and Record_ID eq ${requisitionId}` +
     `&$select=AD_WF_Node_ID,AD_User_ID,Updated` +
@@ -79,7 +72,7 @@ export async function generateRequisitionPDF(requisitionId, documentNo, token, l
   await renderDocumentPDF({
     title:    "FORMULIR PERMINTAAN BARANG (FPB)",
     subtitle: "Purchase Requisition - Dokumen ini sah dengan histori approval terlampir",
-    logoDataUrl,
+    orgInfo,
     infoLeft: [
       ["No. Dokumen",   ": " + header.DocumentNo],
       ["Pemohon",       ": " + (header.CreatedBy?.identifier || "-")],

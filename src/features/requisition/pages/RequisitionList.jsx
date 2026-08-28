@@ -173,7 +173,7 @@ const RequisitionList = () => {
         setDownloadingId(requisitionId);
         try {
             const token = localStorage.getItem("token");
-            await generateRequisitionPDF(requisitionId, requisition.DocumentNo, token, orgInfo?.logoUrl);
+            await generateRequisitionPDF(requisitionId, requisition.DocumentNo, orgInfo);
         } catch (err) {
             console.error("Gagal generate PDF:", err.message);
             alert("Gagal membuat dokumen PDF.");
@@ -261,7 +261,7 @@ const RequisitionList = () => {
         
                     await renderListPDF({
                         title: 'DAFTAR REQUISITION',
-                        logoDataUrl: orgInfo?.logoUrl,
+                        orgInfo,
                         periodLabel: `PERIODE : ${formatDateService(startDate)}  ${formatDateService(endDate)}`,
                         columns: [
                             { key: 'no',         label: 'No',                width: 30,  align: 'center' },

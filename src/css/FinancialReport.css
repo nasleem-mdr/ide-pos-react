@@ -325,7 +325,6 @@
     width: 96%;
     margin: 0 auto;
     padding: 24px;
-    min-height: 100vh;
     background: #fafafa;
   }
   
@@ -631,7 +630,7 @@
   }
   
   .frp-table th {
-    padding-bottom: 12px;
+    padding-bottom: 8px;
     text-align: left;
     font-size: 11px;
     font-weight: 600;
@@ -660,13 +659,13 @@
 }
 
 .frp-table td {
-    padding: 10px 0;
+    padding: 1px 0;
     color: #374151;
 }
 
 .frp-table td.name-cell {
     text-align: right;
-    padding: 5px 20px 5px 5px;
+    padding: 3px 10px 0px 0px;
 }
 
 .frp-table td.name-cell.total {
@@ -678,7 +677,7 @@
     text-align: left;
     color: #6b7280;
     font-size: 13px;
-    padding: 0 20px 5px 5px;
+    padding-right: 20px;
 }
 
 .frp-table td.desc-cell.total {

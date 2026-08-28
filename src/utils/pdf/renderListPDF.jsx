@@ -5,8 +5,8 @@ import { svgToPngDataUrl } from "./svgToPngDataUrl";
 
 // Ukuran maksimum kotak logo di kop surat (pt). Logo asli di-scale
 // proporsional supaya pas di dalam kotak ini tanpa gepeng/gemuk.
-const MAX_LOGO_WIDTH = 72;
-const MAX_LOGO_HEIGHT = 60;
+const MAX_LOGO_WIDTH = 70;
+const MAX_LOGO_HEIGHT = 58;
 
 const getImageNaturalSize = (dataUrl) => {
     return new Promise((resolve, reject) => {
@@ -110,7 +110,7 @@ function drawLetterhead(doc, orgInfo, pageWidth) {
     if (logoDataUrl) {
         const w = logoDrawWidth || MAX_LOGO_WIDTH;
         const h = logoDrawHeight || MAX_LOGO_HEIGHT;
-        const logoX = marginRight - textBlockMaxWidth - 12 - w;
+        const logoX = marginRight - textBlockMaxWidth + 35 - w;
         doc.addImage(logoDataUrl, "PNG", logoX, 8, w, h);
         logoBottom = 8 + h;
     }

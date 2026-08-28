@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { PageHeader, DataTable } from "@/shared/components/setup";
 import { useOrgInfo } from "@/shared/hooks/useOrgInfo";
 import { idempiereApi } from "@/api/idempiereApi";
+import { renderListPDF } from "@/utils/pdf/renderListPDF";
 import { generateOrderPDF } from "@/features/purchasing/order/utils/generateOrderPDF";
 import "@/App.css";
 
@@ -52,21 +53,35 @@ const PurchasingList = () => {
         const map = { DR: "#f57c00", CO: "#2e7d32", CL: "#37474f", VO: "#c62828", IP: "#1565c0", NA: "#c62828" };
         return map[status] || "#555";
     };
+    const [showAllOption, setShowAllOption] = useState('N');
 
     const buildFilterClause = useCallback((loginUserId) => {
-        let filterClause =
-            ` CreatedBy eq ${loginUserId}` +
-            ` and Created ge ${startDate}T00:00:00Z` +
-            ` and Created le ${endDate}T23:59:59Z`;
+        // Array untuk menampung semua kondisi filter
+        const conditions = [
+            `IsSOTrx eq false`,
+            `Created ge ${startDate}T00:00:00Z`,
+            `Created le ${endDate}T23:59:59Z`
+        ];
 
+        // Kondisi IF: Hanya tambahkan CreatedBy jika opsi tampilkan semua BUKAN 'Y'
+        if (showAllOption !== 'Y' && loginUserId) {
+            conditions.unshift(`CreatedBy eq ${loginUserId}`);
+        }
+
+        // Filter Search
         if (search) {
-            filterClause += ` and contains(tolower(DocumentNo),'${search.toLowerCase()}')`;
+            conditions.push(`contains(tolower(DocumentNo),'${search.toLowerCase()}')`);
         }
+
+        // Filter Status
         if (statusFilter && statusFilter !== "ALL") {
-            filterClause += ` and DocStatus eq '${statusFilter}'`;
+            conditions.push(`DocStatus eq '${statusFilter}'`);
         }
-        return filterClause;
-    }, [search, startDate, endDate, statusFilter]);
+
+        // Gabungkan semua kondisi dengan kata ' and '
+        return conditions.join(' and ');
+    }, [search, startDate, endDate, statusFilter, showAllOption]);
+
 
     const fetchOrders = useCallback(async () => {
         const loginUserId = localStorage.getItem("AD_User_ID");
@@ -236,6 +251,131 @@ const PurchasingList = () => {
         setOffset(0);
     };
 
+    // const fetchAllOrdersForPrint = useCallback(async () => {
+    //     const loginUserId = localStorage.getItem("AD_User_ID");
+        
+    //     if (!loginUserId) return [];
+
+    //     let filterClause =
+    //         ` CreatedBy eq ${loginUserId}` +
+    //         ` and IsSOTrx eq false` +
+    //         ` and Created ge ${startDate}T00:00:00Z` +
+    //         ` and Created le ${endDate}T23:59:59Z`;
+
+    //     if (search) {
+    //         filterClause += ` and contains(tolower(DocumentNo),'${search.toLowerCase()}')`;
+    //     }
+
+    //     const res = await idempiereApi(
+    //         `/models/c_order` +
+    //         `?$filter=${filterClause}` +
+    //         `&$select=C_Order_ID,DocumentNo,Createdby, DateOrdered,C_BPartner_ID,GrandTotal` +
+    //         `&$orderby=DocumentNo desc` +
+    //         `&$top=5000`
+    //     );
+
+    //     return Array.isArray(res.records) ? res.records : [];
+    // }, [search, startDate, endDate]);
+    // Tambahkan parameter (misal: showAll) ke dalam useCallback atau argumen fungsi
+    
+    const fetchAllOrdersForPrint = useCallback(async () => {
+        const loginUserId = localStorage.getItem("AD_User_ID");
+        
+        // Validasi login user hanya jika TIDAK memilih opsi 'Y'
+        if (showAllOption !== 'Y' && !loginUserId) return [];
+    
+        // Array kondisi filter dasar
+        const conditions = [
+            `IsSOTrx eq false`,
+            `Created ge ${startDate}T00:00:00Z`,
+            `Created le ${endDate}T23:59:59Z`
+        ];
+    
+        // Tambahkan CreatedBy HANYA jika opsi BUKAN 'Y'
+        if (showAllOption !== 'Y' && loginUserId) {
+            conditions.unshift(`CreatedBy eq ${loginUserId}`);
+        }
+    
+        // Filter Search
+        if (search) {
+            conditions.push(`contains(tolower(DocumentNo),'${search.toLowerCase()}')`);
+        }
+    
+        // Filter Status (jika ada)
+        if (statusFilter && statusFilter !== "ALL") {
+            conditions.push(`DocStatus eq '${statusFilter}'`);
+        }
+    
+        // Gabungkan semua kondisi
+        const filterClause = conditions.join(' and ');
+    
+        const res = await idempiereApi(
+            `/models/c_order` +
+            `?$filter=${encodeURIComponent(filterClause)}` +
+            `&$select=C_Order_ID,DocumentNo,Createdby,DateOrdered,C_BPartner_ID,GrandTotal` +
+            `&$orderby=DocumentNo desc` +
+            `&$top=5000`
+        );
+    
+        return Array.isArray(res.records) ? res.records : [];
+        
+    // Pastikan showAllOption DAN statusFilter dimasukkan ke dependency array!
+    }, [search, startDate, endDate, statusFilter, showAllOption]);
+
+    const [printingList, setPrintingList] = useState(false);
+    const numberFormatter = new Intl.NumberFormat('en-US');
+    const formatDateService = (dateStr) => {
+        if (!dateStr) return "-";
+        const d = new Date(dateStr);
+        if (isNaN(d)) return "-";
+        const day = d.getDate();
+        const month = d.getMonth() + 1;
+        const year = d.getFullYear();
+        return `${day}/${month}/${year}`;
+    };
+   
+    const handlePrintList = async () => {
+            setPrintingList(true);
+            try {
+                const allOrders = await fetchAllOrdersForPrint();
+    
+                if (allOrders.length === 0) {
+                    alert('Tidak ada data untuk dicetak pada periode ini.');
+                    return;
+                }
+    
+                const totalAmount = allOrders.reduce((s, odr) => s + parseFloat(odr.GrandTotal || 0), 0);
+                await renderListPDF({
+                    title: 'DAFTAR SALES',
+                    orgInfo,   
+                    periodLabel: `PERIODE : ${formatDateService(startDate)}  ${formatDateService(endDate)}`,
+                    columns: [
+                        { key: 'no',         label: 'No',          width: 30,     align: 'center' },
+                        { key: 'documentNo', label: 'Document No', width: 70 },
+                        { key: 'dateOrder',  label: 'Date',        width: 60 },
+                        { key: 'createdBy',  label: 'Sales Rep',   width: 80 },
+                        { key: 'partner',    label: 'Customer',    width: 200 },
+                        { key: 'amount',     label: 'Amount',      width: 85, align: 'right' },
+                    ],
+                    rows: allOrders.map((odr, idx) => ({
+                        no:         idx + 1,
+                        documentNo: odr.DocumentNo || `#${odr.id ?? odr.C_Order_ID}`,
+                        dateOrder:  odr.DateOrdered || `#${odr.id ?? odr.DateOrdered}`,
+                        createdBy:  odr.CreatedBy?.identifier || '-',
+                        partner:    odr.C_BPartner_ID?.identifier || '-',
+                        amount:     numberFormatter.format(odr.GrandTotal ?? 0),
+                    })),
+                    totalLabel: 'Total Semua',
+                    totalValue: numberFormatter.format(totalAmount),
+                    filenamePrefix: `DAFTAR-SALES-${startDate}_${endDate}`,
+                });
+            } catch (err) {
+                console.error('Gagal generate PDF daftar:', err.message);
+                alert('Gagal membuat PDF daftar.');
+            } finally {
+                setPrintingList(false);
+            }
+        };
     return (
         <div className="card-container">
             <PageHeader
@@ -245,35 +385,57 @@ const PurchasingList = () => {
                 activeFilter={statusFilter}
                 onFilterChange={handleFilterChange}
                 extraAction={
-                    <button
-                        onClick={() => navigate("/purchasing")}
-                        style={styles.newBtn}
-                    >
-                        + Transaksi Baru
-                    </button>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                        <button onClick={handlePrintList} disabled={printingList} style={styles.newBtn}>
+                            {printingList ? '⏳ ...' : '🖨️ Print PDF'}
+                        </button>
+                        <button onClick={() => navigate("/purchasing")} style={styles.newBtn}>
+                            + New
+                        </button>
+                    </div>
+                    // <button
+                    //     onClick={() => navigate("/purchasing")}
+                    //     style={styles.newBtn}
+                    // >
+                    //     + Transaksi Baru
+                    // </button>
                 }
             />
 
             <div style={styles.dateFilterRow}>
                 <div style={styles.dateField}>
-                    <label style={styles.dateLabel}>Dari Tanggal</label>
-                    <input
-                        type="date"
-                        value={startDate}
-                        max={endDate}
-                        onChange={(e) => handleStartDateChange(e.target.value)}
-                        style={styles.dateInput}
-                    />
+                <label style={styles.dateLabel}>Dari Tanggal</label>
+                <input
+                    type="date"
+                    value={startDate}
+                    max={endDate}
+                    onChange={(e) => handleStartDateChange(e.target.value)}
+                    style={styles.dateInput}
+                />
                 </div>
+
                 <div style={styles.dateField}>
-                    <label style={styles.dateLabel}>Sampai Tanggal</label>
+                <label style={styles.dateLabel}>Sampai Tanggal</label>
+                <input
+                    type="date"
+                    value={endDate}
+                    min={startDate}
+                    onChange={(e) => handleEndDateChange(e.target.value)}
+                    style={styles.dateInput}
+                />
+                </div>
+
+                {/* OPSI TAMBAHAN SEBELAH TANGGAL */}
+                <div style={{ ...styles.dateField, justifyContent: 'center' }}>
+                <label style={{ ...styles.dateLabel, display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', marginTop: '24px' }}>
                     <input
-                        type="date"
-                        value={endDate}
-                        min={startDate}
-                        onChange={(e) => handleEndDateChange(e.target.value)}
-                        style={styles.dateInput}
+                    type="checkbox"
+                    checked={showAllOption === 'Y'}
+                    onChange={(e) => setShowAllOption(e.target.checked ? 'Y' : 'N')}
+                    style={{ width: '16px', height: '16px', cursor: 'pointer' }}
                     />
+                    Tampilkan Semua User
+                </label>
                 </div>
             </div>
 

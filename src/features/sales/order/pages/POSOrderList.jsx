@@ -104,6 +104,7 @@ const POSOrderList = () => {
 
         let filterClause =
             ` IsSOTrx eq true` +
+            ` and CreatedBy eq ${loginUserId}` +
             ` and Created ge ${startDate}T00:00:00Z` +
             ` and Created le ${endDate}T23:59:59Z`;
 

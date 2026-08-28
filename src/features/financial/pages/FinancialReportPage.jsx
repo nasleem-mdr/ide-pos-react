@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import {
   Printer,
   Download,
+  FileSpreadsheet,
   FileBarChart,
   Loader2,
   Calendar,
@@ -10,6 +11,7 @@ import {
 } from 'lucide-react';
 import { useFinancialReport } from '@/features/financial/hooks/useFinancialReport';
 import { useOrgInfo } from '@/shared/hooks/useOrgInfo';
+import OrgLetterhead from '@/shared/components/pdf/OrgLetterhead';
 import FinancialReportModal from '@/features/financial/components/FinancialReportModal';
 import '@/css/FinancialReport.css';
 
@@ -22,6 +24,7 @@ function formatRupiah(amount) {
 export default function FinancialReportPage({ token, acctSchemaId }) {
   const [modalOpen, setModalOpen] = useState(false);
   const [activeParams, setActiveParams] = useState(null);
+  const [downloadingExcel, setDownloadingExcel] = useState(false);
   const printAreaRef = useRef(null);
 
   const { orgInfo } = useOrgInfo(); // pakai org dari sesi login yang sedang aktif
@@ -55,6 +58,48 @@ export default function FinancialReportPage({ token, acctSchemaId }) {
     pdf.save(`${activeParams?.reportLabel || 'laporan'}-${activeParams?.dateTo}.pdf`);
   };
 
+  const handleDownloadExcel = async () => {
+    if (!activeParams) return;
+    setDownloadingExcel(true);
+    try {
+      const XLSX = await import('xlsx');
+
+      const periodLabel = activeParams.isPeriodic
+        ? `Periode ${activeParams.dateFrom} s/d ${activeParams.dateTo}`
+        : `Per ${activeParams.dateTo}`;
+
+      const sortedLines = reportLines.slice().sort((a, b) => a.seqNo - b.seqNo);
+
+      // Kop ringkas (nama org + judul + periode) di baris paling atas sheet,
+      // datanya dari orgInfo yang sama dipakai kop PDF/HTML — tidak di-hardcode.
+      const aoa = [
+        [orgInfo?.name || ''],
+        [`LAPORAN ${activeTypeLabel || ''}`],
+        [periodLabel],
+        [],
+        ['No Rek', 'Keterangan', 'Jumlah'],
+        ...sortedLines.map((line) => [line.name, line.description, line.amount]),
+      ];
+
+      const ws = XLSX.utils.aoa_to_sheet(aoa);
+      ws['!cols'] = [{ wch: 12 }, { wch: 50 }, { wch: 18 }];
+      ws['!merges'] = [
+        { s: { r: 0, c: 0 }, e: { r: 0, c: 2 } },
+        { s: { r: 1, c: 0 }, e: { r: 1, c: 2 } },
+        { s: { r: 2, c: 0 }, e: { r: 2, c: 2 } },
+      ];
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Laporan');
+      XLSX.writeFile(wb, `${activeParams?.reportLabel || 'laporan'}-${activeParams?.dateTo}.xlsx`);
+    } catch (err) {
+      console.error('Gagal membuat Excel:', err.message);
+      alert('Gagal membuat file Excel.');
+    } finally {
+      setDownloadingExcel(false);
+    }
+  };
+
   return (
     <div className="frp-page">
       {/* Toolbar */}
@@ -84,6 +129,10 @@ export default function FinancialReportPage({ token, acctSchemaId }) {
               <button onClick={handleDownloadPdf} className="frp-btn-secondary">
                 <Download size={16} />
                 PDF
+              </button>
+              <button onClick={handleDownloadExcel} disabled={downloadingExcel} className="frp-btn-secondary">
+                {downloadingExcel ? <Loader2 size={16} className="frp-spin" /> : <FileSpreadsheet size={16} />}
+                Excel
               </button>
             </div>
           )}
@@ -129,20 +178,9 @@ export default function FinancialReportPage({ token, acctSchemaId }) {
       {!loading && !error && activeParams && (
         <div ref={printAreaRef} id="financial-report-print-area" className="frp-doc">
           <div className="frp-doc-header">
-            {orgInfo?.logoUrl && (
-              <img src={orgInfo.logoUrl} alt={orgInfo.name} className="frp-org-logo-corner" />
-            )}
-
-            {orgInfo && (
-              <div className="frp-org-text-center">
-                <p className="frp-org-name">{orgInfo.name}</p>
-                {(orgInfo.phone || orgInfo.email) && (
-                  <p className="frp-org-contact"> Telp / Email: 
-                    {[orgInfo.phone, orgInfo.email].filter(Boolean).join(' • ')}
-                  </p>
-                )}
-              </div>
-            )}
+            {/* Kop surat — komponen sama yang bisa dipakai di semua laporan HTML,
+                layout & datanya selaras dengan drawLetterhead() di renderDocumentPDF.jsx */}
+            <OrgLetterhead orgInfo={orgInfo} />
 
             <h2 className="frp-doc-title">LAPORAN {activeTypeLabel}</h2>
             <div className="frp-doc-badge">

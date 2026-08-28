@@ -17,7 +17,8 @@
     "recharts": "^3.9.0",
     "vis-data": "^8.0.4",
     "vis-timeline": "^8.5.3",
-    "web-vitals": "^2.1.4"
+    "web-vitals": "^2.1.4",
+    "xlsx": "^0.18.5"
   },
   "scripts": {
     "dev": "vite",
