@@ -64,56 +64,56 @@ export function useCashPurchaseSubmit({ poDocTypeId, receiptDocTypeId, invoiceDo
     const enteredUomId = parseInt(item.C_UOM_ID);
     const baseUomId = parseInt(item.BaseUOM_ID || item.C_UOM_ID);
 
-    console.log('[UOM-DEBUG] ── item mentah dari cart ──', {
-      Name: item.Name,
-      M_Product_ID: item.M_Product_ID,
-      C_UOM_ID: item.C_UOM_ID,
-      BaseUOM_ID: item.BaseUOM_ID,
-      selectedUOM: item.selectedUOM, // cek isinya, siapa tau masih ada sisa pemakaian lama
-      enteredUomId_parsed: enteredUomId,
-      baseUomId_parsed: baseUomId,
-    });
+    // console.log('[UOM-DEBUG] ── item mentah dari cart ──', {
+    //   Name: item.Name,
+    //   M_Product_ID: item.M_Product_ID,
+    //   C_UOM_ID: item.C_UOM_ID,
+    //   BaseUOM_ID: item.BaseUOM_ID,
+    //   selectedUOM: item.selectedUOM, // cek isinya, siapa tau masih ada sisa pemakaian lama
+    //   enteredUomId_parsed: enteredUomId,
+    //   baseUomId_parsed: baseUomId,
+    // });
 
     if (!baseUomId) {
       console.warn('[UOM-DEBUG] baseUomId kosong/NaN → item.BaseUOM_ID dan item.C_UOM_ID dua-duanya tidak ada. Konversi dilewati (dianggap tidak perlu).');
       return null;
     }
     if (enteredUomId === baseUomId) {
-      console.log('[UOM-DEBUG] enteredUomId === baseUomId → item memang sudah dalam UOM dasar, tidak perlu konversi. Ini NORMAL kalau produk memang selalu dijual dalam UOM dasar.');
+      //console.log('[UOM-DEBUG] enteredUomId === baseUomId → item memang sudah dalam UOM dasar, tidak perlu konversi. Ini NORMAL kalau produk memang selalu dijual dalam UOM dasar.');
       return null;
     }
 
-    console.log(`[UOM-DEBUG] Memanggil fetchUomOptions(M_Product_ID=${item.M_Product_ID}, baseUomId=${baseUomId}, null)...`);
+    //console.log(`[UOM-DEBUG] Memanggil fetchUomOptions(M_Product_ID=${item.M_Product_ID}, baseUomId=${baseUomId}, null)...`);
     let options;
     try {
       options = await fetchUomOptions(item.M_Product_ID, baseUomId, null);
     } catch (err) {
-      console.error('[UOM-DEBUG] fetchUomOptions MELEMPAR ERROR:', err);
+      //console.error('[UOM-DEBUG] fetchUomOptions MELEMPAR ERROR:', err);
       throw err;
     }
-    console.log('[UOM-DEBUG] Hasil fetchUomOptions (daftar C_UOM_Conversion yang ditemukan):', options);
+    //console.log('[UOM-DEBUG] Hasil fetchUomOptions (daftar C_UOM_Conversion yang ditemukan):', options);
 
     if (!Array.isArray(options) || options.length === 0) {
-      console.warn(
-        `[UOM-DEBUG] fetchUomOptions mengembalikan array KOSONG untuk produk #${item.M_Product_ID}. ` +
-        `Kemungkinan: (a) tidak ada baris C_UOM_Conversion untuk produk ini sama sekali di iDempiere, ` +
-        `atau (b) endpoint/hook useUomConversion mengembalikan struktur data yang beda dari yang diharapkan.`
-      );
+      // console.warn(
+      //   `[UOM-DEBUG] fetchUomOptions mengembalikan array KOSONG untuk produk #${item.M_Product_ID}. ` +
+      //   `Kemungkinan: (a) tidak ada baris C_UOM_Conversion untuk produk ini sama sekali di iDempiere, ` +
+      //   `atau (b) endpoint/hook useUomConversion mengembalikan struktur data yang beda dari yang diharapkan.`
+      // );
     }
 
     const match = options.find(o => o.C_UOM_ID === enteredUomId);
-    console.log(`[UOM-DEBUG] Mencari C_UOM_ID === ${enteredUomId} (tipe: ${typeof enteredUomId}) di antara options. Tipe C_UOM_ID di options[0]:`, options[0]?.C_UOM_ID, typeof options[0]?.C_UOM_ID);
+    //console.log(`[UOM-DEBUG] Mencari C_UOM_ID === ${enteredUomId} (tipe: ${typeof enteredUomId}) di antara options. Tipe C_UOM_ID di options[0]:`, options[0]?.C_UOM_ID, typeof options[0]?.C_UOM_ID);
 
-    if (!match) {
-      console.warn(
-        `[UOM-DEBUG] TIDAK ADA MATCH untuk C_UOM_ID=${enteredUomId} di antara ${options.length} opsi yang ditemukan. ` +
-        `Opsi yang ada: ${JSON.stringify(options.map(o => o.C_UOM_ID))}. ` +
-        `→ Qty TIDAK dikonversi (fallback ke qtyEntered apa adanya) untuk produk #${item.M_Product_ID} — CEK MANUAL.`
-      );
-      return null;
-    }
+    // if (!match) {
+    //   console.warn(
+    //     `[UOM-DEBUG] TIDAK ADA MATCH untuk C_UOM_ID=${enteredUomId} di antara ${options.length} opsi yang ditemukan. ` +
+    //     `Opsi yang ada: ${JSON.stringify(options.map(o => o.C_UOM_ID))}. ` +
+    //     `→ Qty TIDAK dikonversi (fallback ke qtyEntered apa adanya) untuk produk #${item.M_Product_ID} — CEK MANUAL.`
+    //   );
+    //   return null;
+    // }
 
-    console.log('[UOM-DEBUG] MATCH ditemukan:', match);
+    // console.log('[UOM-DEBUG] MATCH ditemukan:', match);
     return match;
   }, [fetchUomOptions]);
 
@@ -231,17 +231,17 @@ export function useCashPurchaseSubmit({ poDocTypeId, receiptDocTypeId, invoiceDo
         // terpisah) supaya price & qty selalu konsisten satu sama lain.
         const priceOrdered = qtyOrdered > 0 ? (priceEntered * qtyEntered) / qtyOrdered : priceEntered;
 
-        console.log('[UOM-DEBUG] ── hasil akhir per line ──', {
-          Name: item.Name,
-          qtyEntered,
-          selectedUom,
-          qtyOrdered,
-          priceEntered,
-          priceOrdered,
-          '⚠️ qtyOrdered === qtyEntered?': qtyOrdered === qtyEntered
-            ? 'YA — kalau UOM seharusnya beda dari base, ini tandanya konversi TIDAK jalan'
-            : 'tidak (beda, berarti konversi jalan)',
-        });
+        // console.log('[UOM-DEBUG] ── hasil akhir per line ──', {
+        //   Name: item.Name,
+        //   qtyEntered,
+        //   selectedUom,
+        //   qtyOrdered,
+        //   priceEntered,
+        //   priceOrdered,
+        //   '⚠️ qtyOrdered === qtyEntered?': qtyOrdered === qtyEntered
+        //     ? 'YA — kalau UOM seharusnya beda dari base, ini tandanya konversi TIDAK jalan'
+        //     : 'tidak (beda, berarti konversi jalan)',
+        // });
 
         const orderLinePayload = {
           AD_Org_ID:    { id: orgId },
@@ -259,7 +259,7 @@ export function useCashPurchaseSubmit({ poDocTypeId, receiptDocTypeId, invoiceDo
           method: 'POST',
           body: JSON.stringify(orderLinePayload),
         });
-        console.log('[UOM-DEBUG] Response c_orderline (cek QtyOrdered/PriceActual yang benar-benar TERSIMPAN di server):', lineRes);
+        //console.log('[UOM-DEBUG] Response c_orderline (cek QtyOrdered/PriceActual yang benar-benar TERSIMPAN di server):', lineRes);
         poLineIds.push({
           orderLineId: fkId(lineRes.id) ?? lineRes.id,
           productId:   item.M_Product_ID,
@@ -353,7 +353,7 @@ export function useCashPurchaseSubmit({ poDocTypeId, receiptDocTypeId, invoiceDo
         PaymentRule:  'P',
         Description:  description,
       };
-      console.log('[CashPurchase] POST /models/c_invoice — payload:', invoicePayload);
+      //console.log('[CashPurchase] POST /models/c_invoice — payload:', invoicePayload);
 
       let invoiceRes;
       try {
@@ -361,7 +361,7 @@ export function useCashPurchaseSubmit({ poDocTypeId, receiptDocTypeId, invoiceDo
           method: 'POST',
           body: JSON.stringify(invoicePayload),
         });
-        console.log('[CashPurchase] POST /models/c_invoice — response:', invoiceRes);
+        //console.log('[CashPurchase] POST /models/c_invoice — response:', invoiceRes);
       } catch (err) {
         console.error('[CashPurchase] POST /models/c_invoice — GAGAL. Payload:', invoicePayload);
         console.error('[CashPurchase] Error object lengkap:', err);
@@ -389,16 +389,16 @@ export function useCashPurchaseSubmit({ poDocTypeId, receiptDocTypeId, invoiceDo
           C_OrderLine_ID: { id: line.orderLineId },
           ...(matchedInOutLine ? { M_InOutLine_ID: { id: matchedInOutLine.inOutLineId } } : {}),
         };
-        console.log(`[CashPurchase] POST /models/c_invoiceline — baris ${idx + 1}/${poLineIds.length}, payload:`, invoiceLinePayload);
-        console.log('[CashPurchase]   ↳ raw line source (dari cart/PO):', line);
-        console.log('[CashPurchase]   ↳ matchedInOutLine:', matchedInOutLine);
+        // console.log(`[CashPurchase] POST /models/c_invoiceline — baris ${idx + 1}/${poLineIds.length}, payload:`, invoiceLinePayload);
+        // console.log('[CashPurchase]   ↳ raw line source (dari cart/PO):', line);
+        // console.log('[CashPurchase]   ↳ matchedInOutLine:', matchedInOutLine);
 
         try {
           const lineRes = await idempiereApi('/models/c_invoiceline', {
             method: 'POST',
             body: JSON.stringify(invoiceLinePayload),
           });
-          console.log(`[CashPurchase] POST /models/c_invoiceline — baris ${idx + 1} SUKSES, response:`, lineRes);
+          //console.log(`[CashPurchase] POST /models/c_invoiceline — baris ${idx + 1} SUKSES, response:`, lineRes);
         } catch (err) {
           console.error(`[CashPurchase] POST /models/c_invoiceline — baris ${idx + 1} GAGAL. Payload:`, invoiceLinePayload);
           console.error('[CashPurchase] Error object lengkap:', err);

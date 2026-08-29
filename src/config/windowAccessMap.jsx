@@ -10,6 +10,7 @@
 // jadi pastikan semua halaman yang ingin dibatasi role didaftarkan.
 
 import BookingTimeline from "@/features/login/pages/BookingTimeline";
+import DashboardMenu from "../features/menu/pages/DashboardMenu";
 
 // ─────────────────────────────────────────────────────────────────────────────
 export const WINDOW_ACCESS_MAP = {
@@ -37,6 +38,7 @@ export const WINDOW_ACCESS_MAP = {
   vendorInvoiceList:      null,
   salesInvoiceList:      null,
   financialReport:        null,
+  dashboardMenu:        null,
 };
 
 // Helper: ambil AD_Window_ID dari key, atau null kalau tidak terdaftar/tidak dibatasi.

@@ -41,6 +41,7 @@ import { AccessProvider } from '@/context/AccessContext';
 import BankStatementContainer  from '@/features/banking/statement/pages/BankStatementContainer';
 //financial Report
 import FinancialReportPage from '@/features/financial/pages/FinancialReportPage';
+import DashboardMenu from '@/features/menu/pages/DashboardMenu';
 
 import ProtectedRoute from '@/shared/components/ProtectedRoute';
 import IDempiereAuth from "@/features/login/pages/IDempiereAuth";
@@ -70,6 +71,7 @@ function AppContent() {
     setSession(null);
     localStorage.removeItem("token");
   }
+
   useEffect(() => {
     const handleSessionExpired = () => {
       localStorage.removeItem('token');
@@ -82,170 +84,164 @@ function AppContent() {
   }, [navigate]);
 
   return (
-    
-      <Routes>
+    <Routes>
+      {/* ===== ROUTE PUBLIK ===== */}
+      <Route path="/view/requisition/:uuid" element={<RequisitionView />} />
+      <Route path="/view/order/:uuid" element={<PurchasingView />} />
 
-        {/* ===== ROUTE PUBLIK - di luar kondisi session apapun ===== */}
-        <Route path="/view/requisition/:uuid" element={<RequisitionView />} />
-        <Route path="/view/order/:uuid" element={<PurchasingView />} />
-        {/* nanti tambah di sini: */}
-        {/* <Route path="/view/booking" element={<BookingView />} /> */}
+      {/* ===== ROUTE YANG BUTUH SESSION ===== */}
+      <Route
+        path="*"
+        element={
+          !session ? (
+            // Belum login - tampilkan auth
+            <Routes>
+              <Route path="/" element={<IDempiereAuth onLoginSuccess={handleLoginSuccess} />} />
+              <Route path="*" element={<Navigate to="/" />} />
+            </Routes>
+          ) : (
+            // Sudah login - Bungkus SELURUH layout (Sidebar, Header, Main) dengan AccessProvider
+            <AccessProvider>
+              <div className={`app-layout ${isSidebarCollapsed ? "sidebar-collapsed" : ""}`}>
+                <Sidebar isCollapsed={isSidebarCollapsed} setIsCollapsed={setIsSidebarCollapsed} />
+                <div className="main-wrapper">
+                  <Header
+                    session={session}
+                    onLogout={handleLogout}
+                    onSessionUpdate={(updated) => setSession((prev) => ({ ...prev, ...updated }))}
+                  />
 
-        {/* ===== ROUTE YANG BUTUH SESSION ===== */}
-        <Route
-          path="*"
-          element={
-            !session ? (
-              // Belum login - tampilkan auth
-              <Routes>
-                <Route path="/" element={<IDempiereAuth onLoginSuccess={handleLoginSuccess} />} />
-                <Route path="*" element={<Navigate to="/" />} />
-              </Routes>
-            ) : (
-              // Sudah login - tampilkan app
-              <AccessProvider>
-                <div className={`app-layout ${isSidebarCollapsed ? "sidebar-collapsed" : ""}`}>
-                  <Sidebar isCollapsed={isSidebarCollapsed} setIsCollapsed={setIsSidebarCollapsed} />
-                  <div className="main-wrapper">
-                   <Header
-                      session={session}
-                      onLogout={handleLogout}
-                      onSessionUpdate={(updated) => setSession((prev) => ({ ...prev, ...updated }))}
-                    />
-          
-                    <main className="content">
-                      <Routes>
-                        <Route path="/" element={<Navigate to="/dashboard" replace />} />
-                        <Route path="/dashboard" element={<Dashboard session={session} />} />
-                        <Route path="/booking" element={<BookingTimeline session={session} resourceTypeId={1000000} docTypeTargetId={1000210}/> } />
-                         {/* ===== Master ===== */}
-                        <Route path="/business-partner" element={
-                          <ProtectedRoute windowKey="businessPartner">
-                            <BusinessPartner />
-                          </ProtectedRoute>
-                        } />
-                        <Route path="/business-partner/:id/edit" element={
-                          <ProtectedRoute windowKey="businessPartnerEdit">
-                            <BusinessPartnerEdit />
-                          </ProtectedRoute>
-                        } />
-                        <Route path="/business-partner/:id" element={
-                          <ProtectedRoute windowKey="businessPartner">
-                            <BusinessPartnerDetail />
-                          </ProtectedRoute>
-                        } />
-                                                
-                        <Route path="/product" element={
-                          <ProtectedRoute windowKey="product">
-                            <ProductList />
-                          </ProtectedRoute>
-                        } />
-                        <Route path="/product-detail" element={
-                          <ProtectedRoute windowKey="productDetail">
-                            <ProductDetail />
-                          </ProtectedRoute>
-                        } />
-                        {/* ===== Transaksi ===== */}
-                        
-                        <Route path="/pos-order" element={
-                          <ProtectedRoute windowKey="pos">
-                            <POSContainer />
-                          </ProtectedRoute>
-                        } />                        
-                        <Route path="/requisition" element={
-                          <ProtectedRoute windowKey="requisition">
-                            <RequisitionContainer />
-                          </ProtectedRoute>
-                        } />
-                        <Route path="/purchasing" element={
-                          <ProtectedRoute windowKey="purchasing">
-                            <PurchasingContainer />
-                          </ProtectedRoute>
-                        } />
-                        <Route path="/goods-receipt" element={
-                          <ProtectedRoute windowKey="goodsReceipt">
-                            <GoodsReceiptContainer />
-                          </ProtectedRoute>
-                        } />
-                        <Route path="/internal-use" element={
-                          <ProtectedRoute windowKey="internalUse">
-                            <InternalUseContainer />
-                          </ProtectedRoute>
-                        } />
-                        {/* ===== List atau report ===== */}
-                        <Route path="/requisition-list" element={
-                          <ProtectedRoute windowKey="requisitionList">
-                            <RequisitionList />
-                          </ProtectedRoute>
-                        } />
-                        <Route path="/purchasing-list" element={
-                          <ProtectedRoute windowKey="purchasingList">
-                            <PurchasingList />
-                          </ProtectedRoute>
-                        } />
-                        <Route path="/goodsreceipt-list" element={
-                          <ProtectedRoute windowKey="goodsReceiptList">
-                            <GoodsReceiptList />
-                          </ProtectedRoute>
-                        } />
-                        <Route path="/internaluse-list" element={
-                          <ProtectedRoute windowKey="internalUseList">
-                            <InternalUseList />
-                          </ProtectedRoute>
-                        } />
-                        <Route path="/posorder-list" element={
-                            <ProtectedRoute windowKey="posOrderList">
-                              <POSOrderList />
-                            </ProtectedRoute>
-                          } />
-                        <Route path="/vendor-invoice" element={
-                          <ProtectedRoute windowKey="vendorInvoice">
-                            <VendorInvoiceContainer />
-                          </ProtectedRoute>
-                        } />
-                        
-                        <Route path="/vendorinvoice-list" element={
-                          <ProtectedRoute windowKey="vendorInvoiceList">
-                            <VendorInvoiceList />
-                          </ProtectedRoute>
-                        } />
-                        <Route path="/bank-statement" element={
-                          <ProtectedRoute windowKey="bankstatement">
-                            <BankStatementContainer />
-                          </ProtectedRoute>
-                        } />
-                        <Route path="/financial-report" element={
-                          <ProtectedRoute windowKey="financialReport">
-                            <FinancialReportPage token={session?.token} acctSchemaId={session?.acctSchemaId} />
-                          </ProtectedRoute>
-                        } />
-                        <Route path="/sales-order" element={
-                          <ProtectedRoute windowKey="salesOrder">
-                            <SalesOrderContainer />
-                          </ProtectedRoute>
-                        } />
-                        <Route path="/sales-invoice" element={
-                          <ProtectedRoute windowKey="salesInvoice">
-                            <SalesInvoiceContainer />
-                          </ProtectedRoute>
-                        } />
-                        <Route path="/salesinvoice-list" element={
-                          <ProtectedRoute windowKey="salesInvoiceList">
-                            <SalesInvoiceList />
-                          </ProtectedRoute>
-                        } />
-                      </Routes>
-                      
+                  <main className="content">
+                    <Routes>
+                      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                      <Route path="/dashboard" element={<Dashboard session={session} />} />
+                      <Route path="/dashboard-menu" element={<DashboardMenu session={session} />} />
+                      <Route path="/booking" element={<BookingTimeline session={session} resourceTypeId={1000000} docTypeTargetId={1000210}/> } />
 
-                    </main>
-                  </div>
+                      {/* ===== Master ===== */}
+                      <Route path="/business-partner" element={
+                        <ProtectedRoute windowKey="businessPartner">
+                          <BusinessPartner />
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/business-partner/:id/edit" element={
+                        <ProtectedRoute windowKey="businessPartnerEdit">
+                          <BusinessPartnerEdit />
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/business-partner/:id" element={
+                        <ProtectedRoute windowKey="businessPartner">
+                          <BusinessPartnerDetail />
+                        </ProtectedRoute>
+                      } />
+                                                  
+                      <Route path="/product" element={
+                        <ProtectedRoute windowKey="product">
+                          <ProductList />
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/product-detail" element={
+                        <ProtectedRoute windowKey="productDetail">
+                          <ProductDetail />
+                        </ProtectedRoute>
+                      } />
+
+                      {/* ===== Transaksi ===== */}
+                      <Route path="/pos-order" element={
+                        <ProtectedRoute windowKey="pos">
+                          <POSContainer />
+                        </ProtectedRoute>
+                      } />                        
+                      <Route path="/requisition" element={
+                        <ProtectedRoute windowKey="requisition">
+                          <RequisitionContainer />
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/purchasing" element={
+                        <ProtectedRoute windowKey="purchasing">
+                          <PurchasingContainer />
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/goods-receipt" element={
+                        <ProtectedRoute windowKey="goodsReceipt">
+                          <GoodsReceiptContainer />
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/internal-use" element={
+                        <ProtectedRoute windowKey="internalUse">
+                          <InternalUseContainer />
+                        </ProtectedRoute>
+                      } />
+
+                      {/* ===== List atau report ===== */}
+                      <Route path="/requisition-list" element={
+                        <ProtectedRoute windowKey="requisitionList">
+                          <RequisitionList />
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/purchasing-list" element={
+                        <ProtectedRoute windowKey="purchasingList">
+                          <PurchasingList />
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/goodsreceipt-list" element={
+                        <ProtectedRoute windowKey="goodsReceiptList">
+                          <GoodsReceiptList />
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/internaluse-list" element={
+                        <ProtectedRoute windowKey="internalUseList">
+                          <InternalUseList />
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/posorder-list" element={
+                        <ProtectedRoute windowKey="posOrderList">
+                          <POSOrderList />
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/vendor-invoice" element={
+                        <ProtectedRoute windowKey="vendorInvoice">
+                          <VendorInvoiceContainer />
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/vendorinvoice-list" element={
+                        <ProtectedRoute windowKey="vendorInvoiceList">
+                          <VendorInvoiceList />
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/bank-statement" element={
+                        <ProtectedRoute windowKey="bankstatement">
+                          <BankStatementContainer />
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/financial-report" element={
+                        <ProtectedRoute windowKey="financialReport">
+                          <FinancialReportPage token={session?.token} acctSchemaId={session?.acctSchemaId} />
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/sales-order" element={
+                        <ProtectedRoute windowKey="salesOrder">
+                          <SalesOrderContainer />
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/sales-invoice" element={
+                        <ProtectedRoute windowKey="salesInvoice">
+                          <SalesInvoiceContainer />
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/salesinvoice-list" element={
+                        <ProtectedRoute windowKey="salesInvoiceList">
+                          <SalesInvoiceList />
+                        </ProtectedRoute>
+                      } />
+                    </Routes>
+                  </main>
                 </div>
-              </AccessProvider>
-            )
-          }
-        />
-
-      </Routes>
-    
+              </div>
+            </AccessProvider>
+          )
+        }
+      />
+    </Routes>
   );
 }

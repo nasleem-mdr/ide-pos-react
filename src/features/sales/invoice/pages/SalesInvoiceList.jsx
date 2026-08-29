@@ -11,7 +11,7 @@ import "@/App.css";
 // VendorInvoiceList.jsx
 // GET /api/v1/models/ad_table?$select=AD_Table_ID&$filter=TableName eq 'C_Order'
 // ─────────────────────────────────────────────────────────────────────────────
-//const C_INVOICE_AD_TABLE_ID = 318; 
+const C_INVOICE_AD_TABLE_ID = 423; 
 
 const SalesInvoiceList = () => {
     const todayStr = new Date().toISOString().split("T")[0];
@@ -346,7 +346,7 @@ const SalesInvoiceList = () => {
         <div className="card-container">
 
             <PageHeader
-                title="Purchasing Invoice"
+                title="Sales Invoice"
                 onSearch={(val) => { setSearch(val); setOffset(0); }}
                 extraAction={
                     <div style={{ display: 'flex', gap: '8px' }}>

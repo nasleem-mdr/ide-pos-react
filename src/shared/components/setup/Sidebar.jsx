@@ -6,7 +6,7 @@ import { getMenuSections } from '@/config/menuConfig';
 import { useAccess } from '@/context/AccessContext';
 import '@/css/Sidebar.css';
 
-const menuSections = getMenuSections(); // semua section — sumber tunggal dari menuConfig
+const menuSections = getMenuSections(['procurement', 'sales', 'payment','linkreport','master']); // semua section — sumber tunggal dari menuConfig
 
 const ChevronIcon = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

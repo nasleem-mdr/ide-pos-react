@@ -43,8 +43,7 @@ export const menuSections = [
             { key: 'purchasing-list',  windowKey: 'purchasingList',  path: '/purchasing-list',   label: 'Purchasing List',     icon: <ListIcon teks={'P'} /> },
             { key: 'goodsreceipt-list', windowKey: 'goodsReceiptList', path: '/goodsreceipt-list', label: 'Goods Receipt List', icon: <ListIcon teks={'G'} /> },
             { key: 'internaluse-list', windowKey: 'internalUseList',  path: '/internaluse-list',  label: 'Internal Use List',   icon: <ListIcon teks={'IU'} /> },
-            { key: 'vendorInvoiceList', windowKey: 'vendorInvoiceList',  path: '/vendorinvoice-list',  label: 'Vendor Invoice List',   icon: <ListIcon teks={'VI'} /> },
-            { key: 'financialReport', windowKey: 'financialReport',  path: '/financial-report',  label: 'Financial Report',   icon: <ListIcon teks={'FR'} /> },
+            { key: 'vendorInvoiceList', windowKey: 'vendorInvoiceList',  path: '/vendorinvoice-list',  label: 'Vendor Invoice List',   icon: <ListIcon teks={'VI'} /> },      
         ]
     },
     {
@@ -54,6 +53,23 @@ export const menuSections = [
             items: [
             { key: 'posOrderList', windowKey: 'posOrderList',  path: '/posorder-list',  label: 'POS Order List',   icon: <ListIcon teks={'PS'} /> },
             { key: 'salesInvoiceList', windowKey: 'salesInvoiceList',  path: '/salesinvoice-list',  label: 'Sales Invoice List',   icon: <ListIcon teks={'SI'} /> },
+            { key: 'dashboardMenu', windowKey: 'dashboardMenu',  path: '/dashboard-menu',  label: 'All Report',   icon: <ListIcon teks={'SI'} /> },
+        ]
+    },
+    {
+        sectionKey: 'linkreport',
+        sectionLabel: 'All Report',
+        defaultCollapsed: true,
+            items: [
+            { key: 'dashboardMenu', windowKey: 'dashboardMenu',  path: '/dashboard-menu',  label: 'Report Dashboard',   icon: <ListIcon teks={'RD'} /> },
+        ]
+    },
+    {
+        sectionKey: 'financialreport',
+        sectionLabel: 'Financial Report',
+        defaultCollapsed: true,
+            items: [
+            { key: 'financialReport', windowKey: 'financialReport',  path: '/financial-report',  label: 'Financial Report',   icon: <ListIcon teks={'FR'} /> },
         ]
     },
     {

@@ -40,7 +40,7 @@ const formatDateService = (dateStr) => {
 export async function generateInvoicePDF(invoiceId, documentNo, orgInfo) {
   const header = await idempiereApi(
     `/models/c_invoice/${invoiceId}` +
-    `?$select=DocumentNo,DateInvoiced,POReference,Description,DocStatus,AD_Org_ID,CreatedBy,C_BPartner_ID,GrandTotal`
+    `?$select=DocumentNo,DateInvoiced,POReference,Description,DocStatus,AD_Org_ID,CreatedBy,C_BPartner_ID,C_BPartner_Location_ID,GrandTotal`
   );
 
   const linesRes = await idempiereApi(
@@ -72,13 +72,14 @@ export async function generateInvoicePDF(invoiceId, documentNo, orgInfo) {
     subtitle: "Dokumen ini sah dengan histori approval terlampir",
     orgInfo,
     infoLeft: [
-      ["No. ",        ": " + header.DocumentNo],
-      ["Customer",    ": " + (header.C_BPartner_ID?.identifier || "-")],
+      ["Sold to",    ": " + (header.C_BPartner_ID?.identifier || "-")],
+      ["Address",    ": " + (header.C_BPartner_Location_ID?.identifier || "-")],
       ["Description", ": " + (header.Description || "-")],
     ],
     infoRight: [
+      ["No. ",        ": " + header.DocumentNo],
       ["Date",        ": " + new Date(header.DateInvoiced).toLocaleDateString("id-ID")],
-      ["Status",      ": " + (STATUS_MAP[statusCode] || statusCode)],
+      // ["Status",      ": " + (STATUS_MAP[statusCode] || statusCode)],
       ["Grand Total", ": " + fmtRp(header.GrandTotal)],
     ],
     table: {

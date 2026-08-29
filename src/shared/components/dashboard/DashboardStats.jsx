@@ -262,7 +262,7 @@ export default function DashboardStats() {
 
    return (
     <div style={{ width: '100%' }}>
-      <ListReport />
+      
       <div className="ds-container">
         
         <ScopeBanner isSupervisor={isSupervisor} subordinates={subordinates} loadingSubs={loadingSubs} />

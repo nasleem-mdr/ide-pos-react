@@ -3,3 +3,4 @@ export { default as LineChart } from './LineChart';
 export { default as MonthlyChartCard } from './MonthlyChartCard';
 export { default as StatCard } from './StatCard';
 export { default as WelcomeCards } from './WelcomeCards';
+export { default as DashboardMenus } from './DashboardMenus';
