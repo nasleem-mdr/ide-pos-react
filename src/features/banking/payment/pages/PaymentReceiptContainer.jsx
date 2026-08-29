@@ -1,2 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-export default PaymentReceiptContainer{}
+ 
+const PaymentReceiptContainer = () => {
+
+}
+export default PaymentReceiptContainer();
