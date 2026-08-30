@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from 'react';
-
 /**
  * Helper: Ekstrak ID secara konsisten baik dari:
  * - integer / string primitif (1000001)

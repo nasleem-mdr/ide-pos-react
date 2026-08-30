@@ -39,6 +39,8 @@ import { AccessProvider } from '@/context/AccessContext';
 
 // Banking
 import BankStatementContainer  from '@/features/banking/statement/pages/BankStatementContainer';
+import PaymentReceiptContainer  from '@/features/banking/payment/pages/PaymentReceiptContainer';
+
 //financial Report
 import FinancialReportPage from '@/features/financial/pages/FinancialReportPage';
 import DashboardMenu from '@/features/menu/pages/DashboardMenu';
@@ -212,6 +214,11 @@ function AppContent() {
                       <Route path="/bank-statement" element={
                         <ProtectedRoute windowKey="bankstatement">
                           <BankStatementContainer />
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/payment-receipt" element={
+                        <ProtectedRoute windowKey="paymentReceipt">
+                          <PaymentReceiptContainer />
                         </ProtectedRoute>
                       } />
                       <Route path="/financial-report" element={

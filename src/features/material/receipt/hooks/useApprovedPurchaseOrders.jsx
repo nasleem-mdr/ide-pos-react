@@ -24,43 +24,62 @@ export function useApprovedPurchaseOrders() {
 
   // Ambil total qty yang "reserved" oleh Receipt lain yang masih terbuka,
   // untuk SATU PO (dipakai di daftar Step 1).
-  const fetchReservedQtyForOrder = useCallback(async (orderId) => {
-    try {
-      const res = await idempiereApi(
-        `/models/m_inoutline?$select=MovementQty` +
-        `&$filter=C_OrderLine_ID/C_Order_ID eq ${orderId} and (${openStatusFilter()})`
-      );
-      const records = Array.isArray(res.records) ? res.records : [];
-      return records.reduce((sum, r) => sum + parseFloat(r.MovementQty || 0), 0);
-    } catch (err) {
-      console.warn(`[useApprovedPurchaseOrders] gagal cek reserved qty PO ${orderId}:`, err);
-      return 0; // gagal cek → jangan block PO ini (fallback tetap tampil, sama pola dgn _queryOk)
-    }
-  }, []);
+  // Helper: Ambil daftar ID header M_InOut yang berstatus terbuka (DR / IP)
+const fetchOpenInOutIds = async () => {
+  const statusFilter = OPEN_INOUT_STATUSES.map(s => `DocStatus eq '${s}'`).join(' or ');
+  const res = await idempiereApi(
+    `/models/m_inout?$select=M_InOut_ID&$filter=${statusFilter}`
+  );
+  const records = Array.isArray(res.records) ? res.records : [];
+  return records.map(r => fkId(r.M_InOut_ID) ?? r.id).filter(Boolean);
+};
 
-  // Ambil reserved qty PER LINE (dipakai di Step 2, saat 1 PO dipilih).
-  // Return: Map<C_OrderLine_ID, reservedQty>
-  const fetchReservedQtyByLine = useCallback(async (orderLineIds) => {
-    if (!orderLineIds || orderLineIds.length === 0) return new Map();
-    try {
-      const lineFilter = orderLineIds.map(id => `C_OrderLine_ID eq ${id}`).join(' or ');
-      const res = await idempiereApi(
-        `/models/m_inoutline?$select=C_OrderLine_ID,MovementQty` +
-        `&$filter=(${lineFilter}) and (${openStatusFilter()})`
-      );
-      const records = Array.isArray(res.records) ? res.records : [];
-      const map = new Map();
-      records.forEach(r => {
-        const lineId = fkId(r.C_OrderLine_ID);
-        if (!lineId) return;
-        map.set(lineId, (map.get(lineId) || 0) + parseFloat(r.MovementQty || 0));
-      });
-      return map;
-    } catch (err) {
-      console.warn('[useApprovedPurchaseOrders] gagal cek reserved qty per line:', err);
-      return new Map(); // gagal cek → treat sebagai 0 reserved (fallback tetap tampil)
-    }
-  }, []);
+// Ambil total qty reserved untuk 1 PO
+const fetchReservedQtyForOrder = useCallback(async (orderId) => {
+  try {
+    const openInOutIds = await fetchOpenInOutIds();
+    if (openInOutIds.length === 0) return 0;
+
+    const inoutFilter = openInOutIds.map(id => `M_InOut_ID eq ${id}`).join(' or ');
+    const res = await idempiereApi(
+      `/models/m_inoutline?$select=MovementQty` +
+      `&$filter=C_Order_ID eq ${orderId} and (${inoutFilter})`
+    );
+    const records = Array.isArray(res.records) ? res.records : [];
+    return records.reduce((sum, r) => sum + parseFloat(r.MovementQty || 0), 0);
+  } catch (err) {
+    console.warn(`[useApprovedPurchaseOrders] gagal cek reserved qty PO ${orderId}:`, err);
+    return 0;
+  }
+}, []);
+
+// Ambil total qty reserved PER LINE
+const fetchReservedQtyByLine = useCallback(async (orderLineIds) => {
+  if (!orderLineIds || orderLineIds.length === 0) return new Map();
+  try {
+    const openInOutIds = await fetchOpenInOutIds();
+    if (openInOutIds.length === 0) return new Map();
+
+    const lineFilter = orderLineIds.map(id => `C_OrderLine_ID eq ${id}`).join(' or ');
+    const inoutFilter = openInOutIds.map(id => `M_InOut_ID eq ${id}`).join(' or ');
+    
+    const res = await idempiereApi(
+      `/models/m_inoutline?$select=C_OrderLine_ID,MovementQty` +
+      `&$filter=(${lineFilter}) and (${inoutFilter})`
+    );
+    const records = Array.isArray(res.records) ? res.records : [];
+    const map = new Map();
+    records.forEach(r => {
+      const lineId = fkId(r.C_OrderLine_ID);
+      if (!lineId) return;
+      map.set(lineId, (map.get(lineId) || 0) + parseFloat(r.MovementQty || 0));
+    });
+    return map;
+  } catch (err) {
+    console.warn('[useApprovedPurchaseOrders] gagal cek reserved qty per line:', err);
+    return new Map();
+  }
+}, []);
 
   const fetchApprovedOrders = useCallback(async ({ warehouseId = null, search = '' } = {}) => {
     setLoadingList(true);

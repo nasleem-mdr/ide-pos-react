@@ -28,6 +28,7 @@ export const WINDOW_ACCESS_MAP = {
   vendorInvoie:         null,
   bankstatement:         null,
   salesInvoice:         null,
+  paymentReceipt:       null,
   
   // ===== List / Report =====
   requisitionList:      null, 

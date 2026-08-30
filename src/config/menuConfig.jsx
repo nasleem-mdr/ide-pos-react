@@ -1,5 +1,7 @@
 import { HomeIcon, ImportIcon, BankIcon, VendorIcon, RequisitionIcon, ShoppingCartIcon, DeliveryIcon, UserTake, ListIcon, PartnerIcon, BoxIcon, CashierIcon, } from '@/shared/components/icon';
 import { ShoppingBagIcon } from '@/shared/components/icon/ShoppingBagIcon';
+import { MdOutlinePayments } from "react-icons/md";
+import { SiGoogleanalytics } from "react-icons/si";
 
 export const menuSections = [ 
     {
@@ -30,6 +32,7 @@ export const menuSections = [
         sectionLabel: 'Payment/Receipt',
         defaultCollapsed: true,
         items: [
+            { key: 'paymentReceipt',   windowKey: 'paymentReceipt',  path: '/payment-receipt',  label: 'Payment and Receipt',  icon: <MdOutlinePayments size={24} /> },
             { key: 'bankstatement',   windowKey: 'bankstatement',  path: '/bank-statement',  label: 'Bank/Cash Statement',  icon: <BankIcon /> },
             { key: 'booking',       windowKey: 'booking', path: '/booking',         label: 'Booking Timeline',  icon: <UserTake /> },
             ]
@@ -53,7 +56,6 @@ export const menuSections = [
             items: [
             { key: 'posOrderList', windowKey: 'posOrderList',  path: '/posorder-list',  label: 'POS Order List',   icon: <ListIcon teks={'PS'} /> },
             { key: 'salesInvoiceList', windowKey: 'salesInvoiceList',  path: '/salesinvoice-list',  label: 'Sales Invoice List',   icon: <ListIcon teks={'SI'} /> },
-            { key: 'dashboardMenu', windowKey: 'dashboardMenu',  path: '/dashboard-menu',  label: 'All Report',   icon: <ListIcon teks={'SI'} /> },
         ]
     },
     {
@@ -61,7 +63,7 @@ export const menuSections = [
         sectionLabel: 'All Report',
         defaultCollapsed: true,
             items: [
-            { key: 'dashboardMenu', windowKey: 'dashboardMenu',  path: '/dashboard-menu',  label: 'Report Dashboard',   icon: <ListIcon teks={'RD'} /> },
+            { key: 'dashboardMenu', windowKey: 'dashboardMenu',  path: '/dashboard-menu',  label: 'Report Dashboard',   icon: <SiGoogleanalytics size={24} /> },
         ]
     },
     {

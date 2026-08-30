@@ -39,6 +39,7 @@ const BankStatementContainer = () => {
     const { result, hadError } = await submit(cart, { bankAccountId, beginningBalance, submitMode });
     if (!result) return;
     alert(`Bank Statement ${result.documentNo} has been successfully ${result.status === 'Completed' ? 'di-Complete' : 'Save as Draft'}.`, 'Success');
+    fetchBeginningBalance(bankAccountId).then(setBeginningBalance);
     if (!hadError) { clearCart(); }
   };
 

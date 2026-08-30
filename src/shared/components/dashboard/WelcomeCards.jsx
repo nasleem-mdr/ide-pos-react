@@ -1,5 +1,7 @@
 import { Link } from 'react-router-dom';
 import { ShoppingCartIcon, DeliveryIcon, RequisitionIcon, UserTake, VendorIcon, CashierIcon, BankIcon, ImportIcon } from '@/shared/components/icon';
+import { MdOutlinePayments } from "react-icons/md";
+import { SiGoogleanalytics } from "react-icons/si";
 
 /**
  * WelcomeCards — kartu info sesi + shortcut navigasi
@@ -63,6 +65,13 @@ export default function WelcomeCards({ session }) {
         <div className="welcome-card-value">Sales Invoice</div>
       </div>
       </Link>
+      <Link to="/payment-receipt" className="welcome-card-link">
+      <div className="welcome-card">
+        <div className="welcome-card-icon"><MdOutlinePayments size={32} /></div>
+        <div className="welcome-card-label">Formulir</div>
+        <div className="welcome-card-value">Payment and Receipt</div>
+      </div>
+      </Link>
       <Link to="/bank-statement" className="welcome-card-link">
       <div className="welcome-card">
         <div className="welcome-card-icon"><BankIcon size={32} /></div>
@@ -70,13 +79,13 @@ export default function WelcomeCards({ session }) {
         <div className="welcome-card-value">Bank Statement</div>
       </div>
       </Link>
-      {/* Info: Bahasa 
+      <Link to="/dashboard-menu" className="welcome-card-link">
       <div className="welcome-card">
-        <div className="welcome-card-icon"><CashierIcon /></div>
-        <div className="welcome-card-label">Bahasa</div>
-        <div className="welcome-card-value">{session.language}</div>
+        <div className="welcome-card-icon"><SiGoogleanalytics size={32}/></div>
+        <div className="welcome-card-label">Report</div>
+        <div className="welcome-card-value">All Report</div>
       </div>
-      */}
+      </Link>
     </div>
   );
 }
