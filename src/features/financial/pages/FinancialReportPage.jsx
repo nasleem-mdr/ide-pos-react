@@ -12,6 +12,7 @@ import {
 import { useFinancialReport } from '@/features/financial/hooks/useFinancialReport';
 import { useOrgInfo } from '@/shared/hooks/useOrgInfo';
 import OrgLetterhead from '@/shared/components/pdf/OrgLetterhead';
+import { buildRowBorderStyle } from '@/utils/reportLineStroke';
 import FinancialReportModal from '@/features/financial/components/FinancialReportModal';
 import '@/css/FinancialReport.css';
 
@@ -207,7 +208,11 @@ export default function FinancialReportPage({ token, acctSchemaId }) {
                 .map((line) => {
                   const isTotalLine = line.lineType === 'C';
                   return (
-                    <tr key={line.id} className={isTotalLine ? 'total-line' : ''}>
+                    <tr
+                      key={line.id}
+                      className={isTotalLine ? 'total-line' : ''}
+                      style={buildRowBorderStyle(line.overlineStroke, line.underlineStroke)}
+                    >
                       <td className={`name-cell ${isTotalLine ? 'total' : ''}`}>{line.name}</td>
                       <td className={`desc-cell ${isTotalLine ? 'total' : ''}`}>{line.description}</td>
                       <td className={`amount-cell ${isTotalLine ? 'total' : ''}`}>

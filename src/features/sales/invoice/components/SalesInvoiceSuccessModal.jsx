@@ -40,7 +40,7 @@ const SalesInvoiceSuccessModal = ({
     }
     setIsPrinting(true);
     try {
-      await generateInvoicePDF(inv.invoiceId, inv.documentNo, orgInfo?.logoUrl);
+      await generateInvoicePDF(inv.invoiceId, inv.documentNo, orgInfo);
     } catch (err) {
       console.error("Gagal membuat PDF Invoice:", err.message);
       alert("Gagal membuat PDF Invoice: " + (err.message || "Terjadi kesalahan."));

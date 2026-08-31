@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { generateShipmentPDF } from "@/features/sales/order/utils/generateShipmentPDF";
+import { useOrgInfo } from "@/shared/hooks/useOrgInfo";
 
 const SalesOrderSuccessModal = ({
     isOpen,
@@ -7,17 +8,16 @@ const SalesOrderSuccessModal = ({
     orderDocNo,
     shipmentId,
     shipmentDocNo,
-    logoDataUrl,
 }) => {
     const [isPrinting, setIsPrinting] = useState(false);
-
+    const { orgInfo } = useOrgInfo(); 
     if (!isOpen) return null;
 
     const handlePrint = async () => {
         if (!shipmentId) return;
         setIsPrinting(true);
         try {
-            await generateShipmentPDF(shipmentId, shipmentDocNo, logoDataUrl);
+            await generateShipmentPDF(shipmentId, shipmentDocNo, orgInfo);
         } catch (err) {
             console.error("Gagal membuat PDF Shipment:", err.message);
             alert("Gagal membuat PDF Shipment: " + (err.message || "Terjadi kesalahan."));

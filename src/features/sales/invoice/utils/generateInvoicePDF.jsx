@@ -1,4 +1,4 @@
-import { idempiereApi } from '@/api/idempiereApi';
+import { idempiereApi, fkId } from '@/api/idempiereApi';
 import { renderDocumentPDF } from '@/utils/pdf/renderDocumentPDF';
 import { cleanIdentifier } from '@/utils/pdf/formatIdentifier';
 
@@ -40,7 +40,7 @@ const formatDateService = (dateStr) => {
 export async function generateInvoicePDF(invoiceId, documentNo, orgInfo) {
   const header = await idempiereApi(
     `/models/c_invoice/${invoiceId}` +
-    `?$select=DocumentNo,DateInvoiced,POReference,Description,DocStatus,AD_Org_ID,CreatedBy,C_BPartner_ID,C_BPartner_Location_ID,GrandTotal`
+    `?$select=DocumentNo,DateInvoiced,POReference,Description,DocStatus,AD_Org_ID,CreatedBy,C_BPartner_ID,C_BPartner_Location_ID,GrandTotal,C_BankAccount_ID`
   );
 
   const linesRes = await idempiereApi(
@@ -67,6 +67,21 @@ export async function generateInvoicePDF(invoiceId, documentNo, orgInfo) {
 
   const statusCode = header.DocStatus?.id ?? header.DocStatus;
 
+  // AccountNo & Name diambil terpisah dari C_BankAccount (identifier FK saja
+  // biasanya sudah gabungan, tidak bisa dipecah per field) — pola sama dengan
+  // Address1/Address2 di useOrgInfo.
+  let bankAccountLabel = "-";
+  const bankAccountId = fkId(header.C_BankAccount_ID);
+  if (bankAccountId) {
+    try {
+      const bank = await idempiereApi(`/models/c_bankaccount/${bankAccountId}?$select=AccountNo,Name`);
+      const bankParts = [bank?.Name, bank?.AccountNo].filter(Boolean);
+      if (bankParts.length) bankAccountLabel = bankParts.join(" - ");
+    } catch (err) {
+      console.warn('[generateInvoicePDF] Gagal ambil detail C_BankAccount:', err.message);
+    }
+  }
+
   await renderDocumentPDF({
     title: "SALES INVOICE",
     subtitle: "Dokumen ini sah dengan histori approval terlampir",
@@ -74,7 +89,7 @@ export async function generateInvoicePDF(invoiceId, documentNo, orgInfo) {
     infoLeft: [
       ["Sold to",    ": " + (header.C_BPartner_ID?.identifier || "-")],
       ["Address",    ": " + (header.C_BPartner_Location_ID?.identifier || "-")],
-      ["Description", ": " + (header.Description || "-")],
+      ["Bank Account", ": " + bankAccountLabel],
     ],
     infoRight: [
       ["No. ",        ": " + header.DocumentNo],

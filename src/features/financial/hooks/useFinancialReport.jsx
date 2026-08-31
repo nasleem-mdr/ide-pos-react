@@ -91,7 +91,14 @@ export function useFinancialReport({
   );
 
   // Evaluator rekursif untuk LineType === 'C' (Calculation)
-  // Evaluator rekursif untuk LineType === 'C' (Calculation) yang mendukung Range Summing iDempiere
+  // Mendukung:
+  //   - CalculationType 'R' (Row Range) ATAU kosong -> jumlahkan semua baris
+  //     laporan di antara SeqNo Op1..Op2 (dipakai untuk subtotal/total group)
+  //   - CalculationType '+' -> nilai(Op1) + nilai(Op2)  (DUA baris spesifik,
+  //     BUKAN range SeqNo)
+  //   - CalculationType '-' -> nilai(Op1) - nilai(Op2)  (DUA baris spesifik,
+  //     BUKAN range SeqNo)
+  //   - '*', '/', 'P' -> operasi dua baris spesifik seperti sebelumnya
   const evaluateLine = useCallback((lineId, linesById, segmentAmounts, cache, visiting, depth = 0) => {
     if (!lineId) return 0;
     if (cache.has(lineId)) return cache.get(lineId);
@@ -121,42 +128,54 @@ export function useFinancialReport({
 
     let result = 0;
 
-    // KASUS 1: Oper_1 DAN Oper_2 terisi (Range Baris Laporan dari SeqNo Oper_1 s/d Oper_2)
+    // KASUS 1: Oper_1 DAN Oper_2 terisi
     if (op1Id && op2Id) {
-      const op1Line = linesById.get(op1Id);
-      const op2Line = linesById.get(op2Id);
+      if (calcType === '+') {
+        // Add — jumlahkan nilai DUA baris spesifik ini saja (bukan range SeqNo)
+        const a = evaluateLine(op1Id, linesById, segmentAmounts, cache, visiting, depth + 1);
+        const b = evaluateLine(op2Id, linesById, segmentAmounts, cache, visiting, depth + 1);
+        result = a + b;
+      } else if (calcType === '-') {
+        // Subtract — kurangkan nilai DUA baris spesifik ini saja (bukan range SeqNo)
+        const a = evaluateLine(op1Id, linesById, segmentAmounts, cache, visiting, depth + 1);
+        const b = evaluateLine(op2Id, linesById, segmentAmounts, cache, visiting, depth + 1);
+        result = a - b;
+      } else if (calcType === '*') {
+        const a = evaluateLine(op1Id, linesById, segmentAmounts, cache, visiting, depth + 1);
+        const b = evaluateLine(op2Id, linesById, segmentAmounts, cache, visiting, depth + 1);
+        result = a * b;
+      } else if (calcType === '/') {
+        const a = evaluateLine(op1Id, linesById, segmentAmounts, cache, visiting, depth + 1);
+        const b = evaluateLine(op2Id, linesById, segmentAmounts, cache, visiting, depth + 1);
+        result = b !== 0 ? a / b : 0;
+      } else if (calcType === 'P') {
+        const a = evaluateLine(op1Id, linesById, segmentAmounts, cache, visiting, depth + 1);
+        const b = evaluateLine(op2Id, linesById, segmentAmounts, cache, visiting, depth + 1);
+        result = b !== 0 ? (a / b) * 100 : 0;
+      } else {
+        // calcType === 'R' (Row Range) atau kosong -> Range Baris Laporan
+        // dari SeqNo Op1 s/d Op2 (subtotal/total group)
+        const op1Line = linesById.get(op1Id);
+        const op2Line = linesById.get(op2Id);
 
-      if (op1Line && op2Line) {
-        const seqFrom = Math.min(op1Line.SeqNo, op2Line.SeqNo);
-        const seqTo = Math.max(op1Line.SeqNo, op2Line.SeqNo);
+        if (op1Line && op2Line) {
+          const seqFrom = Math.min(op1Line.SeqNo, op2Line.SeqNo);
+          const seqTo = Math.max(op1Line.SeqNo, op2Line.SeqNo);
 
-        // Ambil semua baris laporan di antara SeqNo tersebut (kecuali baris total ini sendiri)
-        const allLines = Array.from(linesById.values());
-        const targetLines = allLines.filter(
-          (l) => l.SeqNo >= seqFrom && l.SeqNo <= seqTo && l.id !== lineId
-        );
+          // Ambil semua baris laporan di antara SeqNo tersebut (kecuali baris total ini sendiri)
+          const allLines = Array.from(linesById.values());
+          const targetLines = allLines.filter(
+            (l) => l.SeqNo >= seqFrom && l.SeqNo <= seqTo && l.id !== lineId
+          );
 
-        if (calcType === '+' || calcType === '-' || calcType === 'R' || !calcType) {
           let sum = 0;
           for (const targetLine of targetLines) {
             sum += evaluateLine(targetLine.id, linesById, segmentAmounts, cache, visiting, depth + 1);
           }
-          result = calcType === '-' ? -sum : sum;
-        } else if (calcType === '*') {
-          const a = evaluateLine(op1Id, linesById, segmentAmounts, cache, visiting, depth + 1);
-          const b = evaluateLine(op2Id, linesById, segmentAmounts, cache, visiting, depth + 1);
-          result = a * b;
-        } else if (calcType === '/') {
-          const a = evaluateLine(op1Id, linesById, segmentAmounts, cache, visiting, depth + 1);
-          const b = evaluateLine(op2Id, linesById, segmentAmounts, cache, visiting, depth + 1);
-          result = b !== 0 ? a / b : 0;
-        } else if (calcType === 'P') {
-          const a = evaluateLine(op1Id, linesById, segmentAmounts, cache, visiting, depth + 1);
-          const b = evaluateLine(op2Id, linesById, segmentAmounts, cache, visiting, depth + 1);
-          result = b !== 0 ? (a / b) * 100 : 0;
+          result = sum;
         }
       }
-    } 
+    }
     // KASUS 2: Hanya Oper_1_ID yang terisi (Pass-through / Tunggal)
     else if (op1Id) {
       const a = evaluateLine(op1Id, linesById, segmentAmounts, cache, visiting, depth + 1);
@@ -365,16 +384,29 @@ export function useFinancialReport({
         }
 
         // 6. Menyusun Hasil Akhir
-        const result = lines.map((line) => ({
-          id: line.id,
-          name: line.Name,
-          description: line.Description,
-          seqNo: line.SeqNo,
-          lineType: getValueStr(line.LineType),
-          isDetail: line.IsDetail === true || line.IsDetail === 'Y',
-          isPageBreak: line.IsPageBreak === true || line.IsPageBreak === 'Y',
-          amount: finalAmounts.get(line.id) || 0,
-        }));
+        // Baris dengan IsPrinted=false hanya dipakai sebagai helper kalkulasi
+        // (mis. referensi Oper_1/Oper_2 pada formula '+'/'-'/Range) — TIDAK
+        // ikut ditampilkan/dicetak. Filter ini SENGAJA dilakukan di sini
+        // (setelah finalAmounts dihitung dari `lines` yang lengkap/tidak
+        // difilter), bukan lewat $filter di query PA_ReportLine — supaya
+        // baris kalkulasi lain yang me-reference baris non-print ini tetap
+        // bisa resolve nilainya dengan benar.
+        const result = lines
+          .filter((line) => line.IsPrinted !== false && line.IsPrinted !== 'N')
+          .map((line) => ({
+            id: line.id,
+            name: line.Name,
+            description: line.Description,
+            seqNo: line.SeqNo,
+            lineType: getValueStr(line.LineType),
+            isDetail: line.IsDetail === true || line.IsDetail === 'Y',
+            isPageBreak: line.IsPageBreak === true || line.IsPageBreak === 'Y',
+            // Kode stroke (SD/DS/DT/DSD/DDS/DDT) — lihat shared/utils/reportLineStroke.js
+            // untuk mapping ke CSS border-style (HTML) atau vector jsPDF.
+            overlineStroke: getValueStr(line.OverlineStrokeType) || null,
+            underlineStroke: getValueStr(line.UnderlineStrokeType) || null,
+            amount: finalAmounts.get(line.id) || 0,
+          }));
 
         setReportLines(result);
       } catch (err) {

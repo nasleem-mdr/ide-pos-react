@@ -1,7 +1,7 @@
 import { idempiereApi } from '@/api/idempiereApi';
 import { renderDocumentPDF } from '@/utils/pdf/renderDocumentPDF';
 import { cleanIdentifier } from '@/utils/pdf/formatIdentifier';
-
+import { useOrgInfo } from "@/shared/hooks/useOrgInfo";
 // ─────────────────────────────────────────────────────────────────────────────
 // generateShipmentPDF.js
 // Wrapper tipis: fetch data Customer Shipment (M_InOut + M_InOutLine + histori
@@ -36,9 +36,9 @@ const formatDate = (dateStr) => {
 /**
  * @param {number} shipmentId    - M_InOut_ID
  * @param {string} documentNo
- * @param {string} [logoDataUrl] - mis. dari useOrgInfo().orgInfo?.logoUrl
+ * @param {string} [orgInfo] - mis. dari useOrgInfo().orgInfo?.logoUrl
  */
-export async function generateShipmentPDF(shipmentId, documentNo, logoDataUrl) {
+export async function generateShipmentPDF(shipmentId, documentNo, orgInfo) {
   const header = await idempiereApi(
     `/models/m_inout/${shipmentId}` +
     `?$select=DocumentNo,MovementDate,Description,DocStatus,AD_Org_ID,CreatedBy,C_BPartner_ID,M_Warehouse_ID,C_Order_ID`
@@ -71,7 +71,7 @@ export async function generateShipmentPDF(shipmentId, documentNo, logoDataUrl) {
   await renderDocumentPDF({
     title: "SURAT JALAN / SHIPMENT",
     subtitle: "Dokumen ini sah dengan histori approval terlampir",
-    logoDataUrl,
+    orgInfo,
     infoLeft: [
       ["No. ",        ": " + header.DocumentNo],
       ["Customer",    ": " + (header.C_BPartner_ID?.identifier || "-")],

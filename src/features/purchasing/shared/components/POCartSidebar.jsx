@@ -7,6 +7,7 @@ import { FcProcess } from "react-icons/fc";
 import { MdAddBusiness } from "react-icons/md";
 import { FaTruck, FaMoneyBillWave } from 'react-icons/fa';
 import { AiOutlineDeliveredProcedure } from 'react-icons/ai';
+import '@/css/POCartSidebar.css';
 
 //const fmtRp = (n) => `Rp ${Math.round(n).toLocaleString('id-ID')}`;
 
@@ -36,6 +37,7 @@ const POCartSidebar = ({
   const flexStyle = {
     display: 'inline-flex',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: '8px' // Memberi jarak antara ikon dan teks
   };
   
@@ -50,6 +52,14 @@ const POCartSidebar = ({
       <FaMoneyBillWave /> Tunai
     </span>
   );
+
+  // Helper untuk menentukan tooltip tombol
+  const getDisabledReasonTooltip = (defaultTooltip) => {
+    if (isSubmitting) return 'Transaksi sedang diproses...';
+    if (hasIncompleteVendor) return `Pilih ${partnerLabel} untuk semua item terlebih dahulu.`;
+    return defaultTooltip;
+  };
+
   return (
     <div style={{
       width, flexShrink: 0, background: COLOR.surface,
@@ -167,12 +177,18 @@ const POCartSidebar = ({
           {/* Wrapper Flexbox Kanan-Kiri */}
           <div style={{ display: 'flex', gap: '10px' }}>
             {isSingleButtonMode ? (
+               
               <button
                 onClick={onSubmit}
                 disabled={isSubmitting || hasIncompleteVendor}
+                data-tooltip={getDisabledReasonTooltip(`Hanya akan membuat dokumen ${docLabel}. 
+                  Anda harus membuat Penerimaan Barang dan Invoice Vendor secara manual`)}
+               className="custom-tooltip"
                 style={{
                   flex: 1,
                   display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
                   background: (isSubmitting || hasIncompleteVendor) ? '#9ca3af' : COLOR.primary,
                   color: '#fff', border: 'none', padding: '14px',
                   borderRadius: RADIUS.md, fontWeight: 700, fontSize: '14px',
@@ -193,6 +209,7 @@ const POCartSidebar = ({
                   <button
                     onClick={onSubmitDraft}
                     disabled={isSubmitting || hasIncompleteVendor}
+                    title={getDisabledReasonTooltip(`Simpan sebagai draf ${docLabel} tanpa menyelesaikan transaksi.`)}
                     style={{
                       flex: 1,
                       background: (isSubmitting || hasIncompleteVendor) ? '#f3f4f6' : '#fff',
@@ -206,31 +223,45 @@ const POCartSidebar = ({
                     {isSubmitting ? '⏳ Memproses...' : `📝 DRAFT ${vendorCount} ${docLabel}`}
                   </button>
                 )}
+                
                 {onSubmitComplete && (
                   <button
-                    onClick={onSubmitComplete}
-                    disabled={isSubmitting || hasIncompleteVendor}
-                    style={{
-                      flex: 1,
-                      background: (isSubmitting || hasIncompleteVendor) ? '#9ca3af' : '#16a34a',
-                      color: '#fff', border: 'none', padding: '14px',
-                      borderRadius: RADIUS.md, fontWeight: 700, fontSize: '14px',
-                      cursor: (isSubmitting || hasIncompleteVendor) ? 'not-allowed' : 'pointer',
-                    }}
-                  >
-                    {isSubmitting ? '⏳ Memproses...' : `✅ COMPLETE ${vendorCount} ${docLabel}`}
-                  </button>
+                  onClick={onSubmitComplete}
+                  disabled={isSubmitting || hasIncompleteVendor}
+                  data-tooltip={getDisabledReasonTooltip(`Selesaikan dan finalisasi ${vendorCount} dokumen ${docLabel}.`)}
+                  className="custom-tooltip"
+                  style={{
+                    flex: 1,
+                    background: (isSubmitting || hasIncompleteVendor) ? '#9ca3af' : '#16a34a',
+                    color: '#fff', border: 'none', padding: '14px',
+                    borderRadius: RADIUS.md, fontWeight: 700, fontSize: '14px',
+                    cursor: (isSubmitting || hasIncompleteVendor) ? 'not-allowed' : 'pointer',
+                    position: 'relative' // Pastikan position relative agar tooltip berada tepat di atas tombol ini
+                  }}
+                >
+                  {isSubmitting ? '⏳ Memproses...' : `✅ COMPLETE ${vendorCount} ${docLabel}`}
+                </button>
                 )}
               </>
             )}
 
             {onSubmitCash && (() => {
               const cashDisabled = isSubmitting || hasIncompleteVendor || vendorCount > 1;
+
+              // Kondisi pesan tooltip untuk tombol Cash
+              let cashTooltip = "Akan generate PO, Material Receipt, Invoice Vendor dan Pembayaran (Cash/Bank).";
+              if (vendorCount > 1) {
+                cashTooltip = `Cash Purchase hanya mendukung 1 ${partnerLabel} per transaksi.`;
+              } else {
+                cashTooltip = getDisabledReasonTooltip(cashTooltip);
+              }
+
               return (
                 <button
                   onClick={onSubmitCash}
                   disabled={cashDisabled}
-                  title={vendorCount > 1 ? 'Cash Purchase hanya mendukung 1 vendor per transaksi.' : undefined}
+                  data-tooltip={cashTooltip}
+                  className="custom-tooltip"
                   style={{
                     flex: 1,
                     background: cashDisabled ? '#9ca3af' : '#16a34a',
