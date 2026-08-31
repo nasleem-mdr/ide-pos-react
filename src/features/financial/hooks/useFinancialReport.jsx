@@ -129,13 +129,14 @@ export function useFinancialReport({
     let result = 0;
 
     // KASUS 1: Oper_1 DAN Oper_2 terisi
+        // KASUS 1: Oper_1 DAN Oper_2 terisi
     if (op1Id && op2Id) {
-      if (calcType === '+') {
+      if (calcType === 'A') {
         // Add — jumlahkan nilai DUA baris spesifik ini saja (bukan range SeqNo)
         const a = evaluateLine(op1Id, linesById, segmentAmounts, cache, visiting, depth + 1);
         const b = evaluateLine(op2Id, linesById, segmentAmounts, cache, visiting, depth + 1);
         result = a + b;
-      } else if (calcType === '-') {
+      } else if (calcType === 'S') {
         // Subtract — kurangkan nilai DUA baris spesifik ini saja (bukan range SeqNo)
         const a = evaluateLine(op1Id, linesById, segmentAmounts, cache, visiting, depth + 1);
         const b = evaluateLine(op2Id, linesById, segmentAmounts, cache, visiting, depth + 1);
@@ -149,11 +150,12 @@ export function useFinancialReport({
         const b = evaluateLine(op2Id, linesById, segmentAmounts, cache, visiting, depth + 1);
         result = b !== 0 ? a / b : 0;
       } else if (calcType === 'P') {
+        // Percentage — Op1 of Op2
         const a = evaluateLine(op1Id, linesById, segmentAmounts, cache, visiting, depth + 1);
         const b = evaluateLine(op2Id, linesById, segmentAmounts, cache, visiting, depth + 1);
         result = b !== 0 ? (a / b) * 100 : 0;
       } else {
-        // calcType === 'R' (Row Range) atau kosong -> Range Baris Laporan
+        // calcType === 'R' (Add Range) atau kosong -> Range Baris Laporan
         // dari SeqNo Op1 s/d Op2 (subtotal/total group)
         const op1Line = linesById.get(op1Id);
         const op2Line = linesById.get(op2Id);
@@ -162,7 +164,6 @@ export function useFinancialReport({
           const seqFrom = Math.min(op1Line.SeqNo, op2Line.SeqNo);
           const seqTo = Math.max(op1Line.SeqNo, op2Line.SeqNo);
 
-          // Ambil semua baris laporan di antara SeqNo tersebut (kecuali baris total ini sendiri)
           const allLines = Array.from(linesById.values());
           const targetLines = allLines.filter(
             (l) => l.SeqNo >= seqFrom && l.SeqNo <= seqTo && l.id !== lineId
