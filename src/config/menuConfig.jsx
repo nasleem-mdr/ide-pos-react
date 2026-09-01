@@ -1,7 +1,11 @@
 import { HomeIcon, ImportIcon, BankIcon, VendorIcon, RequisitionIcon, ShoppingCartIcon, DeliveryIcon, UserTake, ListIcon, PartnerIcon, BoxIcon, CashierIcon, } from '@/shared/components/icon';
 import { ShoppingBagIcon } from '@/shared/components/icon/ShoppingBagIcon';
-import { MdOutlinePayments } from "react-icons/md";
+import { MdOutlinePayments, MdOutlineStore } from "react-icons/md";
 import { SiGoogleanalytics } from "react-icons/si";
+import { PiCashRegister, PiGitPullRequestBold, PiPresentationChart } from "react-icons/pi";
+import { LiaFileInvoiceDollarSolid, LiaPeopleCarrySolid } from "react-icons/lia";
+import { BiPurchaseTagAlt } from "react-icons/bi";
+import { TbCreditCardHand } from "react-icons/tb";
 
 export const menuSections = [ 
     {
@@ -42,11 +46,11 @@ export const menuSections = [
         sectionLabel: 'Procurement Report',
         defaultCollapsed: true,
             items: [
-            { key: 'requisition-list', windowKey: 'requisitionList', borderTop: true, path: '/requisition-list',  label: 'Requisition List',    icon: <ListIcon teks={'R'} /> },
-            { key: 'purchasing-list',  windowKey: 'purchasingList',  path: '/purchasing-list',   label: 'Purchasing List',     icon: <ListIcon teks={'P'} /> },
-            { key: 'goodsreceipt-list', windowKey: 'goodsReceiptList', path: '/goodsreceipt-list', label: 'Goods Receipt List', icon: <ListIcon teks={'G'} /> },
-            { key: 'internaluse-list', windowKey: 'internalUseList',  path: '/internaluse-list',  label: 'Internal Use List',   icon: <ListIcon teks={'IU'} /> },
-            { key: 'vendorInvoiceList', windowKey: 'vendorInvoiceList',  path: '/vendorinvoice-list',  label: 'Vendor Invoice List',   icon: <ListIcon teks={'VI'} /> },      
+            { key: 'requisition-list', windowKey: 'requisitionList', borderTop: true, path: '/requisition-list',  label: 'Requisition List',    icon: <PiGitPullRequestBold /> },
+            { key: 'purchasing-list',  windowKey: 'purchasingList',  path: '/purchasing-list',   label: 'Purchasing List',     icon: <BiPurchaseTagAlt /> },
+            { key: 'goodsreceipt-list', windowKey: 'goodsReceiptList', path: '/goodsreceipt-list', label: 'Goods Receipt List', icon: <LiaPeopleCarrySolid /> },
+            { key: 'internaluse-list', windowKey: 'internalUseList',  path: '/internaluse-list',  label: 'Internal Use List',   icon: <TbCreditCardHand /> },
+            { key: 'vendorInvoiceList', windowKey: 'vendorInvoiceList',  path: '/vendorinvoice-list',  label: 'Vendor Invoice List',   icon: <MdOutlineStore /> },      
         ]
     },
     {
@@ -54,8 +58,8 @@ export const menuSections = [
         sectionLabel: 'Sales Report',
         defaultCollapsed: true,
             items: [
-            { key: 'posOrderList', windowKey: 'posOrderList',  path: '/posorder-list',  label: 'POS Order List',   icon: <ListIcon teks={'PS'} /> },
-            { key: 'salesInvoiceList', windowKey: 'salesInvoiceList',  path: '/salesinvoice-list',  label: 'Sales Invoice List',   icon: <ListIcon teks={'SI'} /> },
+            { key: 'posOrderList', windowKey: 'posOrderList',  path: '/posorder-list',  label: 'POS Order List',   icon: <PiCashRegister /> },
+            { key: 'salesInvoiceList', windowKey: 'salesInvoiceList',  path: '/salesinvoice-list',  label: 'Sales Invoice List',   icon: <LiaFileInvoiceDollarSolid /> },
         ]
     },
     {
@@ -71,7 +75,7 @@ export const menuSections = [
         sectionLabel: 'Financial Report',
         defaultCollapsed: true,
             items: [
-            { key: 'financialReport', windowKey: 'financialReport',  path: '/financial-report',  label: 'Financial Report',   icon: <ListIcon teks={'FR'} /> },
+            { key: 'financialReport', windowKey: 'financialReport',  path: '/financial-report',  label: 'Financial Report',   icon: <PiPresentationChart /> },
         ]
     },
     {
