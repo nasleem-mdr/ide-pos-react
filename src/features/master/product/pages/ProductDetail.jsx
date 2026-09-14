@@ -286,22 +286,33 @@ function ProductDetail() {
             C_UOM_ID: { id: parseInt(form.C_UOM_ID, 10) },
         };
 
-        const vendorLinesPayload = vendorLines.map((l) => ({
-            id: getId(l) || null,
-            C_BPartner_ID: getId(l.C_BPartner_ID),
-            VendorProductNo: l.VendorProductNo,
-            PriceList: l.PriceList,
-            PriceLastPO: l.PriceLastPO,
-            _dirty: l._dirty === true,
-        }));
-        const priceLinesPayload = priceLines.map((l) => ({
-            id: getId(l) || null,
-            M_PriceList_Version_ID: getId(l.M_PriceList_Version_ID),
-            PriceList: l.PriceList,
-            PriceStd: l.PriceStd,
-            PriceLimit: l.PriceLimit,
-            _dirty: l._dirty === true,
-        }));
+        // `typeof ... === "number"` di sini jaga-jaga tambahan: kalau
+        // getId() suatu saat salah ambil field FK (objek) sebagai id
+        // (seperti kasus baris baru yang sempat kejadian), baris itu
+        // tetap dipaksa dianggap "baris baru" (id: null -> POST) alih-alih
+        // terkirim sebagai PUT ke URL yang rusak.
+        const vendorLinesPayload = vendorLines.map((l) => {
+            const rawId = getId(l);
+            return {
+                id: typeof rawId === "number" ? rawId : null,
+                C_BPartner_ID: getId(l.C_BPartner_ID),
+                VendorProductNo: l.VendorProductNo,
+                PriceList: l.PriceList,
+                PriceLastPO: l.PriceLastPO,
+                _dirty: l._dirty === true,
+            };
+        });
+        const priceLinesPayload = priceLines.map((l) => {
+            const rawId = getId(l);
+            return {
+                id: typeof rawId === "number" ? rawId : null,
+                M_PriceList_Version_ID: getId(l.M_PriceList_Version_ID),
+                PriceList: l.PriceList,
+                PriceStd: l.PriceStd,
+                PriceLimit: l.PriceLimit,
+                _dirty: l._dirty === true,
+            };
+        });
 
         try {
             const newProductId = await saveProductWithLines({
@@ -329,12 +340,17 @@ function ProductDetail() {
         } catch (err) {
             console.error("Gagal menyimpan produk:", err);
             let message = parseIdempiereError(err);
-            // Kalau M_Product sempat kebentuk (mode New) tapi prosesnya
-            // berhenti di tengah (mis. gagal di baris Vendor Pricing/Sales
-            // Price), kasih tahu ID-nya di sini — jangan sampai user
-            // mengira TIDAK ADA yang tersimpan sama sekali.
-            if (isNew && err.partial?.productId) {
-                message += `\n\nProduk sempat berhasil dibuat (Product ID: ${err.partial.productId}) sebelum gagal di tahap "${err.step}". Buka lagi lewat menu Edit Produk untuk melanjutkan/melengkapi Vendor Pricing & Sales Price-nya.`;
+            // err.step & err.partial dibekali oleh saveProductWithLines —
+            // selalu ditampilkan (bukan cuma mode New) supaya kelihatan
+            // persis di tahap mana proses berhenti (vendor-lines,
+            // vendor-lines-delete, price-lines, atau price-lines-delete).
+            if (err.step) {
+                message += `\n\n(Gagal pada tahap: ${err.step})`;
+            }
+            if (err.partial?.productId) {
+                message += isNew
+                    ? `\nProduk sempat berhasil dibuat (Product ID: ${err.partial.productId}) sebelum gagal. Buka lagi lewat menu Edit Produk untuk melanjutkan/melengkapi Vendor Pricing & Sales Price-nya.`
+                    : `\nData M_Product induk sudah tersimpan — hanya sebagian baris Vendor Pricing/Sales Price yang gagal diproses.`;
             }
             alert(`Gagal menyimpan produk.\n\n${message}`);
         }
@@ -368,6 +384,18 @@ function ProductDetail() {
             ...prev,
             {
                 _localId: `new-vendor-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+                // PENTING: `id: null` eksplisit di sini. Tanpa ini, getId()
+                // pada baris baru (yang belum punya PK asli) jatuh ke
+                // fallback terakhirnya ("ambil field apa pun yang berakhiran
+                // _ID") dan salah ambil C_BPartner_ID (field FK berbentuk
+                // objek {id, identifier}) sebagai kalau itu PK baris —
+                // akibatnya baris baru dikira "sudah ada di server" dan
+                // dikirim sebagai PUT ke ".../[object Object]" alih-alih
+                // POST baris baru. `id: null` membuat getId() berhenti di
+                // pengecekan `obj.id !== undefined` (null tetap dianggap
+                // "ada", tapi nilainya null/falsy) sebelum sampai ke
+                // fallback yang salah itu.
+                id: null,
                 C_BPartner_ID: { id: getId(bp), identifier: bp.Name },
                 VendorProductNo: "",
                 PriceList: 0,
@@ -403,6 +431,10 @@ function ProductDetail() {
             ...prev,
             {
                 _localId: `new-price-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+                // Sama seperti handleAddVendorLine — `id: null` eksplisit
+                // supaya getId() tidak salah ambil M_PriceList_Version_ID
+                // (field FK berbentuk objek) sebagai PK baris baru ini.
+                id: null,
                 M_PriceList_Version_ID: { id: getId(plv), identifier: getLabel(plv.Name) || plv.Name },
                 PriceList: 0,
                 PriceStd: 0,
