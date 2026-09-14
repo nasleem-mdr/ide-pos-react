@@ -3,10 +3,22 @@ import { useState, useCallback } from "react";
 /**
  * useProductDetailSubmit
  * ─────────────────────────────────────────────────────────────────────────
- * Semua operasi PENYIMPANAN (create/update/delete) untuk halaman Product
- * Detail ditaruh di sini — komponen cuma perlu panggil fungsi yang relevan
- * dan baca `isSaving` / `error`. Fetch/read data TETAP di komponen (tidak
- * dipindah), karena yang diminta cuma "operasi penyimpanan".
+ * REVISI: sebelumnya hook ini expose fungsi terpisah per tabel
+ * (createProduct/saveProduct/saveVendorLine/addVendorLine/dst) dan
+ * komponen yang memanggilnya satu-satu — user harus klik "Simpan" di
+ * M_Product dulu, baru bisa klik simpan lagi di tiap baris Vendor
+ * Pricing / Sales Price. Sekarang semua digabung jadi SATU fungsi
+ * `saveProductWithLines`:
+ *   1) create (mode baru) atau update (mode edit) M_Product
+ *   2) pakai M_Product_ID hasil langkah 1 untuk insert baris Vendor
+ *      Pricing & Sales Price yang baru ditambahkan di form — tanpa user
+ *      perlu melakukan aksi simpan tambahan
+ *   3) update baris yang ditandai `_dirty`, hapus baris yang masuk daftar
+ *      `deletedVendorIds` / `deletedPriceIds`
+ *
+ * Komponen (ProductDetail.js) cuma menyusun state lokal (vendorLines,
+ * priceLines, deletedVendorIds, deletedPriceIds) dan memanggil fungsi ini
+ * SEKALI saat tombol "Simpan" / "Buat Produk" diklik.
  */
 
 // ─── Nama tabel Vendor Pricing ──────────────────────────────────────────
@@ -86,6 +98,16 @@ export function parseIdempiereError(err) {
     return raw || "Terjadi kesalahan yang tidak diketahui.";
 }
 
+// Helper lokal (bukan yang di ProductDetail.js) — cuma dipakai untuk baca
+// ID hasil create M_Product, yang bentuknya bisa { id: { id: N } }, { id: N },
+// atau { M_Product_ID: N } tergantung versi REST API.
+function extractCreatedId(created) {
+    if (created?.id?.id !== undefined) return created.id.id;
+    if (created?.id !== undefined) return created.id;
+    if (created?.M_Product_ID !== undefined) return created.M_Product_ID;
+    return undefined;
+}
+
 export default function useProductDetailSubmit(idempiereApi) {
     const [isSaving, setIsSaving] = useState(false);
     const [error, setError] = useState(null);
@@ -103,69 +125,117 @@ export default function useProductDetailSubmit(idempiereApi) {
         }
     }, []);
 
-    // ─── M_Product (field utama + MarkupPercent + RoundingType) ────────────
-    const createProduct = useCallback((payload) => run(() =>
-        idempiereApi(`/models/m_product`, {
-            method: "POST",
-            body: JSON.stringify(payload),
-        })
-    ), [idempiereApi, run]);
+    /**
+     * saveProductWithLines
+     * ────────────────────────────────────────────────────────────────────
+     * @param {boolean} isNew
+     * @param {number|string|null} productId - null/undefined kalau isNew
+     * @param {object} productPayload - payload M_Product siap kirim
+     * @param {Array} vendorLines - [{ id, C_BPartner_ID, VendorProductNo, PriceList, PriceLastPO, _dirty }]
+     *   `id` null/undefined -> baris baru (di-POST, dikaitkan ke M_Product_ID hasil langkah 1)
+     *   `id` ada & `_dirty` true -> di-PUT
+     *   `id` ada & `_dirty` false -> dilewati (tidak ada perubahan)
+     * @param {Array<number>} deletedVendorIds - id baris Vendor Pricing yang dihapus user di form
+     * @param {Array} priceLines - [{ id, M_PriceList_Version_ID, PriceList, PriceStd, PriceLimit, _dirty }]
+     * @param {Array<number>} deletedPriceIds - id baris Sales Price yang dihapus user di form
+     * @returns {Promise<number>} M_Product_ID (baru atau existing)
+     */
+    const saveProductWithLines = useCallback(
+        ({
+            isNew,
+            productId,
+            productPayload,
+            vendorLines = [],
+            deletedVendorIds = [],
+            priceLines = [],
+            deletedPriceIds = [],
+        }) =>
+            run(async () => {
+                // ── Step 1: M_Product ────────────────────────────────────
+                let finalProductId = productId;
+                if (isNew) {
+                    const created = await idempiereApi(`/models/m_product`, {
+                        method: "POST",
+                        body: JSON.stringify(productPayload),
+                    });
+                    finalProductId = extractCreatedId(created);
+                    if (!finalProductId) {
+                        throw new Error("Response tidak berisi ID produk baru.");
+                    }
+                } else {
+                    await idempiereApi(`/models/m_product/${productId}`, {
+                        method: "PUT",
+                        body: JSON.stringify(productPayload),
+                    });
+                }
 
-    const saveProduct = useCallback((productId, payload) => run(() =>
-        idempiereApi(`/models/m_product/${productId}`, {
-            method: "PUT",
-            body: JSON.stringify(payload),
-        })
-    ), [idempiereApi, run]);
+                // ── Step 2: Vendor Pricing — pakai finalProductId di sini,
+                // langsung, tanpa user perlu klik simpan lagi ──────────────
+                for (const line of vendorLines) {
+                    const payload = {
+                        VendorProductNo: line.VendorProductNo || "",
+                        PriceList: parseFloat(line.PriceList) || 0,
+                        PriceLastPO: parseFloat(line.PriceLastPO) || 0,
+                    };
+                    if (line.id) {
+                        if (line._dirty) {
+                            await idempiereApi(`/models/${VENDOR_PRICING_TABLE}/${line.id}`, {
+                                method: "PUT",
+                                body: JSON.stringify(payload),
+                            });
+                        }
+                    } else {
+                        await idempiereApi(`/models/${VENDOR_PRICING_TABLE}`, {
+                            method: "POST",
+                            body: JSON.stringify({
+                                ...payload,
+                                M_Product_ID: { id: parseInt(finalProductId, 10) },
+                                C_BPartner_ID: { id: parseInt(line.C_BPartner_ID, 10) },
+                            }),
+                        });
+                    }
+                }
+                for (const delId of deletedVendorIds) {
+                    await idempiereApi(`/models/${VENDOR_PRICING_TABLE}/${delId}`, { method: "DELETE" });
+                }
 
-    // ─── M_BPartnerProduct (Vendor Pricing) ─────────────────────────────────
-    const saveVendorLine = useCallback((lineId, payload) => run(() =>
-        idempiereApi(`/models/${VENDOR_PRICING_TABLE}/${lineId}`, {
-            method: "PUT",
-            body: JSON.stringify(payload),
-        })
-    ), [idempiereApi, run]);
+                // ── Step 3: Sales Price — pola sama seperti Vendor Pricing ─
+                for (const line of priceLines) {
+                    const payload = {
+                        PriceList: parseFloat(line.PriceList) || 0,
+                        PriceStd: parseFloat(line.PriceStd) || 0,
+                        PriceLimit: parseFloat(line.PriceLimit) || 0,
+                    };
+                    if (line.id) {
+                        if (line._dirty) {
+                            await idempiereApi(`/models/m_productprice/${line.id}`, {
+                                method: "PUT",
+                                body: JSON.stringify(payload),
+                            });
+                        }
+                    } else {
+                        await idempiereApi(`/models/m_productprice`, {
+                            method: "POST",
+                            body: JSON.stringify({
+                                ...payload,
+                                M_Product_ID: { id: parseInt(finalProductId, 10) },
+                                M_PriceList_Version_ID: { id: parseInt(line.M_PriceList_Version_ID, 10) },
+                            }),
+                        });
+                    }
+                }
+                for (const delId of deletedPriceIds) {
+                    await idempiereApi(`/models/m_productprice/${delId}`, { method: "DELETE" });
+                }
 
-    const addVendorLine = useCallback((payload) => run(() =>
-        idempiereApi(`/models/${VENDOR_PRICING_TABLE}`, {
-            method: "POST",
-            body: JSON.stringify(payload),
-        })
-    ), [idempiereApi, run]);
-
-    const deleteVendorLine = useCallback((lineId) => run(() =>
-        idempiereApi(`/models/${VENDOR_PRICING_TABLE}/${lineId}`, { method: "DELETE" })
-    ), [idempiereApi, run]);
-
-    // ─── M_ProductPrice (Sales Price) ───────────────────────────────────────
-    const savePriceLine = useCallback((lineId, payload) => run(() =>
-        idempiereApi(`/models/m_productprice/${lineId}`, {
-            method: "PUT",
-            body: JSON.stringify(payload),
-        })
-    ), [idempiereApi, run]);
-
-    const addPriceLine = useCallback((payload) => run(() =>
-        idempiereApi(`/models/m_productprice`, {
-            method: "POST",
-            body: JSON.stringify(payload),
-        })
-    ), [idempiereApi, run]);
-
-    const deletePriceLine = useCallback((lineId) => run(() =>
-        idempiereApi(`/models/m_productprice/${lineId}`, { method: "DELETE" })
-    ), [idempiereApi, run]);
+                return finalProductId;
+            }),
+        [idempiereApi, run]
+    );
 
     return {
         isSaving,
         error,
-        createProduct,
-        saveProduct,
-        saveVendorLine,
-        addVendorLine,
-        deleteVendorLine,
-        savePriceLine,
-        addPriceLine,
-        deletePriceLine,
+        saveProductWithLines,
     };
 }
