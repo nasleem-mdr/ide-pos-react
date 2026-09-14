@@ -2,8 +2,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { idempiereApi } from '@/api/idempiereApi';
-import useProductDetailSubmit from '@/features/master/product/hooks/useProductDetailSubmit';
-import SuccessModal from '@/features/master/product/components/SuccessModal';
+import useProductDetailSubmit from '@/shared/hooks/useProductDetailSubmit';
+import SuccessModal from '@/shared/components/SuccessModal';
 
 // ─── Opsi RoundingType ────────────────────────────────────────────────────
 // Value pakai ANGKA MURNI (bukan string) karena dipakai langsung untuk
@@ -12,24 +12,24 @@ import SuccessModal from '@/features/master/product/components/SuccessModal';
 // ⚠️ SESUAIKAN dengan AD_Ref_List yang benar-benar kamu buat di iDempiere.
 const ROUNDING_TYPE_OPTIONS = [
     { value: 0, label: "Tanpa Pembulatan" },
-    { value: 50, label: "Bulatkan ke 50 terdekat" },
     { value: 100, label: "Bulatkan ke 100 terdekat" },
     { value: 500, label: "Bulatkan ke 500 terdekat" },
     { value: 1000, label: "Bulatkan ke 1.000 terdekat" },
-    { value: 5000, label: "Bulatkan ke 5.000 terdekat" },
 ];
 
 function ProductDetail() {
     const { id } = useParams();
     const navigate = useNavigate();
+    const isNew = !id; // Route /product-detail/new tidak punya param :id
 
     const [product, setProduct] = useState(null);
-    const [isLoading, setIsLoading] = useState(true);
-    const [isEditing, setIsEditing] = useState(false);
+    const [isLoading, setIsLoading] = useState(!isNew); // mode New tidak perlu loading, langsung tampil form kosong
+    const [isEditing, setIsEditing] = useState(isNew);  // mode New langsung masuk mode edit
 
     // Semua operasi simpan/tambah/hapus ditangani hook ini, bukan inline di komponen
     const {
         isSaving,
+        createProduct,
         saveProduct,
         saveVendorLine,
         addVendorLine,
@@ -61,6 +61,7 @@ function ProductDetail() {
 
     // ─── FETCH: data utama produk ────────────────────────────────────────────
     const fetchProduct = useCallback(async () => {
+        if (isNew) return; // Belum ada produk untuk di-fetch di mode New
         setIsLoading(true);
         try {
             const data = await idempiereApi(
@@ -81,7 +82,7 @@ function ProductDetail() {
         } finally {
             setIsLoading(false);
         }
-    }, [id]);
+    }, [id, isNew]);
 
     // ─── FETCH: Vendor Pricing lines ────────────────────────────────────────
     // FIX: endpoint lama `/models/m_product_po` kemungkinan sudah usang — di
@@ -90,6 +91,7 @@ function ProductDetail() {
     // instance-mu ternyata masih versi lama yang belum di-rename, tinggal
     // ganti string di bawah balik ke 'm_product_po'.
     const fetchVendorLines = useCallback(async () => {
+        if (isNew) return; // Tidak ada M_Product_ID untuk difilter di mode New
         setIsLoadingVendorLines(true);
         try {
             const query = `/models/m_bpartnerproduct?$filter=M_Product_ID eq ${id}`;
@@ -101,10 +103,11 @@ function ProductDetail() {
         } finally {
             setIsLoadingVendorLines(false);
         }
-    }, [id]);
+    }, [id, isNew]);
 
     // ─── FETCH: Sales Price lines ───────────────────────────────────────────
     const fetchPriceLines = useCallback(async () => {
+        if (isNew) return;
         setIsLoadingPriceLines(true);
         try {
             const query = `/models/m_productprice?$filter=M_Product_ID eq ${id}`;
@@ -116,7 +119,7 @@ function ProductDetail() {
         } finally {
             setIsLoadingPriceLines(false);
         }
-    }, [id]);
+    }, [id, isNew]);
 
     // ─── FETCH: opsi Price List Version (untuk tambah baris harga baru) ────
     const fetchPriceListVersions = useCallback(async () => {
@@ -155,29 +158,41 @@ function ProductDetail() {
     }, [bPartnerSearch]);
 
     if (isLoading) return <div className="card-container">Loading detail...</div>;
-    if (!product) return <div className="card-container">Produk tidak ditemukan.</div>;
+    if (!isNew && !product) return <div className="card-container">Produk tidak ditemukan.</div>;
 
     const getId = (obj) => obj?.id?.id ?? obj?.id;
     const getLabel = (field) => (typeof field === "object" ? field?.identifier : field) || "-";
 
-    // ─── SAVE: field utama M_Product ────────────────────────────────────────
+    // ─── SAVE: field utama M_Product (create kalau New, update kalau Edit) ──
     const handleSaveProduct = async () => {
+        const payload = {
+            Value: form.Value,
+            Name: form.Name,
+            Description: form.Description,
+            IsPurchased: form.IsPurchased,
+            IsSold: form.IsSold,
+            MarkupPercent: parseFloat(form.MarkupPercent) || 0,
+            RoundingType: parseInt(form.RoundingType, 10) || 0,
+        };
+
         try {
-            await saveProduct(id, {
-                Value: form.Value,
-                Name: form.Name,
-                Description: form.Description,
-                IsPurchased: form.IsPurchased,
-                IsSold: form.IsSold,
-                MarkupPercent: parseFloat(form.MarkupPercent) || 0,
-                RoundingType: parseInt(form.RoundingType, 10) || 0,
-            });
-            await fetchProduct();
-            setIsEditing(false);
-            showSuccess("Data produk berhasil disimpan.");
+            if (isNew) {
+                const created = await createProduct(payload);
+                const newId = created?.id?.id ?? created?.id;
+                if (!newId) throw new Error("Response tidak berisi ID produk baru.");
+                showSuccess("Produk baru berhasil dibuat.");
+                // Pindah ke halaman edit produk yang baru dibuat — dari sini
+                // baru bisa menambahkan Vendor Pricing & Sales Price.
+                navigate(`/product-detail/edit/${newId}`, { replace: true });
+            } else {
+                await saveProduct(id, payload);
+                await fetchProduct();
+                setIsEditing(false);
+                showSuccess("Data produk berhasil disimpan.");
+            }
         } catch (err) {
             console.error("Gagal menyimpan produk:", err);
-            alert("Gagal menyimpan perubahan produk.");
+            alert(isNew ? "Gagal membuat produk baru." : "Gagal menyimpan perubahan produk.");
         }
     };
 
@@ -293,8 +308,15 @@ function ProductDetail() {
         <div className="card-container">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                 <button onClick={() => navigate(-1)} className="btn-back">← Back to List</button>
-                <span style={{ color: '#777' }}>Product ID: {id}</span>
-                {!isEditing ? (
+                <span style={{ color: '#777' }}>{isNew ? "Produk Baru" : `Product ID: ${id}`}</span>
+                {isNew ? (
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                        <button onClick={() => navigate(-1)} disabled={isSaving}>Batal</button>
+                        <button onClick={handleSaveProduct} disabled={isSaving}>
+                            {isSaving ? "Menyimpan..." : "💾 Buat Produk"}
+                        </button>
+                    </div>
+                ) : !isEditing ? (
                     <button onClick={() => setIsEditing(true)}>✏ Edit</button>
                 ) : (
                     <div style={{ display: 'flex', gap: '8px' }}>
@@ -367,6 +389,14 @@ function ProductDetail() {
                     </div>
                 </div>
 
+                {isNew ? (
+                    <div className="detail-section" style={{ gridColumn: '1 / -1' }}>
+                        <p style={{ color: '#777', fontStyle: 'italic' }}>
+                            Simpan produk terlebih dahulu untuk bisa menambahkan Vendor Pricing dan Sales Price.
+                        </p>
+                    </div>
+                ) : (
+                <>
                 {/* SECTION 3: VENDOR PRICING (M_BPartnerProduct) */}
                 <div className="detail-section" style={{ gridColumn: '1 / -1' }}>
                     <h3>Vendor Pricing (M_BPartnerProduct)</h3>
@@ -520,6 +550,8 @@ function ProductDetail() {
                         </select>
                     </div>
                 </div>
+                </>
+                )}
             </div>
 
             <SuccessModal
