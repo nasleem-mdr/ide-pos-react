@@ -261,6 +261,19 @@ function ProductDetail() {
         return missing;
     };
 
+    // Validasi field wajib di baris Vendor Pricing — VendorProductNo
+    // bersifat NOT NULL (Mandatory) di tabel M_Product_PO/M_BPartnerProduct
+    // pada instance iDempiere-mu. Divalidasi di sini SUPAYA user tahu
+    // sebelum klik Simpan, bukan baru ketahuan lewat error 500 dari server
+    // (dump constraint Postgres). Kalau field ini sebenarnya tidak wajib
+    // secara bisnis, solusi yang lebih tepat adalah uncheck "Mandatory"
+    // pada kolom VendorProductNo di Application Dictionary — bukan
+    // melonggarkan validasi ini.
+    const validateVendorLines = () => {
+        const missing = vendorLines.filter((l) => !String(l.VendorProductNo || "").trim());
+        return missing.map((l) => getLabel(l.C_BPartner_ID));
+    };
+
     // ─── SAVE (satu pintu): M_Product + Vendor Pricing + Sales Price ───────
     // Sebelumnya ini 2 langkah manual dari sisi user (simpan produk dulu,
     // baru simpan/tambah/hapus tiap baris vendor & harga satu-satu). Sekarang
@@ -271,6 +284,12 @@ function ProductDetail() {
         const missing = validateProductForm();
         if (missing.length > 0) {
             alert(`Field berikut wajib diisi terlebih dahulu:\n- ${missing.join("\n- ")}`);
+            return;
+        }
+
+        const missingVendorProductNo = validateVendorLines();
+        if (missingVendorProductNo.length > 0) {
+            alert(`Vendor Product No wajib diisi untuk vendor berikut sebelum bisa disimpan:\n- ${missingVendorProductNo.join("\n- ")}`);
             return;
         }
 
@@ -397,7 +416,12 @@ function ProductDetail() {
                 // fallback yang salah itu.
                 id: null,
                 C_BPartner_ID: { id: getId(bp), identifier: bp.Name },
-                VendorProductNo: "",
+                // Default VendorProductNo ke M_Product.Name — konvensi yang
+                // sudah dipakai di data existing (dicek langsung di database),
+                // sekaligus memenuhi constraint Mandatory di kolom ini tanpa
+                // user perlu ngisi manual tiap kali. Tetap editable kalau
+                // suatu saat memang ada kode vendor yang berbeda dari Name.
+                VendorProductNo: form.Name || "",
                 PriceList: 0,
                 PriceLastPO: 0,
             },
@@ -584,7 +608,7 @@ function ProductDetail() {
                             <thead>
                                 <tr>
                                     <th>Vendor</th>
-                                    <th>Vendor Product No</th>
+                                    <th>Vendor Product No *</th>
                                     <th style={{ textAlign: 'right' }}>Price List (Vendor)</th>
                                     <th style={{ textAlign: 'right' }}>Price Last PO</th>
                                     {isEditing && <th style={{ width: '60px' }}></th>}
