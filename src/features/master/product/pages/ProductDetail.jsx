@@ -23,7 +23,11 @@ const ROUNDING_TYPE_OPTIONS = [
 
 // Helper generik untuk baca id & label dari field referensi iDempiere REST
 // (mis. { id: 1000000, identifier: "EACH" }). Dipindah ke module scope
-// supaya bisa dipakai di dalam fetchProduct/fetchXxx (sebelum early return).
+// supaya bisa dipakai di dalam fetchProduct/fetchXxx (sebelum early return),
+// dan juga dipakai untuk baris Vendor Pricing/Sales Price yang DIBUAT SECARA
+// LOKAL (belum pernah ke server) — makanya bentuknya sengaja dibuat mirip
+// { id, identifier } supaya getId/getLabel tetap konsisten untuk baris baru
+// maupun baris hasil fetch.
 //
 // FIX: beberapa tabel (terutama M_Product_PO / Vendor Pricing) ternyata
 // mengembalikan primary key pakai nama kolom aslinya (mis. "M_Product_PO_ID"),
@@ -51,6 +55,12 @@ const getId = (obj) => {
 };
 const getLabel = (field) => (typeof field === "object" ? field?.identifier : field) || "-";
 
+// Key stabil untuk satu baris Vendor Pricing / Sales Price, dipakai untuk
+// React `key` maupun untuk mencocokkan baris saat edit/hapus di state lokal.
+// Baris hasil fetch dari server sudah punya id asli (lewat getId), baris
+// yang baru ditambahkan di form (belum pernah ke server) pakai `_localId`.
+const lineKey = (line) => getId(line) ?? line._localId;
+
 function ProductDetail() {
     const { id } = useParams();
     const navigate = useNavigate();
@@ -60,18 +70,10 @@ function ProductDetail() {
     const [isLoading, setIsLoading] = useState(!isNew); // mode New tidak perlu loading, langsung tampil form kosong
     const [isEditing, setIsEditing] = useState(isNew);  // mode New langsung masuk mode edit
 
-    // Semua operasi simpan/tambah/hapus ditangani hook ini, bukan inline di komponen
-    const {
-        isSaving,
-        createProduct,
-        saveProduct,
-        saveVendorLine,
-        addVendorLine,
-        deleteVendorLine,
-        savePriceLine,
-        addPriceLine,
-        deletePriceLine,
-    } = useProductDetailSubmit(idempiereApi);
+    // Semua operasi simpan (create/update M_Product + baris Vendor Pricing &
+    // Sales Price) sekarang dilakukan lewat SATU fungsi di hook ini, dipanggil
+    // sekali saat tombol "Simpan"/"Buat Produk" diklik — lihat handleSaveAll.
+    const { isSaving, saveProductWithLines } = useProductDetailSubmit(idempiereApi);
 
     // Modal notifikasi sukses — dipakai bersama untuk semua aksi simpan di halaman ini
     const [successModal, setSuccessModal] = useState({ isOpen: false, message: "" });
@@ -81,10 +83,6 @@ function ProductDetail() {
     // MarkupPercent & RoundingType: field custom plugin autoprice-mu, keduanya di level Product.
     // RoundingType disimpan sebagai NUMBER (bukan string) karena dipakai untuk operasi matematika.
     // M_Product_Category_ID & C_UOM_ID: WAJIB (NOT NULL) di tabel m_product.
-    // Sebelumnya field ini tidak ada di form sama sekali, jadi hanya
-    // terisi kalau server kebetulan punya default value — kalau tidak,
-    // insert gagal dengan error mandatory constraint (mis. kasus "name"
-    // yang kamu alami, dan berikutnya akan menyusul untuk kolom lain).
     const [form, setForm] = useState({
         Value: "", Name: "", Description: "",
         IsPurchased: false, IsSold: false,
@@ -93,13 +91,19 @@ function ProductDetail() {
     });
 
     // ─── Vendor Pricing (M_BPartnerProduct) ─────────────────────────────────
+    // vendorLines HANYA state lokal — tambah/ubah/hapus di sini tidak
+    // langsung memanggil API. Baris yang dihapus (yang sudah punya id di
+    // server) ditampung di deletedVendorLineIds, baru dieksekusi saat
+    // handleSaveAll dipanggil.
     const [vendorLines, setVendorLines] = useState([]);
+    const [deletedVendorLineIds, setDeletedVendorLineIds] = useState([]);
     const [isLoadingVendorLines, setIsLoadingVendorLines] = useState(false);
-    const [bPartnerSearch, setBPartnerSearch] = useState("");
-    const [bPartnerOptions, setBPartnerOptions] = useState([]);
+    // Ganti dari search-input (belum jalan) ke daftar vendor untuk dropdown.
+    const [vendorOptions, setVendorOptions] = useState([]);
 
     // ─── Sales Price (M_ProductPrice) ───────────────────────────────────────
     const [priceLines, setPriceLines] = useState([]);
+    const [deletedPriceLineIds, setDeletedPriceLineIds] = useState([]);
     const [isLoadingPriceLines, setIsLoadingPriceLines] = useState(false);
     const [priceListVersions, setPriceListVersions] = useState([]);
 
@@ -139,7 +143,7 @@ function ProductDetail() {
 
     // ─── FETCH: Vendor Pricing lines ────────────────────────────────────────
     // FIX: nama tabel Vendor Pricing dipusatkan di VENDOR_PRICING_TABLE
-    // (lihat useProductDetailSubmit.jsx) — beberapa instance iDempiere
+    // (lihat useProductDetailSubmit.js) — beberapa instance iDempiere
     // masih pakai nama tabel lama "M_Product_PO", yang lain sudah di-rename
     // ke "M_BPartnerProduct". Kalau server balas 404 "No match found for
     // table name", tinggal ganti konstanta itu di satu tempat saja.
@@ -184,6 +188,22 @@ function ProductDetail() {
         }
     }, []);
 
+    // ─── FETCH: opsi vendor untuk dropdown Vendor Pricing ──────────────────
+    // Ganti dari search-input (like %25...%25, belum jalan di REST API ini)
+    // ke daftar lengkap vendor aktif — dipilih lewat <select> seperti
+    // Product Category/UOM/Price List Version, bukan diketik.
+    const fetchVendorOptions = useCallback(async () => {
+        try {
+            const data = await idempiereApi(
+                `/models/c_bpartner?$filter=IsVendor eq true and IsActive eq true&$select=Name&$orderby=Name`
+            );
+            setVendorOptions(data.records || []);
+        } catch (err) {
+            console.error("Gagal mengambil daftar Vendor:", err);
+            setVendorOptions([]);
+        }
+    }, []);
+
     // ─── FETCH: opsi Product Category (mandatory di m_product) ─────────────
     const fetchProductCategories = useCallback(async () => {
         try {
@@ -223,36 +243,15 @@ function ProductDetail() {
         fetchVendorLines();
         fetchPriceLines();
         fetchPriceListVersions();
+        fetchVendorOptions();
         fetchProductCategories();
         fetchUoms();
-    }, [fetchProduct, fetchVendorLines, fetchPriceLines, fetchPriceListVersions, fetchProductCategories, fetchUoms]);
-
-    // ─── Cari Business Partner (Vendor) untuk baris Vendor Pricing baru ────
-    useEffect(() => {
-        if (bPartnerSearch.trim().length < 2) {
-            setBPartnerOptions([]);
-            return;
-        }
-        const handle = setTimeout(async () => {
-            try {
-                const nameFilter = `Name like '%25${encodeURIComponent(bPartnerSearch.trim())}%25'`;
-                const query = `/models/c_bpartner?$filter=IsVendor eq true and IsActive eq true and ${nameFilter}&$top=15`;
-                const data = await idempiereApi(query);
-                setBPartnerOptions(data.records || []);
-            } catch (err) {
-                console.error("Gagal mencari vendor:", err);
-            }
-        }, 350);
-        return () => clearTimeout(handle);
-    }, [bPartnerSearch]);
+    }, [fetchProduct, fetchVendorLines, fetchPriceLines, fetchPriceListVersions, fetchVendorOptions, fetchProductCategories, fetchUoms]);
 
     if (isLoading) return <div className="card-container detail-status">Loading detail...</div>;
     if (!isNew && !product) return <div className="card-container detail-status detail-status-empty">Produk tidak ditemukan.</div>;
 
-    // ─── SAVE: field utama M_Product (create kalau New, update kalau Edit) ──
-    // Validasi mandatory di sisi frontend — mencegah request terkirim ke
-    // server kalau field wajib masih kosong, supaya user dapat pesan yang
-    // jelas & langsung, bukan dump constraint Postgres.
+    // ─── Validasi field wajib M_Product (dicek sebelum kirim apa pun) ──────
     const validateProductForm = () => {
         const missing = [];
         if (!form.Value?.trim()) missing.push("Search Key");
@@ -262,14 +261,20 @@ function ProductDetail() {
         return missing;
     };
 
-    const handleSaveProduct = async () => {
+    // ─── SAVE (satu pintu): M_Product + Vendor Pricing + Sales Price ───────
+    // Sebelumnya ini 2 langkah manual dari sisi user (simpan produk dulu,
+    // baru simpan/tambah/hapus tiap baris vendor & harga satu-satu). Sekarang
+    // semua baris yang sudah diubah/ditambah/dihapus di state lokal dikirim
+    // sekaligus ke hook, yang akan urus urutannya: simpan M_Product dulu →
+    // pakai M_Product_ID hasil situ untuk baris-baris lainnya.
+    const handleSaveAll = async () => {
         const missing = validateProductForm();
         if (missing.length > 0) {
             alert(`Field berikut wajib diisi terlebih dahulu:\n- ${missing.join("\n- ")}`);
             return;
         }
 
-        const payload = {
+        const productPayload = {
             Value: form.Value.trim(),
             Name: form.Name.trim(),
             Description: form.Description,
@@ -281,20 +286,45 @@ function ProductDetail() {
             C_UOM_ID: { id: parseInt(form.C_UOM_ID, 10) },
         };
 
+        const vendorLinesPayload = vendorLines.map((l) => ({
+            id: getId(l) || null,
+            C_BPartner_ID: getId(l.C_BPartner_ID),
+            VendorProductNo: l.VendorProductNo,
+            PriceList: l.PriceList,
+            PriceLastPO: l.PriceLastPO,
+            _dirty: l._dirty === true,
+        }));
+        const priceLinesPayload = priceLines.map((l) => ({
+            id: getId(l) || null,
+            M_PriceList_Version_ID: getId(l.M_PriceList_Version_ID),
+            PriceList: l.PriceList,
+            PriceStd: l.PriceStd,
+            PriceLimit: l.PriceLimit,
+            _dirty: l._dirty === true,
+        }));
+
         try {
+            const newProductId = await saveProductWithLines({
+                isNew,
+                productId: id,
+                productPayload,
+                vendorLines: vendorLinesPayload,
+                deletedVendorIds: deletedVendorLineIds,
+                priceLines: priceLinesPayload,
+                deletedPriceIds: deletedPriceLineIds,
+            });
+
+            setDeletedVendorLineIds([]);
+            setDeletedPriceLineIds([]);
+
             if (isNew) {
-                const created = await createProduct(payload);
-                const newId = getId(created);
-                if (!newId) throw new Error("Response tidak berisi ID produk baru.");
-                showSuccess("Produk baru berhasil dibuat.");
-                // Pindah ke halaman edit produk yang baru dibuat — dari sini
-                // baru bisa menambahkan Vendor Pricing & Sales Price.
-                navigate(`/product-detail/edit/${newId}`, { replace: true });
+                showSuccess("Produk baru berhasil dibuat beserta Vendor Pricing & Sales Price-nya.");
+                // Pindah ke halaman edit produk yang baru dibuat.
+                navigate(`/product-detail/edit/${newProductId}`, { replace: true });
             } else {
-                await saveProduct(id, payload);
-                await fetchProduct();
+                await Promise.all([fetchProduct(), fetchVendorLines(), fetchPriceLines()]);
                 setIsEditing(false);
-                showSuccess("Data produk berhasil disimpan.");
+                showSuccess("Data produk beserta Vendor Pricing & Sales Price berhasil disimpan.");
             }
         } catch (err) {
             console.error("Gagal menyimpan produk:", err);
@@ -302,112 +332,84 @@ function ProductDetail() {
         }
     };
 
-    // ─── Vendor Pricing: update satu baris (langsung PUT saat blur, atau lewat tombol Simpan per baris) ─
-    const handleVendorLineChange = (lineId, field, value) => {
+    // Batal edit (produk existing) — buang semua perubahan lokal yang belum
+    // disimpan, termasuk baris vendor/harga yang sempat ditambah/diedit/dihapus.
+    const handleCancelEdit = () => {
+        setIsEditing(false);
+        setDeletedVendorLineIds([]);
+        setDeletedPriceLineIds([]);
+        fetchProduct();
+        fetchVendorLines();
+        fetchPriceLines();
+    };
+
+    // ─── Vendor Pricing: semua operasi berikut HANYA mengubah state lokal ──
+    const handleVendorLineChange = (line, field, value) => {
         setVendorLines((prev) =>
-            prev.map((l) => (getId(l) === lineId ? { ...l, [field]: value } : l))
+            prev.map((l) => {
+                if (lineKey(l) !== lineKey(line)) return l;
+                const updated = { ...l, [field]: value };
+                if (getId(l)) updated._dirty = true; // baris lama yang diedit -> perlu PUT
+                return updated;
+            })
         );
     };
 
-    const handleSaveVendorLine = async (line) => {
-        const lineId = getId(line);
-        if (!lineId) return;
-        try {
-            await saveVendorLine(lineId, {
-                VendorProductNo: line.VendorProductNo || "",
-                PriceList: parseFloat(line.PriceList) || 0,
-                PriceLastPO: parseFloat(line.PriceLastPO) || 0,
-            });
-            await fetchVendorLines();
-            showSuccess("Baris Vendor Pricing berhasil disimpan.");
-        } catch (err) {
-            console.error("Gagal menyimpan baris Vendor Pricing:", err);
-            alert(`Gagal menyimpan baris vendor.\n\n${parseIdempiereError(err)}`);
-        }
-    };
-
-    const handleAddVendorLine = async (bp) => {
-        try {
-            await addVendorLine({
-                M_Product_ID: { id: parseInt(id) },
-                C_BPartner_ID: { id: getId(bp) },
+    const handleAddVendorLine = (bp) => {
+        setVendorLines((prev) => [
+            ...prev,
+            {
+                _localId: `new-vendor-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+                C_BPartner_ID: { id: getId(bp), identifier: bp.Name },
                 VendorProductNo: "",
                 PriceList: 0,
                 PriceLastPO: 0,
-            });
-            setBPartnerSearch("");
-            setBPartnerOptions([]);
-            await fetchVendorLines();
-            showSuccess("Vendor berhasil ditambahkan.");
-        } catch (err) {
-            console.error("Gagal menambah baris Vendor Pricing:", err);
-            alert(`Gagal menambah vendor.\n\n${parseIdempiereError(err)}`);
-        }
+            },
+        ]);
     };
 
-    const handleDeleteVendorLine = async (lineId) => {
+    const handleDeleteVendorLine = (line) => {
         if (!window.confirm("Hapus baris vendor ini?")) return;
-        try {
-            await deleteVendorLine(lineId);
-            await fetchVendorLines();
-            showSuccess("Baris vendor berhasil dihapus.");
-        } catch (err) {
-            console.error("Gagal menghapus baris Vendor Pricing:", err);
-            alert(`Gagal menghapus baris vendor.\n\n${parseIdempiereError(err)}`);
+        const existingId = getId(line);
+        if (existingId) {
+            // Baris sudah ada di server -> tandai untuk dihapus saat Simpan.
+            setDeletedVendorLineIds((prev) => [...prev, existingId]);
         }
+        setVendorLines((prev) => prev.filter((l) => lineKey(l) !== lineKey(line)));
     };
 
-    // ─── Sales Price: update satu baris ─
-    const handlePriceLineChange = (lineId, field, value) => {
+    // ─── Sales Price: pola sama seperti Vendor Pricing ─────────────────────
+    const handlePriceLineChange = (line, field, value) => {
         setPriceLines((prev) =>
-            prev.map((l) => (getId(l) === lineId ? { ...l, [field]: value } : l))
+            prev.map((l) => {
+                if (lineKey(l) !== lineKey(line)) return l;
+                const updated = { ...l, [field]: value };
+                if (getId(l)) updated._dirty = true;
+                return updated;
+            })
         );
     };
 
-    const handleSavePriceLine = async (line) => {
-        const lineId = getId(line);
-        if (!lineId) return;
-        try {
-            await savePriceLine(lineId, {
-                PriceList: parseFloat(line.PriceList) || 0,
-                PriceStd: parseFloat(line.PriceStd) || 0,
-                PriceLimit: parseFloat(line.PriceLimit) || 0,
-            });
-            await fetchPriceLines();
-            showSuccess("Baris Sales Price berhasil disimpan.");
-        } catch (err) {
-            console.error("Gagal menyimpan baris Sales Price:", err);
-            alert(`Gagal menyimpan baris harga.\n\n${parseIdempiereError(err)}`);
-        }
-    };
-
-    const handleAddPriceLine = async (priceListVersionId) => {
-        try {
-            await addPriceLine({
-                M_Product_ID: { id: parseInt(id) },
-                M_PriceList_Version_ID: { id: parseInt(priceListVersionId) },
+    const handleAddPriceLine = (plv) => {
+        setPriceLines((prev) => [
+            ...prev,
+            {
+                _localId: `new-price-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+                M_PriceList_Version_ID: { id: getId(plv), identifier: getLabel(plv.Name) || plv.Name },
                 PriceList: 0,
                 PriceStd: 0,
                 PriceLimit: 0,
-            });
-            await fetchPriceLines();
-            showSuccess("Baris Sales Price berhasil ditambahkan.");
-        } catch (err) {
-            console.error("Gagal menambah baris Sales Price:", err);
-            alert(`Gagal menambah baris harga.\n\n${parseIdempiereError(err)}`);
-        }
+            },
+        ]);
     };
 
-    const handleDeletePriceLine = async (lineId) => {
+    const handleDeletePriceLine = (line) => {
         if (!window.confirm("Hapus baris harga ini?")) return;
-        try {
-            await deletePriceLine(lineId);
-            await fetchPriceLines();
-            showSuccess("Baris Sales Price berhasil dihapus.");
-        } catch (err) {
-            console.error("Gagal menghapus baris Sales Price:", err);
-            alert(`Gagal menghapus baris harga.\n\n${parseIdempiereError(err)}`);
+        const existingId = getId(line);
+        if (existingId) {
+            setDeletedPriceLineIds((prev) => [...prev, existingId]);
         }
+        setPriceLines((prev) => prev.filter((l) => lineKey(l) !== lineKey(line)));
     };
 
     return (
@@ -418,7 +420,7 @@ function ProductDetail() {
                 {isNew ? (
                     <div className="topbar-actions">
                         <button className="btn btn-ghost" onClick={() => navigate(-1)} disabled={isSaving}>Batal</button>
-                        <button className="btn btn-primary" onClick={handleSaveProduct} disabled={isSaving}>
+                        <button className="btn btn-primary" onClick={handleSaveAll} disabled={isSaving}>
                             {isSaving ? "Menyimpan..." : "💾 Buat Produk"}
                         </button>
                     </div>
@@ -426,8 +428,8 @@ function ProductDetail() {
                     <button className="btn btn-secondary" onClick={() => setIsEditing(true)}>✏ Edit</button>
                 ) : (
                     <div className="topbar-actions">
-                        <button className="btn btn-ghost" onClick={() => { setIsEditing(false); fetchProduct(); }} disabled={isSaving}>Batal</button>
-                        <button className="btn btn-primary" onClick={handleSaveProduct} disabled={isSaving}>
+                        <button className="btn btn-ghost" onClick={handleCancelEdit} disabled={isSaving}>Batal</button>
+                        <button className="btn btn-primary" onClick={handleSaveAll} disabled={isSaving}>
                             {isSaving ? "Menyimpan..." : "💾 Simpan"}
                         </button>
                     </div>
@@ -526,20 +528,17 @@ function ProductDetail() {
                     </div>
                 </div>
 
-                {isNew ? (
-                    <div className="detail-section" style={{ gridColumn: '1 / -1' }}>
-                        <p className="empty-note">
-                            Simpan produk terlebih dahulu untuk bisa menambahkan Vendor Pricing dan Sales Price.
-                        </p>
-                    </div>
-                ) : (
-                <>
                 {/* SECTION 3: VENDOR PRICING (M_BPartnerProduct) */}
+                {/* Baris di sini murni state lokal selama isEditing — tombol
+                    Simpan/Buat Produk di topbar-lah yang mengirim semuanya
+                    (termasuk baris baru & baris terhapus) sekaligus ke server. */}
                 <div className="detail-section" style={{ gridColumn: '1 / -1' }}>
                     <h3>Vendor Pricing (M_BPartnerProduct)</h3>
 
                     {isLoadingVendorLines ? (
                         <p className="muted-note">Memuat...</p>
+                    ) : vendorLines.length === 0 ? (
+                        <p className="empty-note">Belum ada Vendor Pricing.</p>
                     ) : (
                         <table className="modern-table">
                             <thead>
@@ -548,42 +547,48 @@ function ProductDetail() {
                                     <th>Vendor Product No</th>
                                     <th style={{ textAlign: 'right' }}>Price List (Vendor)</th>
                                     <th style={{ textAlign: 'right' }}>Price Last PO</th>
-                                    <th style={{ width: '110px' }}></th>
+                                    {isEditing && <th style={{ width: '60px' }}></th>}
                                 </tr>
                             </thead>
                             <tbody>
-                                {vendorLines.map((line, idx) => {
-                                    const lineId = getId(line);
-                                    if (lineId === undefined) {
-                                        console.warn("Vendor line tanpa ID terdeteksi — cek struktur JSON dari REST API:", line);
-                                    }
+                                {vendorLines.map((line) => {
+                                    const key = lineKey(line);
                                     return (
-                                        <tr key={lineId ?? `vendor-row-${idx}`}>
+                                        <tr key={key}>
                                             <td>{getLabel(line.C_BPartner_ID)}</td>
-                                            <td>
-                                                <input
-                                                    value={line.VendorProductNo || ""}
-                                                    onChange={(e) => handleVendorLineChange(lineId, "VendorProductNo", e.target.value)}
-                                                />
-                                            </td>
-                                            <td>
-                                                <input
-                                                    type="number" step="0.01" style={{ textAlign: 'right', width: '100px' }}
-                                                    value={line.PriceList ?? 0}
-                                                    onChange={(e) => handleVendorLineChange(lineId, "PriceList", e.target.value)}
-                                                />
-                                            </td>
-                                            <td>
-                                                <input
-                                                    type="number" step="0.01" style={{ textAlign: 'right', width: '100px' }}
-                                                    value={line.PriceLastPO ?? 0}
-                                                    onChange={(e) => handleVendorLineChange(lineId, "PriceLastPO", e.target.value)}
-                                                />
-                                            </td>
-                                            <td className="row-actions">
-                                                <button className="icon-btn icon-btn-save" title="Simpan baris" onClick={() => handleSaveVendorLine(line)}>💾</button>
-                                                <button className="icon-btn icon-btn-delete" title="Hapus baris" onClick={() => handleDeleteVendorLine(lineId)}>🗑️</button>
-                                            </td>
+                                            {isEditing ? (
+                                                <>
+                                                    <td>
+                                                        <input
+                                                            value={line.VendorProductNo || ""}
+                                                            onChange={(e) => handleVendorLineChange(line, "VendorProductNo", e.target.value)}
+                                                        />
+                                                    </td>
+                                                    <td>
+                                                        <input
+                                                            type="number" step="0.01" style={{ textAlign: 'right', width: '100px' }}
+                                                            value={line.PriceList ?? 0}
+                                                            onChange={(e) => handleVendorLineChange(line, "PriceList", e.target.value)}
+                                                        />
+                                                    </td>
+                                                    <td>
+                                                        <input
+                                                            type="number" step="0.01" style={{ textAlign: 'right', width: '100px' }}
+                                                            value={line.PriceLastPO ?? 0}
+                                                            onChange={(e) => handleVendorLineChange(line, "PriceLastPO", e.target.value)}
+                                                        />
+                                                    </td>
+                                                    <td className="row-actions">
+                                                        <button className="icon-btn icon-btn-delete" title="Hapus baris" onClick={() => handleDeleteVendorLine(line)}>🗑️</button>
+                                                    </td>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <td>{line.VendorProductNo || "-"}</td>
+                                                    <td style={{ textAlign: 'right' }}>{line.PriceList ?? 0}</td>
+                                                    <td style={{ textAlign: 'right' }}>{line.PriceLastPO ?? 0}</td>
+                                                </>
+                                            )}
                                         </tr>
                                     );
                                 })}
@@ -591,29 +596,31 @@ function ProductDetail() {
                         </table>
                     )}
 
-                    {/* Tambah vendor baru */}
-                    <div className="inline-add-box">
-                        <input
-                            type="text"
-                            className="vendor-search-input"
-                            placeholder="Cari vendor untuk ditambahkan..."
-                            value={bPartnerSearch}
-                            onChange={(e) => setBPartnerSearch(e.target.value)}
-                        />
-                        {bPartnerOptions.length > 0 && (
-                            <div className="suggestions-dropdown">
-                                {bPartnerOptions.map((bp, idx) => (
-                                    <div
-                                        key={getId(bp) ?? `bp-${idx}`}
-                                        className="suggestion-item"
-                                        onClick={() => handleAddVendorLine(bp)}
-                                    >
-                                        {getLabel(bp.Name)}
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
+                    {/* Tambah vendor baru — dropdown (bukan search field, yang
+                        sebelumnya belum jalan). Baris baru langsung tampil di
+                        tabel di atas, dan baru dikirim ke server saat Simpan. */}
+                    {isEditing && (
+                        <div className="inline-add-box">
+                            <select
+                                className="add-vendor-select"
+                                defaultValue=""
+                                onChange={(e) => {
+                                    if (e.target.value) {
+                                        const bp = vendorOptions.find((v) => String(getId(v)) === e.target.value);
+                                        if (bp) handleAddVendorLine(bp);
+                                        e.target.value = "";
+                                    }
+                                }}
+                            >
+                                <option value="">+ Tambah Vendor...</option>
+                                {vendorOptions
+                                    .filter((bp) => !vendorLines.some((l) => getId(l.C_BPartner_ID) === getId(bp)))
+                                    .map((bp, idx) => (
+                                        <option key={getId(bp) ?? `bp-${idx}`} value={getId(bp)}>{bp.Name}</option>
+                                    ))}
+                            </select>
+                        </div>
+                    )}
                 </div>
 
                 {/* SECTION 4: SALES PRICE (M_ProductPrice) + AutoPrice fields */}
@@ -622,6 +629,8 @@ function ProductDetail() {
 
                     {isLoadingPriceLines ? (
                         <p className="muted-note">Memuat...</p>
+                    ) : priceLines.length === 0 ? (
+                        <p className="empty-note">Belum ada Sales Price.</p>
                     ) : (
                         <table className="modern-table">
                             <thead>
@@ -630,43 +639,49 @@ function ProductDetail() {
                                     <th style={{ textAlign: 'right' }}>Price List</th>
                                     <th style={{ textAlign: 'right' }}>Price Std (Jual)</th>
                                     <th style={{ textAlign: 'right' }}>Price Limit</th>
-                                    <th style={{ width: '110px' }}></th>
+                                    {isEditing && <th style={{ width: '60px' }}></th>}
                                 </tr>
                             </thead>
                             <tbody>
-                                {priceLines.map((line, idx) => {
-                                    const lineId = getId(line);
-                                    if (lineId === undefined) {
-                                        console.warn("Price line tanpa ID terdeteksi — cek struktur JSON dari REST API:", line);
-                                    }
+                                {priceLines.map((line) => {
+                                    const key = lineKey(line);
                                     return (
-                                        <tr key={lineId ?? `price-row-${idx}`}>
+                                        <tr key={key}>
                                             <td>{getLabel(line.M_PriceList_Version_ID)}</td>
-                                            <td>
-                                                <input
-                                                    type="number" step="0.01" style={{ textAlign: 'right', width: '90px' }}
-                                                    value={line.PriceList ?? 0}
-                                                    onChange={(e) => handlePriceLineChange(lineId, "PriceList", e.target.value)}
-                                                />
-                                            </td>
-                                            <td>
-                                                <input
-                                                    type="number" step="0.01" style={{ textAlign: 'right', width: '90px' }}
-                                                    value={line.PriceStd ?? 0}
-                                                    onChange={(e) => handlePriceLineChange(lineId, "PriceStd", e.target.value)}
-                                                />
-                                            </td>
-                                            <td>
-                                                <input
-                                                    type="number" step="0.01" style={{ textAlign: 'right', width: '90px' }}
-                                                    value={line.PriceLimit ?? 0}
-                                                    onChange={(e) => handlePriceLineChange(lineId, "PriceLimit", e.target.value)}
-                                                />
-                                            </td>
-                                            <td className="row-actions">
-                                                <button className="icon-btn icon-btn-save" title="Simpan baris" onClick={() => handleSavePriceLine(line)}>💾</button>
-                                                <button className="icon-btn icon-btn-delete" title="Hapus baris" onClick={() => handleDeletePriceLine(lineId)}>🗑️</button>
-                                            </td>
+                                            {isEditing ? (
+                                                <>
+                                                    <td>
+                                                        <input
+                                                            type="number" step="0.01" style={{ textAlign: 'right', width: '90px' }}
+                                                            value={line.PriceList ?? 0}
+                                                            onChange={(e) => handlePriceLineChange(line, "PriceList", e.target.value)}
+                                                        />
+                                                    </td>
+                                                    <td>
+                                                        <input
+                                                            type="number" step="0.01" style={{ textAlign: 'right', width: '90px' }}
+                                                            value={line.PriceStd ?? 0}
+                                                            onChange={(e) => handlePriceLineChange(line, "PriceStd", e.target.value)}
+                                                        />
+                                                    </td>
+                                                    <td>
+                                                        <input
+                                                            type="number" step="0.01" style={{ textAlign: 'right', width: '90px' }}
+                                                            value={line.PriceLimit ?? 0}
+                                                            onChange={(e) => handlePriceLineChange(line, "PriceLimit", e.target.value)}
+                                                        />
+                                                    </td>
+                                                    <td className="row-actions">
+                                                        <button className="icon-btn icon-btn-delete" title="Hapus baris" onClick={() => handleDeletePriceLine(line)}>🗑️</button>
+                                                    </td>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <td style={{ textAlign: 'right' }}>{line.PriceList ?? 0}</td>
+                                                    <td style={{ textAlign: 'right' }}>{line.PriceStd ?? 0}</td>
+                                                    <td style={{ textAlign: 'right' }}>{line.PriceLimit ?? 0}</td>
+                                                </>
+                                            )}
                                         </tr>
                                     );
                                 })}
@@ -674,29 +689,31 @@ function ProductDetail() {
                         </table>
                     )}
 
-                    {/* Tambah baris harga baru di Price List Version lain */}
-                    <div className="inline-add-box inline-add-box-select">
-                        <select
-                            className="add-price-select"
-                            defaultValue=""
-                            onChange={(e) => {
-                                if (e.target.value) {
-                                    handleAddPriceLine(e.target.value);
-                                    e.target.value = "";
-                                }
-                            }}
-                        >
-                            <option value="">+ Tambah ke Price List Version...</option>
-                            {priceListVersions
-                                .filter((plv) => !priceLines.some((pl) => getId(pl.M_PriceList_Version_ID) === getId(plv)))
-                                .map((plv, idx) => (
-                                    <option key={getId(plv) ?? `plv-${idx}`} value={getId(plv)}>{getLabel(plv.Name) || getId(plv)}</option>
-                                ))}
-                        </select>
-                    </div>
+                    {/* Tambah baris harga baru di Price List Version lain —
+                        juga cuma state lokal sampai tombol Simpan diklik. */}
+                    {isEditing && (
+                        <div className="inline-add-box inline-add-box-select">
+                            <select
+                                className="add-price-select"
+                                defaultValue=""
+                                onChange={(e) => {
+                                    if (e.target.value) {
+                                        const plv = priceListVersions.find((v) => String(getId(v)) === e.target.value);
+                                        if (plv) handleAddPriceLine(plv);
+                                        e.target.value = "";
+                                    }
+                                }}
+                            >
+                                <option value="">+ Tambah ke Price List Version...</option>
+                                {priceListVersions
+                                    .filter((plv) => !priceLines.some((pl) => getId(pl.M_PriceList_Version_ID) === getId(plv)))
+                                    .map((plv, idx) => (
+                                        <option key={getId(plv) ?? `plv-${idx}`} value={getId(plv)}>{plv.Name || getId(plv)}</option>
+                                    ))}
+                            </select>
+                        </div>
+                    )}
                 </div>
-                </>
-                )}
             </div>
 
             <SuccessModal
