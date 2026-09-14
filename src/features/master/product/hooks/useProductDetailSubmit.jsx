@@ -26,6 +26,13 @@ export default function useProductDetailSubmit(idempiereApi) {
     }, []);
 
     // ─── M_Product (field utama + MarkupPercent + RoundingType) ────────────
+    const createProduct = useCallback((payload) => run(() =>
+        idempiereApi(`/models/m_product`, {
+            method: "POST",
+            body: JSON.stringify(payload),
+        })
+    ), [idempiereApi, run]);
+
     const saveProduct = useCallback((productId, payload) => run(() =>
         idempiereApi(`/models/m_product/${productId}`, {
             method: "PUT",
@@ -74,6 +81,7 @@ export default function useProductDetailSubmit(idempiereApi) {
     return {
         isSaving,
         error,
+        createProduct,
         saveProduct,
         saveVendorLine,
         addVendorLine,
