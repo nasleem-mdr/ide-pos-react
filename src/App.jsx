@@ -142,12 +142,17 @@ function AppContent() {
                           <ProductList />
                         </ProtectedRoute>
                       } />
-                      <Route path="/product-detail" element={
+                      <Route path="/product-detail/new" element={
                         <ProtectedRoute windowKey="productDetail">
                           <ProductDetail />
                         </ProtectedRoute>
                       } />
-
+                      <Route path="/product-detail/edit/:id" element={
+                        <ProtectedRoute windowKey="productDetail">
+                          <ProductDetail />
+                        </ProtectedRoute>
+                      } />
+                      
                       {/* ===== Transaksi ===== */}
                       <Route path="/pos-order" element={
                         <ProtectedRoute windowKey="pos">
