@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { idempiereApi } from '@/api/idempiereApi';
 import useProductDetailSubmit from '@/features/master/product/hooks/useProductDetailSubmit';
-import SuccessModal from '@/shared/components/SuccessModal';
+import SuccessModal from '@/features/master/product/components/SuccessModal';
 
 // ─── Opsi RoundingType ────────────────────────────────────────────────────
 // Value pakai ANGKA MURNI (bukan string) karena dipakai langsung untuk

@@ -372,7 +372,7 @@ function ProductList() {
         </button>
 
         <Link
-          to={isEditDisabled ? '#' : `/product/edit/${item.id}`}
+          to={isEditDisabled ? '#' : `/product-detail/edit/${item.id}`}
           style={{ pointerEvents: isEditDisabled ? 'none' : 'auto' }}
         >
           <button

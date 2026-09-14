@@ -85,6 +85,7 @@ export const menuSections = [
         items: [
             { key: 'businessPartner', windowKey: 'businessPartner', path: '/business-partner', label: 'Business Partner', icon: <PartnerIcon /> },
             { key: 'product',         windowKey: 'product',         path: '/product',          label: 'Products',        icon: <BoxIcon /> },
+            { key: 'product',         windowKey: 'productDetail',         path: '/product-detail',          label: 'Products',        icon: <BoxIcon /> },
         ]
     }
 ];
