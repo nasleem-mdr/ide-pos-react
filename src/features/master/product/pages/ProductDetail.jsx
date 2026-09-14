@@ -328,7 +328,15 @@ function ProductDetail() {
             }
         } catch (err) {
             console.error("Gagal menyimpan produk:", err);
-            alert(`Gagal menyimpan produk.\n\n${parseIdempiereError(err)}`);
+            let message = parseIdempiereError(err);
+            // Kalau M_Product sempat kebentuk (mode New) tapi prosesnya
+            // berhenti di tengah (mis. gagal di baris Vendor Pricing/Sales
+            // Price), kasih tahu ID-nya di sini — jangan sampai user
+            // mengira TIDAK ADA yang tersimpan sama sekali.
+            if (isNew && err.partial?.productId) {
+                message += `\n\nProduk sempat berhasil dibuat (Product ID: ${err.partial.productId}) sebelum gagal di tahap "${err.step}". Buka lagi lewat menu Edit Produk untuk melanjutkan/melengkapi Vendor Pricing & Sales Price-nya.`;
+            }
+            alert(`Gagal menyimpan produk.\n\n${message}`);
         }
     };
 
