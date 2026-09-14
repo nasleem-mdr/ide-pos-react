@@ -415,6 +415,19 @@ function ProductList() {
       <PageHeader
         title="Product / Service"
         onSearch={(val) => { setSearch(val); setOffset(0); }}
+        actions={
+          <Link to="/product-detail/new">
+            <button
+              className="btn-action-edit"
+              style={{
+                color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '4px',
+                backgroundColor: '#2e7d32', cursor: 'pointer', fontWeight: 'bold',
+              }}
+            >
+              + New
+            </button>
+          </Link>
+        }
       />
      <DataTable
         columns={columns}
