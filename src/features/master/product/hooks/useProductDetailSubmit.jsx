@@ -45,10 +45,12 @@ const FIELD_LABELS = {
     m_bpartnerproduct: {
         c_bpartner_id: "Vendor",
         m_product_id: "Product",
+        vendorproductno: "Vendor Product No",
     },
     m_product_po: {
         c_bpartner_id: "Vendor",
         m_product_id: "Product",
+        vendorproductno: "Vendor Product No",
     },
     m_productprice: {
         m_pricelist_version_id: "Price List Version",
