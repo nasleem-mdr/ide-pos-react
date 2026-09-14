@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { fkId } from "@/api/idempiereApi";
 
 /**
  * useProductDetailSubmit
@@ -98,15 +99,15 @@ export function parseIdempiereError(err) {
     return raw || "Terjadi kesalahan yang tidak diketahui.";
 }
 
-// Helper lokal (bukan yang di ProductDetail.js) — cuma dipakai untuk baca
-// ID hasil create M_Product, yang bentuknya bisa { id: { id: N } }, { id: N },
-// atau { M_Product_ID: N } tergantung versi REST API.
-function extractCreatedId(created) {
-    if (created?.id?.id !== undefined) return created.id.id;
-    if (created?.id !== undefined) return created.id;
-    if (created?.M_Product_ID !== undefined) return created.M_Product_ID;
-    return undefined;
-}
+// FIX: sebelumnya di sini ada helper lokal `extractCreatedId` yang logikanya
+// beda dari `fkId` (util bersama, dipakai konsisten di seluruh codebase-mu —
+// lihat useCashPurchaseSubmit.jsx: `fkId(poRes.id) ?? poRes.id ?? poRes.C_Order_ID`).
+// Kalau response create M_Product ternyata bentuknya beda dari asumsi helper
+// lokal itu, `finalProductId` bisa jadi objek atau undefined — akibatnya
+// M_Product_ID yang dikirim ke baris Vendor Pricing/Sales Price di Step 2 & 3
+// jadi salah/kosong. Sekarang pakai `fkId` dengan urutan fallback yang sama
+// persis seperti pola PO/Receipt/Invoice di useCashPurchaseSubmit.jsx.
+const extractProductId = (created) => fkId(created?.id) ?? created?.id ?? created?.M_Product_ID;
 
 export default function useProductDetailSubmit(idempiereApi) {
     const [isSaving, setIsSaving] = useState(false);
@@ -139,6 +140,13 @@ export default function useProductDetailSubmit(idempiereApi) {
      * @param {Array} priceLines - [{ id, M_PriceList_Version_ID, PriceList, PriceStd, PriceLimit, _dirty }]
      * @param {Array<number>} deletedPriceIds - id baris Sales Price yang dihapus user di form
      * @returns {Promise<number>} M_Product_ID (baru atau existing)
+     *
+     * Kalau gagal di tengah jalan, error yang dilempar dibekali `err.step`
+     * (tahap yang gagal) dan `err.partial` (apa saja yang SUDAH berhasil,
+     * termasuk `productId` kalau M_Product-nya sendiri sudah kepalang
+     * terbuat) — pola yang sama seperti penanganan error di
+     * useCashPurchaseSubmit.jsx, supaya M_Product yang sudah tercipta tidak
+     * "hilang tanpa jejak" walau baris Vendor Pricing/Sales Price-nya gagal.
      */
     const saveProductWithLines = useCallback(
         ({
@@ -151,84 +159,117 @@ export default function useProductDetailSubmit(idempiereApi) {
             deletedPriceIds = [],
         }) =>
             run(async () => {
-                // ── Step 1: M_Product ────────────────────────────────────
-                let finalProductId = productId;
-                if (isNew) {
-                    const created = await idempiereApi(`/models/m_product`, {
-                        method: "POST",
-                        body: JSON.stringify(productPayload),
-                    });
-                    finalProductId = extractCreatedId(created);
-                    if (!finalProductId) {
-                        throw new Error("Response tidak berisi ID produk baru.");
-                    }
-                } else {
-                    await idempiereApi(`/models/m_product/${productId}`, {
-                        method: "PUT",
-                        body: JSON.stringify(productPayload),
-                    });
-                }
+                let currentStep = "product";
+                const partial = {
+                    productId: null,
+                    vendorLinesCreated: 0,
+                    vendorLinesUpdated: 0,
+                    vendorLinesDeleted: 0,
+                    priceLinesCreated: 0,
+                    priceLinesUpdated: 0,
+                    priceLinesDeleted: 0,
+                };
 
-                // ── Step 2: Vendor Pricing — pakai finalProductId di sini,
-                // langsung, tanpa user perlu klik simpan lagi ──────────────
-                for (const line of vendorLines) {
-                    const payload = {
-                        VendorProductNo: line.VendorProductNo || "",
-                        PriceList: parseFloat(line.PriceList) || 0,
-                        PriceLastPO: parseFloat(line.PriceLastPO) || 0,
-                    };
-                    if (line.id) {
-                        if (line._dirty) {
-                            await idempiereApi(`/models/${VENDOR_PRICING_TABLE}/${line.id}`, {
-                                method: "PUT",
-                                body: JSON.stringify(payload),
-                            });
+                try {
+                    // ── Step 1: M_Product ────────────────────────────────
+                    let finalProductId = productId;
+                    if (isNew) {
+                        const created = await idempiereApi(`/models/m_product`, {
+                            method: "POST",
+                            body: JSON.stringify(productPayload),
+                        });
+                        finalProductId = extractProductId(created);
+                        if (!finalProductId) {
+                            throw new Error("Gagal mendapatkan M_Product_ID dari response create produk.");
                         }
                     } else {
-                        await idempiereApi(`/models/${VENDOR_PRICING_TABLE}`, {
-                            method: "POST",
-                            body: JSON.stringify({
-                                ...payload,
-                                M_Product_ID: { id: parseInt(finalProductId, 10) },
-                                C_BPartner_ID: { id: parseInt(line.C_BPartner_ID, 10) },
-                            }),
+                        await idempiereApi(`/models/m_product/${productId}`, {
+                            method: "PUT",
+                            body: JSON.stringify(productPayload),
                         });
                     }
-                }
-                for (const delId of deletedVendorIds) {
-                    await idempiereApi(`/models/${VENDOR_PRICING_TABLE}/${delId}`, { method: "DELETE" });
-                }
+                    partial.productId = finalProductId;
 
-                // ── Step 3: Sales Price — pola sama seperti Vendor Pricing ─
-                for (const line of priceLines) {
-                    const payload = {
-                        PriceList: parseFloat(line.PriceList) || 0,
-                        PriceStd: parseFloat(line.PriceStd) || 0,
-                        PriceLimit: parseFloat(line.PriceLimit) || 0,
-                    };
-                    if (line.id) {
-                        if (line._dirty) {
-                            await idempiereApi(`/models/m_productprice/${line.id}`, {
-                                method: "PUT",
-                                body: JSON.stringify(payload),
+                    // ── Step 2: Vendor Pricing — pakai finalProductId di
+                    // sini, langsung, tanpa user perlu klik simpan lagi ────
+                    currentStep = "vendor-lines";
+                    for (const line of vendorLines) {
+                        const payload = {
+                            VendorProductNo: line.VendorProductNo || "",
+                            PriceList: parseFloat(line.PriceList) || 0,
+                            PriceLastPO: parseFloat(line.PriceLastPO) || 0,
+                        };
+                        if (line.id) {
+                            if (line._dirty) {
+                                await idempiereApi(`/models/${VENDOR_PRICING_TABLE}/${line.id}`, {
+                                    method: "PUT",
+                                    body: JSON.stringify(payload),
+                                });
+                                partial.vendorLinesUpdated++;
+                            }
+                        } else {
+                            await idempiereApi(`/models/${VENDOR_PRICING_TABLE}`, {
+                                method: "POST",
+                                body: JSON.stringify({
+                                    ...payload,
+                                    M_Product_ID: { id: parseInt(finalProductId, 10) },
+                                    C_BPartner_ID: { id: parseInt(line.C_BPartner_ID, 10) },
+                                }),
                             });
+                            partial.vendorLinesCreated++;
                         }
-                    } else {
-                        await idempiereApi(`/models/m_productprice`, {
-                            method: "POST",
-                            body: JSON.stringify({
-                                ...payload,
-                                M_Product_ID: { id: parseInt(finalProductId, 10) },
-                                M_PriceList_Version_ID: { id: parseInt(line.M_PriceList_Version_ID, 10) },
-                            }),
-                        });
                     }
-                }
-                for (const delId of deletedPriceIds) {
-                    await idempiereApi(`/models/m_productprice/${delId}`, { method: "DELETE" });
-                }
+                    currentStep = "vendor-lines-delete";
+                    for (const delId of deletedVendorIds) {
+                        await idempiereApi(`/models/${VENDOR_PRICING_TABLE}/${delId}`, { method: "DELETE" });
+                        partial.vendorLinesDeleted++;
+                    }
 
-                return finalProductId;
+                    // ── Step 3: Sales Price — pola sama seperti Vendor
+                    // Pricing ───────────────────────────────────────────
+                    currentStep = "price-lines";
+                    for (const line of priceLines) {
+                        const payload = {
+                            PriceList: parseFloat(line.PriceList) || 0,
+                            PriceStd: parseFloat(line.PriceStd) || 0,
+                            PriceLimit: parseFloat(line.PriceLimit) || 0,
+                        };
+                        if (line.id) {
+                            if (line._dirty) {
+                                await idempiereApi(`/models/m_productprice/${line.id}`, {
+                                    method: "PUT",
+                                    body: JSON.stringify(payload),
+                                });
+                                partial.priceLinesUpdated++;
+                            }
+                        } else {
+                            await idempiereApi(`/models/m_productprice`, {
+                                method: "POST",
+                                body: JSON.stringify({
+                                    ...payload,
+                                    M_Product_ID: { id: parseInt(finalProductId, 10) },
+                                    M_PriceList_Version_ID: { id: parseInt(line.M_PriceList_Version_ID, 10) },
+                                }),
+                            });
+                            partial.priceLinesCreated++;
+                        }
+                    }
+                    currentStep = "price-lines-delete";
+                    for (const delId of deletedPriceIds) {
+                        await idempiereApi(`/models/m_productprice/${delId}`, { method: "DELETE" });
+                        partial.priceLinesDeleted++;
+                    }
+
+                    return finalProductId;
+                } catch (err) {
+                    // Bekali error dengan tahap yang gagal + apa saja yang
+                    // sudah sempat berhasil, supaya pemanggil (ProductDetail.js)
+                    // bisa kasih tahu user M_Product_ID mana yang sudah
+                    // terbentuk walau prosesnya berhenti di tengah.
+                    err.step = currentStep;
+                    err.partial = partial;
+                    throw err;
+                }
             }),
         [idempiereApi, run]
     );
