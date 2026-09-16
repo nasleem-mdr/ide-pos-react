@@ -2,85 +2,107 @@ import { useState, useCallback } from 'react';
 import { idempiereApi } from '@/api/idempiereApi';
 import { getLoginInfo } from '@/shared/hooks/useLoginInfo';
 import { useUomConversion } from '@/shared/hooks/useUomConversion';
+import { saveRequisitionOffline, updatePendingRequisition } from '../utils/offlineRequisitionStorage';
 
 export function useRequisitionSubmit({ docTypeId, description: defaultDescription, DateRequired, onError }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toBaseQty } = useUomConversion();
 
-  // warehouseId sekarang diterima dari caller (RequisitionContainer),
-  // bukan lagi hardcode dari session — supaya ikut warehouse yang dipilih user.
-  //
-  // editRequisitionId (opsional): jika diisi, fungsi ini akan UPDATE header +
-  // hapus & insert ulang lines milik requisition tersebut, alih-alih membuat
-  // dokumen baru. Mengikuti pola "Mode Edit" pada POSContainer.handleCheckout.
-  //
-  // description (opsional, param ke-5): diisi manual oleh user lewat textarea
-  // di CartSidebar/CartPanel. Kalau kosong/tidak diisi, fallback ke
-  // defaultDescription dari config awal (REQUISITION_CONFIG.DESCRIPTION).
-  //
-  // submitMode (opsional, param ke-6): 'draft' | 'complete' (default 'complete').
-  // - 'draft'    -> header + lines disimpan, dokumen TETAP di status Drafted
-  //                 (tidak memicu workflow engine sama sekali).
-  // - 'complete' -> setelah header + lines tersimpan, doc-action 'CO' dipanggil
-  //                 sehingga workflow (approval, dsb.) langsung berjalan.
-  //
-  // ── UOM ENTERED vs BASE + FALLBACK SEMENTARA ────────────────────────────
-  // M_RequisitionLine idealnya punya kolom custom QtyEntered + C_UOM_ID
-  // (diaktifkan) untuk menyimpan qty SEBAGAIMANA diinput user (mis. 5 Dus),
-  // sedangkan Qty (native) TETAP diisi qty dalam UOM DASAR produk.
-  //
-  // SELAMA kolom QtyEntered belum tersedia di server (lihat diskusi:
-  // Synchronize Column di demo.globalqss.com gagal execute ALTER TABLE
-  // fisiknya, kemungkinan karena privilege DB dibatasi di server demo
-  // publik) — insertRequisitionLine() di bawah akan otomatis FALLBACK:
-  // coba kirim dengan QtyEntered dulu, kalau ditolak server karena kolom
-  // tidak ada, kirim ulang TANPA field itu. Qty (base) yang dikirim tetap
-  // hasil konversi yang benar di kedua jalur — jadi tidak ada bug data,
-  // cuma histori "user input dalam UOM apa" belum tersimpan sampai kolom
-  // itu benar-benar ada. Begitu kolomnya sudah dibuat di server Anda
-  // sendiri, jalur utama akan otomatis "menyala" tanpa perlu ubah kode ini.
   const submit = useCallback(async (
     cart,
     requesterName,
     warehouseId,
     editRequisitionId = null,
     description = null,
-    dateRequired = null,      // ← baru
-    submitMode = 'complete',  // 'draft' | 'complete'
+    dateRequired = null,
+    submitMode = 'complete',
+    // syncOptions hanya dipakai oleh proses auto-sync offline; pemanggilan
+    // normal dari UI cukup abaikan parameter ini.
+    syncOptions = {},
   ) => {
+    const { contextOverride = null, onReqIdCreated = null, offlineId = null } = syncOptions;
+
     if (cart.length === 0) {
       onError?.('Daftar permintaan masih kosong!');
-      return null;
+      return { success: false, reqId: editRequisitionId, message: 'empty-cart' };
     }
 
     const resolvedDescription = (description && description.trim()) ? description.trim() : defaultDescription;
     const todayISO = new Date().toISOString().split('T')[0];
-    const resolvedDateRequired = (dateRequired && dateRequired.trim())
-      ? dateRequired.trim()
-      : todayISO;
-    const { userId, orgId, clientId } = getLoginInfo();
+    const resolvedDateRequired = (dateRequired && dateRequired.trim()) ? dateRequired.trim() : todayISO;
 
-    // warehouseId wajib ada — dari pilihan user atau fallback session
-    const resolvedWarehouseId = warehouseId ?? getLoginInfo().warehouseId;
+    // Kalau ada contextOverride (dipanggil dari auto-sync), pakai nilai yang
+    // tersimpan saat dokumen dibuat offline — BUKAN sesi/login yang aktif
+    // sekarang. Ini mencegah dokumen tersinkron atas nama/org/tipe dokumen
+    // yang salah kalau user sudah ganti sesi sebelum koneksi kembali.
+    const liveInfo = getLoginInfo();
+    const userId    = contextOverride?.userId    ?? liveInfo.userId;
+    const orgId     = contextOverride?.orgId     ?? liveInfo.orgId;
+    const clientId  = contextOverride?.clientId  ?? liveInfo.clientId;
+    const resolvedDocTypeId   = contextOverride?.docTypeId ?? docTypeId;
+    const resolvedWarehouseId = warehouseId ?? liveInfo.warehouseId;
+
     if (!userId || !resolvedWarehouseId || !orgId || !clientId) {
       onError?.('Data sesi tidak lengkap.\nSilakan login kembali.', 'Error');
-      return null;
+      return { success: false, reqId: editRequisitionId, message: 'missing-session' };
     }
 
     setIsSubmitting(true);
-    try {
-      const todayISO = new Date().toISOString().split('T')[0];
 
-      // Insert 1 baris FPB, dengan fallback otomatis kalau kolom QtyEntered
-      // belum ada di server (lihat catatan panjang di atas).
-      const insertRequisitionLine = async (reqId, item) => {
+    // ── PENANGANAN OFFLINE ────────────────────────────────────────────────
+    if (!navigator.onLine) {
+      try {
+        const offlineData = {
+          cart,
+          requesterName,
+          warehouseId: resolvedWarehouseId,
+          editRequisitionId,
+          description: resolvedDescription,
+          dateRequired: resolvedDateRequired,
+          submitMode,
+          docTypeId: resolvedDocTypeId,
+          userId,
+          orgId,
+          clientId,
+        };
+
+        const saved = await saveRequisitionOffline(offlineData);
+
+        return {
+          success: true,
+          isOffline: true,
+          offlineId: saved.offlineId,
+          documentNo: `OFFLINE (${saved.offlineId.slice(-6)})`,
+          status: 'Tersimpan Offline',
+          date: new Date().toLocaleString('id-ID'),
+          requesterName,
+          warehouseName: null,
+          items: [...cart],
+        };
+      } catch (err) {
+        onError?.('Gagal menyimpan dokumen secara offline:\n' + err.message, 'Error');
+        return { success: false, reqId: editRequisitionId, message: err.message };
+      } finally {
+        setIsSubmitting(false);
+      }
+    }
+
+    // ── PROSES ONLINE NORMAL ─────────────────────────────────────────────
+    // reqId dilacak di luar try supaya kalau ada error SETELAH header
+    // berhasil dibuat, kita masih tahu id-nya dan bisa laporkan ke caller
+    // (auto-sync) untuk disimpan — retry berikutnya jadi mode edit, bukan
+    // membuat header baru lagi (mencegah dokumen duplikat).
+    let reqId = editRequisitionId;
+
+    try {
+      const insertRequisitionLine = async (targetReqId, item) => {
         const uomId      = item.selectedUom?.C_UOM_ID || item.C_UOM_ID;
         const qtyEntered = parseFloat(item.Qty);
-        const qtyBase    = toBaseQty(qtyEntered, item.selectedUom); // selalu benar, terlepas dari fallback atau tidak
+        const qtyBase    = toBaseQty(qtyEntered, item.selectedUom);
 
         const basePayload = {
           AD_Org_ID:        { id: orgId },
-          M_Requisition_ID: { id: reqId },
+          M_Requisition_ID: { id: targetReqId },
           M_Product_ID:     { id: parseInt(item.M_Product_ID) },
           C_UOM_ID:         { id: parseInt(uomId) },
           Qty:              qtyBase,
@@ -88,7 +110,6 @@ export function useRequisitionSubmit({ docTypeId, description: defaultDescriptio
         };
 
         try {
-          // Jalur UTAMA — pakai ini kalau kolom QtyEntered sudah ada di server.
           return await idempiereApi('/models/m_requisitionline', {
             method: 'POST',
             body: JSON.stringify({ ...basePayload, QtyEntered: qtyEntered }),
@@ -96,13 +117,8 @@ export function useRequisitionSubmit({ docTypeId, description: defaultDescriptio
         } catch (err) {
           const msg = String(err?.message || '');
           const looksLikeMissingColumn = /qtyentered/i.test(msg);
-          if (!looksLikeMissingColumn) throw err; // error lain (bukan soal kolom) — jangan ditelan, lempar ke atas
+          if (!looksLikeMissingColumn) throw err;
 
-          console.warn(
-            '[useRequisitionSubmit] Kolom QtyEntered belum tersedia di server ini — ' +
-            'insert ulang TANPA field itu (fallback sementara). Qty (base) tetap terkirim benar. ' +
-            'Buat kolom QtyEntered di M_RequisitionLine untuk mengaktifkan histori UOM entered.'
-          );
           return await idempiereApi('/models/m_requisitionline', {
             method: 'POST',
             body: JSON.stringify(basePayload),
@@ -110,19 +126,8 @@ export function useRequisitionSubmit({ docTypeId, description: defaultDescriptio
         }
       };
 
-      let reqId;
-      let headerRes;
-
-      if (editRequisitionId) {
-        // ── MODE EDIT: update header requisition yang sudah ada ────────────
-        reqId = editRequisitionId;
-
-        // Cek status dokumen saat ini — jika NA (Not Approved), iDempiere
-        // mewajibkan langkah "Prepare" untuk mereset workflow sebelum bisa
-        // "Complete" lagi. Loncat NA → CO langsung akan ditolak server.
-        const currentRes = await idempiereApi(
-          `/models/m_requisition/${reqId}?$select=DocStatus`
-        );
+      if (reqId) {
+        const currentRes = await idempiereApi(`/models/m_requisition/${reqId}?$select=DocStatus`);
         const currentStatus = currentRes?.DocStatus?.id ?? currentRes?.DocStatus ?? null;
 
         await idempiereApi(`/models/m_requisition/${reqId}`, {
@@ -134,7 +139,6 @@ export function useRequisitionSubmit({ docTypeId, description: defaultDescriptio
           }),
         });
 
-        // Hapus semua line lama milik requisition ini
         const oldLinesRes = await idempiereApi(
           `/models/m_requisitionline?$filter=M_Requisition_ID eq ${reqId}&$select=M_RequisitionLine_ID`
         );
@@ -144,34 +148,24 @@ export function useRequisitionSubmit({ docTypeId, description: defaultDescriptio
           await idempiereApi(`/models/m_requisitionline/${lineId}`, { method: 'DELETE' });
         }
 
-        // Insert lines baru DULU, sebelum Prepare — supaya dokumen tidak
-        // dalam kondisi kosong (0 lines) saat workflow di-reset. Beberapa
-        // konfigurasi iDempiere menolak Prepare/Complete pada dokumen tanpa lines.
         for (const item of cart) {
           await insertRequisitionLine(reqId, item);
         }
 
-        // NA-reset hanya relevan kalau kita memang mau menjalankan workflow
-        // (submitMode 'complete'). Kalau user memilih 'draft', biarkan status
-        // NA apa adanya — jangan paksa 'PR' karena itu akan memindahkan
-        // dokumen keluar dari kondisi draft/NA tanpa diminta.
         if (currentStatus === 'NA' && submitMode === 'complete') {
-          // Reset workflow dari nol — Prepare dulu sebelum Complete lagi,
-          // mengikuti perilaku Document Action di iDempiere untuk status NA.
           await idempiereApi(`/models/m_requisition/${reqId}`, {
             method: 'PUT',
             body: JSON.stringify({ 'doc-action': 'PR' }),
           });
         }
       } else {
-        // ── MODE NORMAL: buat requisition baru ──────────────────────────────
-        headerRes = await idempiereApi('/models/m_requisition', {
+        const headerRes = await idempiereApi('/models/m_requisition', {
           method: 'POST',
           body: JSON.stringify({
             AD_Client_ID:   { id: clientId },
             AD_Org_ID:      { id: orgId },
-            C_DocType_ID:   { id: docTypeId },
-            M_Warehouse_ID: { id: resolvedWarehouseId }, // ← pakai yg dipilih user
+            C_DocType_ID:   { id: resolvedDocTypeId },
+            M_Warehouse_ID: { id: resolvedWarehouseId },
             AD_User_ID:     { id: userId },
             DateRequired:   resolvedDateRequired,
             Description:    resolvedDescription,
@@ -181,7 +175,15 @@ export function useRequisitionSubmit({ docTypeId, description: defaultDescriptio
 
         reqId = headerRes.id ?? headerRes.M_Requisition_ID;
         if (!reqId) throw new Error('Gagal mendapatkan M_Requisition_ID dari server.');
-        // Insert lines untuk dokumen baru
+
+        // Header sudah kebentuk di server — segera kabari caller & simpan
+        // ke antrean offline (kalau ada) sebelum lanjut insert baris, jadi
+        // kalau langkah berikutnya gagal, retry tidak membuat header lagi.
+        onReqIdCreated?.(reqId);
+        if (offlineId) {
+          await updatePendingRequisition(offlineId, { editRequisitionId: reqId }).catch(() => {});
+        }
+
         for (const item of cart) {
           await insertRequisitionLine(reqId, item);
         }
@@ -191,7 +193,6 @@ export function useRequisitionSubmit({ docTypeId, description: defaultDescriptio
       let finalStatusLabel;
 
       if (submitMode === 'complete') {
-        // ── SUBMIT COMPLETE: jalankan workflow engine (doc-action CO) ───────
         const completedRes = await idempiereApi(`/models/m_requisition/${reqId}`, {
           method: 'PUT',
           body: JSON.stringify({ 'doc-action': 'CO' }),
@@ -199,29 +200,25 @@ export function useRequisitionSubmit({ docTypeId, description: defaultDescriptio
         docNo = completedRes.DocumentNo || `REQ-${reqId}`;
         finalStatusLabel = 'Completed';
       } else {
-        // ── SUBMIT DRAFT: TIDAK memanggil doc-action apa pun.
-        // Header + lines sudah tersimpan di atas; dokumen tetap Drafted
-        // dan bisa dibuka lagi lewat editRequisitionId untuk dilengkapi
-        // atau di-complete kemudian.
-        const draftRes = await idempiereApi(
-          `/models/m_requisition/${reqId}?$select=DocumentNo,DocStatus`
-        );
+        const draftRes = await idempiereApi(`/models/m_requisition/${reqId}?$select=DocumentNo,DocStatus`);
         docNo = draftRes.DocumentNo || `REQ-${reqId}`;
         finalStatusLabel = 'Draft';
       }
 
       return {
+        success:       true,
+        reqId,
         documentNo:    docNo,
-        status:        finalStatusLabel, // 'Draft' | 'Completed' — dipakai modal sukses utk bedakan pesan
+        status:        finalStatusLabel,
         date:          new Date().toLocaleString('id-ID'),
         requesterName,
-        warehouseName: null, // diisi dari caller kalau perlu di modal sukses
+        warehouseName: null,
         items:         [...cart],
       };
     } catch (err) {
       const action = submitMode === 'complete' ? 'menyelesaikan' : 'menyimpan draft';
       onError?.(`Gagal ${action} Requisition:\n\n` + err.message, 'Error');
-      return null;
+      return { success: false, reqId, message: err.message };
     } finally {
       setIsSubmitting(false);
     }
