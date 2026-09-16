@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import ReactDOMServer from "react-dom/server";
-import { Link } from "react-router-dom";
+import { useSearchParams, Link } from "react-router-dom";
 import QRCode from "qrcode";
 import jsPDF from "jspdf";
 
@@ -28,12 +28,17 @@ const thumbBoxStyle = {
 };
 
 function ProductList() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const offset = parseInt(searchParams.get("offset") || "0", 10);
+  const search = searchParams.get("q") || "";
+  
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore]   = useState(false);   // loading nambah data
   const [hasMore, setHasMore]           = useState(true);
   const [search, setSearch] = useState("");
   const [offset, setOffset] = useState(0);
+  
   const pageSize = 10;
   const [totalRecords, setTotalRecords] = useState(0);
   const [downloadingId, setDownloadingId] = useState(null);
@@ -118,17 +123,30 @@ function ProductList() {
   }, [fetchProduct]); // aman sekarang karena fetchProduct cuma berubah saat search berubah
   
   // Dipanggil onPageChange dari DataTable (desktop)
-  const handlePageChange = useCallback((newOffset) => {
-    setOffset(newOffset);
-    fetchProduct(newOffset, "replace");
-  }, [fetchProduct]);
   
-  // Dipanggil sentinel infinite scroll (mobile)
+  const handlePageChange = useCallback((newOffset) => {
+    setSearchParams((prev) => {
+      const p = new URLSearchParams(prev);
+      p.set("offset", newOffset);
+      return p;
+    });
+  }, [setSearchParams]);
+
   const loadMore = useCallback(() => {
     const nextOffset = offset + pageSize;
-    setOffset(nextOffset);
+    setSearchParams((prev) => {
+      const p = new URLSearchParams(prev);
+      p.set("offset", nextOffset);
+      return p;
+    }, { replace: true }); // replace biar tidak numpuk history tiap scroll
     fetchProduct(nextOffset, "append");
-  }, [offset, fetchProduct]);
+  }, [offset, setSearchParams, fetchProduct]);
+
+  // di PageHeader onSearch:
+  onSearch={(val) => {
+    setSearchParams({ q: val, offset: "0" });
+  }}
+  
    
   function isYes(val) {
     return val === true || val === 'Y' || val === 'true';
