@@ -28,17 +28,19 @@ const thumbBoxStyle = {
 };
 
 function ProductList() {
+  // ─── Posisi (offset) & kata kunci pencarian disimpan di URL query string,
+  // BUKAN di useState biasa — supaya saat komponen ini unmount (pindah ke
+  // halaman detail/edit) lalu balik lagi via navigate(-1)/tombol Back,
+  // posisi halaman & filter yang terakhir dibuka tidak hilang.
   const [searchParams, setSearchParams] = useSearchParams();
   const offset = parseInt(searchParams.get("offset") || "0", 10);
   const search = searchParams.get("q") || "";
-  
+
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [loadingMore, setLoadingMore]   = useState(false);   // loading nambah data
-  const [hasMore, setHasMore]           = useState(true);
-  const [search, setSearch] = useState("");
-  const [offset, setOffset] = useState(0);
-  
+  const [loadingMore, setLoadingMore] = useState(false);   // loading nambah data
+  const [hasMore, setHasMore] = useState(true);
+
   const pageSize = 10;
   const [totalRecords, setTotalRecords] = useState(0);
   const [downloadingId, setDownloadingId] = useState(null);
@@ -88,10 +90,10 @@ function ProductList() {
     { key: 'UPC', label: 'UPC/EAN' },
   ];
 
-   const fetchProduct = useCallback(async (currentOffset, mode) => {
+  const fetchProduct = useCallback(async (currentOffset, mode) => {
     // mode: 'replace' (desktop pagination / reset filter) atau 'append' (mobile infinite scroll)
     mode === "append" ? setLoadingMore(true) : setLoading(true);
-  
+
     try {
       const fields = 'Name,Value,Description,IsPurchased,IsSold,UPC';
       let url = `/models/m_product?$select=${fields}&$top=${pageSize}&$skip=${currentOffset}`;
@@ -100,7 +102,7 @@ function ProductList() {
       }
       const data = await idempiereApi(url);
       const newRecords = data.records || [];
-  
+
       setProducts(prev => mode === "append" ? [...prev, ...newRecords] : newRecords);
       setTotalRecords(data['row-count'] ?? 0);
       setHasMore(newRecords.length === pageSize);
@@ -115,15 +117,19 @@ function ProductList() {
       setLoadingMore(false);
     }
   }, [search]); // ⬅️ HANYA search, offset tidak masuk deps karena selalu dikirim via parameter
-  
-  // Reset & fetch dari awal setiap kali search berubah
+
+  // ─── Fetch data setiap kali offset ATAU search (dari URL) berubah ───────
+  // Sebelumnya efek ini otomatis reset offset ke 0 tiap kali fetchProduct
+  // berubah (yaitu tiap kali search berubah). Sekarang offset dibaca
+  // langsung dari URL, jadi saat pertama mount (termasuk saat balik dari
+  // halaman detail) kita fetch pakai offset yang sedang ada di URL —
+  // BUKAN selalu dipaksa ke 0.
   useEffect(() => {
-    setOffset(0);
-    fetchProduct(0, "replace");
-  }, [fetchProduct]); // aman sekarang karena fetchProduct cuma berubah saat search berubah
-  
+    fetchProduct(offset, "replace");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fetchProduct, offset]);
+
   // Dipanggil onPageChange dari DataTable (desktop)
-  
   const handlePageChange = useCallback((newOffset) => {
     setSearchParams((prev) => {
       const p = new URLSearchParams(prev);
@@ -132,22 +138,26 @@ function ProductList() {
     });
   }, [setSearchParams]);
 
+  // Dipanggil sentinel infinite scroll (mobile)
   const loadMore = useCallback(() => {
     const nextOffset = offset + pageSize;
-    setSearchParams((prev) => {
-      const p = new URLSearchParams(prev);
-      p.set("offset", nextOffset);
-      return p;
-    }, { replace: true }); // replace biar tidak numpuk history tiap scroll
+    setSearchParams(
+      (prev) => {
+        const p = new URLSearchParams(prev);
+        p.set("offset", nextOffset);
+        return p;
+      },
+      { replace: true } // replace biar tidak numpuk history tiap scroll
+    );
     fetchProduct(nextOffset, "append");
   }, [offset, setSearchParams, fetchProduct]);
 
-  // di PageHeader onSearch:
-  onSearch={(val) => {
+  // Dipanggil dari PageHeader saat user mengetik pencarian baru —
+  // search baru selalu mulai dari offset 0.
+  const handleSearchChange = useCallback((val) => {
     setSearchParams({ q: val, offset: "0" });
-  }}
-  
-   
+  }, [setSearchParams]);
+
   function isYes(val) {
     return val === true || val === 'Y' || val === 'true';
   }
@@ -432,7 +442,7 @@ function ProductList() {
     <div className="card-container">
       <PageHeader
         title="Product / Service"
-        onSearch={(val) => { setSearch(val); setOffset(0); }}
+        onSearch={handleSearchChange}
         actions={
           <Link to="/product-detail/new">
             <button
