@@ -4,6 +4,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 
 // 2. Feature Hooks
 import { useRequisitionSubmit } from '@/features/requisition/hooks/useRequisitionSubmit';
+import { useOfflineRequisitionSync } from '@/features/requisition/hooks/useOfflineRequisitionSync';
 
 // 3. Feature Component
 import { RequisitionSuccessModal } from '@/features/requisition/components';
@@ -92,6 +93,25 @@ const RequisitionContainer = () => {
     description: REQUISITION_CONFIG.DESCRIPTION,
     dateRequired,
     onError:     alert,
+  });
+
+  // ── auto-sync antrean Requisition offline ───────────────────────────────
+  // Berjalan saat mount (kalau kebetulan online dan ada sisa antrean) dan
+  // setiap kali koneksi kembali online. Guard concurrency + persist-reqId-
+  // partial ada di dalam hook ini, jadi tidak akan menduplikasi dokumen di
+  // server maupun menghapus antrean kalau sync-nya sendiri gagal.
+  const { pendingCount, isSyncing } = useOfflineRequisitionSync({
+    submit,
+    onSyncComplete: (successCount, failCount) => {
+      if (failCount === 0) {
+        alert(`${successCount} requisition offline berhasil disinkronkan ke server.`, 'Sinkronisasi Offline');
+      } else {
+        alert(
+          `${successCount} berhasil disinkronkan, ${failCount} gagal dan akan dicoba lagi otomatis saat online berikutnya.`,
+          'Sinkronisasi Offline'
+        );
+      }
+    },
   });
 
   const { canEdit } = useAccess();
@@ -323,7 +343,11 @@ useEffect(() => {
       cart, requesterName, selectedWarehouse?.id,
       editRequisitionId, description, dateRequired, mode
     );
-    if (result) {
+    // submit() sekarang selalu mengembalikan object dengan flag `success`
+    // (bukan null saat gagal), jadi cek eksplisit di sini — sebelumnya
+    // `if (result)` akan selalu true dan modal sukses tetap tampil walau
+    // gagal, karena hasil errornya pun berupa object truthy.
+    if (result?.success) {
       setSuccessData({ ...result, warehouseName: selectedWarehouse?.name });
       clearCart();
       setCartOpen(false);
@@ -334,9 +358,11 @@ useEffect(() => {
       setDateRequired(new Date().toISOString().split('T')[0]);
       navigate('/requisition', { replace: true, state: {} });
     }
+    // result.success === false: dialog error sudah ditampilkan oleh
+    // onError di dalam useRequisitionSubmit, tidak perlu ditangani lagi di sini.
   };
   
-  const cartSummaryRight = `📦 ${selectedWarehouse?.name || '...'}`;
+  const cartSummaryRight = `📦 ${selectedWarehouse?.name || '...'}${pendingCount > 0 ? ` · ⏳ ${pendingCount} offline` : ''}`;
 
   useEffect(() => {
     const t = setTimeout(() => scanInputRef.current?.focus(), 150);
@@ -397,6 +423,11 @@ useEffect(() => {
         }}>
           <RequisitionIcon />
           <span>Requisition</span>
+          {isSyncing && (
+            <span style={{ fontSize: '11px', fontWeight: 500, color: 'rgba(224,234,255,0.85)' }}>
+              (menyinkronkan offline...)
+            </span>
+          )}
         </span>
         {/* ── Date Required + Warehouse ─────────────────────────────────────── */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -516,6 +547,18 @@ useEffect(() => {
           >
             Batalkan Edit
           </button>
+        </div>
+      )}
+
+      {/* ── Banner Antrean Offline ───────────────────────────────────────── */}
+      {pendingCount > 0 && (
+        <div style={{
+          backgroundColor: '#e3f2fd', borderBottom: '1px solid #1976d2',
+          padding: '6px 16px', fontSize: '12px', flexShrink: 0,
+          color: '#0d47a1',
+        }}>
+          ⏳ {pendingCount} requisition menunggu sinkronisasi
+          {isSyncing ? ' — sedang mengirim...' : ' (akan dikirim otomatis saat online).'}
         </div>
       )}
 
@@ -660,13 +703,5 @@ useEffect(() => {
     </div>
   );
 };
-const styles = {
-  newBtn:  { backgroundColor: "#1976d2", color: "#fff", border: "none", padding: "10px 18px", borderRadius: "6px", cursor: "pointer", fontWeight: "bold" },
-  badge:   { color: "#fff", padding: "3px 10px", borderRadius: "12px", fontSize: "11px", fontWeight: "bold" },
-  editBtn: { color: "#fff", border: "none", padding: "6px 14px", borderRadius: "6px", fontWeight: "bold", fontSize: "12px", transition: "all 0.2s ease" },
-  dateFilterRow: { display: "flex", gap: "16px", flexWrap: "wrap", margin: "12px 0 16px" },
-  dateField:     { display: "flex", flexDirection: "column", gap: "4px" },
-  dateLabel:     { fontSize: "12px", fontWeight: "600", color: "#555" },
-  dateInput:      { padding: "8px 10px", borderRadius: "6px", border: "1px solid #ccc", fontSize: "13px" },
-};
+
 export default RequisitionContainer;
