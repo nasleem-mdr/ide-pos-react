@@ -24,7 +24,17 @@ export async function idempiereApi(url, options = {}) {
     throw new Error(msg);
   }
 
-  return res.json();
+  // Sebagian endpoint (mis. POST .../attachments) balas 200/201 dengan body
+  // KOSONG — res.json() langsung terhadap body kosong akan melempar
+  // "Unexpected end of JSON input". Baca sebagai text dulu, baru di-parse
+  // kalau memang ada isinya.
+  const text = await res.text();
+  if (!text) return null;
+  try {
+    return JSON.parse(text);
+  } catch (_) {
+    return text; // body bukan JSON valid — kembalikan apa adanya
+  }
 }
 
 export const fkId = (field) => field?.id ?? field ?? null;
@@ -221,6 +231,50 @@ export async function getProductImageBlobUrls(productId) {
   
 
   return results.filter(Boolean);
+}
+
+// Ubah File (dari <input type="file">) jadi string base64 murni (tanpa
+// prefix "data:image/png;base64,"), sesuai bentuk yang diminta endpoint
+// upload attachment REST API-nya.
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = String(reader.result || "");
+      resolve(result.split(",")[1] || "");
+    };
+    reader.onerror = () => reject(new Error("Gagal membaca file."));
+    reader.readAsDataURL(file);
+  });
+}
+
+// Upload gambar baru sebagai AD_Attachment ke record M_Product.
+// PENTING (beda dari asumsi versi sebelumnya): endpoint ini menerima JSON
+// biasa {name, data(base64)} — BUKAN multipart/form-data — jadi tinggal
+// reuse idempiereApi() biasa, tidak perlu fetch()/FormData khusus.
+// Endpoint ini sifatnya "add/update by file name": kalau `name` yang
+// dikirim SAMA dengan attachment yang sudah ada, isinya akan DITIMPA
+// (bukan gagal) — makanya nama file di-prefix timestamp supaya tiap
+// upload baru selalu jadi entry baru, tidak menimpa gambar lama.
+export async function uploadProductAttachment(productId, file) {
+  const base64Data = await fileToBase64(file);
+  const uniqueName = `${Date.now()}-${file.name}`;
+  return idempiereApi(`/models/m_product/${productId}/attachments`, {
+    method: 'POST',
+    body: JSON.stringify({ name: uniqueName, data: base64Data }),
+  });
+}
+
+// Hapus SEMUA attachment/gambar dari record M_Product sekaligus.
+// CATATAN: REST API ini TIDAK menyediakan endpoint untuk hapus satu
+// attachment tertentu (by nama file) — DELETE di .../attachments selalu
+// menghapus seluruh attachment record itu. Kalau butuh hapus satu gambar
+// saja, satu-satunya cara lewat REST API publik-nya adalah: hapus semua,
+// lalu upload ulang gambar-gambar yang ingin dipertahankan.
+export async function deleteAllProductAttachments(productId) {
+  return idempiereApi(`/models/m_product/${productId}/attachments`, {
+    method: 'DELETE',
+  });
 }
 // ─────────────────────────────────────────────────────────────────────────────
   // TAMBAHKAN BLOK INI KE FILE src/utils/idempiereApi.jsx YANG SUDAH ADA

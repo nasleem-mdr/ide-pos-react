@@ -196,8 +196,13 @@ export default function useProductDetailSubmit(idempiereApi) {
                     // sini, langsung, tanpa user perlu klik simpan lagi ────
                     currentStep = "vendor-lines";
                     for (const line of vendorLines) {
+                        // FIX: VendorProductNo default ke Name produk kalau user tidak isi
+                        // manual di baris vendor. `productPayload.Name` dipakai (bukan
+                        // parameter baru) karena payload M_Product yang dikirim di Step 1
+                        // sudah pasti berisi Name final yang mau disimpan — konsisten baik
+                        // untuk mode New maupun Edit, tanpa perlu fetch/prop tambahan.
                         const payload = {
-                            VendorProductNo: line.VendorProductNo || "",
+                            VendorProductNo: line.VendorProductNo || productPayload.Name || "",
                             PriceList: parseFloat(line.PriceList) || 0,
                             PriceLastPO: parseFloat(line.PriceLastPO) || 0,
                         };

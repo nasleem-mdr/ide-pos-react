@@ -27,6 +27,11 @@ const thumbBoxStyle = {
   flexShrink: 0,
 };
 
+// Field referensi iDempiere REST (mis. M_Product_Category_ID) balik sebagai
+// object { id, identifier }, bukan angka/string polos — helper ini ambil
+// label tampilannya. Sama seperti getLabel() di ProductDetail.jsx.
+const getLabel = (field) => (typeof field === "object" ? field?.identifier : field) || "-";
+
 function ProductList() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -39,6 +44,10 @@ function ProductList() {
   const [downloadingId, setDownloadingId] = useState(null);
   const [thumbnails, setThumbnails] = useState({});
   const thumbUrlsRef = useRef([]);
+
+  // ─── Filter: Product Category (M_Product_Category_ID) ──────────────────
+  const [categories, setCategories] = useState([]);
+  const [categoryFilter, setCategoryFilter] = useState(""); // "" = semua kategori
 
   useEffect(() => {
     let cancelled = false;
@@ -81,18 +90,52 @@ function ProductList() {
     { key: 'Value', label: 'Search Key' },
     { key: 'Name', label: 'Partner Name' },
     { key: 'UPC', label: 'UPC/EAN' },
+    { key: 'CategoryName', label: 'Category' },
   ];
+
+  // ─── FETCH: opsi Product Category untuk dropdown filter ─────────────────
+  const fetchCategories = useCallback(async () => {
+    try {
+      const data = await idempiereApi(`/models/m_product_category?$filter=IsActive eq true&$select=Name&$orderby=Name`);
+      setCategories(data.records || []);
+    } catch (err) {
+      console.error("Gagal mengambil Product Category:", err);
+      setCategories([]);
+    }
+  }, []);
+
+  useEffect(() => { fetchCategories(); }, [fetchCategories]);
 
    const fetchProduct = useCallback(async (currentOffset, mode) => {
     // mode: 'replace' (desktop pagination / reset filter) atau 'append' (mobile infinite scroll)
     mode === "append" ? setLoadingMore(true) : setLoading(true);
   
     try {
-      const fields = 'Name,Value,Description,IsPurchased,IsSold,UPC';
-      let url = `/models/m_product?$select=${fields}&$top=${pageSize}&$skip=${currentOffset}`;
+      const fields = 'Name,Value,Description,IsPurchased,IsSold,UPC,M_Product_Category_ID';
+      // FIX: sebelumnya TANPA $orderby — $top/$skip tanpa urutan yang pasti
+      // bisa membuat baris "meloncat" antar halaman/antar request (urutan
+      // dari database tidak dijamin stabil kalau tidak di-ORDER BY), jadi
+      // produk yang sebenarnya ada bisa kelihatan seperti hilang saat
+      // paging/infinite scroll. $orderby=Value bikin urutannya konsisten.
+      let url = `/models/m_product?$select=${fields}&$top=${pageSize}&$skip=${currentOffset}&$orderby=Value`;
+
+      const filters = [];
       if (search) {
-        url += `&$filter=contains(tolower(Name),'${search.toLowerCase()}')`;
+        // FIX: sebelumnya cuma cek kolom Name — kalau user cari pakai
+        // Search Key (Value) atau UPC/EAN, produknya tidak ketemu padahal
+        // datanya ada. Sekarang dicek di ketiga kolom itu (OR).
+        const q = search.toLowerCase().replace(/'/g, "''");
+        filters.push(
+          `(contains(tolower(Name),'${q}') or contains(tolower(Value),'${q}') or contains(tolower(UPC),'${q}'))`
+        );
       }
+      if (categoryFilter) {
+        filters.push(`M_Product_Category_ID eq ${categoryFilter}`);
+      }
+      if (filters.length > 0) {
+        url += `&$filter=${filters.join(' and ')}`;
+      }
+
       const data = await idempiereApi(url);
       const newRecords = data.records || [];
   
@@ -109,7 +152,7 @@ function ProductList() {
       setLoading(false);
       setLoadingMore(false);
     }
-  }, [search]); // ⬅️ HANYA search, offset tidak masuk deps karena selalu dikirim via parameter
+  }, [search, categoryFilter]); // ⬅️ search & categoryFilter — offset tidak masuk deps karena selalu dikirim via parameter
   
   // Reset & fetch dari awal setiap kali search berubah
   useEffect(() => {
@@ -398,6 +441,7 @@ function ProductList() {
 
     return {
       ...p,
+      CategoryName: getLabel(p.M_Product_Category_ID),
       Thumbnail: url ? (
         <div style={{ ...thumbBoxStyle, background: '#f1f5f9' }}>
           <img src={url} alt={p.Name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -429,6 +473,24 @@ function ProductList() {
           </Link>
         }
       />
+
+      {/* Filter Kategori (M_Product_Category_ID) — ganti kategori otomatis
+          reset ke halaman pertama, sama seperti perilaku search. */}
+      <div className="list-filter-row" style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: '12px 0' }}>
+        <label htmlFor="category-filter" style={{ fontWeight: 600, fontSize: '14px' }}>Kategori:</label>
+        <select
+          id="category-filter"
+          value={categoryFilter}
+          onChange={(e) => { setCategoryFilter(e.target.value); setOffset(0); }}
+          style={{ padding: '6px 10px', borderRadius: '4px', border: '1px solid #ccc' }}
+        >
+          <option value="">Semua Kategori</option>
+          {categories.map((c) => (
+            <option key={c.id} value={c.id}>{c.Name}</option>
+          ))}
+        </select>
+      </div>
+
      <DataTable
         columns={columns}
         data={tableData}

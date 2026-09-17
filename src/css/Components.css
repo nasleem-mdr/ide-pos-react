@@ -171,30 +171,39 @@
     font-size: 0.95rem;
     font-weight: 500;
   }
-  .btn-pagination-icon {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 34px;
-    height: 34px;
-    border-radius: 6px;
-    border: 1px solid #e2e8f0;
-    background-color: #ffffff;
-    color: #64748b;
-    cursor: pointer;
-    transition: all 0.2s ease;
-  }
-  
-  .btn-pagination-icon:hover:not(:disabled) {
-    border-color: #00d1b2;
-    color: #00d1b2;
-    background-color: #f0fdfa;
-  }
-  
-  .btn-pagination-icon:disabled {
-    color: #cbd5e1;
-    background-color: #f8fafc;
-    cursor: not-allowed;
-    border-color: #e2e8f0;
-  }
+  /* Custom Styling untuk Tombol Icon Pagination */
+.btn-pagination-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid #d1d5db;
+  background-color: #ffffff;
+  color: #374151; /* Warna Icon saat aktif (Hitam/Abu Gelap) */
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-pagination-icon:hover:not(:disabled) {
+  background-color: #f3f4f6;
+  color: #1d4ed8; /* Warna saat di-hover */
+  border-color: #9ca3af;
+}
+
+.btn-pagination-icon:disabled {
+  color: #d1d5db; /* Warna Icon saat disabled (Abu Pudar) */
+  background-color: #f9fafb;
+  border-color: #e5e7eb;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* Memastikan SVG di dalam tombol mengambil warna parent (currentColor) */
+.btn-pagination-icon svg {
+  display: block;
+  stroke: currentColor;
+}
   

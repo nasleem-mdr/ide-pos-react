@@ -27,8 +27,7 @@
        --pd-success-bg: #eaf7ef;
        --pd-radius: 8px;
        --pd-radius-sm: 6px;
-   
-       max-width: 1100px;
+       min-width: 1080px;       
        margin: 0 auto;
        padding: 24px 20px 48px;
        background: var(--pd-bg);
@@ -440,3 +439,21 @@
            padding: 16px;
        }
    }
+   .checkbox-row {
+    display: flex;
+    gap: 24px; /* Jarak antara isPurchased dan isSold */
+    align-items: center;
+    margin: 10px 0;
+  }
+  
+  .checkbox-item {
+    display: flex;
+    align-items: center;
+    gap: 8px; /* Jarak antara label dan checkbox/teks */
+  }
+  
+  /* Memastikan label di dalam checkbox-item tidak memakan baris penuh */
+  .checkbox-item label {
+    margin-bottom: 0;
+    cursor: pointer;
+  }

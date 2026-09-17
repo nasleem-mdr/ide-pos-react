@@ -1,7 +1,12 @@
 // src/pages/ProductDetail.js
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { idempiereApi } from '@/api/idempiereApi';
+import {
+    idempiereApi,
+    getProductImageBlobUrls,
+    uploadProductAttachment,
+    deleteAllProductAttachments,
+} from '@/api/idempiereApi';
 import useProductDetailSubmit, { parseIdempiereError, VENDOR_PRICING_TABLE } from '@/features/master/product/hooks/useProductDetailSubmit';
 import SuccessModal from '@/features/master/product/components/SuccessModal';
 import '@/css/ProductDetail.css';
@@ -110,6 +115,28 @@ function ProductDetail() {
     // ─── Opsi untuk field mandatory M_Product (Product Category & UOM) ─────
     const [productCategories, setProductCategories] = useState([]);
     const [uoms, setUoms] = useState([]);
+
+    // ─── Gambar Produk (AD_Attachment) ──────────────────────────────────────
+    // Beda dari Vendor Pricing/Sales Price: attachment butuh M_Product_ID yang
+    // SUDAH ADA di server (tidak bisa ditumpuk sebagai state lokal lalu dikirim
+    // bareng saat Simpan seperti baris vendor/harga), jadi upload di mode New
+    // baru bisa dilakukan SETELAH produk pertama kali disimpan (redirect ke
+    // /product-detail/edit/:id — lihat handleSaveAll).
+    const [productImages, setProductImages] = useState([]); // [{ url, name, index }]
+    const [isLoadingImages, setIsLoadingImages] = useState(false);
+    const [isUploadingImage, setIsUploadingImage] = useState(false);
+    const [isDeletingImages, setIsDeletingImages] = useState(false);
+    const [imageError, setImageError] = useState(null);
+    // Object URL (blob:) harus di-revoke saat tidak dipakai lagi supaya tidak
+    // memory leak. Disimpan juga di ref (bukan cuma state) supaya bisa diakses
+    // dari cleanup function saat komponen unmount.
+    const productImagesRef = useRef([]);
+    useEffect(() => { productImagesRef.current = productImages; }, [productImages]);
+    useEffect(() => {
+        return () => {
+            productImagesRef.current.forEach((img) => URL.revokeObjectURL(img.url));
+        };
+    }, []);
 
     // ─── FETCH: data utama produk ────────────────────────────────────────────
     const fetchProduct = useCallback(async () => {
@@ -238,6 +265,25 @@ function ProductDetail() {
         }
     }, [isNew]);
 
+    // ─── FETCH: gambar produk (attachment) ──────────────────────────────────
+    const fetchProductImages = useCallback(async () => {
+        if (isNew) return; // Belum ada M_Product_ID untuk difilter di mode New
+        setIsLoadingImages(true);
+        try {
+            const images = await getProductImageBlobUrls(id);
+            // Revoke blob URL lama SEBELUM diganti yang baru, supaya tidak
+            // menumpuk memory leak tiap kali refetch (mis. habis upload/hapus).
+            setProductImages((prev) => {
+                prev.forEach((img) => URL.revokeObjectURL(img.url));
+                return images;
+            });
+        } catch (err) {
+            console.error("Gagal mengambil gambar produk:", err);
+        } finally {
+            setIsLoadingImages(false);
+        }
+    }, [id, isNew]);
+
     useEffect(() => {
         fetchProduct();
         fetchVendorLines();
@@ -246,7 +292,8 @@ function ProductDetail() {
         fetchVendorOptions();
         fetchProductCategories();
         fetchUoms();
-    }, [fetchProduct, fetchVendorLines, fetchPriceLines, fetchPriceListVersions, fetchVendorOptions, fetchProductCategories, fetchUoms]);
+        fetchProductImages();
+    }, [fetchProduct, fetchVendorLines, fetchPriceLines, fetchPriceListVersions, fetchVendorOptions, fetchProductCategories, fetchUoms, fetchProductImages]);
 
     if (isLoading) return <div className="card-container detail-status">Loading detail...</div>;
     if (!isNew && !product) return <div className="card-container detail-status detail-status-empty">Produk tidak ditemukan.</div>;
@@ -261,19 +308,6 @@ function ProductDetail() {
         return missing;
     };
 
-    // Validasi field wajib di baris Vendor Pricing — VendorProductNo
-    // bersifat NOT NULL (Mandatory) di tabel M_Product_PO/M_BPartnerProduct
-    // pada instance iDempiere-mu. Divalidasi di sini SUPAYA user tahu
-    // sebelum klik Simpan, bukan baru ketahuan lewat error 500 dari server
-    // (dump constraint Postgres). Kalau field ini sebenarnya tidak wajib
-    // secara bisnis, solusi yang lebih tepat adalah uncheck "Mandatory"
-    // pada kolom VendorProductNo di Application Dictionary — bukan
-    // melonggarkan validasi ini.
-    const validateVendorLines = () => {
-        const missing = vendorLines.filter((l) => !String(l.VendorProductNo || "").trim());
-        return missing.map((l) => getLabel(l.C_BPartner_ID));
-    };
-
     // ─── SAVE (satu pintu): M_Product + Vendor Pricing + Sales Price ───────
     // Sebelumnya ini 2 langkah manual dari sisi user (simpan produk dulu,
     // baru simpan/tambah/hapus tiap baris vendor & harga satu-satu). Sekarang
@@ -284,12 +318,6 @@ function ProductDetail() {
         const missing = validateProductForm();
         if (missing.length > 0) {
             alert(`Field berikut wajib diisi terlebih dahulu:\n- ${missing.join("\n- ")}`);
-            return;
-        }
-
-        const missingVendorProductNo = validateVendorLines();
-        if (missingVendorProductNo.length > 0) {
-            alert(`Vendor Product No wajib diisi untuk vendor berikut sebelum bisa disimpan:\n- ${missingVendorProductNo.join("\n- ")}`);
             return;
         }
 
@@ -416,12 +444,7 @@ function ProductDetail() {
                 // fallback yang salah itu.
                 id: null,
                 C_BPartner_ID: { id: getId(bp), identifier: bp.Name },
-                // Default VendorProductNo ke M_Product.Name — konvensi yang
-                // sudah dipakai di data existing (dicek langsung di database),
-                // sekaligus memenuhi constraint Mandatory di kolom ini tanpa
-                // user perlu ngisi manual tiap kali. Tetap editable kalau
-                // suatu saat memang ada kode vendor yang berbeda dari Name.
-                VendorProductNo: form.Name || "",
+                VendorProductNo: "",
                 PriceList: 0,
                 PriceLastPO: 0,
             },
@@ -476,16 +499,65 @@ function ProductDetail() {
         setPriceLines((prev) => prev.filter((l) => lineKey(l) !== lineKey(line)));
     };
 
+    // ─── Gambar Produk: upload langsung ke server saat file dipilih (BEDA
+    // dari Vendor Pricing/Sales Price yang ditunda sampai tombol Simpan) —
+    // karena attachment butuh M_Product_ID yang sudah pasti ada, dan supaya
+    // user langsung lihat hasil upload-nya tanpa harus klik Simpan dulu. ────
+    const MAX_IMAGE_SIZE_MB = 5;
+    const handleImageFileChange = async (e) => {
+        const file = e.target.files?.[0];
+        e.target.value = ""; // reset input, supaya file yang sama bisa dipilih lagi kalau perlu
+        if (!file) return;
+
+        if (!file.type.startsWith("image/")) {
+            setImageError("File yang dipilih harus berupa gambar (JPG, PNG, dll).");
+            return;
+        }
+        if (file.size > MAX_IMAGE_SIZE_MB * 1024 * 1024) {
+            setImageError(`Ukuran gambar maksimal ${MAX_IMAGE_SIZE_MB}MB.`);
+            return;
+        }
+
+        setImageError(null);
+        setIsUploadingImage(true);
+        try {
+            await uploadProductAttachment(id, file);
+            await fetchProductImages();
+        } catch (err) {
+            console.error("Gagal mengunggah gambar produk:", err);
+            setImageError(err.message || "Gagal mengunggah gambar.");
+        } finally {
+            setIsUploadingImage(false);
+        }
+    };
+
+    const handleDeleteAllImages = async () => {
+        // API-nya cuma menyediakan hapus SEMUA attachment sekaligus (lihat
+        // catatan di deleteAllProductAttachments) — tidak ada endpoint resmi
+        // untuk hapus satu gambar saja.
+        if (!window.confirm("Ini akan menghapus SEMUA gambar produk ini (tidak bisa hapus satu per satu). Lanjutkan?")) return;
+        setIsDeletingImages(true);
+        try {
+            await deleteAllProductAttachments(id);
+            await fetchProductImages();
+        } catch (err) {
+            console.error("Gagal menghapus gambar produk:", err);
+            alert(`Gagal menghapus gambar.\n${err.message || ""}`);
+        } finally {
+            setIsDeletingImages(false);
+        }
+    };
+
     return (
         <div className="card-container">
             <div className="detail-topbar">
-                <button onClick={() => navigate(-1)} className="btn-back">← Back to List</button>
+                <button onClick={() => navigate(-1)} className="btn btn-secondary">← Back to List</button>
                 <span className="product-id-badge">{isNew ? "Produk Baru" : `Product ID: ${id}`}</span>
                 {isNew ? (
                     <div className="topbar-actions">
                         <button className="btn btn-ghost" onClick={() => navigate(-1)} disabled={isSaving}>Batal</button>
                         <button className="btn btn-primary" onClick={handleSaveAll} disabled={isSaving}>
-                            {isSaving ? "Menyimpan..." : "💾 Buat Produk"}
+                            {isSaving ? "Menyimpan..." : "💾 Save Product"}
                         </button>
                     </div>
                 ) : !isEditing ? (
@@ -500,7 +572,7 @@ function ProductDetail() {
                 )}
             </div>
 
-            <div className="detail-grid">
+            <div className="detail-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
                 {/* SECTION 1: INFORMASI UTAMA */}
                 <div className="detail-section">
                     <h3>General Information</h3>
@@ -520,8 +592,78 @@ function ProductDetail() {
                             <textarea value={form.Description} onChange={(e) => setForm({ ...form, Description: e.target.value })} />
                         ) : <p>{product.Description || '-'}</p>}
 
-                        {/* Product Category & UOM: WAJIB (NOT NULL) di m_product — tanpa
-                            ini insert akan gagal dengan constraint error di server. */}
+                        {/* ── Gambar Produk (AD_Attachment) ──────────────────
+                            Di mode New (produk belum tersimpan di server),
+                            upload belum bisa dilakukan karena butuh
+                            M_Product_ID yang valid — user diarahkan simpan
+                            produk dulu, baru upload gambar di halaman Edit. */}
+                        <label>Gambar Produk</label>
+                        {isNew ? (
+                            <p className="muted-note">Simpan produk terlebih dahulu untuk bisa mengunggah gambar.</p>
+                        ) : (
+                            <div className="product-image-section">
+                                {isLoadingImages ? (
+                                    <p className="muted-note">Memuat gambar...</p>
+                                ) : productImages.length === 0 ? (
+                                    <p className="empty-note">Belum ada gambar.</p>
+                                ) : (
+                                    <div
+                                        className="product-image-gallery"
+                                        style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginBottom: '10px' }}
+                                    >
+                                        {productImages.map((img) => (
+                                            <div
+                                                key={img.name}
+                                                className="product-image-thumb"
+                                                style={{ width: '100px', height: '100px' }}
+                                            >
+                                                <img
+                                                    src={img.url}
+                                                    alt={img.name}
+                                                    style={{
+                                                        width: '100px', height: '100px',
+                                                        objectFit: 'cover', borderRadius: '6px',
+                                                        border: '1px solid #ddd',
+                                                    }}
+                                                />
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+
+                                {isEditing && (
+                                    <div className="inline-add-box" style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            onChange={handleImageFileChange}
+                                            disabled={isUploadingImage}
+                                        />
+                                        {isUploadingImage && <span className="muted-note">Mengunggah...</span>}
+                                        {productImages.length > 0 && (
+                                            <button
+                                                type="button"
+                                                className="icon-btn icon-btn-delete"
+                                                title="Hapus semua gambar"
+                                                onClick={handleDeleteAllImages}
+                                                disabled={isDeletingImages}
+                                            >
+                                                {isDeletingImages ? "Menghapus..." : "🗑️ Hapus Semua Gambar"}
+                                            </button>
+                                        )}
+                                    </div>
+                                )}
+                                {imageError && <p className="error-note">{imageError}</p>}
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* SECTION 2: STATUS & GRUP */}
+                {/* SECTION 2: STATUS & GRUP */}
+                <div className="detail-section">
+                    <h3>Classification</h3>
+                    <div className="info-group">
                         <label>Product Category *</label>
                         {isEditing ? (
                             <select
@@ -547,22 +689,23 @@ function ProductDetail() {
                                 ))}
                             </select>
                         ) : <p>{getLabel(product.C_UOM_ID)}</p>}
-                    </div>
-                </div>
 
-                {/* SECTION 2: STATUS & GRUP */}
-                <div className="detail-section">
-                    <h3>Classification</h3>
-                    <div className="info-group">
-                        <label>Purchased (bisa dibeli)</label>
-                        {isEditing ? (
-                            <input type="checkbox" checked={form.IsPurchased} onChange={(e) => setForm({ ...form, IsPurchased: e.target.checked })} />
-                        ) : <p>{product.IsPurchased ? 'Yes' : 'No'}</p>}
+                        {/* CONTAINER BARU UNTUK KANAN-KIRI */}
+                        <div className="checkbox-row">
+                            <div className="checkbox-item">
+                                <label>IsPurchased ?</label>
+                                {isEditing ? (
+                                    <input type="checkbox" checked={form.IsPurchased} onChange={(e) => setForm({ ...form, IsPurchased: e.target.checked })} />
+                                ) : <p>{product.IsPurchased ? 'Yes' : 'No'}</p>}
+                            </div>
 
-                        <label>Sold (bisa dijual)</label>
-                        {isEditing ? (
-                            <input type="checkbox" checked={form.IsSold} onChange={(e) => setForm({ ...form, IsSold: e.target.checked })} />
-                        ) : <p>{product.IsSold ? 'Yes' : 'No'}</p>}
+                            <div className="checkbox-item">
+                                <label>IsSold ?</label>
+                                {isEditing ? (
+                                    <input type="checkbox" checked={form.IsSold} onChange={(e) => setForm({ ...form, IsSold: e.target.checked })} />
+                                ) : <p>{product.IsSold ? 'Yes' : 'No'}</p>}
+                            </div>
+                        </div>
 
                         <label>Markup % (AutoPrice)</label>
                         {isEditing ? (
@@ -608,7 +751,7 @@ function ProductDetail() {
                             <thead>
                                 <tr>
                                     <th>Vendor</th>
-                                    <th>Vendor Product No *</th>
+                                    <th>Vendor Product No</th>
                                     <th style={{ textAlign: 'right' }}>Price List (Vendor)</th>
                                     <th style={{ textAlign: 'right' }}>Price Last PO</th>
                                     {isEditing && <th style={{ width: '60px' }}></th>}
