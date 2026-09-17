@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import { idempiereApi } from '@/api/idempiereApi';
 import { getLoginInfo } from '@/shared/hooks/useLoginInfo';
 import { useUomConversion } from '@/shared/hooks/useUomConversion';
-import { saveRequisitionOffline, updatePendingRequisition } from '../utils/offlineRequisitionStorage';
+import { saveRequisitionOffline, updatePendingRequisition } from '@/features/requisition/utils/offlineRequisitionStorage';
 
 export function useRequisitionSubmit({ docTypeId, description: defaultDescription, DateRequired, onError }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
