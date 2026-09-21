@@ -28,6 +28,7 @@ import SalesOrderContainer from "@/features/sales/order/pages/SalesOrderContaine
 import SalesInvoiceContainer from "@/features/sales/invoice/pages/SalesInvoiceContainer";
 import POSOrderList from "@/features/sales/order/pages/POSOrderList";
 import SalesInvoiceList from "@/features/sales/invoice/pages/SalesInvoiceList";
+import SalesOrderDetailReport from "@/features/sales/order/pages/SalesOrderDetailReport";
 
 import BookingTimeline from '@/features/login/pages/BookingTimeline';
 
@@ -126,9 +127,9 @@ function AppContent() {
                           <BusinessPartner />
                         </ProtectedRoute>
                       } />
-                      <Route path="/business-partner/:id/edit" element={
-                        <ProtectedRoute windowKey="businessPartnerEdit">
-                          <BusinessPartnerEdit />
+                      <Route path="/business-partner/new" element={
+                        <ProtectedRoute windowKey="businessPartner">
+                          <BusinessPartnerDetail />
                         </ProtectedRoute>
                       } />
                       <Route path="/business-partner/:id" element={
@@ -244,6 +245,11 @@ function AppContent() {
                       <Route path="/salesinvoice-list" element={
                         <ProtectedRoute windowKey="salesInvoiceList">
                           <SalesInvoiceList />
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/salesorder-detailreport" element={
+                        <ProtectedRoute windowKey="salesOrderDetailReport">
+                          <SalesOrderDetailReport />
                         </ProtectedRoute>
                       } />
                     </Routes>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import ReactDOMServer from "react-dom/server";
-import { Link } from "react-router-dom";
+import { useSearchParams, Link } from "react-router-dom";
 import QRCode from "qrcode";
 import jsPDF from "jspdf";
 
@@ -27,27 +27,70 @@ const thumbBoxStyle = {
   flexShrink: 0,
 };
 
-// Field referensi iDempiere REST (mis. M_Product_Category_ID) balik sebagai
-// object { id, identifier }, bukan angka/string polos — helper ini ambil
-// label tampilannya. Sama seperti getLabel() di ProductDetail.jsx.
-const getLabel = (field) => (typeof field === "object" ? field?.identifier : field) || "-";
-
 function ProductList() {
+  // ─── Posisi (offset) & kata kunci pencarian disimpan di URL query string,
+  // BUKAN di useState biasa — supaya saat komponen ini unmount (pindah ke
+  // halaman detail/edit) lalu balik lagi via navigate(-1)/tombol Back,
+  // posisi halaman & filter yang terakhir dibuka tidak hilang.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const offset = parseInt(searchParams.get("offset") || "0", 10);
+  const search = searchParams.get("q") || "";
+
+  // ─── Filter kategori (multi-select) juga disimpan di URL, format:
+  // ?cat=123,456,789 — supaya konsisten dengan pola offset & search di atas
+  // (tidak hilang saat back-navigation) dan bisa di-share sebagai link.
+  const catParam = searchParams.get("cat") || "";
+  const selectedCategories = catParam ? catParam.split(",").filter(Boolean) : [];
+  const selectedCategoriesKey = selectedCategories.slice().sort().join(",");
+
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [loadingMore, setLoadingMore]   = useState(false);   // loading nambah data
-  const [hasMore, setHasMore]           = useState(true);
-  const [search, setSearch] = useState("");
-  const [offset, setOffset] = useState(0);
+  const [loadingMore, setLoadingMore] = useState(false);   // loading nambah data
+  const [hasMore, setHasMore] = useState(true);
+
   const pageSize = 10;
   const [totalRecords, setTotalRecords] = useState(0);
   const [downloadingId, setDownloadingId] = useState(null);
   const [thumbnails, setThumbnails] = useState({});
   const thumbUrlsRef = useRef([]);
 
-  // ─── Filter: Product Category (M_Product_Category_ID) ──────────────────
-  const [categories, setCategories] = useState([]);
-  const [categoryFilter, setCategoryFilter] = useState(""); // "" = semua kategori
+  // ─── State untuk daftar kategori (untuk dropdown filter) ───────────────
+  const [categoryOptions, setCategoryOptions] = useState([]);
+  const [categoryLoading, setCategoryLoading] = useState(false);
+  const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
+  const categoryDropdownRef = useRef(null);
+
+  // Fetch daftar kategori sekali saat mount
+  useEffect(() => {
+    let cancelled = false;
+    const loadCategories = async () => {
+      setCategoryLoading(true);
+      try {
+        const data = await idempiereApi(
+          `/models/m_product_category?$select=Name&$orderby=Name&$top=200`
+        );
+        if (!cancelled) setCategoryOptions(data.records || []);
+      } catch (err) {
+        console.error("Fetch Category Error:", err.message);
+        if (!cancelled) setCategoryOptions([]);
+      } finally {
+        if (!cancelled) setCategoryLoading(false);
+      }
+    };
+    loadCategories();
+    return () => { cancelled = true; };
+  }, []);
+
+  // Tutup dropdown kategori saat klik di luar area-nya
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (categoryDropdownRef.current && !categoryDropdownRef.current.contains(e.target)) {
+        setCategoryDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -90,55 +133,32 @@ function ProductList() {
     { key: 'Value', label: 'Search Key' },
     { key: 'Name', label: 'Partner Name' },
     { key: 'UPC', label: 'UPC/EAN' },
-    { key: 'CategoryName', label: 'Category' },
   ];
 
-  // ─── FETCH: opsi Product Category untuk dropdown filter ─────────────────
-  const fetchCategories = useCallback(async () => {
-    try {
-      const data = await idempiereApi(`/models/m_product_category?$filter=IsActive eq true&$select=Name&$orderby=Name`);
-      setCategories(data.records || []);
-    } catch (err) {
-      console.error("Gagal mengambil Product Category:", err);
-      setCategories([]);
-    }
-  }, []);
-
-  useEffect(() => { fetchCategories(); }, [fetchCategories]);
-
-   const fetchProduct = useCallback(async (currentOffset, mode) => {
+  const fetchProduct = useCallback(async (currentOffset, mode) => {
     // mode: 'replace' (desktop pagination / reset filter) atau 'append' (mobile infinite scroll)
     mode === "append" ? setLoadingMore(true) : setLoading(true);
-  
-    try {
-      const fields = 'Name,Value,Description,IsPurchased,IsSold,UPC,M_Product_Category_ID';
-      // FIX: sebelumnya TANPA $orderby — $top/$skip tanpa urutan yang pasti
-      // bisa membuat baris "meloncat" antar halaman/antar request (urutan
-      // dari database tidak dijamin stabil kalau tidak di-ORDER BY), jadi
-      // produk yang sebenarnya ada bisa kelihatan seperti hilang saat
-      // paging/infinite scroll. $orderby=Value bikin urutannya konsisten.
-      let url = `/models/m_product?$select=${fields}&$top=${pageSize}&$skip=${currentOffset}&$orderby=Value`;
 
-      const filters = [];
+    try {
+      const fields = 'Name,Value,Description,IsPurchased,IsSold,UPC';
+      let url = `/models/m_product?$select=${fields}&$top=${pageSize}&$skip=${currentOffset}`;
+
+      const filterParts = [];
       if (search) {
-        // FIX: sebelumnya cuma cek kolom Name — kalau user cari pakai
-        // Search Key (Value) atau UPC/EAN, produknya tidak ketemu padahal
-        // datanya ada. Sekarang dicek di ketiga kolom itu (OR).
-        const q = search.toLowerCase().replace(/'/g, "''");
-        filters.push(
-          `(contains(tolower(Name),'${q}') or contains(tolower(Value),'${q}') or contains(tolower(UPC),'${q}'))`
-        );
+        filterParts.push(`contains(tolower(Name),'${search.toLowerCase()}')`);
       }
-      if (categoryFilter) {
-        filters.push(`M_Product_Category_ID eq ${categoryFilter}`);
+      if (selectedCategoriesKey) {
+        const ids = selectedCategoriesKey.split(",");
+        const catFilter = ids.map(id => `M_Product_Category_ID eq ${id}`).join(" or ");
+        filterParts.push(ids.length > 1 ? `(${catFilter})` : catFilter);
       }
-      if (filters.length > 0) {
-        url += `&$filter=${filters.join(' and ')}`;
+      if (filterParts.length > 0) {
+        url += `&$filter=${filterParts.join(" and ")}`;
       }
 
       const data = await idempiereApi(url);
       const newRecords = data.records || [];
-  
+
       setProducts(prev => mode === "append" ? [...prev, ...newRecords] : newRecords);
       setTotalRecords(data['row-count'] ?? 0);
       setHasMore(newRecords.length === pageSize);
@@ -152,27 +172,78 @@ function ProductList() {
       setLoading(false);
       setLoadingMore(false);
     }
-  }, [search, categoryFilter]); // ⬅️ search & categoryFilter — offset tidak masuk deps karena selalu dikirim via parameter
-  
-  // Reset & fetch dari awal setiap kali search berubah
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search, selectedCategoriesKey]); // ⬅️ offset tidak masuk deps karena selalu dikirim via parameter
+
+  // ─── Fetch data setiap kali offset, search, ATAU kategori (dari URL) berubah ───
   useEffect(() => {
-    setOffset(0);
-    fetchProduct(0, "replace");
-  }, [fetchProduct]); // aman sekarang karena fetchProduct cuma berubah saat search berubah
-  
+    fetchProduct(offset, "replace");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fetchProduct, offset]);
+
   // Dipanggil onPageChange dari DataTable (desktop)
   const handlePageChange = useCallback((newOffset) => {
-    setOffset(newOffset);
-    fetchProduct(newOffset, "replace");
-  }, [fetchProduct]);
-  
+    setSearchParams((prev) => {
+      const p = new URLSearchParams(prev);
+      p.set("offset", newOffset);
+      return p;
+    });
+  }, [setSearchParams]);
+
   // Dipanggil sentinel infinite scroll (mobile)
   const loadMore = useCallback(() => {
     const nextOffset = offset + pageSize;
-    setOffset(nextOffset);
+    setSearchParams(
+      (prev) => {
+        const p = new URLSearchParams(prev);
+        p.set("offset", nextOffset);
+        return p;
+      },
+      { replace: true } // replace biar tidak numpuk history tiap scroll
+    );
     fetchProduct(nextOffset, "append");
-  }, [offset, fetchProduct]);
-   
+  }, [offset, setSearchParams, fetchProduct]);
+
+  // Dipanggil dari PageHeader saat user mengetik pencarian baru —
+  // search baru selalu mulai dari offset 0. Kategori yang sedang aktif dipertahankan.
+  const handleSearchChange = useCallback((val) => {
+    setSearchParams((prev) => {
+      const p = new URLSearchParams(prev);
+      p.set("q", val);
+      p.set("offset", "0");
+      return p;
+    });
+  }, [setSearchParams]);
+
+  // Toggle satu kategori di dalam filter multi-select — offset direset ke 0
+  const handleCategoryToggle = useCallback((categoryId) => {
+    setSearchParams((prev) => {
+      const p = new URLSearchParams(prev);
+      const current = (p.get("cat") || "").split(",").filter(Boolean);
+      const idStr = String(categoryId);
+      const next = current.includes(idStr)
+        ? current.filter((id) => id !== idStr)
+        : [...current, idStr];
+
+      if (next.length > 0) {
+        p.set("cat", next.join(","));
+      } else {
+        p.delete("cat");
+      }
+      p.set("offset", "0");
+      return p;
+    });
+  }, [setSearchParams]);
+
+  const handleClearCategories = useCallback(() => {
+    setSearchParams((prev) => {
+      const p = new URLSearchParams(prev);
+      p.delete("cat");
+      p.set("offset", "0");
+      return p;
+    });
+  }, [setSearchParams]);
+
   function isYes(val) {
     return val === true || val === 'Y' || val === 'true';
   }
@@ -441,7 +512,6 @@ function ProductList() {
 
     return {
       ...p,
-      CategoryName: getLabel(p.M_Product_Category_ID),
       Thumbnail: url ? (
         <div style={{ ...thumbBoxStyle, background: '#f1f5f9' }}>
           <img src={url} alt={p.Name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -454,43 +524,108 @@ function ProductList() {
     };
   });
 
+  // ─── UI dropdown filter kategori (multi-select) ─────────────────────────
+  const categoryFilterUI = (
+    <div ref={categoryDropdownRef} style={{ position: 'relative', display: 'inline-block' }}>
+      <button
+        type="button"
+        onClick={() => setCategoryDropdownOpen((v) => !v)}
+        style={{
+          padding: '8px 14px',
+          borderRadius: '4px',
+          border: '1px solid #cbd5e1',
+          backgroundColor: selectedCategories.length > 0 ? '#e0f2fe' : '#fff',
+          cursor: 'pointer',
+          fontWeight: 500,
+        }}
+      >
+        Category{selectedCategories.length > 0 ? ` (${selectedCategories.length})` : ''} ▾
+      </button>
+
+      {categoryDropdownOpen && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 'calc(100% + 4px)',
+            left: 0,
+            zIndex: 20,
+            minWidth: 220,
+            maxHeight: 280,
+            overflowY: 'auto',
+            background: '#fff',
+            border: '1px solid #cbd5e1',
+            borderRadius: '6px',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.12)',
+            padding: '8px',
+          }}
+        >
+          {categoryLoading && <div style={{ padding: '6px 4px', color: '#64748b' }}>Loading...</div>}
+
+          {!categoryLoading && categoryOptions.length === 0 && (
+            <div style={{ padding: '6px 4px', color: '#64748b' }}>Tidak ada kategori</div>
+          )}
+
+          {!categoryLoading && categoryOptions.map((cat) => {
+            const catId = cat.id ?? cat.M_Product_Category_ID;
+            const checked = selectedCategories.includes(String(catId));
+            return (
+              <label
+                key={catId}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '8px',
+                  padding: '6px 4px', cursor: 'pointer', fontSize: '14px',
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  onChange={() => handleCategoryToggle(catId)}
+                />
+                {cat.Name}
+              </label>
+            );
+          })}
+
+          {selectedCategories.length > 0 && (
+            <button
+              type="button"
+              onClick={handleClearCategories}
+              style={{
+                marginTop: '6px', width: '100%', padding: '6px',
+                border: 'none', borderRadius: '4px', backgroundColor: '#f1f5f9',
+                cursor: 'pointer', fontSize: '13px', color: '#334155',
+              }}
+            >
+              Clear filter
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <div className="card-container">
       <PageHeader
         title="Product / Service"
-        onSearch={(val) => { setSearch(val); setOffset(0); }}
-        actions={
-          <Link to="/product-detail/new">
-            <button
-              className="btn-action-edit"
-              style={{
-                color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '4px',
-                backgroundColor: '#2e7d32', cursor: 'pointer', fontWeight: 'bold',
-              }}
-            >
-              + New
-            </button>
-          </Link>
+        onSearch={handleSearchChange}
+        extraAction={
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            {categoryFilterUI}
+            <Link to="/product-detail/new">
+              <button
+                className="btn-action-edit"
+                style={{
+                  color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '4px',
+                  backgroundColor: '#2e7d32', cursor: 'pointer', fontWeight: 'bold',
+                }}
+              >
+                + New
+              </button>
+            </Link>
+          </div>
         }
       />
-
-      {/* Filter Kategori (M_Product_Category_ID) — ganti kategori otomatis
-          reset ke halaman pertama, sama seperti perilaku search. */}
-      <div className="list-filter-row" style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: '12px 0' }}>
-        <label htmlFor="category-filter" style={{ fontWeight: 600, fontSize: '14px' }}>Kategori:</label>
-        <select
-          id="category-filter"
-          value={categoryFilter}
-          onChange={(e) => { setCategoryFilter(e.target.value); setOffset(0); }}
-          style={{ padding: '6px 10px', borderRadius: '4px', border: '1px solid #ccc' }}
-        >
-          <option value="">Semua Kategori</option>
-          {categories.map((c) => (
-            <option key={c.id} value={c.id}>{c.Name}</option>
-          ))}
-        </select>
-      </div>
-
      <DataTable
         columns={columns}
         data={tableData}

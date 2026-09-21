@@ -30,6 +30,7 @@ export const WINDOW_ACCESS_MAP = {
   salesInvoice:         null,
   paymentReceipt:       null,
   productDetail:        null,
+  salesOrderDetailReport:        null,
   
   // ===== List / Report =====
   requisitionList:      null, 

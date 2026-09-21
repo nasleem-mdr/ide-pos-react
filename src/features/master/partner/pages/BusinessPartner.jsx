@@ -64,14 +64,10 @@ function BusinessPartner() {
 
     return (
       <div style={{ display: 'flex', gap: '8px' }}>
-        {/* Tombol View selalu aktif */}
-        <Link to={`/orders/view/${item.id}`}>
-          <button className="btn-action-view">View</button>
-        </Link>
-        
+                
         {/* Kondisi Tombol Edit diatur penuh di sini */}
         <Link 
-          to={isEditDisabled ? '#' : `/orders/edit/${item.id}`}
+          to={isEditDisabled ? '#' : `/business-partner/${item.id}`}
           style={{ pointerEvents: isEditDisabled ? 'none' : 'auto' }}
         >
           <button 
@@ -99,6 +95,22 @@ function BusinessPartner() {
       <PageHeader 
         title="Business Partner Management" 
         onSearch={(val) => { setSearch(val); setOffset(0); }} 
+        extraAction={
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    
+                    <Link to="/business-partner/new">
+                      <button
+                        className="btn-action-edit"
+                        style={{
+                          color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '4px',
+                          backgroundColor: '#2e7d32', cursor: 'pointer', fontWeight: 'bold',
+                        }}
+                      >
+                        + New
+                      </button>
+                    </Link>
+                  </div>
+                }
       />
 
       {/* 2. Pakai DataTable */}

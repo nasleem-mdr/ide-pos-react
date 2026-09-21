@@ -1,9 +1,10 @@
 // 1. External
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 
 // 2. Feature Hooks
 import { useRequisitionSubmit } from '@/features/requisition/hooks/useRequisitionSubmit';
+import { useOfflineRequisitionSync } from '@/features/requisition/hooks/useOfflineRequisitionSync';
 
 // 3. Feature Component
 import { RequisitionSuccessModal } from '@/features/requisition/components';
@@ -75,8 +76,11 @@ const RequisitionContainer = () => {
   const [editRequisitionId, setEditRequisitionId] = useState(null);
   const [isEditMode, setIsEditMode]               = useState(false);
 
-  const alert = (message, title = 'Perhatian') =>
-    setDialog({ isOpen: true, title, message });
+  // Distabilkan dengan useCallback — sebelumnya function baru dibuat tiap
+  // render, ikut jadi salah satu sumber referensi tidak stabil yang dikirim
+  // ke useRequisitionSubmit/useOfflineRequisitionSync di bawah.
+  const alert = useCallback((message, title = 'Perhatian') =>
+    setDialog({ isOpen: true, title, message }), []);
 
   // ── hooks ─────────────────────────────────────────────────────────────────
   const {
@@ -87,12 +91,41 @@ const RequisitionContainer = () => {
 
   const { cart, addToCart, removeFromCart, updateQty, updateUom, clearCart, setCart, totalQty, totalItems } = useCart();
 
-  const { submit, isSubmitting } = useRequisitionSubmit({
+  // Options di-memo — sebelumnya object literal baru dibuat tiap render,
+  // jadi kalau useRequisitionSubmit punya effect internal yang depend ke
+  // object ini utuh (bukan field-nya satu-satu), effect itu ikut jalan
+  // tiap render juga.
+  const requisitionSubmitOptions = useMemo(() => ({
     docTypeId,
     description: REQUISITION_CONFIG.DESCRIPTION,
     dateRequired,
-    onError:     alert,
-  });
+    onError: alert,
+  }), [docTypeId, dateRequired, alert]);
+
+  const { submit, isSubmitting } = useRequisitionSubmit(requisitionSubmitOptions);
+
+  // ── auto-sync antrean Requisition offline ───────────────────────────────
+  // Berjalan saat mount (kalau kebetulan online dan ada sisa antrean) dan
+  // setiap kali koneksi kembali online. Guard concurrency + persist-reqId-
+  // partial ada di dalam hook ini, jadi tidak akan menduplikasi dokumen di
+  // server maupun menghapus antrean kalau sync-nya sendiri gagal.
+  const handleOfflineSyncComplete = useCallback((successCount, failCount) => {
+    if (failCount === 0) {
+      alert(`${successCount} requisition offline berhasil disinkronkan ke server.`, 'Sinkronisasi Offline');
+    } else {
+      alert(
+        `${successCount} berhasil disinkronkan, ${failCount} gagal dan akan dicoba lagi otomatis saat online berikutnya.`,
+        'Sinkronisasi Offline'
+      );
+    }
+  }, [alert]);
+
+  const offlineSyncOptions = useMemo(() => ({
+    submit,
+    onSyncComplete: handleOfflineSyncComplete,
+  }), [submit, handleOfflineSyncComplete]);
+
+  const { pendingCount, isSyncing } = useOfflineRequisitionSync(offlineSyncOptions);
 
   const { canEdit } = useAccess();
   const canSubmitRequisition = canEdit('requisition');
@@ -276,19 +309,34 @@ const RequisitionContainer = () => {
 
     // ── input search: lokal, terpisah dari trigger request ──
  
-// ── 1. Panggil useScannerInput duluan, TANPA onScanDetected langsung ──
+// ── 1. handler-handler-nya di-useCallback duluan supaya referensinya stabil ──
+// (sebelumnya inline arrow function baru tiap render, jadi object options
+// di bawah juga baru tiap render -> effect internal useScannerInput yang
+// depend ke options ini ikut jalan tiap render -> potensi infinite loop
+// kalau effect itu setState).
+const handleScanDetected = useCallback(
+  (code) => handleBarcodeDetectedRef.current(code), // panggil lewat ref, ref-nya sendiri stabil
+  []
+);
+const handleManualSearch = useCallback(
+  (value) => search(value, selectedWarehouse?.id ?? null),
+  [search, selectedWarehouse]
+);
+const scannerInputOptions = useMemo(() => ({
+  onScanDetected: handleScanDetected,
+  onManualSearch: handleManualSearch,
+}), [handleScanDetected, handleManualSearch]);
+
+// ── 2. Panggil useScannerInput dengan options yang sudah stabil ──
 const {
   value: searchInput,
   inputRef: scanInputRef,
   handleChange: handleSearchInputChange,
   handleKeyDown: handleSearchKeyDown,
   reset: resetSearchInput,
-} = useScannerInput({
-  onScanDetected: (code) => handleBarcodeDetectedRef.current(code), // panggil lewat ref
-  onManualSearch: (value) => search(value, selectedWarehouse?.id ?? null),
-});
+} = useScannerInput(scannerInputOptions);
 
-// ── 2. handleBarcodeDetected didefinisikan seperti biasa, tanpa peduli urutan ──
+// ── 3. handleBarcodeDetected didefinisikan seperti biasa, tanpa peduli urutan ──
 const handleBarcodeDetected = useCallback(async (code) => {
   setScannerOpen(false);
   const trimmed = code.trim();
@@ -311,7 +359,7 @@ const handleBarcodeDetected = useCallback(async (code) => {
   }
 }, [products, addToCart, fetchProducts, searchByUPC, selectedWarehouse, resetSearchInput]);
 
-// ── 3. Ref jembatan, selalu sinkron ke versi terbaru ──
+// ── 4. Ref jembatan, selalu sinkron ke versi terbaru ──
 const handleBarcodeDetectedRef = useRef(handleBarcodeDetected);
 useEffect(() => {
   handleBarcodeDetectedRef.current = handleBarcodeDetected;
@@ -323,7 +371,11 @@ useEffect(() => {
       cart, requesterName, selectedWarehouse?.id,
       editRequisitionId, description, dateRequired, mode
     );
-    if (result) {
+    // submit() sekarang selalu mengembalikan object dengan flag `success`
+    // (bukan null saat gagal), jadi cek eksplisit di sini — sebelumnya
+    // `if (result)` akan selalu true dan modal sukses tetap tampil walau
+    // gagal, karena hasil errornya pun berupa object truthy.
+    if (result?.success) {
       setSuccessData({ ...result, warehouseName: selectedWarehouse?.name });
       clearCart();
       setCartOpen(false);
@@ -334,9 +386,11 @@ useEffect(() => {
       setDateRequired(new Date().toISOString().split('T')[0]);
       navigate('/requisition', { replace: true, state: {} });
     }
+    // result.success === false: dialog error sudah ditampilkan oleh
+    // onError di dalam useRequisitionSubmit, tidak perlu ditangani lagi di sini.
   };
   
-  const cartSummaryRight = `📦 ${selectedWarehouse?.name || '...'}`;
+  const cartSummaryRight = `📦 ${selectedWarehouse?.name || '...'}${pendingCount > 0 ? ` · ⏳ ${pendingCount} offline` : ''}`;
 
   useEffect(() => {
     const t = setTimeout(() => scanInputRef.current?.focus(), 150);
@@ -397,6 +451,11 @@ useEffect(() => {
         }}>
           <RequisitionIcon />
           <span>Requisition</span>
+          {isSyncing && (
+            <span style={{ fontSize: '11px', fontWeight: 500, color: 'rgba(224,234,255,0.85)' }}>
+              (menyinkronkan offline...)
+            </span>
+          )}
         </span>
         {/* ── Date Required + Warehouse ─────────────────────────────────────── */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -516,6 +575,18 @@ useEffect(() => {
           >
             Batalkan Edit
           </button>
+        </div>
+      )}
+
+      {/* ── Banner Antrean Offline ───────────────────────────────────────── */}
+      {pendingCount > 0 && (
+        <div style={{
+          backgroundColor: '#e3f2fd', borderBottom: '1px solid #1976d2',
+          padding: '6px 16px', fontSize: '12px', flexShrink: 0,
+          color: '#0d47a1',
+        }}>
+          ⏳ {pendingCount} requisition menunggu sinkronisasi
+          {isSyncing ? ' — sedang mengirim...' : ' (akan dikirim otomatis saat online).'}
         </div>
       )}
 
@@ -660,13 +731,5 @@ useEffect(() => {
     </div>
   );
 };
-const styles = {
-  newBtn:  { backgroundColor: "#1976d2", color: "#fff", border: "none", padding: "10px 18px", borderRadius: "6px", cursor: "pointer", fontWeight: "bold" },
-  badge:   { color: "#fff", padding: "3px 10px", borderRadius: "12px", fontSize: "11px", fontWeight: "bold" },
-  editBtn: { color: "#fff", border: "none", padding: "6px 14px", borderRadius: "6px", fontWeight: "bold", fontSize: "12px", transition: "all 0.2s ease" },
-  dateFilterRow: { display: "flex", gap: "16px", flexWrap: "wrap", margin: "12px 0 16px" },
-  dateField:     { display: "flex", flexDirection: "column", gap: "4px" },
-  dateLabel:     { fontSize: "12px", fontWeight: "600", color: "#555" },
-  dateInput:      { padding: "8px 10px", borderRadius: "6px", border: "1px solid #ccc", fontSize: "13px" },
-};
+
 export default RequisitionContainer;

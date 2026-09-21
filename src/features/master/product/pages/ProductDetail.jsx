@@ -9,6 +9,7 @@ import {
 } from '@/api/idempiereApi';
 import useProductDetailSubmit, { parseIdempiereError, VENDOR_PRICING_TABLE } from '@/features/master/product/hooks/useProductDetailSubmit';
 import SuccessModal from '@/features/master/product/components/SuccessModal';
+import ConfirmModal from '@/features/master/product/components/ConfirmModal';
 import '@/css/ProductDetail.css';
 
 // ─── Opsi RoundingType ────────────────────────────────────────────────────
@@ -83,6 +84,25 @@ function ProductDetail() {
     // Modal notifikasi sukses — dipakai bersama untuk semua aksi simpan di halaman ini
     const [successModal, setSuccessModal] = useState({ isOpen: false, message: "" });
     const showSuccess = (message) => setSuccessModal({ isOpen: true, message });
+
+    // Modal konfirmasi OK/Cancel generik — dipakai bergantian untuk 3 aksi
+    // destruktif di halaman ini (hapus baris Vendor Pricing, hapus baris
+    // Sales Price, hapus semua gambar produk). Daripada bikin 3 state
+    // terpisah kayak per-line di BusinessPartnerDetail, di sini cukup 1
+    // state generik yang nyimpen callback `onConfirm`-nya — jadi tinggal
+    // panggil `openConfirm({ ...opsi, onConfirm })` dari handler manapun.
+    const [confirmModal, setConfirmModal] = useState({
+        isOpen: false, title: "", message: "", confirmLabel: "Hapus", danger: true, onConfirm: null,
+    });
+    const openConfirm = ({ title, message, confirmLabel = "Hapus", danger = true, onConfirm }) => {
+        setConfirmModal({ isOpen: true, title, message, confirmLabel, danger, onConfirm });
+    };
+    const closeConfirm = () => setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+    const handleConfirmModalConfirm = async () => {
+        const action = confirmModal.onConfirm;
+        closeConfirm();
+        if (action) await action();
+    };
 
     // Form state untuk field utama M_Product (dipakai saat mode edit)
     // MarkupPercent & RoundingType: field custom plugin autoprice-mu, keduanya di level Product.
@@ -452,13 +472,19 @@ function ProductDetail() {
     };
 
     const handleDeleteVendorLine = (line) => {
-        if (!window.confirm("Hapus baris vendor ini?")) return;
-        const existingId = getId(line);
-        if (existingId) {
-            // Baris sudah ada di server -> tandai untuk dihapus saat Simpan.
-            setDeletedVendorLineIds((prev) => [...prev, existingId]);
-        }
-        setVendorLines((prev) => prev.filter((l) => lineKey(l) !== lineKey(line)));
+        openConfirm({
+            title: "Hapus Vendor",
+            message: `Yakin ingin menghapus vendor "${getLabel(line.C_BPartner_ID)}" dari daftar Vendor Pricing? Perubahan baru permanen setelah disimpan.`,
+            confirmLabel: "Hapus",
+            onConfirm: () => {
+                const existingId = getId(line);
+                if (existingId) {
+                    // Baris sudah ada di server -> tandai untuk dihapus saat Simpan.
+                    setDeletedVendorLineIds((prev) => [...prev, existingId]);
+                }
+                setVendorLines((prev) => prev.filter((l) => lineKey(l) !== lineKey(line)));
+            },
+        });
     };
 
     // ─── Sales Price: pola sama seperti Vendor Pricing ─────────────────────
@@ -491,12 +517,18 @@ function ProductDetail() {
     };
 
     const handleDeletePriceLine = (line) => {
-        if (!window.confirm("Hapus baris harga ini?")) return;
-        const existingId = getId(line);
-        if (existingId) {
-            setDeletedPriceLineIds((prev) => [...prev, existingId]);
-        }
-        setPriceLines((prev) => prev.filter((l) => lineKey(l) !== lineKey(line)));
+        openConfirm({
+            title: "Hapus Sales Price",
+            message: `Yakin ingin menghapus baris harga untuk "${getLabel(line.M_PriceList_Version_ID)}"? Perubahan baru permanen setelah disimpan.`,
+            confirmLabel: "Hapus",
+            onConfirm: () => {
+                const existingId = getId(line);
+                if (existingId) {
+                    setDeletedPriceLineIds((prev) => [...prev, existingId]);
+                }
+                setPriceLines((prev) => prev.filter((l) => lineKey(l) !== lineKey(line)));
+            },
+        });
     };
 
     // ─── Gambar Produk: upload langsung ke server saat file dipilih (BEDA
@@ -531,21 +563,27 @@ function ProductDetail() {
         }
     };
 
-    const handleDeleteAllImages = async () => {
+    const handleDeleteAllImages = () => {
         // API-nya cuma menyediakan hapus SEMUA attachment sekaligus (lihat
         // catatan di deleteAllProductAttachments) — tidak ada endpoint resmi
         // untuk hapus satu gambar saja.
-        if (!window.confirm("Ini akan menghapus SEMUA gambar produk ini (tidak bisa hapus satu per satu). Lanjutkan?")) return;
-        setIsDeletingImages(true);
-        try {
-            await deleteAllProductAttachments(id);
-            await fetchProductImages();
-        } catch (err) {
-            console.error("Gagal menghapus gambar produk:", err);
-            alert(`Gagal menghapus gambar.\n${err.message || ""}`);
-        } finally {
-            setIsDeletingImages(false);
-        }
+        openConfirm({
+            title: "Hapus Semua Gambar",
+            message: "Ini akan menghapus SEMUA gambar produk ini (tidak bisa hapus satu per satu). Lanjutkan?",
+            confirmLabel: "Hapus Semua",
+            onConfirm: async () => {
+                setIsDeletingImages(true);
+                try {
+                    await deleteAllProductAttachments(id);
+                    await fetchProductImages();
+                } catch (err) {
+                    console.error("Gagal menghapus gambar produk:", err);
+                    alert(`Gagal menghapus gambar.\n${err.message || ""}`);
+                } finally {
+                    setIsDeletingImages(false);
+                }
+            },
+        });
     };
 
     return (
@@ -927,6 +965,16 @@ function ProductDetail() {
                 isOpen={successModal.isOpen}
                 message={successModal.message}
                 onClose={() => setSuccessModal({ isOpen: false, message: "" })}
+            />
+
+            <ConfirmModal
+                isOpen={confirmModal.isOpen}
+                title={confirmModal.title}
+                message={confirmModal.message}
+                confirmLabel={confirmModal.confirmLabel}
+                danger={confirmModal.danger}
+                onConfirm={handleConfirmModalConfirm}
+                onCancel={closeConfirm}
             />
         </div>
     );
