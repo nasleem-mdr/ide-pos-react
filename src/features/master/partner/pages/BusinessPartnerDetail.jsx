@@ -1,7 +1,7 @@
 // src/pages/BusinessPartnerDetail.jsx
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import Select, { AsyncSelect } from 'react-select';
+import AsyncSelect from 'react-select/async';
 import { idempiereApi } from '@/api/idempiereApi';
 import useBusinessPartnerDetailSubmit, { parseIdempiereError } from '@/features/master/partner/hooks/useBusinessPartnerDetailSubmit';
 import SuccessModal from '@/features/master/product/components/SuccessModal';
@@ -176,18 +176,18 @@ function BusinessPartnerDetail() {
     }, [isNew]);
 
     // ─── FETCH: opsi Country ($top=500 agar semua negara dari A-Z terangkut) ─
-    // const fetchCountries = useCallback(async () => {
-    //     try {
-    //         // Coba gunakan limit=500 alih-alih $top=500
-    //         const data = await idempiereApi(
-    //             `/models/c_country?$filter=IsActive eq true&$select=Name,CountryCode&$orderby=Name&limit=500`
-    //         );
-    //         setCountries(data.records || []);
-    //     } catch (err) {
-    //         console.error("Gagal mengambil Country:", err);
-    //         setCountries([]);
-    //     }
-    // }, []);
+     const fetchCountries = useCallback(async () => {
+        try {
+            // Coba gunakan limit=500 alih-alih $top=500
+            const data = await idempiereApi(
+                `/models/c_country?$filter=IsActive eq true&$select=Name,CountryCode&$orderby=Name&limit=500`
+            );
+            setCountries(data.records || []);
+        } catch (err) {
+            console.error("Gagal mengambil Country:", err);
+            setCountries([]);
+        }
+    }, []);
     useEffect(() => {
         fetchBpartner();
         fetchLocationLines();
