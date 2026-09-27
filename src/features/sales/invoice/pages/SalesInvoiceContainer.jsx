@@ -86,6 +86,15 @@ const SalesInvoiceContainer = () => {
   const [loadingEditInvoice, setLoadingEditInvoice] = useState(false);
 
   const { products, loading: productsLoading, fetchProducts, search, searchValue, setSearchValue } = useSalesProductSearch();
+
+  // ── Override QtyOnHand grid dengan hasil yang BOM-Phantom-aware ─────────
+  // useSalesProductSearch tidak tahu soal Phantom/BOM, jadi field QtyOnHand
+  // bawaannya salah untuk produk phantom (0 / negatif). Di sini di-override
+  // dengan angka yang benar, pola sama seperti `resolveProducts` di
+  // SalesOrderContainer — non-Phantom tetap dihitung ulang juga (hasilnya
+  // konsisten, karena basisnya sama-sama M_Storage) supaya satu sumber
+  // kebenaran, tidak campur dua cara hitung berbeda.
+  const [productsEnriched, setProductsEnriched] = useState([]);
   const {
     cart, addItem, addItems, removeItem, updateQty, updatePrice, updateUom, clearCart,
     customer, setCustomer, totalItems, totalAmount, updateDescription, updateDateService,
@@ -340,6 +349,36 @@ useEffect(() => {
       return new Map();
     }
   };
+
+  // Enrich SELURUH grid (bukan cuma produk yang dibuka detailnya) supaya
+  // kartu produk menampilkan Stok yang benar, termasuk hasil derivasi BOM
+  // untuk produk Phantom — sama seperti yang dilihat user di SalesOrderContainer.
+  useEffect(() => {
+    let cancelled = false;
+    const enrich = async () => {
+      if (!products.length) { setProductsEnriched([]); return; }
+      setProductsEnriched(products); // tampilkan grid dulu tanpa nunggu enrichment, hindari kedip kosong
+      try {
+        const ids = products.map(p => p.M_Product_ID).filter(Boolean);
+        const phantomMap = await fetchIsPhantomMap(ids);
+        const stockInput = ids.map(id => ({ id, isPhantom: phantomMap.get(id) ?? false }));
+        const qtyMap = warehouseId ? await fetchQtyOnHandBatch(stockInput) : new Map();
+        if (cancelled) return;
+        setProductsEnriched(products.map(p => ({
+          ...p,
+          IsPhantom:  phantomMap.get(p.M_Product_ID) ?? false,
+          QtyOnHand:  qtyMap.get(p.M_Product_ID) ?? 0,
+        })));
+      } catch (err) {
+        if (err?.name === 'AbortError') return;
+        console.error('Gagal enrich stok/phantom grid produk:', err.message);
+        if (!cancelled) setProductsEnriched(products);
+      }
+    };
+    enrich();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [products, warehouseId]);
 
   const openProductDetail = (product) => {
     setSelectedProduct(product);
@@ -749,7 +788,7 @@ useEffect(() => {
                 <div style={{ fontSize: '32px', marginBottom: '10px' }}>⏳</div>
                 <p style={{ margin: 0 }}>Memuat produk...</p>
               </div>
-            ) : products.length === 0 ? (
+            ) : productsEnriched.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '48px 0', color: COLOR.textLt }}>
                 <div style={{ fontSize: '40px', marginBottom: '10px' }}>🧾</div>
                 <p style={{ margin: 0 }}>Tidak ada produk ditemukan.</p>
@@ -757,14 +796,14 @@ useEffect(() => {
             ) : (
               <>
                 <div style={{ fontSize: '12px', color: COLOR.textLt, marginBottom: '8px' }}>
-                  {products.length} produk ditemukan
+                  {productsEnriched.length} produk ditemukan
                 </div>
                 <div style={{
                   display: 'grid',
                   gridTemplateColumns: isDesktop ? 'repeat(auto-fill, minmax(170px, 1fr))' : 'repeat(2, 1fr)',
                   gap: '10px',
                 }}>
-                  {products.map((p, idx) => (
+                  {productsEnriched.map((p, idx) => (
                     <ProductCard key={`${p.M_Product_ID}-${idx}`} product={p} onClick={openProductDetail} />
                   ))}
                 </div>
