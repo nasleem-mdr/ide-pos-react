@@ -394,7 +394,7 @@ const POSContainer = () => {
                 { signal }
             ),
             idempiereApi(
-                `/models/m_product?$select=M_Product_ID,Name,Value,UPC,C_UOM_ID,M_Product_Category_ID,ProductType` +
+                `/models/m_product?$select=M_Product_ID,Name,Value,UPC,C_UOM_ID,M_Product_Category_ID,ProductType,IsPhantom` +
                 `&$filter=${productFilter}&$top=${top}&$skip=${skip}`,
                 { signal }
             ),
@@ -417,8 +417,14 @@ const POSContainer = () => {
                 if (pid != null) priceMap.set(pid, p.PriceStd);
             });
 
-        const productIds   = [...relevantIds];
-        const qtyOnHandMap = await fetchQtyOnHandBatch(productIds, config);
+        // Kirim juga flag IsPhantom per produk — fetchQtyOnHandBatch yang
+        // menentukan apakah stoknya diambil langsung dari M_Storage atau
+        // diturunkan dari component BOM-nya (lihat catatan di fungsi itu).
+        const productsInfo = productRecords.map(p => ({
+            id:        p.M_Product_ID?.id ?? p.M_Product_ID ?? p.id,
+            isPhantom: p.IsPhantom === true || p.IsPhantom === 'Y',
+        }));
+        const qtyOnHandMap = await fetchQtyOnHandBatch(productsInfo, config);
 
         const list = productRecords.map((p) => {
             const pId  = p.M_Product_ID?.id ?? p.M_Product_ID ?? p.id;
@@ -443,6 +449,7 @@ const POSContainer = () => {
                     name: p.M_Product_Category_ID?.Name || p.M_Product_Category_ID?.identifier || 'N/A',
                 },
                 ProductType:  p.ProductType?.id ?? p.ProductType ?? null,
+                IsPhantom:    p.IsPhantom === true || p.IsPhantom === 'Y',
                 QtyOnHand:    qtyOnHandMap.get(pId) ?? 0,
             };
         }).filter(Boolean);
@@ -577,11 +584,35 @@ const POSContainer = () => {
         return options;
     };
 
-    // ─── 3b. Fetch QtyOnHand dari M_StorageOnHand ────────────────────────────
-    const fetchQtyOnHandBatch = async (productIds, config) => {
+    // ─── 3b. Fetch QtyOnHand dari M_StorageOnHand (dengan dukungan BOM Phantom) ──
+    // Produk BOM Phantom (M_Product.IsPhantom = true) TIDAK PERNAH punya baris
+    // M_Storage sendiri — di window iDempiere, Qty-nya otomatis diturunkan dari
+    // stok component BOM-nya (M_Product_BOM: M_ProductBOM_ID = component,
+    // BOMQty = kebutuhan component per 1 unit produk phantom). Kita tiru
+    // logika itu di sini: floor(stokComponent / BOMQty), diambil yang PALING
+    // KECIL kalau component-nya lebih dari satu baris (standar availability
+    // check BOM).
+    //
+    // `productsInput` boleh array of plain id (angka) — dianggap semua bukan
+    // Phantom, supaya tetap kompatibel dengan pemanggilan lama — ATAU array
+    // of { id, isPhantom }.
+    //
+    // CATATAN: nama model REST `m_product_bom` dan field `M_ProductBOM_ID` /
+    // `BOMQty` mengikuti konvensi penamaan tabel standar iDempiere
+    // (M_Product_BOM), belum saya verifikasi langsung ke instance Anda. Kalau
+    // ternyata REST-nya menolak dengan pesan "X is not a valid column/model"
+    // (persis seperti kasus OpenAmt kemarin), kabari saya error persisnya.
+    const fetchQtyOnHandBatch = async (productsInput, config) => {
         const cfg         = config || posConfig;
         const warehouseId = cfg?.M_Warehouse_ID?.id ?? cfg?.M_Warehouse_ID;
+
+        const normalized = (productsInput || []).map(p =>
+            (typeof p === 'object' && p !== null) ? p : { id: p, isPhantom: false }
+        );
+        const productIds = normalized.map(p => p.id).filter(Boolean);
         if (!warehouseId || productIds.length === 0) return new Map();
+
+        const phantomEntries = normalized.filter(p => p.isPhantom && p.id);
 
         try {
             const locatorRes = await idempiereApi(
@@ -591,9 +622,37 @@ const POSContainer = () => {
                 .map(l => l.id ?? l.M_Locator_ID)
                 .filter(Boolean);
             if (locatorIds.length === 0) return new Map();
-
-            const productOrClause = productIds.map(pid => `M_Product_ID eq ${pid}`).join(' or ');
             const locatorOrClause = locatorIds.map(lid => `M_Locator_ID eq ${lid}`).join(' or ');
+
+            // ── Ambil baris BOM untuk semua produk Phantom di batch ini ──────
+            let phantomBomMap = new Map(); // phantomId -> [{ componentId, bomQty }]
+            let componentIds  = [];
+
+            if (phantomEntries.length > 0) {
+                const bomFilter = phantomEntries.map(p => `M_Product_ID eq ${p.id}`).join(' or ');
+                try {
+                    const bomRes = await idempiereApi(
+                        `/models/m_product_bom?$filter=(${bomFilter}) and IsActive eq true` +
+                        `&$select=M_Product_ID,M_ProductBOM_ID,BOMQty`
+                    );
+                    (Array.isArray(bomRes.records) ? bomRes.records : []).forEach(line => {
+                        const parentId    = line.M_Product_ID?.id ?? line.M_Product_ID;
+                        const componentId = line.M_ProductBOM_ID?.id ?? line.M_ProductBOM_ID;
+                        const bomQty      = parseFloat(line.BOMQty || 1);
+                        if (!parentId || !componentId) return;
+                        if (!phantomBomMap.has(parentId)) phantomBomMap.set(parentId, []);
+                        phantomBomMap.get(parentId).push({ componentId, bomQty });
+                        componentIds.push(componentId);
+                    });
+                } catch (err) {
+                    console.warn("Gagal fetch M_Product_BOM untuk produk Phantom:", err.message);
+                }
+            }
+
+            // Stok component BOM bisa saja produk yang TIDAK ada di daftar
+            // productIds asli (mis. tidak tampil di grid halaman ini) — gabung.
+            const allIds = [...new Set([...productIds, ...componentIds])];
+            const productOrClause = allIds.map(pid => `M_Product_ID eq ${pid}`).join(' or ');
             const filter = `(${locatorOrClause}) and IsActive eq true and (${productOrClause})`;
 
             const res = await idempiereApi(
@@ -604,6 +663,17 @@ const POSContainer = () => {
                 const pid = r.M_Product_ID?.id ?? r.M_Product_ID;
                 map.set(pid, (map.get(pid) ?? 0) + parseFloat(r.QtyOnHand || 0));
             });
+
+            // ── Override Qty produk Phantom: MIN dari floor(stokComponent / BOMQty) ──
+            phantomBomMap.forEach((lines, phantomId) => {
+                const derivedQty = lines.reduce((min, { componentId, bomQty }) => {
+                    const componentStock = map.get(componentId) ?? 0;
+                    const possibleQty = bomQty > 0 ? Math.floor(componentStock / bomQty) : 0;
+                    return Math.min(min, possibleQty);
+                }, Infinity);
+                map.set(phantomId, derivedQty === Infinity ? 0 : derivedQty);
+            });
+
             return map;
         } catch (err) {
             if (err.name === 'AbortError') return new Map();
@@ -620,7 +690,8 @@ const POSContainer = () => {
 
         if (!isService) {
             const productId = product.M_Product_ID?.id ?? product.M_Product_ID;
-            const stockMap = await fetchQtyOnHandBatch([productId]);
+            const isPhantom = product.IsPhantom === true || product.IsPhantom === 'Y';
+            const stockMap = await fetchQtyOnHandBatch([{ id: productId, isPhantom }]);
             qtyOnHand = stockMap.get(productId) ?? 0;
 
             if (qtyOnHand <= 0) {

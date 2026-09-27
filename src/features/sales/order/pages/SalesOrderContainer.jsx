@@ -318,7 +318,7 @@ const SalesOrderContainer = () => {
 
         const safeBarcode = barcode.replace(/'/g, "''").toUpperCase();
         const productRes = await idempiereApi(
-            `/models/m_product?$select=M_Product_ID,Name,Value,UPC,ProductType,C_UOM_ID` +
+            `/models/m_product?$select=M_Product_ID,Name,Value,UPC,ProductType,C_UOM_ID,IsPhantom` +
             `&$filter=IsSold eq true and IsActive eq true and ` +
             `(toupper(Value) eq '${safeBarcode}' or toupper(UPC) eq '${safeBarcode}')&$top=1`
         );
@@ -339,6 +339,9 @@ const SalesOrderContainer = () => {
             PriceActual: priceRec?.PriceStd ?? 0,
             basePrice: priceRec?.PriceStd ?? 0,
             ProductType: productRec.ProductType?.id ?? productRec.ProductType ?? null,
+            // Dibutuhkan addToCart untuk re-check stok yang benar (BOM Phantom
+            // tidak boleh dicek lewat M_Storage langsung — lihat fetchQtyOnHandBatch).
+            IsPhantom: productRec.IsPhantom === true || productRec.IsPhantom === 'Y',
             defaultUOM: {
                 id: productRec.C_UOM_ID?.id ?? productRec.C_UOM_ID,
                 name: productRec.C_UOM_ID?.Name || productRec.C_UOM_ID?.identifier || 'EA',
@@ -378,7 +381,7 @@ const SalesOrderContainer = () => {
     const resolveProducts = async (productFilter, versionId, signal, top = 20, skip = 0) => {
         const [priceData, productData] = await Promise.all([
             idempiereApi(`/models/m_productprice?$filter=M_PriceList_Version_ID eq ${versionId}&$select=M_Product_ID,PriceStd`, { signal }),
-            idempiereApi(`/models/m_product?$select=M_Product_ID,Name,Value,UPC,C_UOM_ID,M_Product_Category_ID,ProductType&$filter=${productFilter}&$top=${top}&$skip=${skip}`, { signal }),
+            idempiereApi(`/models/m_product?$select=M_Product_ID,Name,Value,UPC,C_UOM_ID,M_Product_Category_ID,ProductType,IsPhantom&$filter=${productFilter}&$top=${top}&$skip=${skip}`, { signal }),
         ]);
 
         const productRecords = Array.isArray(productData.records) ? productData.records : productData.records ? [productData.records] : [];
@@ -391,8 +394,14 @@ const SalesOrderContainer = () => {
             if (pid != null) priceMap.set(pid, p.PriceStd);
         });
 
-        const productIds   = [...relevantIds];
-        const qtyOnHandMap = await fetchQtyOnHandBatch(productIds);
+        // Kirim juga flag IsPhantom — fetchQtyOnHandBatch yang menentukan
+        // apakah stoknya diambil langsung dari M_Storage atau diturunkan dari
+        // component BOM-nya (lihat catatan di fungsi itu).
+        const productsInfo = productRecords.map(p => ({
+            id:        p.M_Product_ID?.id ?? p.M_Product_ID ?? p.id,
+            isPhantom: p.IsPhantom === true || p.IsPhantom === 'Y',
+        }));
+        const qtyOnHandMap = await fetchQtyOnHandBatch(productsInfo);
 
         const list = productRecords.map((p) => {
             const pId  = p.M_Product_ID?.id ?? p.M_Product_ID ?? p.id;
@@ -405,6 +414,7 @@ const SalesOrderContainer = () => {
                 defaultUOM: { id: p.C_UOM_ID?.id ?? p.C_UOM_ID, name: uomName, multiplyRate: 1 },
                 ProductCategory: { id: p.M_Product_Category_ID?.id ?? p.M_Product_Category_ID, name: p.M_Product_Category_ID?.Name || 'N/A' },
                 ProductType: p.ProductType?.id ?? p.ProductType ?? null,
+                IsPhantom: p.IsPhantom === true || p.IsPhantom === 'Y',
                 QtyOnHand: qtyOnHandMap.get(pId) ?? 0,
             };
         }).filter(Boolean);
@@ -499,16 +509,54 @@ const SalesOrderContainer = () => {
         return options;
     };
 
-    const fetchQtyOnHandBatch = async (productIds) => {
+    // Produk BOM Phantom (M_Product.IsPhantom = true) TIDAK PERNAH punya baris
+    // M_Storage sendiri — stoknya diturunkan dari stok component BOM-nya
+    // (M_Product_BOM: M_ProductBOM_ID = component, BOMQty = kebutuhan
+    // component per 1 unit produk phantom), sama seperti window iDempiere.
+    // `productsInput` boleh array of id angka biasa (dianggap non-Phantom,
+    // kompatibel dengan pemanggilan lama) atau array of { id, isPhantom }.
+    const fetchQtyOnHandBatch = async (productsInput) => {
         const warehouseId = warehouseInfo?.id;
+        const normalized = (productsInput || []).map(p =>
+            (typeof p === 'object' && p !== null) ? p : { id: p, isPhantom: false }
+        );
+        const productIds = normalized.map(p => p.id).filter(Boolean);
         if (!warehouseId || productIds.length === 0) return new Map();
+
+        const phantomEntries = normalized.filter(p => p.isPhantom && p.id);
+
         try {
             const locatorRes = await idempiereApi(`/models/m_locator?$filter=M_Warehouse_ID eq ${warehouseId} and IsActive eq true&$select=M_Locator_ID`);
             const locatorIds = (locatorRes.records || []).map(l => l.id ?? l.M_Locator_ID).filter(Boolean);
             if (locatorIds.length === 0) return new Map();
-
-            const productOrClause = productIds.map(pid => `M_Product_ID eq ${pid}`).join(' or ');
             const locatorOrClause = locatorIds.map(lid => `M_Locator_ID eq ${lid}`).join(' or ');
+
+            let phantomBomMap = new Map(); // phantomId -> [{ componentId, bomQty }]
+            let componentIds  = [];
+
+            if (phantomEntries.length > 0) {
+                const bomFilter = phantomEntries.map(p => `M_Product_ID eq ${p.id}`).join(' or ');
+                try {
+                    const bomRes = await idempiereApi(
+                        `/models/m_product_bom?$filter=(${bomFilter}) and IsActive eq true` +
+                        `&$select=M_Product_ID,M_ProductBOM_ID,BOMQty`
+                    );
+                    (Array.isArray(bomRes.records) ? bomRes.records : []).forEach(line => {
+                        const parentId    = line.M_Product_ID?.id ?? line.M_Product_ID;
+                        const componentId = line.M_ProductBOM_ID?.id ?? line.M_ProductBOM_ID;
+                        const bomQty      = parseFloat(line.BOMQty || 1);
+                        if (!parentId || !componentId) return;
+                        if (!phantomBomMap.has(parentId)) phantomBomMap.set(parentId, []);
+                        phantomBomMap.get(parentId).push({ componentId, bomQty });
+                        componentIds.push(componentId);
+                    });
+                } catch (err) {
+                    console.warn("Gagal fetch M_Product_BOM untuk produk Phantom:", err.message);
+                }
+            }
+
+            const allIds = [...new Set([...productIds, ...componentIds])];
+            const productOrClause = allIds.map(pid => `M_Product_ID eq ${pid}`).join(' or ');
             const filter = `(${locatorOrClause}) and IsActive eq true and (${productOrClause})`;
             const res = await idempiereApi(`/models/m_storage?$filter=${filter}&$select=M_Product_ID,QtyOnHand`);
             const map = new Map();
@@ -516,6 +564,16 @@ const SalesOrderContainer = () => {
                 const pid = r.M_Product_ID?.id ?? r.M_Product_ID;
                 map.set(pid, (map.get(pid) ?? 0) + parseFloat(r.QtyOnHand || 0));
             });
+
+            phantomBomMap.forEach((lines, phantomId) => {
+                const derivedQty = lines.reduce((min, { componentId, bomQty }) => {
+                    const componentStock = map.get(componentId) ?? 0;
+                    const possibleQty = bomQty > 0 ? Math.floor(componentStock / bomQty) : 0;
+                    return Math.min(min, possibleQty);
+                }, Infinity);
+                map.set(phantomId, derivedQty === Infinity ? 0 : derivedQty);
+            });
+
             return map;
         } catch (err) {
             if (err.name === 'AbortError') return new Map();
@@ -531,7 +589,8 @@ const SalesOrderContainer = () => {
 
         if (!isService) {
             const productId = product.M_Product_ID?.id ?? product.M_Product_ID;
-            const stockMap = await fetchQtyOnHandBatch([productId]);
+            const isPhantom = product.IsPhantom === true || product.IsPhantom === 'Y';
+            const stockMap = await fetchQtyOnHandBatch([{ id: productId, isPhantom }]);
             qtyOnHand = stockMap.get(productId) ?? 0;
             if (qtyOnHand <= 0) {
                 triggerAlert(`Stok produk "${product.Name}" habis (QtyOnHand = ${qtyOnHand}).`, "Stok Habis");

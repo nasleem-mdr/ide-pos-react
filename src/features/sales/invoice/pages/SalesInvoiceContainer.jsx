@@ -73,6 +73,11 @@ const SalesInvoiceContainer = () => {
   const searchRef = useRef(null);
   const customerBoxRef = useRef(null);
   const alert = (message, title = 'Perhatian') => setDialog({ isOpen: true, title, message });
+
+  // ── Stok & BOM Phantom (pola sama seperti SalesOrderContainer) ──────────
+  // Sales Invoice tidak punya selector Warehouse sendiri di UI, jadi dipakai
+  // Warehouse default dari sesi login (getLoginInfo) untuk cek stok.
+  const [warehouseId, setWarehouseId] = useState(null);
   
   const location = useLocation(); // ⬅️ tambahkan setelah navigate
   const [editInvoiceId, setEditInvoiceId]         = useState(null);
@@ -110,6 +115,8 @@ const SalesInvoiceContainer = () => {
         } catch (err) {
           alert(err.message, 'Document Type Tidak Ditemukan');
         }
+
+        setWarehouseId(info.warehouseId ?? null);
 
         await fetchProducts('');
       } catch (err) {
@@ -240,10 +247,140 @@ useEffect(() => {
   }
   // eslint-disable-next-line react-hooks/exhaustive-deps
 }, [bankAccounts]);
-const openProductDetail = (product) => { setSelectedProduct(product); setDetailOpen(true); };
+  // useSalesProductSearch tidak mengembalikan IsPhantom, jadi flag-nya
+  // diresolve terpisah di sini per produk yang benar-benar dibuka detailnya
+  // (bukan untuk semua item grid sekaligus, biar hemat request).
+  const fetchIsPhantomMap = async (productIds) => {
+    const ids = (productIds || []).filter(Boolean);
+    if (ids.length === 0) return new Map();
+    try {
+      const filter = ids.map(id => `M_Product_ID eq ${id}`).join(' or ');
+      const res = await idempiereApi(`/models/m_product?$filter=${filter}&$select=M_Product_ID,IsPhantom`);
+      const map = new Map();
+      (Array.isArray(res.records) ? res.records : []).forEach(r => {
+        const pid = r.M_Product_ID?.id ?? r.M_Product_ID ?? r.id;
+        map.set(pid, r.IsPhantom === true || r.IsPhantom === 'Y');
+      });
+      return map;
+    } catch (err) {
+      console.error('Gagal fetch IsPhantom produk:', err.message);
+      return new Map();
+    }
+  };
+
+  // Produk BOM Phantom (M_Product.IsPhantom = true) TIDAK PERNAH punya baris
+  // M_Storage sendiri — stoknya diturunkan dari stok component BOM-nya
+  // (M_Product_BOM: M_ProductBOM_ID = component, BOMQty = kebutuhan
+  // component per 1 unit produk phantom), sama seperti window iDempiere dan
+  // pola yang sama dipakai di SalesOrderContainer.
+  // `productsInput` boleh array of id angka biasa (dianggap non-Phantom,
+  // kompatibel dengan pemanggilan lama) atau array of { id, isPhantom }.
+  const fetchQtyOnHandBatch = async (productsInput) => {
+    const normalized = (productsInput || []).map(p =>
+      (typeof p === 'object' && p !== null) ? p : { id: p, isPhantom: false }
+    );
+    const productIds = normalized.map(p => p.id).filter(Boolean);
+    if (!warehouseId || productIds.length === 0) return new Map();
+
+    const phantomEntries = normalized.filter(p => p.isPhantom && p.id);
+
+    try {
+      const locatorRes = await idempiereApi(`/models/m_locator?$filter=M_Warehouse_ID eq ${warehouseId} and IsActive eq true&$select=M_Locator_ID`);
+      const locatorIds = (locatorRes.records || []).map(l => l.id ?? l.M_Locator_ID).filter(Boolean);
+      if (locatorIds.length === 0) return new Map();
+      const locatorOrClause = locatorIds.map(lid => `M_Locator_ID eq ${lid}`).join(' or ');
+
+      let phantomBomMap = new Map(); // phantomId -> [{ componentId, bomQty }]
+      let componentIds  = [];
+
+      if (phantomEntries.length > 0) {
+        const bomFilter = phantomEntries.map(p => `M_Product_ID eq ${p.id}`).join(' or ');
+        try {
+          const bomRes = await idempiereApi(
+            `/models/m_product_bom?$filter=(${bomFilter}) and IsActive eq true` +
+            `&$select=M_Product_ID,M_ProductBOM_ID,BOMQty`
+          );
+          (Array.isArray(bomRes.records) ? bomRes.records : []).forEach(line => {
+            const parentId    = line.M_Product_ID?.id ?? line.M_Product_ID;
+            const componentId = line.M_ProductBOM_ID?.id ?? line.M_ProductBOM_ID;
+            const bomQty      = parseFloat(line.BOMQty || 1);
+            if (!parentId || !componentId) return;
+            if (!phantomBomMap.has(parentId)) phantomBomMap.set(parentId, []);
+            phantomBomMap.get(parentId).push({ componentId, bomQty });
+            componentIds.push(componentId);
+          });
+        } catch (err) {
+          console.warn('Gagal fetch M_Product_BOM untuk produk Phantom:', err.message);
+        }
+      }
+
+      const allIds = [...new Set([...productIds, ...componentIds])];
+      const productOrClause = allIds.map(pid => `M_Product_ID eq ${pid}`).join(' or ');
+      const filter = `(${locatorOrClause}) and IsActive eq true and (${productOrClause})`;
+      const res = await idempiereApi(`/models/m_storage?$filter=${filter}&$select=M_Product_ID,QtyOnHand`);
+      const map = new Map();
+      (res.records || []).forEach(r => {
+        const pid = r.M_Product_ID?.id ?? r.M_Product_ID;
+        map.set(pid, (map.get(pid) ?? 0) + parseFloat(r.QtyOnHand || 0));
+      });
+
+      phantomBomMap.forEach((lines, phantomId) => {
+        const derivedQty = lines.reduce((min, { componentId, bomQty }) => {
+          const componentStock = map.get(componentId) ?? 0;
+          const possibleQty = bomQty > 0 ? Math.floor(componentStock / bomQty) : 0;
+          return Math.min(min, possibleQty);
+        }, Infinity);
+        map.set(phantomId, derivedQty === Infinity ? 0 : derivedQty);
+      });
+
+      return map;
+    } catch (err) {
+      if (err.name === 'AbortError') return new Map();
+      console.error('Gagal fetch QtyOnHand batch:', err.message);
+      return new Map();
+    }
+  };
+
+  const openProductDetail = (product) => {
+    setSelectedProduct(product);
+    setDetailOpen(true);
+
+    // Resolve IsPhantom + QtyOnHand (dengan derivasi BOM kalau phantom) untuk
+    // produk yang benar-benar dibuka, secara async — sheet tetap langsung
+    // terbuka, lalu qty tersedia dipasang begitu hasilnya datang.
+    const productId = product?.M_Product_ID;
+    if (!productId) return;
+    (async () => {
+      try {
+        const phantomMap = await fetchIsPhantomMap([productId]);
+        const isPhantom = phantomMap.get(productId) ?? false;
+        const stockMap = await fetchQtyOnHandBatch([{ id: productId, isPhantom }]);
+        const qtyOnHand = stockMap.get(productId) ?? 0;
+        setSelectedProduct(prev =>
+          (prev && prev.M_Product_ID === productId)
+            ? { ...prev, IsPhantom: isPhantom, QtyOnHand: qtyOnHand }
+            : prev
+        );
+      } catch (err) {
+        console.error('Gagal resolve stok/phantom produk:', err.message);
+      }
+    })();
+  };
   const closeProductDetail = () => { setDetailOpen(false); setSelectedProduct(null); };
 
   const handleConfirmAddToCart = (product, qty, chosenUom) => {
+    const qtyOnHand = product.QtyOnHand;
+    if (warehouseId && qtyOnHand !== undefined && qtyOnHand !== null) {
+      if (qtyOnHand <= 0) {
+        alert(`Stok produk "${product.Name}" habis (QtyOnHand = ${qtyOnHand}).`, 'Stok Habis');
+        return;
+      }
+      if (qty > qtyOnHand) {
+        alert(`Qty melebihi stok tersedia untuk "${product.Name}" (Stok: ${qtyOnHand}).`, 'Stok Tidak Cukup');
+        return;
+      }
+    }
+
     const uom = chosenUom || { C_UOM_ID: product.C_UOM_ID, Name: product.UomName, multiplyRate: 1 };
     addItem({
       M_Product_ID: product.M_Product_ID,
