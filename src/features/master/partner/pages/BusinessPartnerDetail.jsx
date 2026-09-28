@@ -1,7 +1,7 @@
 // src/pages/BusinessPartnerDetail.jsx
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import Select, { AsyncSelect } from 'react-select';
+import AsyncSelect from 'react-select/async';
 import { idempiereApi } from '@/api/idempiereApi';
 import useBusinessPartnerDetailSubmit, { parseIdempiereError } from '@/features/master/partner/hooks/useBusinessPartnerDetailSubmit';
 import SuccessModal from '@/features/master/product/components/SuccessModal';

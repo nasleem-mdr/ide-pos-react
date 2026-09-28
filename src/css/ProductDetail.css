@@ -439,21 +439,42 @@
            padding: 16px;
        }
    }
-   .checkbox-row {
+  /* ─── Flexible Grid System untuk Checkbox Group ───────────────────────── */
+.checkbox-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr); /* Membagi 2 kolom sejajar simetris */
+    gap: 12px 16px;
+    margin: 16px 0 8px 0;
+    padding: 12px;
+    background: var(--pd-bg);
+    border: 1px solid var(--pd-border);
+    border-radius: var(--pd-radius-sm);
+}
+
+.checkbox-item {
     display: flex;
-    gap: 24px; /* Jarak antara isPurchased dan isSold */
     align-items: center;
-    margin: 10px 0;
-  }
-  
-  .checkbox-item {
-    display: flex;
-    align-items: center;
-    gap: 8px; /* Jarak antara label dan checkbox/teks */
-  }
-  
-  /* Memastikan label di dalam checkbox-item tidak memakan baris penuh */
-  .checkbox-item label {
-    margin-bottom: 0;
+    justify-content: space-between; /* Menjaga label di kiri dan checkbox/teks di kanan */
+    gap: 8px;
+}
+
+.checkbox-item label {
+    margin-top: 0 !important; /* Timpa margin-top bawaan .info-group label */
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--pd-text);
     cursor: pointer;
-  }
+    white-space: nowrap;
+}
+
+.checkbox-item span {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--pd-navy);
+}
+
+/* Reset margin-top bawaan input checkbox agar sejajar tegak lurus */
+.info-group .checkbox-item input[type="checkbox"] {
+    margin-top: 0;
+    cursor: pointer;
+}

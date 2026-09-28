@@ -7,15 +7,19 @@ import {
     uploadProductAttachment,
     deleteAllProductAttachments,
 } from '@/api/idempiereApi';
-import useProductDetailSubmit, { parseIdempiereError, VENDOR_PRICING_TABLE } from '@/features/master/product/hooks/useProductDetailSubmit';
+import useProductDetailSubmit, {
+    parseIdempiereError,
+    VENDOR_PRICING_TABLE,
+    BOM_HEADER_TABLE,
+    BOM_LINE_TABLE,
+} from '@/features/master/product/hooks/useProductDetailSubmit';
 import SuccessModal from '@/features/master/product/components/SuccessModal';
 import ConfirmModal from '@/features/master/product/components/ConfirmModal';
 import '@/css/ProductDetail.css';
 
 // ─── Opsi RoundingType ────────────────────────────────────────────────────
 // Value pakai ANGKA MURNI (bukan string) karena dipakai langsung untuk
-// operasi matematika pembulatan di plugin autoprice (mis. Math.round(price
-// / value) * value, dengan 0 berarti tanpa pembulatan).
+// operasi matematika pembulatan di plugin autoprice.
 // ⚠️ SESUAIKAN dengan AD_Ref_List yang benar-benar kamu buat di iDempiere.
 const ROUNDING_TYPE_OPTIONS = [
     { value: 0, label: "Tanpa Pembulatan" },
@@ -27,22 +31,38 @@ const ROUNDING_TYPE_OPTIONS = [
     { value: 10000, label: "Bulatkan ke 10.000 terdekat" },
 ];
 
+// ─── Opsi List untuk header & baris BOM (PP_Product_BOM / BOMLine) ──────
+// ⚠️ SESUAIKAN dengan AD_Ref_List di instance-mu (PP_BOMType, PP_BOMUse,
+// PP_ComponentType). Value-nya kode List, bukan label.
+const BOM_TYPE_OPTIONS = [
+    { value: "A", label: "Current Active" },
+    { value: "O", label: "Make-to-Order" },
+    { value: "P", label: "Previous" },
+    { value: "S", label: "Previous, Spare" },
+];
+const BOM_USE_OPTIONS = [
+    { value: "A", label: "Master" },
+    { value: "M", label: "Manufacturing" },
+    { value: "E", label: "Engineering" },
+];
+const COMPONENT_TYPE_OPTIONS = [
+    { value: "CO", label: "Component" },
+    { value: "PH", label: "Phantom" },
+    { value: "PK", label: "Packing" },
+    { value: "BY", label: "By-Product" },
+    { value: "CP", label: "Co-Product" },
+];
+
+const EMPTY_BOM_HEADER = { id: null, Value: "", Name: "", BOMType: "A", BOMUse: "A", _dirty: false };
+
 // Helper generik untuk baca id & label dari field referensi iDempiere REST
-// (mis. { id: 1000000, identifier: "EACH" }). Dipindah ke module scope
-// supaya bisa dipakai di dalam fetchProduct/fetchXxx (sebelum early return),
-// dan juga dipakai untuk baris Vendor Pricing/Sales Price yang DIBUAT SECARA
-// LOKAL (belum pernah ke server) — makanya bentuknya sengaja dibuat mirip
-// { id, identifier } supaya getId/getLabel tetap konsisten untuk baris baru
-// maupun baris hasil fetch.
-//
-// FIX: beberapa tabel (terutama M_Product_PO / Vendor Pricing) ternyata
-// mengembalikan primary key pakai nama kolom aslinya (mis. "M_Product_PO_ID"),
-// BUKAN "id" generik seperti tabel lain — makanya getId() lama pulang
-// `undefined` untuk baris-baris itu dan bikin React warning "unique key prop"
-// (semua baris jadi key={undefined}, dianggap duplikat).
+// (mis. { id: 1000000, identifier: "EACH" }). Bentuk baris yang dibuat lokal
+// sengaja dibuat mirip { id, identifier } supaya getId/getLabel konsisten
+// untuk baris baru maupun baris hasil fetch.
 const KNOWN_FK_FIELDS = new Set([
     "C_BPartner_ID", "M_Product_ID", "M_PriceList_Version_ID",
     "M_Product_Category_ID", "C_UOM_ID", "C_TaxCategory_ID",
+    "PP_Product_BOM_ID",
 ]);
 const getId = (obj) => {
     if (obj === null || obj === undefined) return undefined;
@@ -50,21 +70,16 @@ const getId = (obj) => {
     if (obj.id?.id !== undefined) return obj.id.id;
     if (obj.id !== undefined) return obj.id;
     // Fallback: cari kolom PK asli (pola "<Table>_ID"), tapi jangan salah
-    // ambil foreign key (mis. M_Product_ID di baris Vendor Pricing).
+    // ambil foreign key.
     const pkKey = Object.keys(obj).find((k) => /_ID$/i.test(k) && !KNOWN_FK_FIELDS.has(k));
     if (pkKey) return obj[pkKey];
-    // Last resort: kalau SEMUA kolom "_ID" kebetulan ada di daftar FK yang
-    // dikenal (mis. record m_product sendiri yang PK-nya persis "M_Product_ID"),
-    // tetap ambil yang pertama daripada diam-diam pulang undefined.
     const anyIdKey = Object.keys(obj).find((k) => /_ID$/i.test(k));
     return anyIdKey ? obj[anyIdKey] : undefined;
 };
 const getLabel = (field) => (typeof field === "object" ? field?.identifier : field) || "-";
+const isYes = (v) => v === true || v === "Y";
 
-// Key stabil untuk satu baris Vendor Pricing / Sales Price, dipakai untuk
-// React `key` maupun untuk mencocokkan baris saat edit/hapus di state lokal.
-// Baris hasil fetch dari server sudah punya id asli (lewat getId), baris
-// yang baru ditambahkan di form (belum pernah ke server) pakai `_localId`.
+// Key stabil untuk satu baris (Vendor Pricing / Sales Price / BOM line).
 const lineKey = (line) => getId(line) ?? line._localId;
 
 function ProductDetail() {
@@ -73,24 +88,14 @@ function ProductDetail() {
     const isNew = !id; // Route /product-detail/new tidak punya param :id
 
     const [product, setProduct] = useState(null);
-    const [isLoading, setIsLoading] = useState(!isNew); // mode New tidak perlu loading, langsung tampil form kosong
-    const [isEditing, setIsEditing] = useState(isNew);  // mode New langsung masuk mode edit
+    const [isLoading, setIsLoading] = useState(!isNew);
+    const [isEditing, setIsEditing] = useState(isNew);
 
-    // Semua operasi simpan (create/update M_Product + baris Vendor Pricing &
-    // Sales Price) sekarang dilakukan lewat SATU fungsi di hook ini, dipanggil
-    // sekali saat tombol "Simpan"/"Buat Produk" diklik — lihat handleSaveAll.
     const { isSaving, saveProductWithLines } = useProductDetailSubmit(idempiereApi);
 
-    // Modal notifikasi sukses — dipakai bersama untuk semua aksi simpan di halaman ini
     const [successModal, setSuccessModal] = useState({ isOpen: false, message: "" });
     const showSuccess = (message) => setSuccessModal({ isOpen: true, message });
 
-    // Modal konfirmasi OK/Cancel generik — dipakai bergantian untuk 3 aksi
-    // destruktif di halaman ini (hapus baris Vendor Pricing, hapus baris
-    // Sales Price, hapus semua gambar produk). Daripada bikin 3 state
-    // terpisah kayak per-line di BusinessPartnerDetail, di sini cukup 1
-    // state generik yang nyimpen callback `onConfirm`-nya — jadi tinggal
-    // panggil `openConfirm({ ...opsi, onConfirm })` dari handler manapun.
     const [confirmModal, setConfirmModal] = useState({
         isOpen: false, title: "", message: "", confirmLabel: "Hapus", danger: true, onConfirm: null,
     });
@@ -104,26 +109,21 @@ function ProductDetail() {
         if (action) await action();
     };
 
-    // Form state untuk field utama M_Product (dipakai saat mode edit)
-    // MarkupPercent & RoundingType: field custom plugin autoprice-mu, keduanya di level Product.
-    // RoundingType disimpan sebagai NUMBER (bukan string) karena dipakai untuk operasi matematika.
-    // M_Product_Category_ID & C_UOM_ID: WAJIB (NOT NULL) di tabel m_product.
+    // Form state untuk field utama M_Product.
+    // IsStocked default true mengikuti default kolom di iDempiere.
+    // IsPhantom & IsBOMPriceOverride hanya bermakna kalau IsBOM = true.
     const [form, setForm] = useState({
         Value: "", Name: "", Description: "",
         IsPurchased: false, IsSold: false,
+        IsStocked: true, IsBOM: false, IsPhantom: false, IsBOMPriceOverride: false,
         MarkupPercent: 0, RoundingType: 0,
         M_Product_Category_ID: "", C_UOM_ID: "",
     });
 
     // ─── Vendor Pricing (M_BPartnerProduct) ─────────────────────────────────
-    // vendorLines HANYA state lokal — tambah/ubah/hapus di sini tidak
-    // langsung memanggil API. Baris yang dihapus (yang sudah punya id di
-    // server) ditampung di deletedVendorLineIds, baru dieksekusi saat
-    // handleSaveAll dipanggil.
     const [vendorLines, setVendorLines] = useState([]);
     const [deletedVendorLineIds, setDeletedVendorLineIds] = useState([]);
     const [isLoadingVendorLines, setIsLoadingVendorLines] = useState(false);
-    // Ganti dari search-input (belum jalan) ke daftar vendor untuk dropdown.
     const [vendorOptions, setVendorOptions] = useState([]);
 
     // ─── Sales Price (M_ProductPrice) ───────────────────────────────────────
@@ -132,24 +132,26 @@ function ProductDetail() {
     const [isLoadingPriceLines, setIsLoadingPriceLines] = useState(false);
     const [priceListVersions, setPriceListVersions] = useState([]);
 
+    // ─── Bill of Materials (PP_Product_BOM + PP_Product_BOMLine) ────────────
+    // Sama seperti Vendor Pricing: murni state lokal sampai tombol Simpan.
+    const [bomHeader, setBomHeader] = useState(EMPTY_BOM_HEADER);
+    const [bomLines, setBomLines] = useState([]);
+    const [deletedBomLineIds, setDeletedBomLineIds] = useState([]);
+    const [isLoadingBom, setIsLoadingBom] = useState(false);
+    const [bomSearch, setBomSearch] = useState("");
+    const [bomSearchResults, setBomSearchResults] = useState([]);
+    const [bomSearching, setBomSearching] = useState(false);
+
     // ─── Opsi untuk field mandatory M_Product (Product Category & UOM) ─────
     const [productCategories, setProductCategories] = useState([]);
     const [uoms, setUoms] = useState([]);
 
     // ─── Gambar Produk (AD_Attachment) ──────────────────────────────────────
-    // Beda dari Vendor Pricing/Sales Price: attachment butuh M_Product_ID yang
-    // SUDAH ADA di server (tidak bisa ditumpuk sebagai state lokal lalu dikirim
-    // bareng saat Simpan seperti baris vendor/harga), jadi upload di mode New
-    // baru bisa dilakukan SETELAH produk pertama kali disimpan (redirect ke
-    // /product-detail/edit/:id — lihat handleSaveAll).
-    const [productImages, setProductImages] = useState([]); // [{ url, name, index }]
+    const [productImages, setProductImages] = useState([]);
     const [isLoadingImages, setIsLoadingImages] = useState(false);
     const [isUploadingImage, setIsUploadingImage] = useState(false);
     const [isDeletingImages, setIsDeletingImages] = useState(false);
     const [imageError, setImageError] = useState(null);
-    // Object URL (blob:) harus di-revoke saat tidak dipakai lagi supaya tidak
-    // memory leak. Disimpan juga di ref (bukan cuma state) supaya bisa diakses
-    // dari cleanup function saat komponen unmount.
     const productImagesRef = useRef([]);
     useEffect(() => { productImagesRef.current = productImages; }, [productImages]);
     useEffect(() => {
@@ -159,24 +161,28 @@ function ProductDetail() {
     }, []);
 
     // ─── FETCH: data utama produk ────────────────────────────────────────────
+    // $select sengaja TIDAK dipakai di sini: kolom baru (IsBOMPriceOverride
+    // dll) belum terverifikasi namanya di instance ini, dan REST menolak SELURUH
+    // request kalau ada 1 nama kolom yang salah di $select — halaman jadi
+    // "Produk tidak ditemukan". Ini fetch 1 record, jadi ambil semua kolom
+    // tidak membebani.
     const fetchProduct = useCallback(async () => {
-        if (isNew) return; // Belum ada produk untuk di-fetch di mode New
+        if (isNew) return;
         setIsLoading(true);
         try {
-            const data = await idempiereApi(
-                `/models/m_product/${id}?$select=Value,Name,Description,IsPurchased,IsSold,MarkupPercent,RoundingType,M_Product_Category_ID,C_UOM_ID`
-            );
+            const data = await idempiereApi(`/models/m_product/${id}`);
             setProduct(data);
             setForm({
                 Value: data.Value || "",
                 Name: data.Name || "",
                 Description: data.Description || "",
-                IsPurchased: data.IsPurchased === true || data.IsPurchased === "Y",
-                IsSold: data.IsSold === true || data.IsSold === "Y",
+                IsPurchased: isYes(data.IsPurchased),
+                IsSold: isYes(data.IsSold),
+                IsStocked: isYes(data.IsStocked),
+                IsBOM: isYes(data.IsBOM),
+                IsPhantom: isYes(data.IsPhantom),
+                IsBOMPriceOverride: isYes(data.IsBOMPriceOverride),
                 MarkupPercent: data.MarkupPercent ?? 0,
-                // RoundingType balik dari REST sebagai object reference
-                // ({ id, identifier, ... }) karena kolomnya List/Reference
-                // di iDempiere, BUKAN angka polos — makanya harus di-getId().
                 RoundingType: getId(data.RoundingType) ?? 0,
                 M_Product_Category_ID: getId(data.M_Product_Category_ID) ?? "",
                 C_UOM_ID: getId(data.C_UOM_ID) ?? "",
@@ -189,13 +195,8 @@ function ProductDetail() {
     }, [id, isNew]);
 
     // ─── FETCH: Vendor Pricing lines ────────────────────────────────────────
-    // FIX: nama tabel Vendor Pricing dipusatkan di VENDOR_PRICING_TABLE
-    // (lihat useProductDetailSubmit.js) — beberapa instance iDempiere
-    // masih pakai nama tabel lama "M_Product_PO", yang lain sudah di-rename
-    // ke "M_BPartnerProduct". Kalau server balas 404 "No match found for
-    // table name", tinggal ganti konstanta itu di satu tempat saja.
     const fetchVendorLines = useCallback(async () => {
-        if (isNew) return; // Tidak ada M_Product_ID untuk difilter di mode New
+        if (isNew) return;
         setIsLoadingVendorLines(true);
         try {
             const query = `/models/${VENDOR_PRICING_TABLE}?$filter=M_Product_ID eq ${id}`;
@@ -225,7 +226,46 @@ function ProductDetail() {
         }
     }, [id, isNew]);
 
-    // ─── FETCH: opsi Price List Version (untuk tambah baris harga baru) ────
+    // ─── FETCH: BOM header + baris komponen ─────────────────────────────────
+    // Ambil header BOM aktif TERBARU untuk produk ini, lalu baris-barisnya.
+    // Kalau produk belum punya BOM, state header tetap default (kosong).
+    const fetchBom = useCallback(async () => {
+        if (isNew) return;
+        setIsLoadingBom(true);
+        try {
+            const headerRes = await idempiereApi(
+                `/models/${BOM_HEADER_TABLE}?$filter=M_Product_ID eq ${id} and IsActive eq true&$orderby=Created desc&$top=1`
+            );
+            const header = (headerRes.records || [])[0];
+            if (!header) {
+                setBomHeader(EMPTY_BOM_HEADER);
+                setBomLines([]);
+                return;
+            }
+            const headerId = getId(header);
+            setBomHeader({
+                id: headerId,
+                Value: header.Value || "",
+                Name: header.Name || "",
+                BOMType: getId(header.BOMType) ?? "A",
+                BOMUse: getId(header.BOMUse) ?? "A",
+                _dirty: false,
+            });
+
+            const linesRes = await idempiereApi(
+                `/models/${BOM_LINE_TABLE}?$filter=PP_Product_BOM_ID eq ${headerId} and IsActive eq true&$orderby=Line`
+            );
+            setBomLines(linesRes.records || []);
+        } catch (err) {
+            console.error(`Gagal mengambil BOM (${BOM_HEADER_TABLE}/${BOM_LINE_TABLE}):`, err);
+            setBomHeader(EMPTY_BOM_HEADER);
+            setBomLines([]);
+        } finally {
+            setIsLoadingBom(false);
+        }
+    }, [id, isNew]);
+
+    // ─── FETCH: opsi Price List Version ─────────────────────────────────────
     const fetchPriceListVersions = useCallback(async () => {
         try {
             const data = await idempiereApi(`/models/m_pricelist_version?$filter=IsActive eq true`);
@@ -236,9 +276,6 @@ function ProductDetail() {
     }, []);
 
     // ─── FETCH: opsi vendor untuk dropdown Vendor Pricing ──────────────────
-    // Ganti dari search-input (like %25...%25, belum jalan di REST API ini)
-    // ke daftar lengkap vendor aktif — dipilih lewat <select> seperti
-    // Product Category/UOM/Price List Version, bukan diketik.
     const fetchVendorOptions = useCallback(async () => {
         try {
             const data = await idempiereApi(
@@ -257,8 +294,6 @@ function ProductDetail() {
             const data = await idempiereApi(`/models/m_product_category?$filter=IsActive eq true&$select=Name,IsDefault`);
             const records = data.records || [];
             setProductCategories(records);
-            // Mode New: langsung pilihkan default category kalau ada, biar
-            // user tidak wajib klik dulu sebelum submit pertama kali.
             if (isNew) {
                 const def = records.find((c) => c.IsDefault === true || c.IsDefault === "Y") || records[0];
                 if (def) setForm((prev) => (prev.M_Product_Category_ID ? prev : { ...prev, M_Product_Category_ID: getId(def) }));
@@ -287,12 +322,10 @@ function ProductDetail() {
 
     // ─── FETCH: gambar produk (attachment) ──────────────────────────────────
     const fetchProductImages = useCallback(async () => {
-        if (isNew) return; // Belum ada M_Product_ID untuk difilter di mode New
+        if (isNew) return;
         setIsLoadingImages(true);
         try {
             const images = await getProductImageBlobUrls(id);
-            // Revoke blob URL lama SEBELUM diganti yang baru, supaya tidak
-            // menumpuk memory leak tiap kali refetch (mis. habis upload/hapus).
             setProductImages((prev) => {
                 prev.forEach((img) => URL.revokeObjectURL(img.url));
                 return images;
@@ -308,36 +341,67 @@ function ProductDetail() {
         fetchProduct();
         fetchVendorLines();
         fetchPriceLines();
+        fetchBom();
         fetchPriceListVersions();
         fetchVendorOptions();
         fetchProductCategories();
         fetchUoms();
         fetchProductImages();
-    }, [fetchProduct, fetchVendorLines, fetchPriceLines, fetchPriceListVersions, fetchVendorOptions, fetchProductCategories, fetchUoms, fetchProductImages]);
+    }, [fetchProduct, fetchVendorLines, fetchPriceLines, fetchBom, fetchPriceListVersions, fetchVendorOptions, fetchProductCategories, fetchUoms, fetchProductImages]);
+
+    // ─── Cari produk komponen BOM (debounce) ────────────────────────────────
+    // contains() di REST API ini case-sensitive → dibungkus toupper() di
+    // kedua sisi. Hasil difilter di render: bukan produk ini sendiri, dan
+    // belum ada di daftar komponen.
+    useEffect(() => {
+        const term = bomSearch.trim();
+        if (!term) { setBomSearchResults([]); return; }
+        const timer = setTimeout(async () => {
+            setBomSearching(true);
+            try {
+                const safe = term.replace(/'/g, "''");
+                const data = await idempiereApi(
+                    `/models/m_product?$filter=IsActive eq true and ` +
+                    `(contains(toupper(Name),toupper('${safe}')) or contains(toupper(Value),toupper('${safe}')))` +
+                    `&$select=Name,Value,C_UOM_ID&$orderby=Name&$top=10`
+                );
+                setBomSearchResults(data.records || []);
+            } catch (err) {
+                console.error("Gagal mencari produk komponen BOM:", err);
+                setBomSearchResults([]);
+            } finally {
+                setBomSearching(false);
+            }
+        }, 350);
+        return () => clearTimeout(timer);
+    }, [bomSearch]);
 
     if (isLoading) return <div className="card-container detail-status">Loading detail...</div>;
     if (!isNew && !product) return <div className="card-container detail-status detail-status-empty">Produk tidak ditemukan.</div>;
 
-    // ─── Validasi field wajib M_Product (dicek sebelum kirim apa pun) ──────
+    // ─── Validasi field wajib (dicek sebelum kirim apa pun) ────────────────
     const validateProductForm = () => {
         const missing = [];
         if (!form.Value?.trim()) missing.push("Search Key");
         if (!form.Name?.trim()) missing.push("Name");
         if (!form.M_Product_Category_ID) missing.push("Product Category");
         if (!form.C_UOM_ID) missing.push("UOM");
+        if (form.IsBOM) {
+            if (form.IsPhantom && bomLines.length === 0) {
+                missing.push("Minimal 1 komponen BOM (produk Phantom tanpa komponen tidak punya stok sama sekali)");
+            }
+            if (bomLines.some((l) => !(parseFloat(l.QtyBOM) > 0))) {
+                missing.push("Qty BOM setiap komponen harus lebih dari 0");
+            }
+        }
         return missing;
     };
 
-    // ─── SAVE (satu pintu): M_Product + Vendor Pricing + Sales Price ───────
-    // Sebelumnya ini 2 langkah manual dari sisi user (simpan produk dulu,
-    // baru simpan/tambah/hapus tiap baris vendor & harga satu-satu). Sekarang
-    // semua baris yang sudah diubah/ditambah/dihapus di state lokal dikirim
-    // sekaligus ke hook, yang akan urus urutannya: simpan M_Product dulu →
-    // pakai M_Product_ID hasil situ untuk baris-baris lainnya.
+    // ─── SAVE (satu pintu): M_Product + Vendor Pricing + Sales Price + BOM ──
     const handleSaveAll = async () => {
         const missing = validateProductForm();
         if (missing.length > 0) {
-            alert(`Field berikut wajib diisi terlebih dahulu:\n- ${missing.join("\n- ")}`);
+            alert(`Mohon lengkapi terlebih dahulu:\n- ${missing.join("\n- ")}`);
             return;
         }
 
@@ -347,17 +411,20 @@ function ProductDetail() {
             Description: form.Description,
             IsPurchased: form.IsPurchased,
             IsSold: form.IsSold,
+            IsStocked: form.IsStocked,
+            IsBOM: form.IsBOM,
+            // Phantom & BOM Price Override tidak bermakna kalau bukan BOM —
+            // dipaksa false supaya tidak ada nilai sisa yang membingungkan.
+            IsPhantom: form.IsBOM ? form.IsPhantom : false,
+            IsBOMPriceOverride: form.IsBOM ? form.IsBOMPriceOverride : false,
             MarkupPercent: parseFloat(form.MarkupPercent) || 0,
             RoundingType: parseInt(form.RoundingType, 10) || 0,
             M_Product_Category_ID: { id: parseInt(form.M_Product_Category_ID, 10) },
             C_UOM_ID: { id: parseInt(form.C_UOM_ID, 10) },
         };
 
-        // `typeof ... === "number"` di sini jaga-jaga tambahan: kalau
-        // getId() suatu saat salah ambil field FK (objek) sebagai id
-        // (seperti kasus baris baru yang sempat kejadian), baris itu
-        // tetap dipaksa dianggap "baris baru" (id: null -> POST) alih-alih
-        // terkirim sebagai PUT ke URL yang rusak.
+        // `typeof ... === "number"` jaga-jaga: kalau getId() salah ambil FK
+        // (objek) sebagai id, baris tetap dianggap baru (POST), bukan PUT ke URL rusak.
         const vendorLinesPayload = vendorLines.map((l) => {
             const rawId = getId(l);
             return {
@@ -381,6 +448,35 @@ function ProductDetail() {
             };
         });
 
+        // Payload BOM hanya dikirim kalau produk IsBOM — kalau user
+        // menghapus centang IsBOM di produk yang sudah punya BOM, data BOM
+        // lama TIDAK dihapus, hanya tidak disentuh.
+        const bomPayload = form.IsBOM
+            ? {
+                headerId: typeof bomHeader.id === "number" ? bomHeader.id : null,
+                header: {
+                    Value: bomHeader.Value?.trim() || form.Value.trim(),
+                    Name: bomHeader.Name?.trim() || form.Name.trim(),
+                    BOMType: bomHeader.BOMType,
+                    BOMUse: bomHeader.BOMUse,
+                    _dirty: bomHeader._dirty === true,
+                },
+                lines: bomLines.map((l) => {
+                    const rawId = getId(l);
+                    return {
+                        id: typeof rawId === "number" ? rawId : null,
+                        M_Product_ID: getId(l.M_Product_ID),
+                        C_UOM_ID: getId(l.C_UOM_ID),
+                        QtyBOM: l.QtyBOM,
+                        ComponentType: getId(l.ComponentType) || "CO",
+                        Line: l.Line,
+                        _dirty: l._dirty === true,
+                    };
+                }),
+                deletedLineIds: deletedBomLineIds,
+            }
+            : null;
+
         try {
             const newProductId = await saveProductWithLines({
                 isNew,
@@ -390,57 +486,127 @@ function ProductDetail() {
                 deletedVendorIds: deletedVendorLineIds,
                 priceLines: priceLinesPayload,
                 deletedPriceIds: deletedPriceLineIds,
+                bom: bomPayload,
             });
 
             setDeletedVendorLineIds([]);
             setDeletedPriceLineIds([]);
+            setDeletedBomLineIds([]);
 
             if (isNew) {
-                showSuccess("Produk baru berhasil dibuat beserta Vendor Pricing & Sales Price-nya.");
-                // Pindah ke halaman edit produk yang baru dibuat.
+                showSuccess("Produk baru berhasil dibuat beserta Vendor Pricing, Sales Price" + (form.IsBOM ? " & BOM-nya." : " -nya."));
                 navigate(`/product-detail/edit/${newProductId}`, { replace: true });
             } else {
-                await Promise.all([fetchProduct(), fetchVendorLines(), fetchPriceLines()]);
+                await Promise.all([fetchProduct(), fetchVendorLines(), fetchPriceLines(), fetchBom()]);
                 setIsEditing(false);
-                showSuccess("Data produk beserta Vendor Pricing & Sales Price berhasil disimpan.");
+                showSuccess("Data produk beserta Vendor Pricing, Sales Price" + (form.IsBOM ? " & BOM" : "") + " berhasil disimpan.");
             }
         } catch (err) {
             console.error("Gagal menyimpan produk:", err);
             let message = parseIdempiereError(err);
-            // err.step & err.partial dibekali oleh saveProductWithLines —
-            // selalu ditampilkan (bukan cuma mode New) supaya kelihatan
-            // persis di tahap mana proses berhenti (vendor-lines,
-            // vendor-lines-delete, price-lines, atau price-lines-delete).
             if (err.step) {
                 message += `\n\n(Gagal pada tahap: ${err.step})`;
             }
             if (err.partial?.productId) {
                 message += isNew
-                    ? `\nProduk sempat berhasil dibuat (Product ID: ${err.partial.productId}) sebelum gagal. Buka lagi lewat menu Edit Produk untuk melanjutkan/melengkapi Vendor Pricing & Sales Price-nya.`
-                    : `\nData M_Product induk sudah tersimpan — hanya sebagian baris Vendor Pricing/Sales Price yang gagal diproses.`;
+                    ? `\nProduk sempat berhasil dibuat (Product ID: ${err.partial.productId}) sebelum gagal. Buka lagi lewat menu Edit Produk untuk melanjutkan/melengkapi Vendor Pricing, Sales Price & BOM-nya.`
+                    : `\nData M_Product induk sudah tersimpan — hanya sebagian baris Vendor Pricing/Sales Price/BOM yang gagal diproses.`;
             }
             alert(`Gagal menyimpan produk.\n\n${message}`);
         }
     };
 
-    // Batal edit (produk existing) — buang semua perubahan lokal yang belum
-    // disimpan, termasuk baris vendor/harga yang sempat ditambah/diedit/dihapus.
+    // Batal edit — buang semua perubahan lokal yang belum disimpan.
     const handleCancelEdit = () => {
         setIsEditing(false);
         setDeletedVendorLineIds([]);
         setDeletedPriceLineIds([]);
+        setDeletedBomLineIds([]);
+        setBomSearch("");
         fetchProduct();
         fetchVendorLines();
         fetchPriceLines();
+        fetchBom();
     };
 
-    // ─── Vendor Pricing: semua operasi berikut HANYA mengubah state lokal ──
+    // ─── Flag produk: aturan keterkaitan antar checkbox ─────────────────────
+    // - Hapus centang IsBOM → Phantom & BOM Price Override ikut dimatikan.
+    // - Centang Phantom → IsStocked dimatikan (produk Phantom tidak punya
+    //   stok fisik sendiri; stoknya diturunkan dari komponen BOM-nya).
+    const handleFlagChange = (field, checked) => {
+        setForm((prev) => {
+            const next = { ...prev, [field]: checked };
+            if (field === "IsBOM" && !checked) {
+                next.IsPhantom = false;
+                next.IsBOMPriceOverride = false;
+            }
+            if (field === "IsPhantom" && checked) {
+                next.IsStocked = false;
+            }
+            return next;
+        });
+    };
+
+    // ─── BOM: semua operasi HANYA mengubah state lokal ──────────────────────
+    const handleBomHeaderChange = (field, value) => {
+        setBomHeader((prev) => ({ ...prev, [field]: value, _dirty: true }));
+    };
+
+    const handleBomLineChange = (line, field, value) => {
+        setBomLines((prev) =>
+            prev.map((l) => {
+                if (lineKey(l) !== lineKey(line)) return l;
+                const updated = { ...l, [field]: value };
+                if (getId(l)) updated._dirty = true; // baris lama yang diedit -> perlu PUT
+                return updated;
+            })
+        );
+    };
+
+    const handleAddBomLine = (comp) => {
+        const nextLine = bomLines.reduce((max, l) => Math.max(max, parseInt(l.Line, 10) || 0), 0) + 10;
+        setBomLines((prev) => [
+            ...prev,
+            {
+                _localId: `new-bom-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+                // `id: null` eksplisit — pelajaran dari bug Vendor Pricing:
+                // tanpa ini getId() salah ambil M_Product_ID (FK berbentuk
+                // objek) sebagai PK baris baru dan mengirim PUT ke URL rusak.
+                id: null,
+                M_Product_ID: { id: getId(comp), identifier: comp.Name },
+                // UOM baris = UOM produk komponen (bentuk { id, identifier }).
+                C_UOM_ID: comp.C_UOM_ID,
+                QtyBOM: 1,
+                ComponentType: "CO",
+                Line: nextLine,
+            },
+        ]);
+        setBomSearch("");
+        setBomSearchResults([]);
+    };
+
+    const handleDeleteBomLine = (line) => {
+        openConfirm({
+            title: "Hapus Komponen BOM",
+            message: `Yakin ingin menghapus komponen "${getLabel(line.M_Product_ID)}" dari BOM? Perubahan baru permanen setelah disimpan.`,
+            confirmLabel: "Hapus",
+            onConfirm: () => {
+                const existingId = getId(line);
+                if (existingId) {
+                    setDeletedBomLineIds((prev) => [...prev, existingId]);
+                }
+                setBomLines((prev) => prev.filter((l) => lineKey(l) !== lineKey(line)));
+            },
+        });
+    };
+
+    // ─── Vendor Pricing ─────────────────────────────────────────────────────
     const handleVendorLineChange = (line, field, value) => {
         setVendorLines((prev) =>
             prev.map((l) => {
                 if (lineKey(l) !== lineKey(line)) return l;
                 const updated = { ...l, [field]: value };
-                if (getId(l)) updated._dirty = true; // baris lama yang diedit -> perlu PUT
+                if (getId(l)) updated._dirty = true;
                 return updated;
             })
         );
@@ -451,17 +617,7 @@ function ProductDetail() {
             ...prev,
             {
                 _localId: `new-vendor-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-                // PENTING: `id: null` eksplisit di sini. Tanpa ini, getId()
-                // pada baris baru (yang belum punya PK asli) jatuh ke
-                // fallback terakhirnya ("ambil field apa pun yang berakhiran
-                // _ID") dan salah ambil C_BPartner_ID (field FK berbentuk
-                // objek {id, identifier}) sebagai kalau itu PK baris —
-                // akibatnya baris baru dikira "sudah ada di server" dan
-                // dikirim sebagai PUT ke ".../[object Object]" alih-alih
-                // POST baris baru. `id: null` membuat getId() berhenti di
-                // pengecekan `obj.id !== undefined` (null tetap dianggap
-                // "ada", tapi nilainya null/falsy) sebelum sampai ke
-                // fallback yang salah itu.
+                // `id: null` eksplisit, lihat catatan di handleAddBomLine.
                 id: null,
                 C_BPartner_ID: { id: getId(bp), identifier: bp.Name },
                 VendorProductNo: "",
@@ -479,7 +635,6 @@ function ProductDetail() {
             onConfirm: () => {
                 const existingId = getId(line);
                 if (existingId) {
-                    // Baris sudah ada di server -> tandai untuk dihapus saat Simpan.
                     setDeletedVendorLineIds((prev) => [...prev, existingId]);
                 }
                 setVendorLines((prev) => prev.filter((l) => lineKey(l) !== lineKey(line)));
@@ -487,7 +642,7 @@ function ProductDetail() {
         });
     };
 
-    // ─── Sales Price: pola sama seperti Vendor Pricing ─────────────────────
+    // ─── Sales Price ────────────────────────────────────────────────────────
     const handlePriceLineChange = (line, field, value) => {
         setPriceLines((prev) =>
             prev.map((l) => {
@@ -504,9 +659,6 @@ function ProductDetail() {
             ...prev,
             {
                 _localId: `new-price-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-                // Sama seperti handleAddVendorLine — `id: null` eksplisit
-                // supaya getId() tidak salah ambil M_PriceList_Version_ID
-                // (field FK berbentuk objek) sebagai PK baris baru ini.
                 id: null,
                 M_PriceList_Version_ID: { id: getId(plv), identifier: getLabel(plv.Name) || plv.Name },
                 PriceList: 0,
@@ -531,14 +683,11 @@ function ProductDetail() {
         });
     };
 
-    // ─── Gambar Produk: upload langsung ke server saat file dipilih (BEDA
-    // dari Vendor Pricing/Sales Price yang ditunda sampai tombol Simpan) —
-    // karena attachment butuh M_Product_ID yang sudah pasti ada, dan supaya
-    // user langsung lihat hasil upload-nya tanpa harus klik Simpan dulu. ────
+    // ─── Gambar Produk: upload langsung saat file dipilih ───────────────────
     const MAX_IMAGE_SIZE_MB = 5;
     const handleImageFileChange = async (e) => {
         const file = e.target.files?.[0];
-        e.target.value = ""; // reset input, supaya file yang sama bisa dipilih lagi kalau perlu
+        e.target.value = "";
         if (!file) return;
 
         if (!file.type.startsWith("image/")) {
@@ -564,9 +713,6 @@ function ProductDetail() {
     };
 
     const handleDeleteAllImages = () => {
-        // API-nya cuma menyediakan hapus SEMUA attachment sekaligus (lihat
-        // catatan di deleteAllProductAttachments) — tidak ada endpoint resmi
-        // untuk hapus satu gambar saja.
         openConfirm({
             title: "Hapus Semua Gambar",
             message: "Ini akan menghapus SEMUA gambar produk ini (tidak bisa hapus satu per satu). Lanjutkan?",
@@ -585,6 +731,13 @@ function ProductDetail() {
             },
         });
     };
+
+    // Hasil pencarian komponen: bukan produk ini sendiri & belum ada di BOM.
+    const filteredBomResults = bomSearchResults.filter(
+        (p) =>
+            String(getId(p)) !== String(id) &&
+            !bomLines.some((l) => String(getId(l.M_Product_ID)) === String(getId(p)))
+    );
 
     return (
         <div className="card-container">
@@ -630,11 +783,7 @@ function ProductDetail() {
                             <textarea value={form.Description} onChange={(e) => setForm({ ...form, Description: e.target.value })} />
                         ) : <p>{product.Description || '-'}</p>}
 
-                        {/* ── Gambar Produk (AD_Attachment) ──────────────────
-                            Di mode New (produk belum tersimpan di server),
-                            upload belum bisa dilakukan karena butuh
-                            M_Product_ID yang valid — user diarahkan simpan
-                            produk dulu, baru upload gambar di halaman Edit. */}
+                        {/* ── Gambar Produk (AD_Attachment) ── */}
                         <label>Gambar Produk</label>
                         {isNew ? (
                             <p className="muted-note">Simpan produk terlebih dahulu untuk bisa mengunggah gambar.</p>
@@ -698,7 +847,6 @@ function ProductDetail() {
                 </div>
 
                 {/* SECTION 2: STATUS & GRUP */}
-                {/* SECTION 2: STATUS & GRUP */}
                 <div className="detail-section">
                     <h3>Classification</h3>
                     <div className="info-group">
@@ -728,21 +876,80 @@ function ProductDetail() {
                             </select>
                         ) : <p>{getLabel(product.C_UOM_ID)}</p>}
 
-                        {/* CONTAINER BARU UNTUK KANAN-KIRI */}
-                        <div className="checkbox-row">
+                        {/* Container Grid Khusus Checkbox / Status Flags */}
+                        <div className="checkbox-grid">
                             <div className="checkbox-item">
-                                <label>IsPurchased ?</label>
+                                <label>Purchased ?</label>
                                 {isEditing ? (
-                                    <input type="checkbox" checked={form.IsPurchased} onChange={(e) => setForm({ ...form, IsPurchased: e.target.checked })} />
-                                ) : <p>{product.IsPurchased ? 'Yes' : 'No'}</p>}
+                                    <input 
+                                        type="checkbox" 
+                                        checked={form.IsPurchased} 
+                                        onChange={(e) => setForm({ ...form, IsPurchased: e.target.checked })} 
+                                    />
+                                ) : <span>{isYes(product.IsPurchased) ? 'Yes' : 'No'}</span>}
                             </div>
 
                             <div className="checkbox-item">
-                                <label>IsSold ?</label>
+                                <label>Sold ?</label>
                                 {isEditing ? (
-                                    <input type="checkbox" checked={form.IsSold} onChange={(e) => setForm({ ...form, IsSold: e.target.checked })} />
-                                ) : <p>{product.IsSold ? 'Yes' : 'No'}</p>}
+                                    <input 
+                                        type="checkbox" 
+                                        checked={form.IsSold} 
+                                        onChange={(e) => setForm({ ...form, IsSold: e.target.checked })} 
+                                    />
+                                ) : <span>{isYes(product.IsSold) ? 'Yes' : 'No'}</span>}
                             </div>
+
+                            <div className="checkbox-item">
+                                <label title="Produk yang dikelola stoknya di gudang">Stocked ?</label>
+                                {isEditing ? (
+                                    <input
+                                        type="checkbox"
+                                        checked={form.IsStocked}
+                                        disabled={form.IsPhantom}
+                                        title={form.IsPhantom ? "Produk Phantom tidak punya stok sendiri" : undefined}
+                                        onChange={(e) => handleFlagChange("IsStocked", e.target.checked)}
+                                    />
+                                ) : <span>{isYes(product.IsStocked) ? 'Yes' : 'No'}</span>}
+                            </div>
+
+                            <div className="checkbox-item">
+                                <label>BOM ?</label>
+                                {isEditing ? (
+                                    <input 
+                                        type="checkbox" 
+                                        checked={form.IsBOM} 
+                                        onChange={(e) => handleFlagChange("IsBOM", e.target.checked)} 
+                                    />
+                                ) : <span>{isYes(product.IsBOM) ? 'Yes' : 'No'}</span>}
+                            </div>
+
+                            {/* Phantom & BOM Price Override hanya dipanggil jika IsBOM true */}
+                            {form.IsBOM && (
+                                <>
+                                    <div className="checkbox-item">
+                                        <label title="Stok produk diturunkan dari stok komponen BOM-nya">Phantom ?</label>
+                                        {isEditing ? (
+                                            <input 
+                                                type="checkbox" 
+                                                checked={form.IsPhantom} 
+                                                onChange={(e) => handleFlagChange("IsPhantom", e.target.checked)} 
+                                            />
+                                        ) : <span>{isYes(product.IsPhantom) ? 'Yes' : 'No'}</span>}
+                                    </div>
+
+                                    <div className="checkbox-item">
+                                        <label>BOMPriceOverride ?</label>
+                                        {isEditing ? (
+                                            <input 
+                                                type="checkbox" 
+                                                checked={form.IsBOMPriceOverride} 
+                                                onChange={(e) => handleFlagChange("IsBOMPriceOverride", e.target.checked)} 
+                                            />
+                                        ) : <span>{isYes(product.IsBOMPriceOverride) ? 'Yes' : 'No'}</span>}
+                                    </div>
+                                </>
+                            )}
                         </div>
 
                         <label>Markup % (AutoPrice)</label>
@@ -773,12 +980,161 @@ function ProductDetail() {
                     </div>
                 </div>
 
-                {/* SECTION 3: VENDOR PRICING (M_BPartnerProduct) */}
-                {/* Baris di sini murni state lokal selama isEditing — tombol
-                    Simpan/Buat Produk di topbar-lah yang mengirim semuanya
-                    (termasuk baris baru & baris terhapus) sekaligus ke server. */}
+                {/* SECTION 3: BILL OF MATERIALS (PP_Product_BOM + PP_Product_BOMLine) */}
+                {/* Hanya tampil kalau IsBOM dicentang. Seperti Vendor Pricing, semua
+                    perubahan di sini murni state lokal sampai tombol Simpan diklik. */}
+                {form.IsBOM && (
+                    <div className="detail-section" style={{ gridColumn: '1 / -1' }}>
+                        <h3>Bill of Materials</h3>
+
+                        {isLoadingBom ? (
+                            <p className="muted-note">Memuat...</p>
+                        ) : (
+                            <>
+                                <div className="info-group" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 20px' }}>
+                                    <div>
+                                        <label>BOM Value</label>
+                                        {isEditing ? (
+                                            <input
+                                                value={bomHeader.Value}
+                                                placeholder={form.Value || "Default: Search Key produk"}
+                                                onChange={(e) => handleBomHeaderChange("Value", e.target.value)}
+                                            />
+                                        ) : <p>{bomHeader.Value || '-'}</p>}
+                                    </div>
+                                    <div>
+                                        <label>BOM Name</label>
+                                        {isEditing ? (
+                                            <input
+                                                value={bomHeader.Name}
+                                                placeholder={form.Name || "Default: Name produk"}
+                                                onChange={(e) => handleBomHeaderChange("Name", e.target.value)}
+                                            />
+                                        ) : <p>{bomHeader.Name || '-'}</p>}
+                                    </div>
+                                    <div>
+                                        <label>BOM Type</label>
+                                        {isEditing ? (
+                                            <select value={bomHeader.BOMType} onChange={(e) => handleBomHeaderChange("BOMType", e.target.value)}>
+                                                {BOM_TYPE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                                            </select>
+                                        ) : <p>{BOM_TYPE_OPTIONS.find((o) => o.value === bomHeader.BOMType)?.label || bomHeader.BOMType}</p>}
+                                    </div>
+                                    <div>
+                                        <label>BOM Use</label>
+                                        {isEditing ? (
+                                            <select value={bomHeader.BOMUse} onChange={(e) => handleBomHeaderChange("BOMUse", e.target.value)}>
+                                                {BOM_USE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                                            </select>
+                                        ) : <p>{BOM_USE_OPTIONS.find((o) => o.value === bomHeader.BOMUse)?.label || bomHeader.BOMUse}</p>}
+                                    </div>
+                                </div>
+
+                                <h4 style={{ margin: '16px 0 8px' }}>Komponen (PP_Product_BOMLine)</h4>
+                                {bomLines.length === 0 ? (
+                                    <p className="empty-note">Belum ada komponen BOM.</p>
+                                ) : (
+                                    <table className="modern-table">
+                                        <thead>
+                                            <tr>
+                                                <th style={{ width: '70px' }}>Line</th>
+                                                <th>Komponen</th>
+                                                <th style={{ textAlign: 'right' }}>Qty BOM</th>
+                                                <th>UOM</th>
+                                                <th>Tipe</th>
+                                                {isEditing && <th style={{ width: '60px' }}></th>}
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {bomLines.map((line) => {
+                                                const key = lineKey(line);
+                                                return (
+                                                    <tr key={key}>
+                                                        {isEditing ? (
+                                                            <>
+                                                                <td>
+                                                                    <input
+                                                                        type="number" style={{ width: '60px' }}
+                                                                        value={line.Line ?? ""}
+                                                                        onChange={(e) => handleBomLineChange(line, "Line", e.target.value)}
+                                                                    />
+                                                                </td>
+                                                                <td>{getLabel(line.M_Product_ID)}</td>
+                                                                <td>
+                                                                    <input
+                                                                        type="number" step="0.0001" style={{ textAlign: 'right', width: '100px' }}
+                                                                        value={line.QtyBOM ?? 0}
+                                                                        onChange={(e) => handleBomLineChange(line, "QtyBOM", e.target.value)}
+                                                                    />
+                                                                </td>
+                                                                <td>{getLabel(line.C_UOM_ID)}</td>
+                                                                <td>
+                                                                    <select
+                                                                        value={getId(line.ComponentType) || "CO"}
+                                                                        onChange={(e) => handleBomLineChange(line, "ComponentType", e.target.value)}
+                                                                    >
+                                                                        {COMPONENT_TYPE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                                                                    </select>
+                                                                </td>
+                                                                <td className="row-actions">
+                                                                    <button className="icon-btn icon-btn-delete" title="Hapus komponen" onClick={() => handleDeleteBomLine(line)}>🗑️</button>
+                                                                </td>
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <td>{line.Line}</td>
+                                                                <td>{getLabel(line.M_Product_ID)}</td>
+                                                                <td style={{ textAlign: 'right' }}>{line.QtyBOM ?? 0}</td>
+                                                                <td>{getLabel(line.C_UOM_ID)}</td>
+                                                                <td>
+                                                                    {COMPONENT_TYPE_OPTIONS.find((o) => o.value === getId(line.ComponentType))?.label
+                                                                        || getLabel(line.ComponentType)}
+                                                                </td>
+                                                            </>
+                                                        )}
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+                                )}
+
+                                {/* Tambah komponen — cari by nama/kode (bukan dropdown penuh,
+                                    karena daftar produk bisa sangat panjang). */}
+                                {isEditing && (
+                                    <div className="inline-add-box">
+                                        <input
+                                            value={bomSearch}
+                                            onChange={(e) => setBomSearch(e.target.value)}
+                                            placeholder="+ Cari produk komponen (nama / kode)..."
+                                        />
+                                        {bomSearching && <span className="muted-note"> Mencari...</span>}
+                                        {filteredBomResults.length > 0 && (
+                                            <div style={{
+                                                border: '1px solid #ddd', borderRadius: '6px', background: '#fff',
+                                                marginTop: '4px', maxHeight: '200px', overflowY: 'auto',
+                                            }}>
+                                                {filteredBomResults.map((p, idx) => (
+                                                    <div
+                                                        key={getId(p) ?? `bomsr-${idx}`}
+                                                        onClick={() => handleAddBomLine(p)}
+                                                        style={{ padding: '8px 10px', cursor: 'pointer', borderBottom: '1px solid #eee' }}
+                                                    >
+                                                        {p.Value} — {p.Name} <span className="muted-note">({getLabel(p.C_UOM_ID)})</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </>
+                        )}
+                    </div>
+                )}
+
+                {/* SECTION 4: VENDOR PRICING (M_BPartnerProduct) */}
                 <div className="detail-section" style={{ gridColumn: '1 / -1' }}>
-                    <h3>Vendor Pricing (M_BPartnerProduct)</h3>
+                    <h3>Vendor Pricing</h3>
 
                     {isLoadingVendorLines ? (
                         <p className="muted-note">Memuat...</p>
@@ -841,9 +1197,6 @@ function ProductDetail() {
                         </table>
                     )}
 
-                    {/* Tambah vendor baru — dropdown (bukan search field, yang
-                        sebelumnya belum jalan). Baris baru langsung tampil di
-                        tabel di atas, dan baru dikirim ke server saat Simpan. */}
                     {isEditing && (
                         <div className="inline-add-box">
                             <select
@@ -868,9 +1221,9 @@ function ProductDetail() {
                     )}
                 </div>
 
-                {/* SECTION 4: SALES PRICE (M_ProductPrice) + AutoPrice fields */}
+                {/* SECTION 5: SALES PRICE (M_ProductPrice) */}
                 <div className="detail-section" style={{ gridColumn: '1 / -1' }}>
-                    <h3>Sales Price (M_ProductPrice)</h3>
+                    <h3>Price List</h3>
 
                     {isLoadingPriceLines ? (
                         <p className="muted-note">Memuat...</p>
@@ -934,8 +1287,6 @@ function ProductDetail() {
                         </table>
                     )}
 
-                    {/* Tambah baris harga baru di Price List Version lain —
-                        juga cuma state lokal sampai tombol Simpan diklik. */}
                     {isEditing && (
                         <div className="inline-add-box inline-add-box-select">
                             <select

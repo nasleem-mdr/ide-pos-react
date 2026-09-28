@@ -4,32 +4,29 @@ import { fkId } from "@/api/idempiereApi";
 /**
  * useProductDetailSubmit
  * ─────────────────────────────────────────────────────────────────────────
- * REVISI: sebelumnya hook ini expose fungsi terpisah per tabel
- * (createProduct/saveProduct/saveVendorLine/addVendorLine/dst) dan
- * komponen yang memanggilnya satu-satu — user harus klik "Simpan" di
- * M_Product dulu, baru bisa klik simpan lagi di tiap baris Vendor
- * Pricing / Sales Price. Sekarang semua digabung jadi SATU fungsi
- * `saveProductWithLines`:
+ * Satu fungsi `saveProductWithLines` untuk semua operasi simpan di halaman
+ * ProductDetail:
  *   1) create (mode baru) atau update (mode edit) M_Product
- *   2) pakai M_Product_ID hasil langkah 1 untuk insert baris Vendor
- *      Pricing & Sales Price yang baru ditambahkan di form — tanpa user
- *      perlu melakukan aksi simpan tambahan
- *   3) update baris yang ditandai `_dirty`, hapus baris yang masuk daftar
- *      `deletedVendorIds` / `deletedPriceIds`
+ *   2) pakai M_Product_ID hasil langkah 1 untuk insert/update/hapus baris
+ *      Vendor Pricing & Sales Price
+ *   3) BARU: kalau produk berstatus IsBOM, simpan header PP_Product_BOM
+ *      (create/update) lalu baris PP_Product_BOMLine-nya (create/update/hapus)
  *
- * Komponen (ProductDetail.js) cuma menyusun state lokal (vendorLines,
- * priceLines, deletedVendorIds, deletedPriceIds) dan memanggil fungsi ini
- * SEKALI saat tombol "Simpan" / "Buat Produk" diklik.
+ * Komponen (ProductDetail.js) cuma menyusun state lokal dan memanggil
+ * fungsi ini SEKALI saat tombol "Simpan" / "Buat Produk" diklik.
  */
 
-// ─── Nama tabel Vendor Pricing ──────────────────────────────────────────
+// ─── Nama tabel (REST model, huruf kecil) ───────────────────────────────
 // Beberapa instance iDempiere masih pakai nama tabel lama "M_Product_PO",
 // yang lain sudah di-rename ke "M_BPartnerProduct". REST API akan balas
 // 404 "No match found for table name" kalau nama yang dipakai di sini
 // tidak cocok dengan yang terdaftar di instance-mu.
-// -> Ganti SATU baris ini saja kalau instance-mu beda; dipakai bersama
-//    oleh hook ini maupun ProductDetail.jsx (fetch list-nya).
 export const VENDOR_PRICING_TABLE = "m_product_po"; // alternatif: "m_bpartnerproduct"
+
+// BOM Manufacturing (window "Bill of Material & Formula"): header
+// PP_Product_BOM + baris komponen PP_Product_BOMLine.
+export const BOM_HEADER_TABLE = "pp_product_bom";
+export const BOM_LINE_TABLE = "pp_product_bomline";
 
 // ─── Label field per tabel, dipakai untuk menerjemahkan error mandatory ────
 // dari Postgres ("null value in column ... of relation ...") jadi pesan
@@ -59,15 +56,29 @@ const FIELD_LABELS = {
         pricestd: "Price Std (Jual)",
         pricelimit: "Price Limit",
     },
+    pp_product_bom: {
+        value: "BOM Value",
+        name: "BOM Name",
+        bomtype: "BOM Type",
+        bomuse: "BOM Use",
+        m_product_id: "Product",
+        c_uom_id: "UOM",
+    },
+    pp_product_bomline: {
+        pp_product_bom_id: "BOM",
+        m_product_id: "Komponen",
+        qtybom: "Qty BOM",
+        c_uom_id: "UOM",
+        componenttype: "Component Type",
+        line: "Line",
+    },
 };
 
 /**
  * parseIdempiereError
  * ─────────────────────────────────────────────────────────────────────────
  * Ubah error mentah dari REST API iDempiere (termasuk dump constraint
- * Postgres seperti "null value in column \"name\" of relation \"m_product\"
- * violates not-null constraint") jadi satu kalimat singkat yang bisa
- * langsung ditampilkan ke user lewat alert/toast.
+ * Postgres) jadi satu kalimat singkat yang bisa langsung ditampilkan ke user.
  */
 export function parseIdempiereError(err) {
     const raw = err?.message || String(err ?? "");
@@ -80,11 +91,18 @@ export function parseIdempiereError(err) {
         return `Field "${label}" wajib diisi (tidak boleh kosong).`;
     }
 
-    // Nama tabel tidak dikenali oleh REST API (mis. beda instance iDempiere
-    // pakai nama tabel lama/baru — lihat VENDOR_PRICING_TABLE di atas).
+    // Nama kolom tidak dikenali REST API (mis. IsBOMPriceOverride salah eja
+    // / beda nama di versi iDempiere-mu). Pola pesan: "X is not a valid
+    // column of table Y".
+    const badColumnMatch = raw.match(/(\S+) is not a valid column of table (\S+)/i);
+    if (badColumnMatch) {
+        return `Kolom "${badColumnMatch[1]}" tidak dikenali di tabel ${badColumnMatch[2]}. Cek nama kolom persisnya di Application Dictionary (Table and Column) instance-mu.`;
+    }
+
+    // Nama tabel tidak dikenali oleh REST API.
     const noTableMatch = raw.match(/No match found for table name:\s*(\S+)/i);
     if (noTableMatch) {
-        return `Tabel "${noTableMatch[1]}" tidak dikenali oleh server iDempiere-mu. Instance-mu kemungkinan pakai nama tabel yang berbeda — cek konstanta VENDOR_PRICING_TABLE.`;
+        return `Tabel "${noTableMatch[1]}" tidak dikenali oleh server iDempiere-mu. Instance-mu kemungkinan pakai nama tabel yang berbeda — cek konstanta nama tabel di useProductDetailSubmit.js.`;
     }
 
     // Kasus umum lain: duplicate key / unique constraint.
@@ -93,23 +111,16 @@ export function parseIdempiereError(err) {
         return "Data ini sudah ada (melanggar aturan unik), cek Search Key / kombinasi datanya.";
     }
 
-    // Fallback: ambil bagian pesan setelah "Database Error." kalau ada,
-    // supaya minimal tidak menampilkan seluruh dump baris tabel.
+    // Fallback: ambil bagian pesan setelah "Database Error." kalau ada.
     const dbErrorMatch = raw.match(/Database Error\.?:?\s*([^\n]+)/i);
     if (dbErrorMatch) return dbErrorMatch[1].trim();
 
     return raw || "Terjadi kesalahan yang tidak diketahui.";
 }
 
-// FIX: sebelumnya di sini ada helper lokal `extractCreatedId` yang logikanya
-// beda dari `fkId` (util bersama, dipakai konsisten di seluruh codebase-mu —
-// lihat useCashPurchaseSubmit.jsx: `fkId(poRes.id) ?? poRes.id ?? poRes.C_Order_ID`).
-// Kalau response create M_Product ternyata bentuknya beda dari asumsi helper
-// lokal itu, `finalProductId` bisa jadi objek atau undefined — akibatnya
-// M_Product_ID yang dikirim ke baris Vendor Pricing/Sales Price di Step 2 & 3
-// jadi salah/kosong. Sekarang pakai `fkId` dengan urutan fallback yang sama
-// persis seperti pola PO/Receipt/Invoice di useCashPurchaseSubmit.jsx.
+// Pola fallback yang sama seperti PO/Receipt/Invoice di useCashPurchaseSubmit.jsx.
 const extractProductId = (created) => fkId(created?.id) ?? created?.id ?? created?.M_Product_ID;
+const extractBomHeaderId = (created) => fkId(created?.id) ?? created?.id ?? created?.PP_Product_BOM_ID;
 
 export default function useProductDetailSubmit(idempiereApi) {
     const [isSaving, setIsSaving] = useState(false);
@@ -134,21 +145,22 @@ export default function useProductDetailSubmit(idempiereApi) {
      * @param {boolean} isNew
      * @param {number|string|null} productId - null/undefined kalau isNew
      * @param {object} productPayload - payload M_Product siap kirim
-     * @param {Array} vendorLines - [{ id, C_BPartner_ID, VendorProductNo, PriceList, PriceLastPO, _dirty }]
-     *   `id` null/undefined -> baris baru (di-POST, dikaitkan ke M_Product_ID hasil langkah 1)
-     *   `id` ada & `_dirty` true -> di-PUT
-     *   `id` ada & `_dirty` false -> dilewati (tidak ada perubahan)
-     * @param {Array<number>} deletedVendorIds - id baris Vendor Pricing yang dihapus user di form
-     * @param {Array} priceLines - [{ id, M_PriceList_Version_ID, PriceList, PriceStd, PriceLimit, _dirty }]
-     * @param {Array<number>} deletedPriceIds - id baris Sales Price yang dihapus user di form
+     * @param {Array} vendorLines / deletedVendorIds - lihat ProductDetail.js
+     * @param {Array} priceLines / deletedPriceIds - lihat ProductDetail.js
+     * @param {object|null} bom - null kalau produk BUKAN BOM (tahap BOM dilewati).
+     *   {
+     *     headerId,        // PP_Product_BOM_ID existing, null kalau belum ada
+     *     header: { Value, Name, BOMType, BOMUse, _dirty },
+     *     lines: [{ id, M_Product_ID, C_UOM_ID, QtyBOM, ComponentType, Line, _dirty }],
+     *     deletedLineIds: [number],
+     *   }
+     *   Aturan per baris sama seperti Vendor Pricing: id null -> POST,
+     *   id ada & _dirty -> PUT, id ada & tidak dirty -> dilewati.
      * @returns {Promise<number>} M_Product_ID (baru atau existing)
      *
-     * Kalau gagal di tengah jalan, error yang dilempar dibekali `err.step`
-     * (tahap yang gagal) dan `err.partial` (apa saja yang SUDAH berhasil,
-     * termasuk `productId` kalau M_Product-nya sendiri sudah kepalang
-     * terbuat) — pola yang sama seperti penanganan error di
-     * useCashPurchaseSubmit.jsx, supaya M_Product yang sudah tercipta tidak
-     * "hilang tanpa jejak" walau baris Vendor Pricing/Sales Price-nya gagal.
+     * Kalau gagal di tengah jalan, error dibekali `err.step` dan
+     * `err.partial` (apa saja yang SUDAH berhasil, termasuk productId dan
+     * bomHeaderId) — pola yang sama seperti useCashPurchaseSubmit.jsx.
      */
     const saveProductWithLines = useCallback(
         ({
@@ -159,6 +171,7 @@ export default function useProductDetailSubmit(idempiereApi) {
             deletedVendorIds = [],
             priceLines = [],
             deletedPriceIds = [],
+            bom = null,
         }) =>
             run(async () => {
                 let currentStep = "product";
@@ -170,6 +183,10 @@ export default function useProductDetailSubmit(idempiereApi) {
                     priceLinesCreated: 0,
                     priceLinesUpdated: 0,
                     priceLinesDeleted: 0,
+                    bomHeaderId: null,
+                    bomLinesCreated: 0,
+                    bomLinesUpdated: 0,
+                    bomLinesDeleted: 0,
                 };
 
                 try {
@@ -192,15 +209,10 @@ export default function useProductDetailSubmit(idempiereApi) {
                     }
                     partial.productId = finalProductId;
 
-                    // ── Step 2: Vendor Pricing — pakai finalProductId di
-                    // sini, langsung, tanpa user perlu klik simpan lagi ────
+                    // ── Step 2: Vendor Pricing ───────────────────────────
                     currentStep = "vendor-lines";
                     for (const line of vendorLines) {
-                        // FIX: VendorProductNo default ke Name produk kalau user tidak isi
-                        // manual di baris vendor. `productPayload.Name` dipakai (bukan
-                        // parameter baru) karena payload M_Product yang dikirim di Step 1
-                        // sudah pasti berisi Name final yang mau disimpan — konsisten baik
-                        // untuk mode New maupun Edit, tanpa perlu fetch/prop tambahan.
+                        // VendorProductNo default ke Name produk kalau user tidak isi.
                         const payload = {
                             VendorProductNo: line.VendorProductNo || productPayload.Name || "",
                             PriceList: parseFloat(line.PriceList) || 0,
@@ -232,8 +244,7 @@ export default function useProductDetailSubmit(idempiereApi) {
                         partial.vendorLinesDeleted++;
                     }
 
-                    // ── Step 3: Sales Price — pola sama seperti Vendor
-                    // Pricing ───────────────────────────────────────────
+                    // ── Step 3: Sales Price ──────────────────────────────
                     currentStep = "price-lines";
                     for (const line of priceLines) {
                         const payload = {
@@ -267,12 +278,82 @@ export default function useProductDetailSubmit(idempiereApi) {
                         partial.priceLinesDeleted++;
                     }
 
+                    // ── Step 4-6: BOM (hanya kalau produk IsBOM) ─────────
+                    // Dijalankan SETELAH M_Product tersimpan dengan IsBOM = true
+                    // (iDempiere menolak header BOM untuk produk yang belum IsBOM).
+                    if (bom) {
+                        currentStep = "bom-header";
+                        const headerPayload = {
+                            Value: bom.header?.Value || productPayload.Value,
+                            Name: bom.header?.Name || productPayload.Name,
+                            BOMType: bom.header?.BOMType || "A",
+                            BOMUse: bom.header?.BOMUse || "A",
+                            C_UOM_ID: productPayload.C_UOM_ID, // sudah berbentuk { id }
+                        };
+
+                        let bomHeaderId = bom.headerId;
+                        if (bomHeaderId) {
+                            if (bom.header?._dirty) {
+                                await idempiereApi(`/models/${BOM_HEADER_TABLE}/${bomHeaderId}`, {
+                                    method: "PUT",
+                                    body: JSON.stringify(headerPayload),
+                                });
+                            }
+                        } else {
+                            const createdHeader = await idempiereApi(`/models/${BOM_HEADER_TABLE}`, {
+                                method: "POST",
+                                body: JSON.stringify({
+                                    ...headerPayload,
+                                    M_Product_ID: { id: parseInt(finalProductId, 10) },
+                                }),
+                            });
+                            bomHeaderId = extractBomHeaderId(createdHeader);
+                            if (!bomHeaderId) {
+                                throw new Error("Gagal mendapatkan PP_Product_BOM_ID dari response create header BOM.");
+                            }
+                        }
+                        partial.bomHeaderId = bomHeaderId;
+
+                        currentStep = "bom-lines";
+                        for (const line of bom.lines || []) {
+                            const payload = {
+                                QtyBOM: parseFloat(line.QtyBOM) || 0,
+                                ComponentType: line.ComponentType || "CO",
+                                Line: parseInt(line.Line, 10) || 10,
+                            };
+                            if (line.id) {
+                                if (line._dirty) {
+                                    await idempiereApi(`/models/${BOM_LINE_TABLE}/${line.id}`, {
+                                        method: "PUT",
+                                        body: JSON.stringify(payload),
+                                    });
+                                    partial.bomLinesUpdated++;
+                                }
+                            } else {
+                                await idempiereApi(`/models/${BOM_LINE_TABLE}`, {
+                                    method: "POST",
+                                    body: JSON.stringify({
+                                        ...payload,
+                                        PP_Product_BOM_ID: { id: parseInt(bomHeaderId, 10) },
+                                        M_Product_ID: { id: parseInt(line.M_Product_ID, 10) },
+                                        C_UOM_ID: { id: parseInt(line.C_UOM_ID, 10) },
+                                    }),
+                                });
+                                partial.bomLinesCreated++;
+                            }
+                        }
+
+                        currentStep = "bom-lines-delete";
+                        for (const delId of bom.deletedLineIds || []) {
+                            await idempiereApi(`/models/${BOM_LINE_TABLE}/${delId}`, { method: "DELETE" });
+                            partial.bomLinesDeleted++;
+                        }
+                    }
+
                     return finalProductId;
                 } catch (err) {
                     // Bekali error dengan tahap yang gagal + apa saja yang
-                    // sudah sempat berhasil, supaya pemanggil (ProductDetail.js)
-                    // bisa kasih tahu user M_Product_ID mana yang sudah
-                    // terbentuk walau prosesnya berhenti di tengah.
+                    // sudah sempat berhasil.
                     err.step = currentStep;
                     err.partial = partial;
                     throw err;
