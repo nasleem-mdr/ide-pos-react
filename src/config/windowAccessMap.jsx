@@ -32,7 +32,8 @@ export const WINDOW_ACCESS_MAP = {
   productDetail:        null,
   productImport:        null,
   salesOrderDetailReport:        null,
-    
+  userManagement: null,
+  roleManagement: null,
   // ===== List / Report =====
   requisitionList:      null, 
   posOrderList:         null,

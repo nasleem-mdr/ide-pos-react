@@ -1,4 +1,4 @@
-import { HomeIcon, ImportIcon, BankIcon, VendorIcon, RequisitionIcon, ShoppingCartIcon, DeliveryIcon, UserTake, ListIcon, PartnerIcon, BoxIcon, CashierIcon, } from '@/shared/components/icon';
+import { HomeIcon, ImportIcon, BankIcon, VendorIcon,RoleIcon, RequisitionIcon, ShoppingCartIcon, DeliveryIcon, UserTake, UserIcon, PartnerIcon, BoxIcon, CashierIcon, } from '@/shared/components/icon';
 import { ShoppingBagIcon } from '@/shared/components/icon/ShoppingBagIcon';
 import { MdOutlinePayments, MdOutlineStore } from "react-icons/md";
 import { SiGoogleanalytics } from "react-icons/si";
@@ -88,6 +88,8 @@ export const menuSections = [
             { key: 'businessPartner', windowKey: 'businessPartner', path: '/business-partner', label: 'Business Partner', icon: <PartnerIcon /> },
             { key: 'product',         windowKey: 'product',         path: '/product',          label: 'Products',        icon: <BoxIcon /> },
             { key: 'productImport',         windowKey: 'productImport',         path: '/product-import',          label: 'Products Import',        icon: <ImportIcon /> },
+            { key: 'userManagement', windowKey: 'userManagement', path: '/user-management', label: 'Manajemen User', icon: <UserIcon /> },
+            { key: 'roleManagement', windowKey: 'roleManagement', path: '/role-management', label: 'Manajemen Role', icon: <RoleIcon /> }, 
         ]
     }
 ];

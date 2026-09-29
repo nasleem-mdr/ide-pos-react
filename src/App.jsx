@@ -38,6 +38,8 @@ import BookingTimeline from '@/features/login/pages/BookingTimeline';
 import BusinessPartner from "@/features/master/partner/pages/BusinessPartner"; 
 import BusinessPartnerDetail from "@/features/master/partner/pages/BusinessPartnerDetail";
 import { AccessProvider } from '@/context/AccessContext';
+import UserManagement from "@/features/master/user/pages/UserManagement";
+import RoleManagement from "@/features/master/user/pages/RoleManagement";
 
 // Banking
 import BankStatementContainer  from '@/features/banking/statement/pages/BankStatementContainer';
@@ -144,6 +146,10 @@ function AppContent() {
                           <ProductList />
                         </ProtectedRoute>
                       } />
+                      
+                      <Route path="/user-management" element={
+                        <ProtectedRoute windowKey="userManagement"><UserManagement /></ProtectedRoute>
+                      } />
                       <Route path="/product-detail/new" element={
                         <ProtectedRoute windowKey="productDetail">
                           <ProductDetail />
@@ -197,6 +203,9 @@ function AppContent() {
                         <ProtectedRoute windowKey="purchasingList">
                           <PurchasingList />
                         </ProtectedRoute>
+                      } />
+                      <Route path="/role-management" element={
+                        <ProtectedRoute windowKey="roleManagement"><RoleManagement /></ProtectedRoute>
                       } />
                       <Route path="/goodsreceipt-list" element={
                         <ProtectedRoute windowKey="goodsReceiptList">
