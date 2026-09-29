@@ -55,6 +55,61 @@ const COMPONENT_TYPE_OPTIONS = [
 
 const EMPTY_BOM_HEADER = { id: null, Value: "", Name: "", BOMType: "A", BOMUse: "A", _dirty: false };
 
+// AD_Process "Verify BOM Structure" (classname org.compiere.process.BOMVerify),
+// bawaan standar iDempiere dengan AD_Process_ID = 53229 (bukan proses lama
+// "Verify BOMs" ID 346 yang sudah deprecated/beda class).
+// ⚠️ SESUAIKAN kalau di instance-mu ID-nya berbeda: Window > Process and
+// Report, cari "Verify BOM Structure", lihat kolom AD_Process_ID.
+const BOM_VERIFY_PROCESS_ID = 53229;
+
+// REST plugin (bxservice/idempiere-rest) mengharuskan /processes/{value}
+// pakai Value (search key AD_Process, mis. "c_order-process"), BUKAN angka
+// AD_Process_ID — beda dari /models/{table} yang pakai nama tabel juga,
+// bukan AD_Table_ID. Value persis bisa beda per instance/versi, jadi di
+// sini di-resolve otomatis lewat query ke AD_Process berdasarkan ID di
+// atas, bukan ditebak/di-hardcode. Hasilnya di-cache di memori supaya
+// tidak query ulang tiap klik tombol dalam satu sesi browser.
+const processValueCache = new Map();
+async function resolveProcessValue(processId) {
+    if (processValueCache.has(processId)) return processValueCache.get(processId);
+    const res = await idempiereApi(`/models/ad_process?$filter=AD_Process_ID eq ${processId}&$select=Value,Name`);
+    const rec = Array.isArray(res?.records) ? res.records[0] : null;
+    if (!rec?.Value) {
+        throw new Error(
+            `AD_Process dengan AD_Process_ID=${processId} tidak ditemukan / tidak punya Value di instance ini. ` +
+            `Cek Window > Process and Report, cari "Verify BOM Structure", lalu sesuaikan BOM_VERIFY_PROCESS_ID.`
+        );
+    }
+    processValueCache.set(processId, rec.Value);
+    return rec.Value;
+}
+
+// Panggil /processes/{value}. Beberapa REST plugin (bxservice/idempiere-rest)
+// ternyata mencocokkan Value proses hanya dalam huruf kecil di URL — mirip
+// /models/{table_name} yang juga selalu huruf kecil walau AD_Table.TableName
+// aslinya mixed-case (mis. "M_Product" -> "/models/m_product"). Jadi kalau
+// panggilan persis apa adanya kena 404 "No match found for process name" dan
+// value-nya belum huruf kecil semua, otomatis coba ulang dengan huruf kecil
+// sebelum benar-benar dianggap gagal.
+async function callProcessByValue(value, payload) {
+    try {
+        return await idempiereApi(`/processes/${value}`, {
+            method: "POST",
+            body: JSON.stringify(payload),
+        });
+    } catch (err) {
+        const isNoMatch = /No match found for process name/i.test(err?.message || "");
+        const lower = value.toLowerCase();
+        if (isNoMatch && lower !== value) {
+            return await idempiereApi(`/processes/${lower}`, {
+                method: "POST",
+                body: JSON.stringify(payload),
+            });
+        }
+        throw err;
+    }
+}
+
 // Helper generik untuk baca id & label dari field referensi iDempiere REST
 // (mis. { id: 1000000, identifier: "EACH" }). Bentuk baris yang dibuat lokal
 // sengaja dibuat mirip { id, identifier } supaya getId/getLabel konsisten
@@ -79,6 +134,20 @@ const getId = (obj) => {
 const getLabel = (field) => (typeof field === "object" ? field?.identifier : field) || "-";
 const isYes = (v) => v === true || v === "Y";
 
+// Konversi hasil getId() ke number secara toleran. Dipakai untuk menentukan
+// apakah satu baris (Vendor Pricing / Sales Price / BOM header / BOM line)
+// sudah ada di server (PUT) atau belum (POST). SEBELUMNYA di sini pakai cek
+// `typeof rawId === "number"` yang terlalu kaku — kalau REST API kebetulan
+// mengembalikan PK sebagai string angka ("1000005") atau bentuk lain yang
+// bukan primitive number murni, baris yang SUDAH ADA di server keliru
+// dianggap baru, jadi di-POST lagi -> bentrok unique constraint (duplicate
+// key) walau datanya sebenarnya sudah tersimpan.
+const toNumericId = (rawId) => {
+    if (rawId === null || rawId === undefined || rawId === "") return null;
+    const n = Number(rawId);
+    return Number.isFinite(n) ? n : null;
+};
+
 // Key stabil untuk satu baris (Vendor Pricing / Sales Price / BOM line).
 const lineKey = (line) => getId(line) ?? line._localId;
 
@@ -92,6 +161,11 @@ function ProductDetail() {
     const [isEditing, setIsEditing] = useState(isNew);
 
     const { isSaving, saveProductWithLines } = useProductDetailSubmit(idempiereApi);
+
+    // State untuk tombol Verify BOM Structure — dideklarasikan di sini (bukan
+    // dekat handleVerifyBom di bawah) supaya tidak jatuh setelah early return
+    // `if (isLoading) return ...` dan melanggar urutan Hooks.
+    const [isVerifyingBom, setIsVerifyingBom] = useState(false);
 
     const [successModal, setSuccessModal] = useState({ isOpen: false, message: "" });
     const showSuccess = (message) => setSuccessModal({ isOpen: true, message });
@@ -201,7 +275,13 @@ function ProductDetail() {
         try {
             const query = `/models/${VENDOR_PRICING_TABLE}?$filter=M_Product_ID eq ${id}`;
             const data = await idempiereApi(query);
-            setVendorLines(data.records || []);
+            
+            // Tandai setiap baris dari server bahwa baris ini SUDAH ADA
+            const records = (data.records || []).map(rec => ({
+                ...rec,
+                _isFetched: true
+            }));
+            setVendorLines(records);
         } catch (err) {
             console.error(`Gagal mengambil Vendor Pricing (${VENDOR_PRICING_TABLE}):`, err);
             setVendorLines([]);
@@ -425,21 +505,30 @@ function ProductDetail() {
 
         // `typeof ... === "number"` jaga-jaga: kalau getId() salah ambil FK
         // (objek) sebagai id, baris tetap dianggap baru (POST), bukan PUT ke URL rusak.
+        // Gantilah bagian vendorLinesPayload di handleSaveAll dengan logika berikut:
         const vendorLinesPayload = vendorLines.map((l) => {
             const rawId = getId(l);
+            const bpartnerId = getId(l.C_BPartner_ID);
+            
+            // Untuk M_Product_PO, ID composite atau ID bawaan dari iDempiere REST
+            const numericId = toNumericId(rawId);
+            
             return {
-                id: typeof rawId === "number" ? rawId : null,
-                C_BPartner_ID: getId(l.C_BPartner_ID),
+                // Jika l._isExisting atau numericId atau sudah ada C_BPartner_ID dari fetch awal, tandai
+                id: numericId,
+                compositeKey: numericId ? null : `${id}_${bpartnerId}`, // composite key fallback jika REST plugin mendukung composite key URL
+                C_BPartner_ID: bpartnerId,
                 VendorProductNo: l.VendorProductNo,
                 PriceList: l.PriceList,
                 PriceLastPO: l.PriceLastPO,
                 _dirty: l._dirty === true,
+                _isNew: !numericId && !l._isFetched, // Tandai eksplisit apakah baris ini baru ditambahkan di UI
             };
         });
         const priceLinesPayload = priceLines.map((l) => {
             const rawId = getId(l);
             return {
-                id: typeof rawId === "number" ? rawId : null,
+                id: toNumericId(rawId),
                 M_PriceList_Version_ID: getId(l.M_PriceList_Version_ID),
                 PriceList: l.PriceList,
                 PriceStd: l.PriceStd,
@@ -453,7 +542,7 @@ function ProductDetail() {
         // lama TIDAK dihapus, hanya tidak disentuh.
         const bomPayload = form.IsBOM
             ? {
-                headerId: typeof bomHeader.id === "number" ? bomHeader.id : null,
+                headerId: toNumericId(bomHeader.id),
                 header: {
                     Value: bomHeader.Value?.trim() || form.Value.trim(),
                     Name: bomHeader.Name?.trim() || form.Name.trim(),
@@ -464,7 +553,7 @@ function ProductDetail() {
                 lines: bomLines.map((l) => {
                     const rawId = getId(l);
                     return {
-                        id: typeof rawId === "number" ? rawId : null,
+                        id: toNumericId(rawId),
                         M_Product_ID: getId(l.M_Product_ID),
                         C_UOM_ID: getId(l.C_UOM_ID),
                         QtyBOM: l.QtyBOM,
@@ -513,6 +602,20 @@ function ProductDetail() {
                     : `\nData M_Product induk sudah tersimpan — hanya sebagian baris Vendor Pricing/Sales Price/BOM yang gagal diproses.`;
             }
             alert(`Gagal menyimpan produk.\n\n${message}`);
+
+            // PENTING: saveProductWithLines mengirim tiap baris sebagai REST
+            // call terpisah (bukan satu transaksi DB), jadi kalau gagal di
+            // tengah jalan, baris-baris SEBELUM tahap yang gagal itu sudah
+            // benar-benar tersimpan di server walau lemparan error bikin
+            // seluruh handleSaveAll dianggap gagal. Tanpa refresh ini, state
+            // lokal (vendorLines/priceLines/bomLines) tetap punya baris itu
+            // dengan id: null (dianggap "baru"), jadi klik Simpan berikutnya
+            // akan POST ulang baris yang sama -> duplicate key. Refresh dari
+            // server di sini menyamakan state lokal dengan kenyataan,
+            // sebelum user coba simpan lagi. Aman dipanggil walau isNew
+            // (fetchVendorLines/fetchPriceLines/fetchBom sendiri sudah
+            // no-op kalau isNew, karena belum ada id produk buat di-fetch).
+            await Promise.all([fetchVendorLines(), fetchPriceLines(), fetchBom()]);
         }
     };
 
@@ -527,6 +630,49 @@ function ProductDetail() {
         fetchVendorLines();
         fetchPriceLines();
         fetchBom();
+    };
+
+    // ─── Verify BOM Structure (AD_Process org.compiere.process.BOMVerify) ───
+    // Proses standar iDempiere ini yang sebelumnya cuma bisa dijalankan lewat
+    // window Bill of Materials & Formula — dipanggil di sini lewat REST
+    // /api/v1/processes/{AD_Process_ID}. Proses ini yang men-set/refresh
+    // flag internal BOM (mis. konsistensi Phantom) di level server, makanya
+    // setelah sukses produk & BOM di-fetch ulang.
+    const handleVerifyBom = async () => {
+        if (isNew || !id) {
+            alert("Simpan produk & BOM-nya terlebih dahulu sebelum menjalankan Verify BOM Structure.");
+            return;
+        }
+        if (isEditing) {
+            alert("Simpan dulu perubahan yang sedang diedit sebelum menjalankan Verify BOM Structure (proses ini bekerja pada data yang sudah tersimpan di server).");
+            return;
+        }
+        setIsVerifyingBom(true);
+        try {
+            const processValue = await resolveProcessValue(BOM_VERIFY_PROCESS_ID);
+            // Proses ini bukan proses dokumen (tidak terikat ke satu baris
+            // tabel tertentu seperti C_Order/M_InOut), jadi table-id &
+            // record-id dikosongkan (0) — parameter sesungguhnya adalah
+            // M_Product_ID. Kalau REST plugin di instance-mu menolak payload
+            // tanpa table-id valid, isi dengan AD_Table_ID punya M_Product
+            // (biasanya 208) dan record-id = id produk ini.
+            const res = await callProcessByValue(processValue, {
+                "table-id": 0,
+                "record-id": 0,
+                M_Product_ID: parseInt(id, 10),
+                IsReValidate: true,
+            });
+            const summary = res?.summary || res?.Summary || res?.["summary"] || "Verify BOM Structure berhasil dijalankan.";
+            showSuccess(summary);
+            // Verify BOM bisa mengubah flag/stok turunan di server (mis.
+            // Phantom), jadi data produk & BOM di form disegarkan.
+            await Promise.all([fetchProduct(), fetchBom()]);
+        } catch (err) {
+            console.error("Gagal menjalankan Verify BOM Structure:", err);
+            alert(`Gagal menjalankan Verify BOM Structure.\n\n${parseIdempiereError(err)}`);
+        } finally {
+            setIsVerifyingBom(false);
+        }
     };
 
     // ─── Flag produk: aturan keterkaitan antar checkbox ─────────────────────
@@ -985,7 +1131,18 @@ function ProductDetail() {
                     perubahan di sini murni state lokal sampai tombol Simpan diklik. */}
                 {form.IsBOM && (
                     <div className="detail-section" style={{ gridColumn: '1 / -1' }}>
-                        <h3>Bill of Materials</h3>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap' }}>
+                            <h3 style={{ margin: 0 }}>Bill of Materials</h3>
+                            <button
+                                type="button"
+                                className="btn btn-secondary"
+                                onClick={handleVerifyBom}
+                                disabled={isVerifyingBom || isNew || !id}
+                                title="Jalankan AD_Process Verify BOM Structure (org.compiere.process.BOMVerify) di server — perlu dijalankan setelah komponen BOM/Phantom diubah supaya explosion BOM berjalan konsisten"
+                            >
+                                {isVerifyingBom ? "Memverifikasi..." : "🔍 Verify BOM Structure"}
+                            </button>
+                        </div>
 
                         {isLoadingBom ? (
                             <p className="muted-note">Memuat...</p>

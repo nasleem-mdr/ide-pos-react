@@ -23,7 +23,7 @@
 .modal-card {
   position: relative;
   width: 400px;
-  background: #0d1117; /* Diubah dari #2c3e50 ke Putih murni */
+  background: #f2f4f8; /* Diubah dari #2c3e50 ke Putih murni */
   border: 1px solid rgba(0, 0, 0, 0.08); /* Border digelapkan sedikit agar kontras */
   border-radius: 14px;
   overflow: hidden;
@@ -35,7 +35,7 @@
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.349);
+  background: rgba(247, 244, 244, 0.349);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -80,25 +80,6 @@
   margin-bottom: 16px;
 }
 
-/* ── Title ── */
-.modal-title {
-  font-family: 'Syne', sans-serif;
-  font-weight: 800;
-  font-size: 17px;
-  color: #1a252f; /* Diubah ke warna gelap bertekstur */
-  letter-spacing: -0.5px;
-  margin-bottom: 8px;
-}
-
-/* ── Message ── */
-.modal-message {
-  font-family: 'DM Mono', monospace;
-  font-size: 11px;
-  color: #5a6a85; /* Diubah ke abu-abu gelap agar teks terbaca jelas */
-  line-height: 1.7;
-  letter-spacing: 0.2px;
-}
-
 .modal-message strong {
   color: #1a252f; /* Tebal diubah ke warna judul */
   font-weight: 500;
@@ -119,21 +100,6 @@
   justify-content: flex-end;
 }
 
-/* Cancel */
-.modal-btn-cancel {
-  padding: 10px 20px;
-  background: transparent;
-  border: 1.5px solid rgba(0, 0, 0, 0.12); /* Border disesuaikan kontrasnya */
-  border-radius: 8px;
-  color: #5a6a85; /* Diubah ke abu-abu gelap */
-  font-family: 'Syne', sans-serif;
-  font-weight: 600;
-  font-size: 11px;
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
 
 .modal-btn-cancel:hover {
   border-color: rgba(0, 0, 0, 0.25);
@@ -141,22 +107,6 @@
   background: rgba(0, 0, 0, 0.03);
 }
 
-/* OK / Confirm */
-.modal-btn-confirm {
-  padding: 10px 24px;
-  background: #00d1b2;
-  border: none;
-  border-radius: 8px;
-  color: #ffffff; /* Diubah ke putih agar kontras dengan tombol toska */
-  font-family: 'Syne', sans-serif;
-  font-weight: 700;
-  font-size: 11px;
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  cursor: pointer;
-  box-shadow: 0 4px 14px rgba(0, 209, 178, 0.2);
-  transition: all 0.2s ease;
-}
 
 .modal-btn-confirm:hover {
   background: #00b89c;
@@ -166,4 +116,21 @@
 
 .modal-btn-confirm:active {
   transform: translateY(0);
+}
+/* Hilangkan baris @import url('https://fonts.googleapis...'); di paling atas */
+
+/* ── Title & Buttons (Menggunakan System Sans-Serif Stack) ── */
+.modal-title,
+.modal-btn-cancel,
+.modal-btn-confirm {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+}
+
+/* ── Message (Menggunakan System Monospace Stack) ── */
+.modal-message {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+  color: #475569;
+  line-height: 1.6;
+  letter-spacing: -0.1px;
 }

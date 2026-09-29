@@ -21,6 +21,7 @@ import InternalUseContainer from '@/features/material/internaluse/pages/Internal
 import InternalUseList from "@/features/material/internaluse/pages/InternalUseList";
 import ProductList from "@/features/master/product/pages/ProductList";
 import ProductDetail from "@/features/master/product/pages/ProductDetail";
+import ProductImport from "@/features/master/product/pages/ProductImport";
 
 // Sales Management
 import POSContainer from "@/features/sales/order/pages/POSContainer"; 
@@ -29,13 +30,13 @@ import SalesInvoiceContainer from "@/features/sales/invoice/pages/SalesInvoiceCo
 import POSOrderList from "@/features/sales/order/pages/POSOrderList";
 import SalesInvoiceList from "@/features/sales/invoice/pages/SalesInvoiceList";
 import SalesOrderDetailReport from "@/features/sales/order/pages/SalesOrderDetailReport";
+import OutstandingInvoiceReport from "@/features/sales/invoice/pages/OutstandingInvoiceReport";
 
 import BookingTimeline from '@/features/login/pages/BookingTimeline';
 
 // Partner management
 import BusinessPartner from "@/features/master/partner/pages/BusinessPartner"; 
 import BusinessPartnerDetail from "@/features/master/partner/pages/BusinessPartnerDetail";
-import BusinessPartnerEdit from '@/features/master/partner/pages/BusinessPartnerEdit';
 import { AccessProvider } from '@/context/AccessContext';
 
 // Banking
@@ -153,6 +154,11 @@ function AppContent() {
                           <ProductDetail />
                         </ProtectedRoute>
                       } />
+                      <Route path="/product-import" element={
+                        <ProtectedRoute windowKey="productImport">
+                          <ProductImport />
+                        </ProtectedRoute>
+                      } />
                       
                       {/* ===== Transaksi ===== */}
                       <Route path="/pos-order" element={
@@ -245,6 +251,11 @@ function AppContent() {
                       <Route path="/salesinvoice-list" element={
                         <ProtectedRoute windowKey="salesInvoiceList">
                           <SalesInvoiceList />
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/outstanding-invoice" element={
+                        <ProtectedRoute windowKey="outstandingInvoice">
+                          <OutstandingInvoiceReport />
                         </ProtectedRoute>
                       } />
                       <Route path="/salesorder-detailreport" element={

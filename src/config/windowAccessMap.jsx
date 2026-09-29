@@ -30,8 +30,9 @@ export const WINDOW_ACCESS_MAP = {
   salesInvoice:         null,
   paymentReceipt:       null,
   productDetail:        null,
+  productImport:        null,
   salesOrderDetailReport:        null,
-  
+    
   // ===== List / Report =====
   requisitionList:      null, 
   posOrderList:         null,
@@ -41,6 +42,7 @@ export const WINDOW_ACCESS_MAP = {
   vendorInvoiceList:      null,
   salesInvoiceList:      null,
   financialReport:        null,
+  outstandingInvoice: null,
   dashboardMenu:        null,
 };
 

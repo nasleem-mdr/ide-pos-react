@@ -211,31 +211,34 @@ export default function useProductDetailSubmit(idempiereApi) {
 
                     // ── Step 2: Vendor Pricing ───────────────────────────
                     currentStep = "vendor-lines";
+                    // Saat memproses vendorLines:
                     for (const line of vendorLines) {
-                        // VendorProductNo default ke Name produk kalau user tidak isi.
-                        const payload = {
-                            VendorProductNo: line.VendorProductNo || productPayload.Name || "",
-                            PriceList: parseFloat(line.PriceList) || 0,
-                            PriceLastPO: parseFloat(line.PriceLastPO) || 0,
-                        };
-                        if (line.id) {
-                            if (line._dirty) {
-                                await idempiereApi(`/models/${VENDOR_PRICING_TABLE}/${line.id}`, {
-                                    method: "PUT",
-                                    body: JSON.stringify(payload),
-                                });
-                                partial.vendorLinesUpdated++;
-                            }
-                        } else {
+                        if (line._isNew) {
+                            // Hanya POST jika baris ini benar-benar baru ditambah oleh user di UI
                             await idempiereApi(`/models/${VENDOR_PRICING_TABLE}`, {
-                                method: "POST",
+                                method: 'POST',
                                 body: JSON.stringify({
-                                    ...payload,
-                                    M_Product_ID: { id: parseInt(finalProductId, 10) },
+                                    M_Product_ID: { id: parseInt(productId, 10) },
                                     C_BPartner_ID: { id: parseInt(line.C_BPartner_ID, 10) },
+                                    VendorProductNo: line.VendorProductNo,
+                                    PriceList: line.PriceList,
+                                    PriceLastPO: line.PriceLastPO,
                                 }),
                             });
-                            partial.vendorLinesCreated++;
+                        } else if (line._dirty) {
+                            // Jika baris lama diedit, lakukan PUT berdasarkan composite key atau ID
+                            const targetUrl = line.id 
+                                ? `/models/${VENDOR_PRICING_TABLE}/${line.id}`
+                                : `/models/${VENDOR_PRICING_TABLE}/(${productId},${line.C_BPartner_ID})`; // Format URL composite key REST plugin iDempiere
+                                
+                            await idempiereApi(targetUrl, {
+                                method: 'PUT',
+                                body: JSON.stringify({
+                                    VendorProductNo: line.VendorProductNo,
+                                    PriceList: line.PriceList,
+                                    PriceLastPO: line.PriceLastPO,
+                                }),
+                            });
                         }
                     }
                     currentStep = "vendor-lines-delete";

@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { idempiereApi } from '@/api/idempiereApi';
 import { getLoginInfo } from '@/shared/hooks/useLoginInfo';
+import { useUomConversion } from '@/shared/hooks/useUomConversion';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // useInternalUseSubmit.jsx
@@ -15,10 +16,19 @@ import { getLoginInfo } from '@/shared/hooks/useLoginInfo';
 //                       M_Product.C_Charge_ID kalau ada)
 //
 // ⚠️ M_InventoryLine TIDAK punya kolom C_UOM_ID (dikonfirmasi dari struktur
-// tabel) — SEMUA field qty di atas WAJIB dalam UOM dasar produk. Kalau user
-// entry qty dalam UOM lain (mis. "Dus" via UomSelector di cart), konversi ke
-// UOM dasar dilakukan di frontend sebelum submit — lihat useUomConversion.jsx
-// dan perhitungan qtyBase di bawah.
+// tabel) — SEMUA field qty di atas WAJIB dalam UOM dasar produk. Konversi
+// dari UOM entry (mis. "Rim") ke UOM dasar (mis. "Lembar") WAJIB pakai
+// `toBaseQty()` dari useUomConversion.jsx (pola sama seperti Purchasing),
+// BUKAN kalkulasi manual `qty * selectedUom.multiplyRate`. Alasannya:
+// MultiplyRate mentah dari C_UOM_Conversion punya arti "berapa <UOM_To>
+// per 1 <UOM_Dasar>", jadi kalau rate < 1 (mis. 0.002 untuk 1 Rim = 500
+// Lembar), base qty yang benar didapat dari MEMBAGI (entered / rate),
+// bukan mengalikan — lihat komentar "RUMUS SAKTI DIBALIK" di
+// useUomConversion.jsx. Versi sebelumnya di sini mengalikan langsung
+// (qty * rate), jadi utk Rim hasilnya 1 * 0.002 = 0.002 Lembar (salah
+// total, harusnya 500 Lembar) — sudah diperbaiki di bawah.
+// JANGAN kirim field C_UOM_ID ke payload M_InventoryLine — kolomnya
+// memang tidak ada di tabel ini (sudah dikonfirmasi dari struktur tabel).
 //
 // ⚠️ M_InventoryLine dipakai bersama oleh 2 jenis dokumen: Physical
 // Inventory (MMI>PI) dan Internal Use (MMO>IU). Untuk Physical Inventory,
@@ -54,6 +64,7 @@ import { getLoginInfo } from '@/shared/hooks/useLoginInfo';
 // ─────────────────────────────────────────────────────────────────────────────
 export function useInternalUseSubmit({ docTypeId, description, onError }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { toBaseQty } = useUomConversion();
 
   const submit = useCallback(async (cart, { warehouseId: fallbackWarehouseId, submitMode = 'complete' } = {}) => {
     if (cart.length === 0) {
@@ -142,29 +153,35 @@ export function useInternalUseSubmit({ docTypeId, description, onError }) {
         // ── 2. Lines M_InventoryLine ───────────────────────────────
         // ⚠️ M_InventoryLine TIDAK punya kolom C_UOM_ID — field qty di
         // tabel ini SELALU dalam UOM DASAR produk. Konversi dari UOM entry
-        // (mis. "Dus") ke UOM dasar dilakukan DI SINI, pakai multiplyRate
-        // dari C_UOM_Conversion (lihat useUomConversion.jsx).
-        //
-        // QtyBook/QtyCount di-hardcode 0 — untuk Internal Use iDempiere
-        // tidak memakai nilai ini untuk apa pun (tidak dihitung sebagai
-        // variance, tidak memengaruhi hasil Complete). Yang benar-benar
-        // diproses cuma QtyInternalUse. Field NOT NULL di tabel terpenuhi
-        // dengan angka 0 eksplisit, bukan hasil resolve stok yang tidak
-        // perlu (dan sebelumnya jadi sumber kebingungan).
+        // (mis. "Rim") ke UOM dasar WAJIB pakai toBaseQty() dari
+        // useUomConversion.jsx (pola sama seperti Purchasing) — BUKAN
+        // `qty * multiplyRate` manual, karena MultiplyRate mentah punya
+        // aturan pembagian khusus saat nilainya < 1. Lihat catatan di
+        // kepala file. C_UOM_ID juga SENGAJA TIDAK dikirim di payload.
         for (const item of group.items) {
-          const qtyBase = parseFloat(item.Qty || 0) * (item.selectedUom?.multiplyRate ?? 1);
+          const qtyInput = parseFloat(item.Qty || 0);
+          const qtyBase  = toBaseQty(qtyInput, item.selectedUom);
+
+          // Pastikan ID charge valid berupa integer
+          const chargeId = parseInt(item.C_Charge_ID, 10);
+          if (isNaN(chargeId)) {
+            throw new Error(`Charge ID untuk produk "${item.Name}" tidak valid.`);
+          }
+
+          const linePayload = {
+            AD_Org_ID:      { id: parseInt(orgId, 10) },
+            M_Inventory_ID: { id: parseInt(inventoryId, 10) },
+            M_Product_ID:   { id: parseInt(item.M_Product_ID, 10) },
+            M_Locator_ID:   { id: parseInt(item.M_Locator_ID, 10) },
+            QtyBook:        0,
+            QtyCount:       0,
+            QtyInternalUse: qtyBase,
+            C_Charge_ID:    { id: chargeId },
+          };
+
           await idempiereApi('/models/m_inventoryline', {
             method: 'POST',
-            body: JSON.stringify({
-              AD_Org_ID:        { id: orgId },
-              M_Inventory_ID:   { id: inventoryId },
-              M_Product_ID:     { id: parseInt(item.M_Product_ID) },
-              M_Locator_ID:     { id: parseInt(item.M_Locator_ID) },
-              QtyBook:          0,
-              QtyCount:         0,
-              QtyInternalUse:   qtyBase,
-              C_Charge_ID:      { id: parseInt(item.C_Charge_ID) },
-            }),
+            body: JSON.stringify(linePayload),
           });
         }
 
@@ -234,7 +251,7 @@ export function useInternalUseSubmit({ docTypeId, description, onError }) {
     }
 
     return { documents, failed };
-  }, [docTypeId, description, onError]);
+  }, [docTypeId, description, onError, toBaseQty]);
 
   return { submit, isSubmitting };
 }

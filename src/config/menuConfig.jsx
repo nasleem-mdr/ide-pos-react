@@ -61,6 +61,7 @@ export const menuSections = [
             { key: 'posOrderList', windowKey: 'posOrderList',  path: '/posorder-list',  label: 'POS Order List',   icon: <PiCashRegister /> },
             { key: 'salesOrderDetailReport', windowKey: 'salesOrderDetailReport',  path: '/salesorder-detailreport',  label: 'POS Order Detail List',   icon: <PiCashRegister /> },
             { key: 'salesInvoiceList', windowKey: 'salesInvoiceList',  path: '/salesinvoice-list',  label: 'Sales Invoice List',   icon: <LiaFileInvoiceDollarSolid /> },
+            { key: 'outstandingInvoice', windowKey: 'outstandingInvoice', path: '/outstanding-invoice', label: 'Outstanding Invoice', icon: <LiaFileInvoiceDollarSolid /> },
         ]
     },
     {
@@ -86,6 +87,7 @@ export const menuSections = [
         items: [
             { key: 'businessPartner', windowKey: 'businessPartner', path: '/business-partner', label: 'Business Partner', icon: <PartnerIcon /> },
             { key: 'product',         windowKey: 'product',         path: '/product',          label: 'Products',        icon: <BoxIcon /> },
+            { key: 'productImport',         windowKey: 'productImport',         path: '/product-import',          label: 'Products Import',        icon: <ImportIcon /> },
         ]
     }
 ];
