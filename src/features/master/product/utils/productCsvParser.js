@@ -9,10 +9,15 @@
  *   - Quoted field: mendukung "..." dengan delimiter/newline di dalamnya,
  *     serta escape quote ganda ("") → ".
  *   - CRLF / LF / baris kosong di akhir file ditangani.
+ *   - MULTI PRICE LIST: beberapa baris dengan `value` (Search Key) yang sama
+ *     digabung jadi SATU produk dengan banyak entri harga jual (`prices`).
+ *     Lihat groupProductRows() di bagian bawah.
  *
- * Return: { headers, rows, delimiter } — rows = array array string mentah
- * (belum di-mapping ke kolom). Mapping ke kolom dilakukan buildColumnMap()
- * + rowsToObjects() di bawah, dengan alias header Indonesia/Inggris.
+ * Return parseCsvText: { headers, rows, delimiter } — rows = array array
+ * string mentah (belum di-mapping ke kolom). Mapping ke kolom dilakukan
+ * buildColumnMap() + rowsToObjects() di bawah, dengan alias header
+ * Indonesia/Inggris. Setelah itu groupProductRows() menggabungkan baris
+ * per produk.
  */
 
 export function parseCsvText(text) {
@@ -54,7 +59,7 @@ export function parseCsvText(text) {
             field += ch;
         }
     }
-    // Field/baris terakung tanpa newline di ujung file
+    // Field/baris terakhir tanpa newline di ujung file
     if (field !== "" || row.length > 0) { row.push(field); rows.push(row); }
     // Buang baris kosong di akhir
     while (rows.length && rows[rows.length - 1].every((c) => c.trim() === "")) rows.pop();
@@ -130,5 +135,70 @@ export function rowsToObjects({ rows }, colMap) {
         }
         if (hasAny) out.push(obj);
     });
+    return out;
+}
+
+// ─── Grouping: banyak baris → satu produk dengan banyak harga jual ────────
+// Kolom per-entri harga (boleh berbeda di tiap baris untuk produk yang sama)
+const PRICE_FIELDS = ["price_list_version", "sales_price_list", "sales_price_std", "sales_price_limit"];
+
+// Kolom level produk. Cukup diisi di baris pertama; baris lanjutan boleh
+// dikosongkan. Kalau diisi di baris lanjutan tapi nilainya BEDA → konflik.
+const PRODUCT_FIELDS = [
+    "name", "description", "product_category", "uom",
+    "is_purchased", "is_sold", "is_stocked", "is_bom",
+    "markup_percent", "rounding_type",
+    "vendor", "vendor_product_no", "vendor_price_list", "vendor_price_last_po",
+];
+
+/**
+ * groupProductRows(objects)
+ * Gabungkan baris ber-`value` (Search Key) sama jadi satu objek produk:
+ *   {
+ *     _row:  nomor baris pertama,
+ *     _rows: [semua nomor baris di file untuk produk ini],
+ *     value, name, ...kolom produk,
+ *     prices: [{ _row, price_list_version, sales_price_list,
+ *                sales_price_std, sales_price_limit }, ...],
+ *     _groupErrors: [pesan konflik antar baris],
+ *   }
+ * Baris tanpa `value` TIDAK digabung (jadi produk sendiri-sendiri) supaya
+ * validasi tetap menolaknya dengan pesan "Search Key wajib diisi".
+ * File lama (1 baris per produk) tetap menghasilkan 0 atau 1 entri prices.
+ */
+export function groupProductRows(objects) {
+    const byKey = new Map();
+    const out = [];
+
+    objects.forEach((o) => {
+        const key = (o.value || "").toLowerCase();
+        let g = key ? byKey.get(key) : null;
+
+        if (!g) {
+            g = { _row: o._row, _rows: [o._row], value: o.value, prices: [], _groupErrors: [] };
+            PRODUCT_FIELDS.forEach((f) => { g[f] = o[f] || ""; });
+            out.push(g);
+            if (key) byKey.set(key, g);
+        } else {
+            g._rows.push(o._row);
+            PRODUCT_FIELDS.forEach((f) => {
+                if (!o[f]) return;
+                if (!g[f]) {
+                    g[f] = o[f];
+                } else if (g[f] !== o[f]) {
+                    g._groupErrors.push(
+                        `Baris ${o._row}: kolom ${f} ("${o[f]}") berbeda dengan baris sebelumnya ("${g[f]}")`
+                    );
+                }
+            });
+        }
+
+        if (PRICE_FIELDS.some((f) => o[f])) {
+            const p = { _row: o._row };
+            PRICE_FIELDS.forEach((f) => { p[f] = o[f] || ""; });
+            g.prices.push(p);
+        }
+    });
+
     return out;
 }

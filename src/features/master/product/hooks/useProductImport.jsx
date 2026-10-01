@@ -8,14 +8,25 @@ import { VENDOR_PRICING_TABLE, parseIdempiereError } from "./useProductDetailSub
 /**
  * useProductImport
  * ─────────────────────────────────────────────────────────────────────────
- * Hook untuk fitur Import Produk CSV:
- *   validateRows(rows)  → cek mandatory, duplikat (file & server), resolve
+ * Hook untuk fitur Import Produk CSV.
+ *
+ * Input berupa array PRODUK hasil groupProductRows() (productCsvParser.js),
+ * di mana tiap produk punya `prices` = daftar harga jual per Price List
+ * Version (bisa 0, 1, atau banyak).
+ *
+ *   validateRows(rows)  → cek mandatory, duplikat Search Key (server), resolve
  *                         kategori/UOM/vendor/price-list-version by name.
  *                         Tiap row jadi row._status = "valid" | "invalid"
- *                         + row._errors + row._resolved (id-id hasil resolve).
+ *                         + row._errors + row._resolved + row._resolvedPrices.
  *   startImport(rows)   → POST m_product per baris valid, lalu (opsional)
  *                         Vendor Pricing (VENDOR_PRICING_TABLE) & Sales Price
- *                         (m_productprice). Tiap row jadi "success"|"failed".
+ *                         (m_productprice) — SATU POST per price list version.
+ *                         Tiap row jadi "success" | "failed".
+ *
+ * Import bersifat IDEMPOTEN per langkah: row menyimpan _productId,
+ * _vendorDone, dan _pricesDone (Set plvId). Kalau gagal di tengah (mis.
+ * produk sudah ter-create tapi harga ke-2 gagal), retry hanya mengerjakan
+ * sisa yang belum selesai — produk tidak dibuat ulang.
  *
  * CATATAN: BOM (IsBOM + komponen) SENGAJA tidak diimpor dari CSV — struktur
  * multi-baris komponen tidak natural di format flat CSV. Produk dengan
@@ -83,6 +94,15 @@ export default function useProductImport() {
         setPhase("validating");
         setSummary(null);
 
+        // 0) Reset state validasi supaya re-validasi (retry) idempoten.
+        //    Error konflik dari grouping (_groupErrors) dipertahankan.
+        //    _productId / _vendorDone / _pricesDone SENGAJA tidak disentuh.
+        rows.forEach((r) => {
+            r._errors = [...(r._groupErrors || [])];
+            r._resolved = {};
+            r._resolvedPrices = [];
+        });
+
         // 1) Cache referensi: kategori produk, UOM, price list version
         let cats = [], uoms = [], plvs = [];
         try {
@@ -95,30 +115,27 @@ export default function useProductImport() {
             uoms = uomRes.records || [];
             plvs = plvRes.records || [];
         } catch (err) {
-            rows.forEach((r) => { r._status = "invalid"; r._errors = ["Gagal memuat data referensi (kategori/UOM/price list): " + err.message]; });
+            rows.forEach((r) => {
+                r._status = "invalid";
+                r._errors = ["Gagal memuat data referensi (kategori/UOM/price list): " + err.message];
+            });
             setPhase("ready");
             return rows;
         }
         const findByName = (list, name) =>
             list.find((x) => (x.Name || "").trim().toLowerCase() === name.toLowerCase());
 
-        // 2) Duplikat Search Key di dalam file
-        const seen = new Map();
-        rows.forEach((r) => {
-            const k = (r.value || "").toLowerCase();
-            if (!k) return;
-            if (seen.has(k)) seen.get(k).push(r); else seen.set(k, [r]);
-        });
-        seen.forEach((group) => {
-            if (group.length > 1) {
-                const lines = group.map((g) => g._row).join(", ");
-                group.forEach((r) => addError(r, `Search Key "${r.value}" duplikat di dalam file (baris ${lines})`));
-            }
-        });
+        // 2) Duplikat Search Key di dalam file: TIDAK dicek lagi di sini.
+        //    Baris ber-value sama sekarang sengaja digabung jadi satu produk
+        //    (multi price list) oleh groupProductRows().
 
         // 3) Duplikat Search Key ke SERVER (per unique value, pakai contains
-        //    + exact match client-side — pola yang terbukti jalan di ProductDetail)
-        const uniqueValues = [...new Set(rows.map((r) => r.value).filter(Boolean))];
+        //    + exact match client-side — pola yang terbukti jalan di ProductDetail).
+        //    Produk yang sudah ter-create oleh sesi import ini (_productId)
+        //    dilewati supaya retry parsial tidak dianggap duplikat.
+        const uniqueValues = [...new Set(
+            rows.filter((r) => !r._productId).map((r) => r.value).filter(Boolean)
+        )];
         const existingValues = new Set();
         for (const v of uniqueValues) {
             try {
@@ -131,7 +148,7 @@ export default function useProductImport() {
             } catch (_) { /* gagal cek → biarkan server yang menolak saat import */ }
         }
         rows.forEach((r) => {
-            if (r.value && existingValues.has(r.value.toLowerCase())) {
+            if (!r._productId && r.value && existingValues.has(r.value.toLowerCase())) {
                 addError(r, `Search Key "${r.value}" sudah ada di iDempiere`);
             }
         });
@@ -151,12 +168,9 @@ export default function useProductImport() {
             }
         }
 
-        // 5) Validasi per baris
+        // 5) Validasi per baris (= per produk)
         const isId = (s) => /^\d+$/.test(s);
         rows.forEach((r) => {
-            r._errors = r._errors || [];
-            r._resolved = {};
-
             if (!r.value) addError(r, "Search Key (kolom value) wajib diisi");
             if (!r.name) addError(r, "Name (kolom name) wajib diisi");
 
@@ -198,23 +212,53 @@ export default function useProductImport() {
                 else r._resolved.vendorId = vid;
             }
 
-            // Price List Version + harga jual
-            const hasSalesPrice = [r.sales_price_list, r.sales_price_std, r.sales_price_limit].some(Boolean);
-            if (r.price_list_version) {
-                const plv = findByName(plvs, r.price_list_version);
-                if (!plv) addError(r, `Price List Version "${r.price_list_version}" tidak ditemukan`);
-                else r._resolved.plvId = plv.id ?? plv.M_PriceList_Version_ID;
-            } else if (hasSalesPrice) {
-                addError(r, "Kolom price_list_version wajib diisi kalau ada harga jual");
-            }
+            // Harga vendor (1 per produk) harus numerik kalau diisi
+            ["vendor_price_list", "vendor_price_last_po"].forEach((col) => {
+                if (r[col] && Number.isNaN(parseNumber(r[col]))) {
+                    addError(r, `Kolom ${col}: "${r[col]}" bukan angka valid`);
+                }
+            });
 
-            // Kolom angka harga harus numerik kalau diisi
-            ["vendor_price_list", "vendor_price_last_po", "sales_price_list", "sales_price_std", "sales_price_limit"]
-                .forEach((col) => {
-                    if (r[col] && Number.isNaN(parseNumber(r[col]))) {
-                        addError(r, `Kolom ${col}: "${r[col]}" bukan angka valid`);
+            // Sales Price: BANYAK Price List Version per produk
+            const seenPlv = new Set();
+            (r.prices || []).forEach((p) => {
+                const tag = `Baris ${p._row}`;
+
+                if (!p.price_list_version) {
+                    addError(r, `${tag}: kolom price_list_version wajib diisi kalau ada harga jual`);
+                    return;
+                }
+                const plv = findByName(plvs, p.price_list_version);
+                if (!plv) {
+                    addError(r, `${tag}: Price List Version "${p.price_list_version}" tidak ditemukan`);
+                    return;
+                }
+                const plvId = plv.id ?? plv.M_PriceList_Version_ID;
+
+                // M_ProductPrice unik per (Product, PriceListVersion)
+                if (seenPlv.has(plvId)) {
+                    addError(r, `${tag}: Price List Version "${p.price_list_version}" muncul lebih dari sekali untuk produk ini`);
+                    return;
+                }
+                seenPlv.add(plvId);
+
+                let numOk = true;
+                ["sales_price_list", "sales_price_std", "sales_price_limit"].forEach((col) => {
+                    if (p[col] && Number.isNaN(parseNumber(p[col]))) {
+                        addError(r, `${tag}: kolom ${col} "${p[col]}" bukan angka valid`);
+                        numOk = false;
                     }
                 });
+                if (!numOk) return;
+
+                r._resolvedPrices.push({
+                    plvId,
+                    plvName: p.price_list_version,
+                    list: parseNumber(p.sales_price_list) || 0,
+                    std: parseNumber(p.sales_price_std) || 0,
+                    limit: parseNumber(p.sales_price_limit) || 0,
+                });
+            });
 
             r._status = r._errors.length > 0 ? "invalid" : "valid";
         });
@@ -224,7 +268,7 @@ export default function useProductImport() {
     }, []);
 
     // ─── IMPORT ───────────────────────────────────────────────────────────
-    // rowsToImport: array row ber-_status "valid" (atau "failed" utk retry).
+    // rowsToImport: array produk ber-_status "valid" (atau "failed" utk retry).
     // Mutasi row._status/_error/_productId langsung di objek row, jadi
     // pemanggil cukup setRows([...rows]) untuk re-render hasil.
     const startImport = useCallback(async (rowsToImport) => {
@@ -235,18 +279,23 @@ export default function useProductImport() {
 
         for (let i = 0; i < rowsToImport.length; i++) {
             const row = rowsToImport[i];
-            try {
-                // 1) M_Product
-                const created = await idempiereApi(`/models/m_product`, {
-                    method: "POST",
-                    body: JSON.stringify(buildProductPayload(row)),
-                });
-                const pid = fkId(created?.id) ?? created?.id ?? created?.M_Product_ID;
-                if (!pid) throw new Error("Server tidak mengembalikan M_Product_ID — cek manual apakah produk tercreate.");
-                row._productId = pid;
+            row._pricesDone = row._pricesDone || new Set();
 
-                // 2) Vendor Pricing (opsional)
-                if (row._resolved.vendorId) {
+            try {
+                // 1) M_Product — jangan dibuat ulang kalau sudah ada (retry)
+                if (!row._productId) {
+                    const created = await idempiereApi(`/models/m_product`, {
+                        method: "POST",
+                        body: JSON.stringify(buildProductPayload(row)),
+                    });
+                    const newId = fkId(created?.id) ?? created?.id ?? created?.M_Product_ID;
+                    if (!newId) throw new Error("Server tidak mengembalikan M_Product_ID — cek manual apakah produk tercreate.");
+                    row._productId = newId;
+                }
+                const pid = row._productId;
+
+                // 2) Vendor Pricing (opsional, sekali per produk)
+                if (row._resolved.vendorId && !row._vendorDone) {
                     await idempiereApi(`/models/${VENDOR_PRICING_TABLE}`, {
                         method: "POST",
                         body: JSON.stringify({
@@ -257,20 +306,28 @@ export default function useProductImport() {
                             PriceLastPO: parseNumber(row.vendor_price_last_po) || 0,
                         }),
                     });
+                    row._vendorDone = true;
                 }
 
-                // 3) Sales Price (opsional)
-                if (row._resolved.plvId) {
-                    await idempiereApi(`/models/m_productprice`, {
-                        method: "POST",
-                        body: JSON.stringify({
-                            M_Product_ID: { id: parseInt(pid, 10) },
-                            M_PriceList_Version_ID: { id: parseInt(row._resolved.plvId, 10) },
-                            PriceList: parseNumber(row.sales_price_list) || 0,
-                            PriceStd: parseNumber(row.sales_price_std) || 0,
-                            PriceLimit: parseNumber(row.sales_price_limit) || 0,
-                        }),
-                    });
+                // 3) Sales Price (opsional) — satu POST per Price List Version
+                for (const p of row._resolvedPrices || []) {
+                    if (row._pricesDone.has(p.plvId)) continue;
+                    try {
+                        await idempiereApi(`/models/m_productprice`, {
+                            method: "POST",
+                            body: JSON.stringify({
+                                M_Product_ID: { id: parseInt(pid, 10) },
+                                M_PriceList_Version_ID: { id: parseInt(p.plvId, 10) },
+                                PriceList: p.list,
+                                PriceStd: p.std,
+                                PriceLimit: p.limit,
+                            }),
+                        });
+                        row._pricesDone.add(p.plvId);
+                    } catch (err) {
+                        // Beri konteks price list mana yang gagal
+                        throw new Error(`Harga "${p.plvName}": ${parseIdempiereError(err)}`);
+                    }
                 }
 
                 row._status = "success";
@@ -278,7 +335,9 @@ export default function useProductImport() {
                 result.success++;
             } catch (err) {
                 row._status = "failed";
-                row._error = parseIdempiereError(err);
+                row._error = err?.message && String(err.message).startsWith("Harga \"")
+                    ? err.message
+                    : parseIdempiereError(err);
                 result.failed++;
             }
             setProgress({ done: i + 1, total: rowsToImport.length, current: row.value });

@@ -3,7 +3,13 @@ import React, { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { idempiereApi } from "@/api/idempiereApi";
 import { PageHeader } from "@/shared/components";
-import { parseCsvText, buildColumnMap, rowsToObjects, REQUIRED_COLUMNS } from "../utils/productCsvParser";
+import {
+    parseCsvText,
+    buildColumnMap,
+    rowsToObjects,
+    groupProductRows,
+    REQUIRED_COLUMNS,
+} from "../utils/productCsvParser";
 import useProductImport from "../hooks/useProductImport";
 import "@/App.css";
 
@@ -12,7 +18,7 @@ import "@/App.css";
 // sisanya opsional. Header boleh pakai alias lain (lihat HEADER_ALIASES
 // di productCsvParser.js), asal kolom wajibnya ada.
 const TEMPLATE_COLUMNS = [
-    { key: "value", label: "value", required: true, example: "KOP-001", hint: "Search Key — unik" },
+    { key: "value", label: "value", required: true, example: "KOP-001", hint: "Search Key — unik. Ulangi di baris berikutnya untuk menambah price list" },
     { key: "name", label: "name", required: true, example: "Kopi Arabika 250g", hint: "Nama produk" },
     { key: "description", label: "description", required: false, example: "Kopi bubuk premium", hint: "" },
     { key: "product_category", label: "product_category", required: true, example: "Minuman", hint: "Nama kategori (bukan ID juga boleh)" },
@@ -27,11 +33,21 @@ const TEMPLATE_COLUMNS = [
     { key: "vendor_product_no", label: "vendor_product_no", required: false, example: "SKU-VENDOR-1", hint: "Default = name kalau kosong" },
     { key: "vendor_price_list", label: "vendor_price_list", required: false, example: "15000", hint: "Harga beli vendor" },
     { key: "vendor_price_last_po", label: "vendor_price_last_po", required: false, example: "14000", hint: "Harga PO terakhir" },
-    { key: "price_list_version", label: "price_list_version", required: false, example: "Harga Jual 2026", hint: "Wajib kalau ada harga jual" },
+    { key: "price_list_version", label: "price_list_version", required: false, example: "Standard2026", hint: "Wajib kalau ada harga jual. Satu baris = satu price list" },
     { key: "sales_price_list", label: "sales_price_list", required: false, example: "20000", hint: "" },
     { key: "sales_price_std", label: "sales_price_std", required: false, example: "20000", hint: "Harga jual" },
     { key: "sales_price_limit", label: "sales_price_limit", required: false, example: "18000", hint: "" },
 ];
+
+// Baris contoh kedua di template: produk SAMA (value sama), price list lain.
+// Kolom produk dikosongkan — cukup value + kolom price list.
+const SECOND_PRICE_EXAMPLE = {
+    value: "KOP-001",
+    price_list_version: "Purchase Price 2026",
+    sales_price_list: "15000",
+    sales_price_std: "15000",
+    sales_price_limit: "14000",
+};
 
 const ProductImport = () => {
     const navigate = useNavigate();
@@ -51,8 +67,14 @@ const ProductImport = () => {
         ? rows.filter((r) => r._status === "invalid" || r._status === "failed")
         : rows;
 
-    // ─── Template CSV: header + 1 baris contoh (kategori/UOM diisi default
-    //     dari server kalau bisa, supaya contohnya langsung relevan) ──────
+    const csvEscape = (v) => {
+        const s = String(v ?? "");
+        return /[",\n\r;]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+
+    // ─── Template CSV: header + 2 baris contoh (produk yang sama dengan 2
+    //     price list). Kategori/UOM diisi default dari server kalau bisa,
+    //     supaya contohnya langsung relevan ───────────────────────────────
     const downloadTemplate = async () => {
         let exampleCategory = "NamaKategori";
         let exampleUom = "Each";
@@ -73,7 +95,9 @@ const ProductImport = () => {
             if (c.key === "uom") return exampleUom;
             return c.example;
         });
-        const csv = "﻿" + [headers, example].map((r) => r.map(csvEscape).join(",")).join("\r\n");
+        const example2 = TEMPLATE_COLUMNS.map((c) => SECOND_PRICE_EXAMPLE[c.key] ?? "");
+
+        const csv = "\uFEFF" + [headers, example, example2].map((r) => r.map(csvEscape).join(",")).join("\r\n");
         const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
@@ -81,11 +105,6 @@ const ProductImport = () => {
         a.download = "template-import-produk.csv";
         a.click();
         URL.revokeObjectURL(url);
-    };
-
-    const csvEscape = (v) => {
-        const s = String(v ?? "");
-        return /[",\n\r;]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
     };
 
     // ─── Baca & validasi file ─────────────────────────────────────────────
@@ -104,9 +123,11 @@ const ProductImport = () => {
                 setParseError("File tidak berisi baris data (hanya header / kosong).");
                 return;
             }
-            setRows(objects);
-            await validateRows(objects); // mutasi _status/_errors/_resolved per row
-            setRows([...objects]);
+            // Gabungkan baris ber-value sama jadi 1 produk dengan banyak price list
+            const products = groupProductRows(objects);
+            setRows(products);
+            await validateRows(products); // mutasi _status/_errors/_resolved per produk
+            setRows([...products]);
         } catch (err) {
             setParseError(err.message);
         }
@@ -126,8 +147,9 @@ const ProductImport = () => {
     };
 
     const handleRetryFailed = async () => {
-        // Re-validasi dulu (value yang tadi "gagal" mungkin ternyata sudah
-        // ke-create di server → sekarang jadi duplikat).
+        // Re-validasi dulu. Produk yang sudah ter-create (punya _productId)
+        // dilewati dari cek duplikat, jadi retry hanya melanjutkan sisa
+        // langkah (vendor/harga) yang belum berhasil.
         const revalidated = await validateRows(failedRows);
         const retryable = revalidated.filter((r) => r._status === "valid");
         setRows([...rows]);
@@ -156,6 +178,10 @@ const ProductImport = () => {
                 Kategori &amp; UOM bisa pakai <em>nama</em> atau <em>ID angka</em>.
                 Angka boleh format Indonesia (1.500.000,50). File Excel? Save As dulu jadi CSV.
                 Produk <strong>IsBOM</strong> diimpor hanya flag-nya, komponen BOM diisi lewat halaman edit.
+                <br />
+                <strong>Banyak Price List per produk:</strong> tulis produk yang sama di beberapa baris dengan{" "}
+                <code>value</code> yang sama — satu baris per <code>price_list_version</code>. Data produk
+                cukup diisi di baris pertama; baris berikutnya boleh hanya <code>value</code> + kolom harga jual.
             </div>
 
             {/* ─── Drop zone / file picker ─────────────────────────────── */}
@@ -207,7 +233,7 @@ const ProductImport = () => {
                 </div>
             )}
 
-            {/* ─── Preview + hasil per baris ───────────────────────────── */}
+            {/* ─── Preview + hasil per produk ──────────────────────────── */}
             {rows.length > 0 && (
                 <div className="detail-section">
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px", marginBottom: "10px" }}>
@@ -232,26 +258,28 @@ const ProductImport = () => {
                         <table className="modern-table">
                             <thead>
                                 <tr>
-                                    <th style={{ width: "50px" }}>Baris</th>
+                                    <th style={{ width: "70px" }}>Baris</th>
                                     <th>Search Key</th>
                                     <th>Name</th>
                                     <th>Kategori</th>
                                     <th>UOM</th>
                                     <th>Vendor</th>
-                                    <th style={{ textAlign: "right" }}>Harga Jual (Std)</th>
+                                    <th style={{ textAlign: "right", minWidth: "200px" }}>Harga Jual (Std) per Price List</th>
                                     <th style={{ width: "240px" }}>Status</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {visibleRows.map((r) => (
                                     <tr key={r._row} style={r._status === "failed" ? { backgroundColor: "#fff5f5" } : {}}>
-                                        <td>{r._row}</td>
+                                        <td>{(r._rows || [r._row]).join(", ")}</td>
                                         <td>{r.value}</td>
                                         <td>{r.name}</td>
                                         <td>{r.product_category}</td>
                                         <td>{r.uom}</td>
                                         <td>{r.vendor || "-"}</td>
-                                        <td style={{ textAlign: "right" }}>{r.sales_price_std || "-"}</td>
+                                        <td style={{ textAlign: "right" }}>
+                                            <PriceCell row={r} />
+                                        </td>
                                         <td>
                                             <StatusCell row={r} />
                                         </td>
@@ -266,6 +294,22 @@ const ProductImport = () => {
     );
 };
 
+// ─── Daftar harga jual per price list version ─────────────────────────────
+const PriceCell = ({ row }) => {
+    const prices = row.prices || [];
+    if (prices.length === 0) return <span>-</span>;
+    return (
+        <div>
+            {prices.map((p) => (
+                <div key={p._row} style={{ fontSize: "12px", lineHeight: 1.5 }}>
+                    <span style={{ color: "#666" }}>{p.price_list_version || "(tanpa PLV)"}:</span>{" "}
+                    <strong>{p.sales_price_std || 0}</strong>
+                </div>
+            ))}
+        </div>
+    );
+};
+
 // ─── Badge + pesan error per baris ────────────────────────────────────────
 const StatusCell = ({ row }) => {
     if (row._status === "valid") return <span style={styles.badge("#e8f5e9", "#2e7d32")}>✔ Valid</span>;
@@ -273,7 +317,10 @@ const StatusCell = ({ row }) => {
         return (
             <span>
                 <span style={styles.badge("#e8f5e9", "#2e7d32")}>✅ Berhasil</span>
-                <span style={{ fontSize: "11.5px", color: "#666", marginLeft: "6px" }}>ID: {row._productId}</span>
+                <span style={{ fontSize: "11.5px", color: "#666", marginLeft: "6px" }}>
+                    ID: {row._productId}
+                    {row._pricesDone?.size > 0 && ` • ${row._pricesDone.size} price list`}
+                </span>
             </span>
         );
     }
@@ -281,6 +328,12 @@ const StatusCell = ({ row }) => {
         return (
             <div>
                 <span style={styles.badge("#ffebee", "#c62828")}>❌ Gagal import</span>
+                {row._productId && (
+                    <div style={{ fontSize: "11.5px", color: "#666", marginTop: "3px" }}>
+                        Produk sudah dibuat (ID: {row._productId}
+                        {row._pricesDone?.size > 0 && `, ${row._pricesDone.size} price list OK`}) — klik "Ulangi yang Gagal" untuk melanjutkan sisanya.
+                    </div>
+                )}
                 <div style={{ fontSize: "11.5px", color: "#c62828", marginTop: "3px" }}>{row._error}</div>
             </div>
         );
