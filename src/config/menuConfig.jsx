@@ -26,7 +26,7 @@ export const menuSections = [
         sectionLabel: 'Sales',
         defaultCollapsed: true,
         items: [
-            { key: 'pos-order',     windowKey: 'pos',    path: '/pos-order',        label: 'Pos Sales',     icon: <CashierIcon size={20}/> },
+            { key: 'posOrder',     windowKey: 'posOrder',    path: '/pos-order',        label: 'Pos Sales',     icon: <CashierIcon size={20}/> },
             { key: 'salesOrder',     windowKey: 'salesOrder',    path: '/sales-order',        label: 'DO (Invoice Bulanan)',     icon: <ShoppingBagIcon size={24}/> },
             { key: 'salesInvoice',       windowKey: 'salesInvoice', path: '/sales-invoice',         label: 'Sales Invoice',  icon: <ImportIcon size={20}/> },
             ]

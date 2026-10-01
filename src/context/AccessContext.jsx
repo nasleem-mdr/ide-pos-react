@@ -1,6 +1,8 @@
 import React, { createContext, useContext } from 'react';
 import { useWindowAccess } from '@/shared/hooks/useWindowAccess';
+import { useFieldRestrictions } from '@/shared/hooks/useFieldRestrictions';
 import { getWindowId } from '@/config/windowAccessMap';
+import { resolveFieldMode } from '@/config/fieldRestriction';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // AccessContext.jsx
@@ -8,18 +10,19 @@ import { getWindowId } from '@/config/windowAccessMap';
 // di-fetch SEKALI saat app mount, lalu dipakai bersama oleh Sidebar,
 // ProtectedRoute, dan tombol-tombol aksi di dalam form — tanpa fetch berulang.
 //
-// Penggunaan:
-//   // di App.jsx, bungkus seluruh routes:
-//   <AccessProvider><Routes>...</Routes></AccessProvider>
+// Level FIELD: aturan dari kolom RestrictedFields di AD_Role (lihat
+// config/fieldRestriction.js untuk formatnya).
 //
-//   // di komponen mana pun:
-//   const { canView, canEdit, loading } = useAccess();
+// Penggunaan:
+//   const { canView, canEdit, canEditField, isFieldHidden } = useAccess();
 //   if (!canView('requisition')) return null;
+//   const priceLocked = !canEditField('pos', 'PriceEntered');
 // ─────────────────────────────────────────────────────────────────────────────
 const AccessContext = createContext(null);
 
 export const AccessProvider = ({ children }) => {
   const { accessMap, loading, error, reload } = useWindowAccess();
+  const { rules: fieldRules, loading: fieldLoading } = useFieldRestrictions();
 
   // canView: window terdaftar di AD_Window_Access (IsActive) → boleh dilihat.
   // Window dengan windowId === null di config (mis. dashboard) selalu true.
@@ -40,7 +43,17 @@ export const AccessProvider = ({ children }) => {
     return !!entry?.isReadWrite;
   };
 
-  const value = { accessMap, loading, error, canView, canEdit, reload };
+  // canEditField: false jika field dibatasi (readonly/hidden) untuk role ini.
+  // Selama aturan belum dimuat → false (fail-closed sementara, sama seperti canEdit).
+  const canEditField = (windowKey, field) => {
+    if (fieldLoading) return false;
+    return resolveFieldMode(fieldRules, windowKey, field) === null;
+  };
+
+  const isFieldHidden = (windowKey, field) =>
+    !fieldLoading && resolveFieldMode(fieldRules, windowKey, field) === 'hidden';
+
+  const value = { accessMap, loading, error, canView, canEdit, canEditField, isFieldHidden, reload };
 
   return (
     <AccessContext.Provider value={value}>

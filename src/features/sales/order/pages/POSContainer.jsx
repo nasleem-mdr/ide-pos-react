@@ -9,6 +9,10 @@ import { useAccess } from '@/context/AccessContext';
 import { idempiereApi, fkId, fkLabel } from '@/api/idempiereApi';
 import { useIsDesktop, useScannerInput, getLoginInfo } from '@/shared/hooks';
 
+// Key window POS untuk pembatasan field (kolom RestrictedFields di AD_Role),
+// mis. "pos.PriceEntered". Samakan dengan key di windowAccessMap / CartItemPOS.
+const POS_WINDOW_KEY = 'pos';
+
 const POSContainer = () => {
     // 1. State untuk kontrol Loading & Data POS
     const [posConfig, setPosConfig]               = useState(null);
@@ -42,8 +46,11 @@ const POSContainer = () => {
     const location = useLocation();
     const navigate = useNavigate();
     const [isCartOpen, setIsCartOpen] = useState(false);
-    const { canEdit } = useAccess();
+    const { canEdit, canEditField } = useAccess();
     const canSubmitRequisition = canEdit('requisition');
+    // Pembatasan field: false jika role ini dilarang mengubah PriceEntered
+    // (atau aturan belum selesai dimuat → fail-closed sementara).
+    const canEditPrice = canEditField(POS_WINDOW_KEY, 'PriceEntered');
     const [scannerOpen, setScannerOpen] = useState(false);
     const [offset, setOffset]           = useState(0);
     const [hasMore, setHasMore]         = useState(true);
@@ -377,7 +384,9 @@ const POSContainer = () => {
         // menentukan existingIndex (nambah qty vs item baru). Tanpa `cart` di deps,
         // handleBarcodeDetected bisa memakai versi `addToCart` yang basi saat scan
         // berturut-turut, berisiko qty tidak ter-update dengan benar.
-    }, [cart, selectedPriceList, posConfig, resetSearchInput]);
+        // ⬇️ `canEditPrice` ditambahkan — addToCart membacanya (blok harga 0); tanpa
+        // ini scan bisa memakai nilai lama sebelum aturan RestrictedFields selesai dimuat.
+    }, [cart, selectedPriceList, posConfig, resetSearchInput, canEditPrice]);
 
     // ref jembatan — sama persis pola di RequisitionContainer
     const handleBarcodeDetectedRef = useRef(handleBarcodeDetected);
@@ -716,6 +725,16 @@ const POSContainer = () => {
         }
 
         if (product.PriceActual === 0) {
+            // Produk tanpa harga di Price List: kasir harus mengisi harga manual.
+            // Role yang dilarang mengubah PriceEntered tidak boleh menjual dengan
+            // harga Rp 0 — blokir, jangan tawarkan dialog konfirmasi.
+            if (!canEditPrice) {
+                triggerAlert(
+                    `Produk "${product.Name}" belum punya harga di Price List ini, dan role Anda tidak dapat mengubah harga. Hubungi admin.`,
+                    "Harga Tidak Tersedia"
+                );
+                return;
+            }
             triggerConfirm(product);
             return;
         }
@@ -745,11 +764,17 @@ const POSContainer = () => {
 
     // ─── 5. Handler confirm untuk dialog mode "confirm" ───────────────────────
     const handleDialogConfirm = async () => {
+        // Penjaga ganda: dialog ini hanya boleh dibuka untuk role yang boleh ubah harga.
+        if (!canEditPrice) {
+            closeDialog();
+            return;
+        }
         const product    = dialog.product;
         const uomOptions = await fetchUOMOptions(product);
         setCart(prev => [...prev, {
             ...product,
             Qty:  1,
+            PriceEntered: 0, // FIX: sebelumnya undefined → calculateTotal bisa NaN
             PriceActual: product.PriceActual,
             basePrice:   product.PriceActual,
             uomOptions,
@@ -761,7 +786,7 @@ const POSContainer = () => {
     // ─── 6. Cart handlers ─────────────────────────────────────────────────────
     const removeFromCart = (id) => setCart(prev => prev.filter(i => i.M_Product_ID !== id));
 
-    const calculateTotal = () => cart.reduce((s, i) => s + (i.PriceEntered * i.Qty), 0);
+    const calculateTotal = () => cart.reduce((s, i) => s + ((i.PriceEntered ?? 0) * i.Qty), 0);
 
     const updateCartQty = (productId, rawQty) => {
         const newQty = parseFloat(rawQty);
@@ -794,6 +819,9 @@ const POSContainer = () => {
     };
 
     const updateCartPrice = (id, value) => {
+        // Pembatasan field: role tanpa izin edit PriceEntered tidak boleh mengubah
+        // harga, walaupun handler ini terpanggil dari jalur lain selain input.
+        if (!canEditPrice) return;
         const price = parseFloat(value);
         if (isNaN(price) || price < 0) return;
         setCart(prev => prev.map(i => i.M_Product_ID === id ? { ...i, PriceEntered: price } : i));
@@ -1132,9 +1160,9 @@ const POSContainer = () => {
                         totalItems={cart.length}
                         totalQty={cart.reduce((s, i) => s + i.Qty, 0)}
                         summaryRight={`Rp ${calculateTotal().toLocaleString('id-ID')}`}
-                        title="🛒 Cart"
-                        submitDraftLabel="💵 CASH"
-                        submitCompleteLabel="📋 PIUTANG"
+                        title=" Cart"
+                        submitDraftLabel=" CASH"
+                        submitCompleteLabel=" PIUTANG"
                         onSubmitDraft={handleCheckoutCash}
                         onSubmitComplete={handleCheckoutAR}
                         isSubmitting={isProcessingCheckout || isSettlingPayment || isProcessingAR}
@@ -1153,7 +1181,7 @@ const POSContainer = () => {
                                     boxShadow: '0 4px 16px rgba(0,0,0,0.2)', cursor: 'pointer',
                                 }}
                             >
-                                <span>🛒 {cart.length} item</span>
+                                <span> {cart.length} item</span>
                                 <span>{calculateTotal().toLocaleString('id-ID')} · Lihat Cart</span>
                             </button>
                         )}
@@ -1168,9 +1196,9 @@ const POSContainer = () => {
                             totalItems={cart.length}
                             totalQty={cart.reduce((s, i) => s + i.Qty, 0)}
                             summaryRight={`Rp ${calculateTotal().toLocaleString('id-ID')}`}
-                            title="🛒 Cart"
-                            submitDraftLabel="💵 CASH"
-                            submitCompleteLabel="📋 PIUTANG"
+                            title=" Cart"
+                            submitDraftLabel=" CASH"
+                            submitCompleteLabel=" PIUTANG"
                             onSubmitDraft={handleCheckoutCash}
                             onSubmitComplete={handleCheckoutAR}
                             isSubmitting={isProcessingCheckout || isSettlingPayment || isProcessingAR}

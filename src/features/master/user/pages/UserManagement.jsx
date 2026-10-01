@@ -1,67 +1,76 @@
 // src/features/master/user/pages/UserManagement.jsx
 import React from "react";
 import { PageHeader } from "@/shared/components";
+import ConfirmModal from "@/features/master/product/components/ConfirmModal";
+import useUserManagement from "@/features/master/user/hooks/useUserManagement";
+import UserTable from "@/features/master/user/components/UserTable";
+import UserFormModal from "@/features/master/user/components/UserFormModal";
+import styles from "@/features/master/user/components/userStyles";
 import "@/App.css";
-import { useUserList } from "../hooks/useUserList";
-import { useUserSubmit } from "../hooks/useUserSubmit";
-import UserForm from "../components/UserForm";
-import SaveResultBox from "../components/SaveResultBox";
-import UserTable from "../components/UserTable";
 
-/**
- * UserManagement — Tambah user (AD_User) + assignment role (AD_User_Roles).
- * Page hanya menyusun hook + komponen. Logika ada di:
- *   - hooks/useUserList.js   (fetch role/user, toggle aktif)
- *   - hooks/useUserSubmit.js (form, validasi, simpan 2 langkah)
- */
+const NOTICE_COLORS = {
+    success: { background: "#e8f5e9", borderColor: "#a5d6a7", icon: "✅" },
+    warn:    { background: "#fff8e1", borderColor: "#ffe082", icon: "⚠️" },
+    error:   { background: "#ffebee", borderColor: "#ef9a9a", icon: "❌" },
+};
+
 const UserManagement = () => {
-    const {
-        roles, rolesLoading, roleNameById,
-        users, usersLoading, togglingId,
-        refreshUsers, toggleActive,
-    } = useUserList();
-
-    const {
-        form, setField, selectedRoleIds, toggleRole,
-        saving, result, submit,
-    } = useUserSubmit({ roleNameById, onCreated: refreshUsers });
-
-    const handleToggleActive = async (user) => {
-        const res = await toggleActive(user);
-        if (!res.ok) {
-            alert(`Gagal mengubah status user "${user.name}":\n${res.error}`);
-        }
-    };
+    const um = useUserManagement();
+    const notice = um.notice && NOTICE_COLORS[um.notice.type];
 
     return (
         <div className="card-container">
-            <PageHeader title="👥 Manajemen User (AD_User + Role)" />
-
-            <div className="detail-section">
-                <h3>Tambah User Baru</h3>
-                <UserForm
-                    form={form}
-                    onFieldChange={setField}
-                    roles={roles}
-                    rolesLoading={rolesLoading}
-                    selectedRoleIds={selectedRoleIds}
-                    onToggleRole={toggleRole}
-                    saving={saving}
-                    onSubmit={submit}
-                />
-                <SaveResultBox result={result} />
+            {/* Header + menu New */}
+            <div style={styles.headerRow}>
+                <PageHeader title="👥 Manajemen User (AD_User + Role)" />
+                <button type="button" style={styles.newBtn} onClick={um.openCreate}>➕ New</button>
             </div>
 
+            {um.notice && (
+                <div style={{ ...styles.noticeBox, background: notice.background, borderColor: notice.borderColor }}>
+                    <span>{notice.icon} {um.notice.text}</span>
+                    <button type="button" style={styles.noticeClose} onClick={um.dismissNotice} aria-label="Tutup">×</button>
+                </div>
+            )}
+
+            {/* Daftar user (tampilan awal) */}
             <div className="detail-section">
-                <h3>Daftar User Aktif ({users.length})</h3>
+                <h3>Daftar User ({um.users.length})</h3>
                 <UserTable
-                    users={users}
-                    loading={usersLoading}
-                    roleNameById={roleNameById}
-                    togglingId={togglingId}
-                    onToggleActive={handleToggleActive}
+                    users={um.users}
+                    loading={um.usersLoading}
+                    roleNameById={um.roleNameById}
+                    togglingId={um.togglingId}
+                    loadingEditId={um.loadingEditId}
+                    deleting={um.deleting}
+                    onEdit={um.openEdit}
+                    onToggleActive={um.toggleActive}
+                    onDelete={um.requestDelete}
                 />
             </div>
+
+            {/* Modal Buat Baru / Edit */}
+            <UserFormModal
+                modal={um.modal}
+                roles={um.roles}
+                rolesLoading={um.rolesLoading}
+                saving={um.saving}
+                error={um.formError}
+                onChangeForm={um.setModalForm}
+                onToggleRole={um.toggleRole}
+                onSave={um.saveModal}
+                onClose={um.closeModal}
+            />
+
+            <ConfirmModal
+                isOpen={um.confirm.isOpen}
+                title="Hapus User"
+                message={`Yakin ingin MENGHAPUS user "${um.confirm.user?.name}"?\n\nIni tidak bisa dibatalkan. Kalau user sudah punya riwayat transaksi, server akan menolak — gunakan Nonaktifkan sebagai alternatif.`}
+                confirmLabel="Hapus Permanen"
+                danger={true}
+                onConfirm={um.confirmDelete}
+                onCancel={um.cancelDelete}
+            />
         </div>
     );
 };

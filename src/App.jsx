@@ -168,7 +168,7 @@ function AppContent() {
                       
                       {/* ===== Transaksi ===== */}
                       <Route path="/pos-order" element={
-                        <ProtectedRoute windowKey="pos">
+                        <ProtectedRoute windowKey="posOrder">
                           <POSContainer />
                         </ProtectedRoute>
                       } />                        
@@ -205,7 +205,9 @@ function AppContent() {
                         </ProtectedRoute>
                       } />
                       <Route path="/role-management" element={
-                        <ProtectedRoute windowKey="roleManagement"><RoleManagement /></ProtectedRoute>
+                        <ProtectedRoute windowKey="roleManagement">
+                          <RoleManagement />
+                        </ProtectedRoute>
                       } />
                       <Route path="/goodsreceipt-list" element={
                         <ProtectedRoute windowKey="goodsReceiptList">
