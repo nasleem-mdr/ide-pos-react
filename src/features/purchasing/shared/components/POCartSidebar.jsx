@@ -30,6 +30,10 @@ const POCartSidebar = ({
   partnerIcon = <><MdAddBusiness /></>,
   partnerLabel = 'vendor',
   docLabel = 'PO',
+  poReference = '',
+  onPoReferenceChange,
+  poReferenceLabel = 'No. Invoice Vendor',
+  poReferencePlaceholder = 'Nomor invoice dari vendor...',
 }) => {
   const vendorCount = vendorGroups.length;
   const hasIncompleteVendor = vendorGroups.some(g => !g.C_BPartner_ID);
@@ -91,7 +95,24 @@ const POCartSidebar = ({
           >Kosongkan</button>
         )}
       </div>
-
+      {onPoReferenceChange && (
+      <div style={{ padding: '12px 16px', borderBottom: `1px solid ${COLOR.border}`, flexShrink: 0 }}>
+        <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: COLOR.textMd, marginBottom: '4px' }}>
+          {poReferenceLabel}
+        </label>
+        <input
+          type="text"
+          value={poReference}
+          onChange={e => onPoReferenceChange(e.target.value)}
+          placeholder={poReferencePlaceholder}
+          style={{
+            width: '100%', boxSizing: 'border-box', padding: '8px 10px',
+            border: `1.5px solid ${COLOR.border}`, borderRadius: RADIUS.sm,
+            fontSize: '13px', color: COLOR.textDk, outline: 'none',
+          }}
+        />
+      </div>
+    )}
       {onDescriptionChange && (
         <div style={{ padding: '12px 16px', borderBottom: `1px solid ${COLOR.border}`, flexShrink: 0 }}>
           <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: COLOR.textMd, marginBottom: '4px' }}>
@@ -110,7 +131,7 @@ const POCartSidebar = ({
           />
         </div>
       )}
-
+      
       <div style={{ flex: 1, overflowY: 'auto', padding: '14px 16px', minHeight: 0 }}>
         {totalItems === 0 ? (
           <div style={{ textAlign: 'center', padding: '40px 0', color: COLOR.textLt }}>
