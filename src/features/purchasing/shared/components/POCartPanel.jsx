@@ -28,6 +28,10 @@ const POCartPanel = ({
   partnerIcon = '🚚',
   partnerLabel = 'vendor',
   docLabel = 'PO',
+  poReference = '',
+  onPoReferenceChange,
+  poReferenceLabel = 'No. Invoice Vendor',
+  poReferencePlaceholder = 'Nomor invoice dari vendor...',
 }) => {
   if (!isOpen) return null;
   const vendorCount = vendorGroups.length;
@@ -84,7 +88,24 @@ const POCartPanel = ({
             >✕</button>
           </div>
         </div>
-
+        {onPoReferenceChange && (
+          <div style={{ padding: '12px 16px', borderBottom: `1px solid ${COLOR.border}`, flexShrink: 0 }}>
+            <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: COLOR.textMd, marginBottom: '4px' }}>
+              {poReferenceLabel}
+            </label>
+            <input
+              type="text"
+              value={poReference}
+              onChange={e => onPoReferenceChange(e.target.value)}
+              placeholder={poReferencePlaceholder}
+              style={{
+                width: '100%', boxSizing: 'border-box', padding: '8px 10px',
+                border: `1.5px solid ${COLOR.border}`, borderRadius: RADIUS.sm,
+                fontSize: '13px', color: COLOR.textDk, outline: 'none',
+              }}
+            />
+          </div>
+        )}
         {onDescriptionChange && (
           <div style={{ padding: '10px 16px', borderBottom: `1px solid ${COLOR.border}`, flexShrink: 0 }}>
             <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: COLOR.textMd, marginBottom: '4px' }}>
