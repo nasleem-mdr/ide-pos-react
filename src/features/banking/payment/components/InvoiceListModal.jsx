@@ -32,7 +32,7 @@ const InvoiceListModal = ({ isOpen, onClose, partnerId, partnerName, isSOTrx, on
                 const filterStr = `C_BPartner_ID eq ${partnerId} and IsSOTrx eq ${isSOTrx} and DocStatus eq 'CO' and IsPaid eq false`;
                 const path =
                     `/models/c_invoice?$filter=${filterStr}` +
-                    `&$select=C_Invoice_ID,DocumentNo,DateInvoiced,GrandTotal,C_Currency_ID,AD_Org_ID,AD_Client_ID` +
+                    `&$select=C_Invoice_ID,DocumentNo,POReference,DateInvoiced,GrandTotal,C_Currency_ID,AD_Org_ID,AD_Client_ID` +
                     `&$orderby=DateInvoiced`;
                 const res = await idempiereApi(path);
                 const candidates = Array.isArray(res.records) ? res.records : [];
@@ -114,6 +114,7 @@ const InvoiceListModal = ({ isOpen, onClose, partnerId, partnerName, isSOTrx, on
             .map(inv => ({
                 C_Invoice_ID: getInvId(inv),
                 DocumentNo:   inv.DocumentNo,
+                POReference: inv.POReference,
                 OpenAmt:      parseFloat(inv.OpenAmt || 0),
                 C_Currency_ID: getCurrencyId(inv),
                 AD_Org_ID:    inv.AD_Org_ID?.id ?? inv.AD_Org_ID,
@@ -166,7 +167,7 @@ const InvoiceListModal = ({ isOpen, onClose, partnerId, partnerName, isSOTrx, on
                                         style={{ width: '16px', height: '16px', cursor: currencyLocked ? 'not-allowed' : 'pointer' }}
                                     />
                                     <div style={{ flex: 1 }}>
-                                        <div style={{ fontSize: '13px', fontWeight: 600, color: COLOR.textDk }}>{inv.DocumentNo}</div>
+                                        <div style={{ fontSize: '13px', fontWeight: 600, color: COLOR.textDk }}>{inv.DocumentNo} - {inv.POReference}</div>
                                         <div style={{ fontSize: '11px', color: COLOR.textLt }}>
                                             {inv.DateInvoiced} · Total {formatCurrency(inv.GrandTotal)} · Sisa {formatCurrency(inv.OpenAmt)}
                                         </div>

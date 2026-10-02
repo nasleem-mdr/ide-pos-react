@@ -1,5 +1,13 @@
 /* ── Dashboard.css ──────────────────────────────────────────────────────── */
-
+.welcome-card-link--disabled {
+  opacity: 0.45;
+  filter: grayscale(1);
+  cursor: not-allowed;
+  user-select: none;
+}
+.welcome-card-link--disabled .welcome-card {
+  pointer-events: none;   /* matikan efek hover/transform kartu */
+}
 .dashboard-root {
   height: 100%;
   background: #0b0e17;

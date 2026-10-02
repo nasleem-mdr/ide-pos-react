@@ -123,7 +123,7 @@ const VendorInvoiceContainer = () => {
 
   const handleModalDraft = async () => {
     setSubmitModalOpen(false);
-    const { results, hadError } = await submitInvoice(cart, { description, submitMode: 'draft' });
+    const { results, hadError } = await submitInvoice(cart, { description, poReference, submitMode: 'draft' });
     if (!results) return;
     setSuccessData(results);
     setSuccessOpen(true);
@@ -132,7 +132,7 @@ const VendorInvoiceContainer = () => {
 
   const handleModalComplete = async () => {
     setSubmitModalOpen(false);
-    const { results, hadError } = await submitInvoice(cart, { description, submitMode: 'complete' });
+    const { results, hadError } = await submitInvoice(cart, { description, poReference, submitMode: 'complete' });
     if (!results) return;
     setSuccessData(results);
     setSuccessOpen(true);
@@ -147,7 +147,7 @@ const VendorInvoiceContainer = () => {
       return;
     }
     setSubmitModalOpen(false);
-    const { results, hadError } = await submitInvoice(cart, { description, submitMode: 'complete' });
+    const { results, hadError } = await submitInvoice(cart, { description, poReference, submitMode: 'complete' });
     if (!results) return;
     if (hadError) { setSuccessData(results); setSuccessOpen(true); return; }
 

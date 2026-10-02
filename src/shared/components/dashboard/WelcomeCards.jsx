@@ -2,90 +2,55 @@ import { Link } from 'react-router-dom';
 import { ShoppingCartIcon, DeliveryIcon, RequisitionIcon, UserTake, VendorIcon, CashierIcon, BankIcon, ImportIcon } from '@/shared/components/icon';
 import { MdOutlinePayments } from "react-icons/md";
 import { SiGoogleanalytics } from "react-icons/si";
+import { useAccess } from '@/context/AccessContext';
 
-/**
- * WelcomeCards — kartu info sesi + shortcut navigasi
- * Props:
- *   session: { roleName, orgName, language }
- */
+// windowKey HARUS sama dengan yang di menuConfig.jsx
+const CARDS = [
+  { windowKey: 'requisition',    to: '/requisition',     icon: <RequisitionIcon size={36} />,   label: 'Formulir', value: 'Requisition' },
+  { windowKey: 'purchasing',     to: '/purchasing',      icon: <ShoppingCartIcon size={32} />,  label: 'Formulir', value: 'Purchase Order' },
+  { windowKey: 'goodsReceipt',   to: '/goods-receipt',   icon: <DeliveryIcon size={38} />,      label: 'Formulir', value: 'Goods Receipt' },
+  { windowKey: 'internalUse',    to: '/internal-use',    icon: <UserTake size={32} />,          label: 'Formulir', value: 'Internal Use' },
+  { windowKey: 'vendorInvoice',  to: '/vendor-invoice',  icon: <VendorIcon size={32} />,        label: 'Formulir', value: 'Purchase Invoice' },
+  { windowKey: 'posOrder',       to: '/pos-order',       icon: <CashierIcon size={32} />,       label: 'Formulir', value: 'POS Sales' },
+  { windowKey: 'salesInvoice',   to: '/sales-invoice',   icon: <ImportIcon size={32} />,        label: 'Formulir', value: 'Sales Invoice' },
+  { windowKey: 'paymentReceipt', to: '/payment-receipt', icon: <MdOutlinePayments size={32} />, label: 'Formulir', value: 'Payment and Receipt' },
+  { windowKey: 'bankstatement',  to: '/bank-statement',  icon: <BankIcon size={32} />,          label: 'Formulir', value: 'Bank Statement' },
+  { windowKey: 'dashboardMenu',  to: '/dashboard-menu',  icon: <SiGoogleanalytics size={32} />, label: 'Report',   value: 'All Report' },
+];
+
+function CardBody({ icon, label, value }) {
+  return (
+    <div className="welcome-card">
+      <div className="welcome-card-icon">{icon}</div>
+      <div className="welcome-card-label">{label}</div>
+      <div className="welcome-card-value">{value}</div>
+    </div>
+  );
+}
+
 export default function WelcomeCards({ session }) {
+  const { canView, loading } = useAccess();
+
   return (
     <div className="welcome-cards">
+      {CARDS.map(({ windowKey, to, ...body }) => {
+        const allowed = !loading && canView(windowKey);
 
-      {/* Shortcut: Requisition */}
-      <Link to="/requisition" className="welcome-card-link">
-      <div className="welcome-card">
-        <div className="welcome-card-icon"><RequisitionIcon size={36} /></div>
-        <div className="welcome-card-label">Formulir</div>
-        <div className="welcome-card-value">Requisition</div>
-      </div>
-      </Link>
-      <Link to="/purchasing" className="welcome-card-link">
-      <div className="welcome-card">
-        <div className="welcome-card-icon"><ShoppingCartIcon size={32} /></div>
-        <div className="welcome-card-label">Formulir</div>
-        <div className="welcome-card-value">Purchase Order</div>
-      </div>
-      </Link>
-      {/* Delivery Icon */}
-      <Link to="/goods-receipt" className="welcome-card-link">
-      <div className="welcome-card">
-        <div className="welcome-card-icon"><DeliveryIcon size={38} /></div>
-        <div className="welcome-card-label">Formulir</div>
-        <div className="welcome-card-value">Goods Receipt</div>
-      </div>
-      </Link>
-      {/* Info: Organisasi */}
-      <Link to="/internal-use" className="welcome-card-link">
-      <div className="welcome-card">
-        <div className="welcome-card-icon"><UserTake size={32} /></div>
-        <div className="welcome-card-label">Formulir</div>
-        <div className="welcome-card-value">Internal Use</div>
-      </div>
-      </Link>
-      <Link to="/vendor-invoice" className="welcome-card-link">
-      <div className="welcome-card">
-        <div className="welcome-card-icon"><VendorIcon size={32} /></div>
-        <div className="welcome-card-label">Formulir</div>
-        <div className="welcome-card-value">Purchase Invoice</div>
-      </div>
-      </Link>
-
-      <Link to="/pos-order" className="welcome-card-link">
-      <div className="welcome-card">
-        <div className="welcome-card-icon"><CashierIcon size={32} /></div>
-        <div className="welcome-card-label">Formulir</div>
-        <div className="welcome-card-value">POS Sales</div>
-      </div>
-      </Link>
-      <Link to="/sales-invoice" className="welcome-card-link">
-      <div className="welcome-card">
-        <div className="welcome-card-icon"><ImportIcon size={32} /></div>
-        <div className="welcome-card-label">Formulir</div>
-        <div className="welcome-card-value">Sales Invoice</div>
-      </div>
-      </Link>
-      <Link to="/payment-receipt" className="welcome-card-link">
-      <div className="welcome-card">
-        <div className="welcome-card-icon"><MdOutlinePayments size={32} /></div>
-        <div className="welcome-card-label">Formulir</div>
-        <div className="welcome-card-value">Payment and Receipt</div>
-      </div>
-      </Link>
-      <Link to="/bank-statement" className="welcome-card-link">
-      <div className="welcome-card">
-        <div className="welcome-card-icon"><BankIcon size={32} /></div>
-        <div className="welcome-card-label">Formulir</div>
-        <div className="welcome-card-value">Bank Statement</div>
-      </div>
-      </Link>
-      <Link to="/dashboard-menu" className="welcome-card-link">
-      <div className="welcome-card">
-        <div className="welcome-card-icon"><SiGoogleanalytics size={32}/></div>
-        <div className="welcome-card-label">Report</div>
-        <div className="welcome-card-value">All Report</div>
-      </div>
-      </Link>
+        return allowed ? (
+          <Link key={windowKey} to={to} className="welcome-card-link">
+            <CardBody {...body} />
+          </Link>
+        ) : (
+          <div
+            key={windowKey}
+            className="welcome-card-link welcome-card-link--disabled"
+            aria-disabled="true"
+            title={loading ? 'Memuat hak akses...' : 'Anda tidak memiliki akses ke menu ini'}
+          >
+            <CardBody {...body} />
+          </div>
+        );
+      })}
     </div>
   );
 }

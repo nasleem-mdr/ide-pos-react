@@ -32,7 +32,6 @@ const POCartSidebar = ({
   docLabel = 'PO',
   poReference = '',
   onPoReferenceChange,
-  poReferenceLabel = 'No. Invoice Vendor',
   poReferencePlaceholder = 'Nomor invoice dari vendor...',
 }) => {
   const vendorCount = vendorGroups.length;
@@ -96,10 +95,7 @@ const POCartSidebar = ({
         )}
       </div>
       {onPoReferenceChange && (
-      <div style={{ padding: '12px 16px', borderBottom: `1px solid ${COLOR.border}`, flexShrink: 0 }}>
-        <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: COLOR.textMd, marginBottom: '4px' }}>
-          {poReferenceLabel}
-        </label>
+      <div style={{ padding: '12px 16px', flexShrink: 0 }}>
         <input
           type="text"
           value={poReference}
@@ -115,9 +111,7 @@ const POCartSidebar = ({
     )}
       {onDescriptionChange && (
         <div style={{ padding: '12px 16px', borderBottom: `1px solid ${COLOR.border}`, flexShrink: 0 }}>
-          <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: COLOR.textMd, marginBottom: '4px' }}>
-            Keterangan
-          </label>
+          
           <input
             type="text"
             value={description}
@@ -202,8 +196,7 @@ const POCartSidebar = ({
               <button
                 onClick={onSubmit}
                 disabled={isSubmitting || hasIncompleteVendor}
-                data-tooltip={getDisabledReasonTooltip(`Hanya akan membuat dokumen ${docLabel}. 
-                  Anda harus membuat Penerimaan Barang dan Invoice Vendor secara manual`)}
+                data-tooltip={getDisabledReasonTooltip(`Prosedur, anda harus mengikuti manual prosedur procurement (Input PO, Input Penerimaan Barang, Input Invoice Vendor, Input Pembayaran, semuanya secara manual)`)}
                className="custom-tooltip"
                 style={{
                   flex: 1,
@@ -230,7 +223,7 @@ const POCartSidebar = ({
                   <button
                     onClick={onSubmitDraft}
                     disabled={isSubmitting || hasIncompleteVendor}
-                    title={getDisabledReasonTooltip(`Simpan sebagai draf ${docLabel} tanpa menyelesaikan transaksi.`)}
+                    title={getDisabledReasonTooltip(`Simpan sebagai draft,tanpa menyelesaikan transaksi.`)}
                     style={{
                       flex: 1,
                       background: (isSubmitting || hasIncompleteVendor) ? '#f3f4f6' : '#fff',
