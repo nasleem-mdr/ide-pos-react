@@ -43,13 +43,14 @@ export function useInvoiceSubmit({ invoiceDocTypeId, defaultDescription, onError
     return { docNo: draftRes.DocumentNo || `INV-${invoiceId}`, status: 'Draft', grandTotal: parseFloat(draftRes.GrandTotal ?? 0) };
   }, []);
 
-  const submit = useCallback(async (cart, { description, submitMode = 'complete' } = {}) => {
+  const submit = useCallback(async (cart, { description, poReference, submitMode = 'complete' } = {}) => {
     if (cart.length === 0) {
       onError?.('Daftar tagihan masih kosong!');
       return { results: null, hadError: true };
     }
     const finalDescription = (description && description.trim()) || defaultDescription;
-
+    const finalPoReference = (poReference || '').trim();
+    
     const missingOrderLine = cart.filter(i => !i.C_OrderLine_ID);
     if (missingOrderLine.length > 0) {
       onError?.('Ada item tanpa referensi PO (C_OrderLine_ID). Import ulang dari PO Complete.', 'Data Tidak Lengkap');
@@ -102,6 +103,7 @@ export function useInvoiceSubmit({ invoiceDocTypeId, defaultDescription, onError
             DateInvoiced:           todayISO,
             IsSOTrx:                false,
             Description:            finalDescription,
+            ...(finalPoReference ? { POReference: finalPoReference } : {}),
             ...(userId ? { SalesRep_ID: { id: parseInt(userId) } } : {}),
           }),
         });
