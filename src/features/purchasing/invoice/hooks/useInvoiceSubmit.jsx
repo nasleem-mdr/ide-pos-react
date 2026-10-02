@@ -109,7 +109,18 @@ export function useInvoiceSubmit({ invoiceDocTypeId, defaultDescription, onError
         });
         const invoiceId = headerRes.id ?? headerRes.C_Invoice_ID;
         if (!invoiceId) throw new Error(`Gagal membuat header Invoice untuk vendor "${vendorName}".`);
-
+        if (!finalPoReference) {
+          onError?.('No. Invoice Vendor wajib diisi.', 'Data Tidak Lengkap');
+          return { results: null, hadError: true };
+        }
+        const vendorIds = new Set(cart.map(i => i.C_BPartner_ID));
+          if (vendorIds.size > 1) {
+            onError?.(
+              'Invoice hanya bisa dibuat untuk 1 vendor per transaksi.\nHapus item vendor lain atau proses terpisah.',
+              'Vendor Tidak Sama'
+            );
+            return { results: null, hadError: true };
+          }
         for (const item of items) {
           const qtyEntered   = parseFloat(item.QtyEntered || 0);
           const qtyInvoiced  = parseFloat(item.QtyOrdered || 0);
