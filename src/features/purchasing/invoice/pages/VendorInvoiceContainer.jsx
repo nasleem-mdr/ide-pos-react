@@ -50,6 +50,7 @@ const VendorInvoiceContainer = () => {
   const [successOpen, setSuccessOpen] = useState(false);
   const [submitModalOpen, setSubmitModalOpen] = useState(false);
   const [description, setDescription] = useState('');
+  const [poReference, setPoReference] = useState('');
   const [invoiceDocTypeId, setInvoiceDocTypeId] = useState(null);
   const [paymentDocTypeId, setPaymentDocTypeId] = useState(null);
   const [selectedBankAccountId, setSelectedBankAccountId] = useState(null);
@@ -265,6 +266,8 @@ const VendorInvoiceContainer = () => {
             isSubmitting={invoiceSubmitting || paymentSubmitting}
             description={description} onDescriptionChange={canSubmitInvoice ? setDescription : undefined}
             descriptionPlaceholder={INVOICE_CONFIG.DESCRIPTION}
+            poReference={poReference}
+            onPoReferenceChange={setPoReference}
           />
         )}
       </div>
@@ -281,6 +284,10 @@ const VendorInvoiceContainer = () => {
           totalItems={totalItems} totalAmount={totalAmount} summaryRight={cartSummaryRight}
           onSubmit={canSubmitInvoice ? () => setSubmitModalOpen(true) : undefined}
           isSubmitting={invoiceSubmitting || paymentSubmitting}
+          description={description} onDescriptionChange={canSubmitInvoice ? setDescription : undefined}
+          descriptionPlaceholder={INVOICE_CONFIG.DESCRIPTION}
+          poReference={poReference}
+          onPoReferenceChange={setPoReference}
         />
       )}
 
