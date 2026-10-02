@@ -1,11 +1,14 @@
 // src/features/master/user/components/RoleFormFields.jsx
 import React from "react";
 import { USER_LEVEL_OPTIONS } from "../hooks/roleConstants";
+import { WINDOW_ACCESS_MAP } from "@/config/windowAccessMap";
 import FieldRestrictionEditor from "./FieldRestrictionEditor";
 import styles from "./roleStyles";
 
-// windowKeys (opsional): saran key window untuk editor pembatasan field.
-const RoleFormFields = ({ form, onChange, windowKeys = [] }) => {
+// Saran key window untuk editor pembatasan field = semua key di windowAccessMap.
+const WINDOW_KEYS = Object.keys(WINDOW_ACCESS_MAP);
+
+const RoleFormFields = ({ form, onChange, windowKeys = WINDOW_KEYS }) => {
     const set = (patch) => onChange({ ...form, ...patch });
     return (
         <div style={styles.formGrid}>

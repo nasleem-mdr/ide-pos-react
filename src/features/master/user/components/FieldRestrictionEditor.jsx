@@ -15,7 +15,7 @@ const MODES = [
  * saat mengetik; hanya baris lengkap yang ikut diserialisasi.
  *
  * Mount ulang tiap modal dibuka (state awal diambil dari `value`).
- * windowKeys (opsional): saran untuk kolom Window, mis. Object.keys(windowAccessMap).
+ * windowKeys: saran untuk kolom Window (diisi dari key WINDOW_ACCESS_MAP oleh RoleFormFields).
  */
 const FieldRestrictionEditor = ({ value, onChange, windowKeys = [] }) => {
     const [rows, setRows] = useState(() => parseRestrictedRows(value));
@@ -29,6 +29,14 @@ const FieldRestrictionEditor = ({ value, onChange, windowKeys = [] }) => {
     const add = () => setRows([...rows, { windowKey: "", field: "", mode: "readonly" }]);
 
     const preview = serializeRestrictedRows(rows);
+
+    // Key yang diketik tapi tidak ada di windowAccessMap (dan bukan "*") tidak akan
+    // pernah cocok di aplikasi — beri tanda supaya salah ketik cepat ketahuan.
+    const knownKeys = new Set(windowKeys.map((k) => k.toLowerCase()));
+    const isUnknownKey = (k) => {
+        const t = k.trim().toLowerCase();
+        return windowKeys.length > 0 && t !== "" && t !== "*" && !knownKeys.has(t);
+    };
 
     return (
         <div>
@@ -46,7 +54,12 @@ const FieldRestrictionEditor = ({ value, onChange, windowKeys = [] }) => {
             {rows.map((r, i) => (
                 <div key={i} style={{ display: "flex", gap: "8px", marginBottom: "6px", flexWrap: "wrap" }}>
                     <input
-                        style={{ ...styles.input, flex: "1 1 120px" }}
+                        style={{
+                            ...styles.input,
+                            flex: "1 1 120px",
+                            ...(isUnknownKey(r.windowKey) ? { borderColor: "#f57c00", background: "#fff8e1" } : {}),
+                        }}
+                        title={isUnknownKey(r.windowKey) ? "Key ini tidak ada di windowAccessMap — pembatasan tidak akan cocok" : undefined}
                         list="rfe-window-keys"
                         value={r.windowKey}
                         onChange={(e) => update(i, { windowKey: e.target.value })}

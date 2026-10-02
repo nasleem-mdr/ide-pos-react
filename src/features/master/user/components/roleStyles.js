@@ -22,7 +22,34 @@ const styles = {
     activateBtn: { background: "#2e7d32", color: "#fff", border: "none", padding: "5px 10px", borderRadius: "6px", cursor: "pointer", fontSize: "12px" },
     deleteBtn: { background: "#fff", color: "#c62828", border: "1px solid #ef9a9a", padding: "5px 10px", borderRadius: "6px", cursor: "pointer", fontSize: "12px" },
     overlay: { position: "fixed", inset: 0, background: "rgba(0,0,0,.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: "20px" },
-    modal: { background: "#fff", borderRadius: "10px", padding: "22px 24px", maxWidth: "720px", width: "100%", maxHeight: "92vh", overflowY: "auto", boxShadow: "0 10px 40px rgba(0,0,0,.3)" },
+    modal: { 
+        background: "#fff", 
+        borderRadius: "10px", 
+        padding: "20px 24px", 
+        maxWidth: "960px", 
+        width: "100%", 
+        maxHeight: "85vh", // Batasi tinggi maksimal modal
+        display: "flex", 
+        flexDirection: "column", // Atur layout bertumpuk vertikal
+        boxShadow: "0 10px 40px rgba(0,0,0,.3)" 
+    },
+    modalBody: {
+        flex: 1, // Mengambil sisa ruang kosong
+        overflowY: "auto", // Area ini saja yang bisa ter-scroll
+        paddingRight: "6px", // Opsional: jarak agar scrollbar tidak menempel ke konten
+        display: "flex",
+        flexDirection: "column",
+        gap: "12px"
+    },
+    modalFooter: {
+        display: "flex", 
+        gap: "10px", 
+        marginTop: "16px", 
+        paddingTop: "12px",
+        borderTop: "1px solid #e0e0e0", // Pembatas halus antara body dan footer
+        justifyContent: "flex-end",
+        background: "#fff" // Memastikan background padat di bagian bawah
+    },
 };
 
 export default styles;
