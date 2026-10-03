@@ -28,6 +28,8 @@ const SICartPanel = ({
   customerLabel = 'customer',
   onDateServiceChange,      // ← tambahan
   showDateService = false,
+  priceLocked = false,      // pembatasan field: harga tidak boleh diubah (role terbatas)
+  priceHidden = false,      // pembatasan field: harga disembunyikan
 }) => {
   if (!isOpen) return null;
   const hasCustomer = !!customerName;
@@ -118,7 +120,9 @@ const SICartPanel = ({
                 onUomChange={onUomChange}
                 onDescriptionChange={onLineDescriptionChange} 
                 onDateServiceChange={onDateServiceChange}
-              showDateService={showDateService}    
+              showDateService={showDateService}
+                priceLocked={priceLocked}
+                priceHidden={priceHidden}    
               />
             ))
           )}

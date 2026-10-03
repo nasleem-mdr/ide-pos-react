@@ -25,6 +25,7 @@ import {
 import { useBankAccounts } from '@/shared/hooks/useBankAccounts'; // sesuaikan path
 
 import { useCustomerSearch } from '@/shared/hooks/useCustomerSearch';
+import { useAccess } from '@/context/AccessContext';
 import SalesInvoiceSubmitModal from '@/features/sales/invoice/components/SalesInvoiceSubmitModal';
 import SalesInvoiceSuccessModal from '@/features/sales/invoice/components/SalesInvoiceSuccessModal';
 import SalesInvoiceImportFromShipment from '@/features/sales/invoice/components/SalesInvoiceImportFromShipment';
@@ -44,9 +45,24 @@ const SALES_INVOICE_CONFIG = {
   DESCRIPTION: 'POReference',
 };
 
+// Key window untuk pembatasan field (kolom RestrictedFields di AD_Role),
+// mis. "salesInvoice.PriceEntered". Samakan dengan key di windowAccessMap.
+const SI_WINDOW_KEY = 'salesInvoice';
+
+// Produk bertipe Service (M_Product.ProductType = 'S') tidak punya stok —
+// jangan pernah dicek QtyOnHand-nya.
+const isServiceProduct = (p) =>
+  p?.isService === true || (p?.ProductType?.id ?? p?.ProductType) === 'S';
+
 const SalesInvoiceContainer = () => {
   const navigate  = useNavigate();
   const isDesktop = useIsDesktop();
+
+  // Pembatasan field: false jika role dilarang mengubah PriceEntered
+  // (atau aturan belum selesai dimuat → fail-closed sementara).
+  const { canEditField, isFieldHidden } = useAccess();
+  const canEditPrice = canEditField(SI_WINDOW_KEY, 'PriceEntered');
+  const priceHidden  = isFieldHidden(SI_WINDOW_KEY, 'PriceEntered');
 
   const [cartOpen, setCartOpen]       = useState(false);
   const [scannerOpen, setScannerOpen] = useState(false);
@@ -94,6 +110,7 @@ const SalesInvoiceContainer = () => {
   // SalesOrderContainer — non-Phantom tetap dihitung ulang juga (hasilnya
   // konsisten, karena basisnya sama-sama M_Storage) supaya satu sumber
   // kebenaran, tidak campur dua cara hitung berbeda.
+  // Produk Service dilewati: tidak punya stok, QtyOnHand dibiarkan undefined.
   const [productsEnriched, setProductsEnriched] = useState([]);
   const {
     cart, addItem, addItems, removeItem, updateQty, updatePrice, updateUom, clearCart,
@@ -230,49 +247,53 @@ const SalesInvoiceContainer = () => {
   }, [clearCart, setCustomer]);
   
   const handleImportFromShipment = (chosenLines) => addItems(chosenLines);
-  // ── Klik di luar box search customer → tutup dropdown ───────────────────
-  // ── Klik di luar box search customer → tutup dropdown ───────────────────
- useEffect(() => {
-  const handler = (e) => {
-    if (customerBoxRef.current && !customerBoxRef.current.contains(e.target)) {
-      setCustomerOpen(false);
-    }
-  };
-  document.addEventListener('mousedown', handler);
-  return () => document.removeEventListener('mousedown', handler);
-}, []);
 
-// ── BARU: re-fetch produk (dengan harga baru) saat price list customer berubah ──
-useEffect(() => {
-  if (customer?.priceListVersionId) {
-    fetchProducts(searchValue, null, customer.priceListVersionId);
-  }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [customer?.priceListVersionId]);
-useEffect(() => {
-  if (bankAccounts.length > 0 && !bankAccountId) {
-    const defaultAcc = bankAccounts.find(b => b.isDefault) || bankAccounts[0];
-    setBankAccountId(defaultAcc.id);
-  }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [bankAccounts]);
-  // useSalesProductSearch tidak mengembalikan IsPhantom, jadi flag-nya
-  // diresolve terpisah di sini per produk yang benar-benar dibuka detailnya
-  // (bukan untuk semua item grid sekaligus, biar hemat request).
-  const fetchIsPhantomMap = async (productIds) => {
+  // ── Klik di luar box search customer → tutup dropdown ───────────────────
+  useEffect(() => {
+    const handler = (e) => {
+      if (customerBoxRef.current && !customerBoxRef.current.contains(e.target)) {
+        setCustomerOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  // ── Re-fetch produk (dengan harga baru) saat price list customer berubah ──
+  useEffect(() => {
+    if (customer?.priceListVersionId) {
+      fetchProducts(searchValue, null, customer.priceListVersionId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [customer?.priceListVersionId]);
+
+  useEffect(() => {
+    if (bankAccounts.length > 0 && !bankAccountId) {
+      const defaultAcc = bankAccounts.find(b => b.isDefault) || bankAccounts[0];
+      setBankAccountId(defaultAcc.id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bankAccounts]);
+
+  // useSalesProductSearch tidak mengembalikan IsPhantom / ProductType, jadi
+  // flag-nya diresolve terpisah di sini. Return: Map<productId, { isPhantom, isService }>.
+  const fetchProductFlagsMap = async (productIds) => {
     const ids = (productIds || []).filter(Boolean);
     if (ids.length === 0) return new Map();
     try {
       const filter = ids.map(id => `M_Product_ID eq ${id}`).join(' or ');
-      const res = await idempiereApi(`/models/m_product?$filter=${filter}&$select=M_Product_ID,IsPhantom`);
+      const res = await idempiereApi(`/models/m_product?$filter=${filter}&$select=M_Product_ID,IsPhantom,ProductType`);
       const map = new Map();
       (Array.isArray(res.records) ? res.records : []).forEach(r => {
         const pid = r.M_Product_ID?.id ?? r.M_Product_ID ?? r.id;
-        map.set(pid, r.IsPhantom === true || r.IsPhantom === 'Y');
+        map.set(pid, {
+          isPhantom: r.IsPhantom === true || r.IsPhantom === 'Y',
+          isService: (r.ProductType?.id ?? r.ProductType) === 'S',
+        });
       });
       return map;
     } catch (err) {
-      console.error('Gagal fetch IsPhantom produk:', err.message);
+      console.error('Gagal fetch flag produk (IsPhantom/ProductType):', err.message);
       return new Map();
     }
   };
@@ -284,6 +305,7 @@ useEffect(() => {
   // pola yang sama dipakai di SalesOrderContainer.
   // `productsInput` boleh array of id angka biasa (dianggap non-Phantom,
   // kompatibel dengan pemanggilan lama) atau array of { id, isPhantom }.
+  // Pemanggil WAJIB sudah membuang produk Service dari input.
   const fetchQtyOnHandBatch = async (productsInput) => {
     const normalized = (productsInput || []).map(p =>
       (typeof p === 'object' && p !== null) ? p : { id: p, isPhantom: false }
@@ -353,6 +375,8 @@ useEffect(() => {
   // Enrich SELURUH grid (bukan cuma produk yang dibuka detailnya) supaya
   // kartu produk menampilkan Stok yang benar, termasuk hasil derivasi BOM
   // untuk produk Phantom — sama seperti yang dilihat user di SalesOrderContainer.
+  // Produk Service: tidak dicek stoknya, ditandai isService dan QtyOnHand
+  // dibiarkan undefined (bukan 0/null, supaya tidak dianggap "stok habis").
   useEffect(() => {
     let cancelled = false;
     const enrich = async () => {
@@ -360,15 +384,24 @@ useEffect(() => {
       setProductsEnriched(products); // tampilkan grid dulu tanpa nunggu enrichment, hindari kedip kosong
       try {
         const ids = products.map(p => p.M_Product_ID).filter(Boolean);
-        const phantomMap = await fetchIsPhantomMap(ids);
-        const stockInput = ids.map(id => ({ id, isPhantom: phantomMap.get(id) ?? false }));
-        const qtyMap = warehouseId ? await fetchQtyOnHandBatch(stockInput) : new Map();
+        const flagsMap = await fetchProductFlagsMap(ids);
+        const stockInput = ids
+          .filter(id => !(flagsMap.get(id)?.isService))
+          .map(id => ({ id, isPhantom: flagsMap.get(id)?.isPhantom ?? false }));
+        const qtyMap = (warehouseId && stockInput.length > 0)
+          ? await fetchQtyOnHandBatch(stockInput)
+          : new Map();
         if (cancelled) return;
-        setProductsEnriched(products.map(p => ({
-          ...p,
-          IsPhantom:  phantomMap.get(p.M_Product_ID) ?? false,
-          QtyOnHand:  qtyMap.get(p.M_Product_ID) ?? 0,
-        })));
+        setProductsEnriched(products.map(p => {
+          const f = flagsMap.get(p.M_Product_ID);
+          const isService = f?.isService ?? false;
+          return {
+            ...p,
+            IsPhantom: f?.isPhantom ?? false,
+            isService,
+            QtyOnHand: isService ? undefined : (qtyMap.get(p.M_Product_ID) ?? 0),
+          };
+        }));
       } catch (err) {
         if (err?.name === 'AbortError') return;
         console.error('Gagal enrich stok/phantom grid produk:', err.message);
@@ -384,20 +417,24 @@ useEffect(() => {
     setSelectedProduct(product);
     setDetailOpen(true);
 
-    // Resolve IsPhantom + QtyOnHand (dengan derivasi BOM kalau phantom) untuk
-    // produk yang benar-benar dibuka, secara async — sheet tetap langsung
-    // terbuka, lalu qty tersedia dipasang begitu hasilnya datang.
+    // Resolve flag (Phantom/Service) + QtyOnHand untuk produk yang benar-benar
+    // dibuka, secara async — sheet tetap langsung terbuka, lalu data dipasang
+    // begitu hasilnya datang. Service tidak dicek stoknya.
     const productId = product?.M_Product_ID;
     if (!productId) return;
     (async () => {
       try {
-        const phantomMap = await fetchIsPhantomMap([productId]);
-        const isPhantom = phantomMap.get(productId) ?? false;
-        const stockMap = await fetchQtyOnHandBatch([{ id: productId, isPhantom }]);
-        const qtyOnHand = stockMap.get(productId) ?? 0;
+        const flags = (await fetchProductFlagsMap([productId])).get(productId);
+        const isPhantom = flags?.isPhantom ?? false;
+        const isService = flags?.isService ?? false;
+        let qtyOnHand;
+        if (!isService) {
+          const stockMap = await fetchQtyOnHandBatch([{ id: productId, isPhantom }]);
+          qtyOnHand = stockMap.get(productId) ?? 0;
+        }
         setSelectedProduct(prev =>
           (prev && prev.M_Product_ID === productId)
-            ? { ...prev, IsPhantom: isPhantom, QtyOnHand: qtyOnHand }
+            ? { ...prev, IsPhantom: isPhantom, isService, QtyOnHand: qtyOnHand }
             : prev
         );
       } catch (err) {
@@ -407,17 +444,38 @@ useEffect(() => {
   };
   const closeProductDetail = () => { setDetailOpen(false); setSelectedProduct(null); };
 
-  const handleConfirmAddToCart = (product, qty, chosenUom) => {
-    const qtyOnHand = product.QtyOnHand;
-    if (warehouseId && qtyOnHand !== undefined && qtyOnHand !== null) {
-      if (qtyOnHand <= 0) {
-        alert(`Stok produk "${product.Name}" habis (QtyOnHand = ${qtyOnHand}).`, 'Stok Habis');
-        return;
+  const handleConfirmAddToCart = async (product, qty, chosenUom) => {
+    // Tentukan apakah produk Service. Kalau flag belum diketahui (grid belum
+    // selesai di-enrich), resolve dulu — jangan sampai Service terblokir cek stok.
+    let isService = isServiceProduct(product);
+    if (product.isService === undefined && product.ProductType === undefined) {
+      const flags = (await fetchProductFlagsMap([product.M_Product_ID])).get(product.M_Product_ID);
+      isService = flags?.isService ?? false;
+    }
+
+    if (!isService) {
+      const qtyOnHand = product.QtyOnHand;
+      if (warehouseId && qtyOnHand !== undefined && qtyOnHand !== null) {
+        if (qtyOnHand <= 0) {
+          alert(`Stok produk "${product.Name}" habis (QtyOnHand = ${qtyOnHand}).`, 'Stok Habis');
+          return;
+        }
+        if (qty > qtyOnHand) {
+          alert(`Qty melebihi stok tersedia untuk "${product.Name}" (Stok: ${qtyOnHand}).`, 'Stok Tidak Cukup');
+          return;
+        }
       }
-      if (qty > qtyOnHand) {
-        alert(`Qty melebihi stok tersedia untuk "${product.Name}" (Stok: ${qtyOnHand}).`, 'Stok Tidak Cukup');
-        return;
-      }
+    }
+
+    // Pembatasan field: produk tanpa harga di Price List hanya boleh ditambahkan
+    // oleh role yang boleh mengubah harga — kalau tidak, invoice bisa terbit Rp 0.
+    const unitPrice = parseFloat(product.PriceActual || product.Price || 0);
+    if (unitPrice === 0 && !canEditPrice) {
+      alert(
+        `Produk "${product.Name}" belum punya harga di Price List ini, dan role Anda tidak dapat mengubah harga. Hubungi admin.`,
+        'Harga Tidak Tersedia'
+      );
+      return;
     }
 
     const uom = chosenUom || { C_UOM_ID: product.C_UOM_ID, Name: product.UomName, multiplyRate: 1 };
@@ -430,9 +488,16 @@ useEffect(() => {
       selectedUom:  uom,
       DateService:  new Date().toISOString().slice(0, 10),
       Qty:          qty,
-      Price:        parseFloat(product.PriceActual || product.Price || 0),
+      Price:        unitPrice,
     });
     closeProductDetail();
+  };
+
+  // Pembatasan field: handler harga dijaga di sini, jadi walaupun SICartSidebar/
+  // SICartPanel masih menampilkan input yang bisa diketik, nilainya tidak berubah.
+  const handlePriceChange = (...args) => {
+    if (!canEditPrice) return;
+    return updatePrice(...args);
   };
 
   const handleBarcodeDetected = async (code) => {
@@ -478,7 +543,7 @@ useEffect(() => {
         alert(`Customer "${bp.Name}" tidak memiliki alamat aktif...`, 'Data Tidak Lengkap');
       }
   
-      // ── BARU: resolve price list version customer ini ──
+      // ── Resolve price list version customer ini ──
       const { priceListId, priceListVersionId } = await resolveCustomerPricing(bp);
       if (!priceListVersionId) {
         alert(`Customer "${bp.Name}" tidak memiliki Price List aktif.\nHarga produk mungkin tidak akurat.`, 'Price List Tidak Ditemukan');
@@ -517,7 +582,7 @@ useEffect(() => {
       customerName:       customer.Name,
       bankAccountId,
       submitMode,
-      editInvoiceId,   // ⬅️ BARU — null di mode normal, terisi di mode edit
+      editInvoiceId,   // null di mode normal, terisi di mode edit
     });
     if (!result) return;
   
@@ -529,10 +594,10 @@ useEffect(() => {
     setDescription('');
     setCustomerQuery('');
     setBankAccountId(null);
-    setCustomer(null);          // ⬅️ tambahkan, biar konsisten dengan clear customer
-    setEditInvoiceId(null);     // ⬅️ BARU
-    setEditInvoiceDocNo(null);  // ⬅️ BARU
-    setEditInvoiceStatus(null); // ⬅️ BARU
+    setCustomer(null);
+    setEditInvoiceId(null);
+    setEditInvoiceDocNo(null);
+    setEditInvoiceStatus(null);
   };
 
   const cartSummaryRight = customer?.Name ? `👤 ${customer.Name}` : '👤 Belum dipilih';
@@ -657,7 +722,7 @@ useEffect(() => {
           )}
         </div>
 
-        {/* ── BARU: Description invoice-level, pindahan dari SICartSidebar ── */}
+        {/* Description invoice-level, pindahan dari SICartSidebar */}
         <input
           type="text"
           value={description}
@@ -669,7 +734,7 @@ useEffect(() => {
             fontSize: '13px', color: COLOR.textDk, outline: 'none', background: '#fff',
           }}
         />
-        {/* ── Pilih C_BankAccount_ID, wajib sebelum submit ── */}
+        {/* Pilih C_BankAccount_ID, wajib sebelum submit */}
         {supportsBankAccount && (
           <select
             value={bankAccountId ?? ''}
@@ -694,33 +759,31 @@ useEffect(() => {
         
       </div>
       {loadingEditInvoice && (
-  <div style={{
-    background: '#e0f2fe', color: '#075985', fontSize: '12px', fontWeight: 600,
-    padding: '8px 14px', textAlign: 'center', flexShrink: 0,
-  }}>
-    ⏳ Memuat data Invoice untuk diedit...
-  </div>
-)}
+        <div style={{
+          background: '#e0f2fe', color: '#075985', fontSize: '12px', fontWeight: 600,
+          padding: '8px 14px', textAlign: 'center', flexShrink: 0,
+        }}>
+          ⏳ Memuat data Invoice untuk diedit...
+        </div>
+      )}
 
-{editInvoiceId && !loadingEditInvoice && (
-  <div style={{
-    background: '#fff3cd', color: '#856404', fontSize: '12px', fontWeight: 600,
-    padding: '8px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-    gap: '8px', flexWrap: 'wrap', borderBottom: '1px solid #ffe69c', flexShrink: 0,
-  }}>
-    <span>✏️ Mode Edit — Invoice {editInvoiceDocNo}</span>
-    <button
-      onClick={handleCancelEditInvoice}
-      style={{
-        background: 'transparent', border: '1px solid #856404', color: '#856404',
-        borderRadius: RADIUS.sm, padding: '4px 10px', fontSize: '11px',
-        cursor: 'pointer', fontWeight: 700, WebkitTapHighlightColor: 'transparent',
-      }}
-    >Batalkan Edit</button>
-  </div>
-)}
-
-
+      {editInvoiceId && !loadingEditInvoice && (
+        <div style={{
+          background: '#fff3cd', color: '#856404', fontSize: '12px', fontWeight: 600,
+          padding: '8px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          gap: '8px', flexWrap: 'wrap', borderBottom: '1px solid #ffe69c', flexShrink: 0,
+        }}>
+          <span>✏️ Mode Edit — Invoice {editInvoiceDocNo}</span>
+          <button
+            onClick={handleCancelEditInvoice}
+            style={{
+              background: 'transparent', border: '1px solid #856404', color: '#856404',
+              borderRadius: RADIUS.sm, padding: '4px 10px', fontSize: '11px',
+              cursor: 'pointer', fontWeight: 700, WebkitTapHighlightColor: 'transparent',
+            }}
+          >Batalkan Edit</button>
+        </div>
+      )}
 
       {/* Body */}
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0 }}>
@@ -820,27 +883,29 @@ useEffect(() => {
         />
         {isDesktop && (
           <SICartSidebar
-          isOpen={cartOpen}
-          onClose={() => setCartOpen(false)}
-          title="🧾 Sales Invoice"
-          items={cart}
-          onRemove={removeItem}
-          onQtyChange={updateQty}
-          onPriceChange={updatePrice}
-          onUomChange={handleCartUomChange}
-          onClearCart={clearCart}
-          totalItems={totalItems}
-          totalAmount={totalAmount}
-          summaryRight={cartSummaryRight}
-          customerName={customer?.Name}
-          onSubmit={() => setSubmitModalOpen(true)}
-          isSubmitting={isSubmitting}
-          description={description}
-          onLineDescriptionChange={updateDescription}  
-          onDateServiceChange={updateDateService}   
-          showDateService={supportsDateService}  
-          descriptionPlaceholder={SALES_INVOICE_CONFIG.DESCRIPTION}
-        />
+            isOpen={cartOpen}
+            onClose={() => setCartOpen(false)}
+            title="🧾 Sales Invoice"
+            items={cart}
+            onRemove={removeItem}
+            onQtyChange={updateQty}
+            onPriceChange={handlePriceChange}
+            priceLocked={!canEditPrice}
+            priceHidden={priceHidden}
+            onUomChange={handleCartUomChange}
+            onClearCart={clearCart}
+            totalItems={totalItems}
+            totalAmount={totalAmount}
+            summaryRight={cartSummaryRight}
+            customerName={customer?.Name}
+            onSubmit={() => setSubmitModalOpen(true)}
+            isSubmitting={isSubmitting}
+            description={description}
+            onLineDescriptionChange={updateDescription}  
+            onDateServiceChange={updateDateService}   
+            showDateService={supportsDateService}  
+            descriptionPlaceholder={SALES_INVOICE_CONFIG.DESCRIPTION}
+          />
         )}
       </div>
 
@@ -856,7 +921,9 @@ useEffect(() => {
           items={cart}
           onRemove={removeItem}
           onQtyChange={updateQty}
-          onPriceChange={updatePrice}
+          onPriceChange={handlePriceChange}
+          priceLocked={!canEditPrice}
+          priceHidden={priceHidden}
           onUomChange={handleCartUomChange}
           onClearCart={clearCart}
           totalItems={totalItems}

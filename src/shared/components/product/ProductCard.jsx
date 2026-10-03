@@ -27,6 +27,8 @@ const ProductCard = ({ product, onClick }) => {
      const rect = descRef.current.getBoundingClientRect();
      setTooltipBelow(rect.top < 65);
    }, []);
+  // Produk Service tidak punya stok — jangan tampilkan "Stok: 0" merah.
+  const isService = product.isService === true || (product.ProductType?.id ?? product.ProductType) === 'S';
   const qty = product.QtyOnHand ?? 0;
   const stockColor = qty <= 0 ? '#dc2626' : qty < 10 ? '#d97706' : COLOR.textLt;
   return (
@@ -66,11 +68,17 @@ const ProductCard = ({ product, onClick }) => {
           </span>
         </div>
       )}
-      {/* Stok */}
+      {/* Stok (Service: tanpa stok) */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <span className="prod-stock" style={{ color: stockColor, fontSize: '11px', fontWeight: 600 }}>
-          <StockIcon size={18}/> Stok: {qty.toLocaleString('id-ID')} {product.C_UOM_Name || 'EA'}
-        </span>
+        {isService ? (
+          <span className="prod-stock" style={{ color: COLOR.textLt, fontSize: '11px', fontWeight: 600 }}>
+            🛠 Jasa (tanpa stok)
+          </span>
+        ) : (
+          <span className="prod-stock" style={{ color: stockColor, fontSize: '11px', fontWeight: 600 }}>
+            <StockIcon size={18}/> Stok: {qty.toLocaleString('id-ID')} {product.C_UOM_Name || 'EA'}
+          </span>
+        )}
       </div>
       {/* Spacer */}
       <div className="prod-spacer" /></div>

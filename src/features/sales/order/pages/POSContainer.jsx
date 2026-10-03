@@ -11,7 +11,7 @@ import { useIsDesktop, useScannerInput, getLoginInfo } from '@/shared/hooks';
 
 // Key window POS untuk pembatasan field (kolom RestrictedFields di AD_Role),
 // mis. "pos.PriceEntered". Samakan dengan key di windowAccessMap / CartItemPOS.
-const POS_WINDOW_KEY = 'pos';
+const POS_WINDOW_KEY = 'posOrder';
 
 const POSContainer = () => {
     // 1. State untuk kontrol Loading & Data POS

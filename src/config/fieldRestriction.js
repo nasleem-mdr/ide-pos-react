@@ -1,22 +1,21 @@
-// src/config/fieldRestriction.js
-//
-// Pembatasan edit level FIELD per role — pasangan dari windowAccessMap
-// (yang membatasi level WINDOW).
-//
-// Sumber data: 1 kolom string di AD_Role (nama kolom di bawah).
-//
-// FORMAT isi kolom (dipisah koma / titik-koma / baris baru):
-//   <windowKey>.<NamaField>          → field read-only
-//   <windowKey>.<NamaField>:hide     → field disembunyikan
-//   *.<NamaField>                    → berlaku di semua window
-//
-// <windowKey> = key yang sama dengan windowAccessMap / ProtectedRoute
-// (mis. product, businessPartner, purchaseOrder). Tidak case-sensitive.
-//
-// Contoh isi:
-//   product.PriceList, product.PriceStd, purchaseOrder.PriceEntered:hide, *.Discount
-
-export const RESTRICTED_FIELDS_COLUMN = "RestrictedFields"; // ganti sesuai nama kolom di AD_Role
+/** src/config/fieldRestriction.js
+* Pembatasan edit level FIELD per role — pasangan dari windowAccessMap
+* (yang membatasi level WINDOW).
+* 
+* Sumber data: 1 kolom string di AD_Role (RestrictedFields).
+* 
+* FORMAT isi kolom (dipisah koma / titik-koma / baris baru):
+*    <windowKey>.<NamaField>          → field read-only
+*    <windowKey>.<NamaField>:hide     → field disembunyikan
+*    *.<NamaField>                    → berlaku di semua window
+* 
+* <windowKey> = key yang sama dengan windowAccessMap / ProtectedRoute
+* (mis. product, businessPartner, purchaseOrder). Tidak case-sensitive.
+* 
+* Contoh isi:
+*    product.PriceList, product.PriceStd, purchaseOrder.PriceEntered:hide, *.Discount
+*/
+export const RESTRICTED_FIELDS_COLUMN = "RestrictedFields";
 
 export const parseRestrictedFields = (raw) => {
     const rules = {}; // { windowKey(lower): { field(lower): 'readonly' | 'hidden' } }
@@ -86,11 +85,12 @@ export const normalizeRestrictedFields = (raw) =>
         .map((e) => `${e.windowKey}.${e.field}${e.mode === "hide" ? ":hide" : ""}`)
         .join(", ");
 
-// ─── Helper editor (Role Management) ─────────────────────────────────────────
-// Berbeda dengan parseRestrictedFields (yang meng-lowercase key untuk pencocokan),
-// dua fungsi ini mempertahankan huruf asli agar bisa diedit & disimpan balik.
-
-// "product.PriceStd, *.Discount:hide" → [{ windowKey, field, mode }]
+/**  ─── Helper editor (Role Management) ─────────────────────────────────────────
+ *  Berbeda dengan parseRestrictedFields (yang meng-lowercase key untuk pencocokan),
+ *  dua fungsi ini mempertahankan huruf asli agar bisa diedit & disimpan balik.
+ * 
+ *  "product.PriceStd, *.Discount:hide" → [{ windowKey, field, mode }]
+*/
 export const parseRestrictedRows = (raw) => {
     const rows = [];
     if (!raw || typeof raw !== "string") return rows;

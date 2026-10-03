@@ -4,12 +4,14 @@ import UomSelector from '@/features/sales/order/components/UomSelectorPOS';
 import { useAccess } from '@/context/AccessContext';
 import { COLOR, RADIUS } from '@/utils/styleTokens';
 
-const POS_WINDOW_KEY = 'pos'; // samakan dengan key POS di windowAccessMap / kolom RestrictedFields
+const POS_WINDOW_KEY = 'posOrder'; // default; samakan dengan key di windowAccessMap / kolom RestrictedFields
 
-const CartItemPOS = ({ item, onRemove, onQtyChange, onUomChange, onPriceChange }) => {
+// windowKey: komponen ini dipakai bersama POS dan Sales Order. Halaman yang
+// bukan POS harus mengirim key-nya sendiri (lihat CartItemSO di SalesOrderContainer).
+const CartItemPOS = ({ item, onRemove, onQtyChange, onUomChange, onPriceChange, windowKey = POS_WINDOW_KEY }) => {
   const { canEditField, isFieldHidden } = useAccess();
-  const priceHidden = isFieldHidden(POS_WINDOW_KEY, 'PriceEntered');
-  const priceLocked = !canEditField(POS_WINDOW_KEY, 'PriceEntered');
+  const priceHidden = isFieldHidden(windowKey, 'PriceEntered');
+  const priceLocked = !canEditField(windowKey, 'PriceEntered');
 
   const subtotal = (item.PriceEntered ?? 0) * (item.Qty ?? 0);
 

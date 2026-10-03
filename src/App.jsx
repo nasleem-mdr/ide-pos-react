@@ -44,7 +44,7 @@ import RoleManagement from "@/features/master/user/pages/RoleManagement";
 // Banking
 import BankStatementContainer  from '@/features/banking/statement/pages/BankStatementContainer';
 import PaymentReceiptContainer  from '@/features/banking/payment/pages/PaymentReceiptContainer';
-
+import ShipmentCustomerReport from "@/features/sales/shipment/pages/ShipmentCustomerReport";
 //financial Report
 import FinancialReportPage from '@/features/financial/pages/FinancialReportPage';
 import DashboardMenu from '@/features/menu/pages/DashboardMenu';
@@ -202,6 +202,12 @@ function AppContent() {
                       <Route path="/purchasing-list" element={
                         <ProtectedRoute windowKey="purchasingList">
                           <PurchasingList />
+                        </ProtectedRoute>
+                      } />
+
+                      <Route path="/shipment-customer-report" element={
+                        <ProtectedRoute windowKey="shipmentCustomerReport">
+                          <ShipmentCustomerReport />
                         </ProtectedRoute>
                       } />
                       <Route path="/role-management" element={

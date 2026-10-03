@@ -5,15 +5,19 @@ import { useOrgInfo } from "@/shared/hooks/useOrgInfo";
 import { idempiereApi } from "@/api/idempiereApi";
 import { renderListPDF } from "@/utils/pdf/renderListPDF";
 import { generateOrderPDF } from "@/features/purchasing/order/utils/generateOrderPDF";
+import {
+    STATUS_FILTERS, StatusBadge, normalizeStatus,
+    buildStatusCondition, isEditable, isDownloadable,
+} from "@/utils/docStatus";
 import "@/App.css";
 
-const STATUS_FILTERS = [
-    { value: "ALL", label: "Semua" },
-    { value: "DR",  label: "Draft" },
-    { value: "IP",  label: "Diproses" },
-    { value: "NA",  label: "Ditolak" },
-    { value: "CO",  label: "Selesai" },
-];
+// const STATUS_FILTERS = [
+//     { value: "ALL", label: "Semua" },
+//     { value: "DR",  label: "Draft" },
+//     { value: "IP",  label: "Diproses" },
+//     { value: "NA",  label: "Ditolak" },
+//     { value: "CO",  label: "Selesai" },
+// ];
 
 const PurchasingList = () => {
     const todayStr = new Date().toISOString().split("T")[0];
@@ -77,6 +81,8 @@ const PurchasingList = () => {
         if (statusFilter && statusFilter !== "ALL") {
             conditions.push(`DocStatus eq '${statusFilter}'`);
         }
+        const statusCond = buildStatusCondition(statusFilter);
+        if (statusCond) conditions.push(statusCond);
 
         // Gabungkan semua kondisi dengan kata ' and '
         return conditions.join(' and ');
@@ -165,7 +171,8 @@ const PurchasingList = () => {
 
     const tableData = orders.map((order) => {
         const orderId = order.id ?? order.C_Order_ID;
-        const status  = order.DocStatus?.id ?? order.DocStatus ?? "DR";
+        //const status  = order.DocStatus?.id ?? order.DocStatus ?? "DR";
+        const status = normalizeStatus(order.DocStatus);
 
         return {
             ...order,
@@ -180,14 +187,15 @@ const PurchasingList = () => {
                 || order.C_BPartner_ID?.Name
                 || "-",
             GrandTotal: fmtRp(order.GrandTotal),
-            DocStatus: (
-                <span style={{
-                    ...styles.badge,
-                    backgroundColor: getStatusColor(status),
-                }}>
-                    {getStatusLabel(status)}
-                </span>
-            ),
+            DocStatus: <StatusBadge status={status} />,
+            // DocStatus: (
+            //     <span style={{
+            //         ...styles.badge,
+            //         backgroundColor: getStatusColor(status),
+            //     }}>
+            //         {getStatusLabel(status)}
+            //     </span>
+            // ),
         };
     });
 

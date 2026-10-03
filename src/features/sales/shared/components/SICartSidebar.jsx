@@ -36,6 +36,8 @@ const SICartSidebar = ({
   customerLabel = 'customer',
   onDateServiceChange,      // ← tambahan
   showDateService = false,
+  priceLocked = false,      // pembatasan field: harga tidak boleh diubah (role terbatas)
+  priceHidden = false,      // pembatasan field: harga disembunyikan
 }) => {
   const hasCustomer = !!customerName;
   const isSingleButtonMode = !!onSubmit && !onSubmitDraft && !onSubmitComplete;
@@ -109,7 +111,9 @@ const SICartSidebar = ({
               onUomChange={onUomChange}
               onDescriptionChange={onLineDescriptionChange} 
               onDateServiceChange={onDateServiceChange} 
-              showDateService={showDateService}    
+              showDateService={showDateService}
+                priceLocked={priceLocked}
+                priceHidden={priceHidden}    
             />
           ))
         )}

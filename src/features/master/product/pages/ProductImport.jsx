@@ -18,10 +18,11 @@ import "@/App.css";
 // sisanya opsional. Header boleh pakai alias lain (lihat HEADER_ALIASES
 // di productCsvParser.js), asal kolom wajibnya ada.
 const TEMPLATE_COLUMNS = [
-    { key: "value", label: "value", required: true, example: "KOP-001", hint: "Search Key — unik. Ulangi di baris berikutnya untuk menambah price list" },
-    { key: "name", label: "name", required: true, example: "Kopi Arabika 250g", hint: "Nama produk" },
-    { key: "description", label: "description", required: false, example: "Kopi bubuk premium", hint: "" },
-    { key: "product_category", label: "product_category", required: true, example: "Minuman", hint: "Nama kategori (bukan ID juga boleh)" },
+    { key: "value", label: "value", required: true, example: "STA-001", hint: "Search Key — unik. Ulangi di baris berikutnya untuk menambah price list" },
+    { key: "name", label: "name", required: true, example: "Buku Tukis 100lbr", hint: "Nama produk" },
+    { key: "description", label: "description", required: false, example: "Buku Tulis berisi 100 lembar halaman", hint: "" },
+    { key: "upc", label: "upc", required: false, example: "8999999000011", hint: "UPC/EAN (barcode)" },
+    { key: "product_category", label: "product_category", required: true, example: "Stationary", hint: "Nama kategori (bukan ID juga boleh)" },
     { key: "uom", label: "uom", required: true, example: "Each", hint: "Nama satuan" },
     { key: "is_purchased", label: "is_purchased", required: false, example: "Y", hint: "Y/N, default N" },
     { key: "is_sold", label: "is_sold", required: false, example: "Y", hint: "Y/N, default N" },
@@ -29,7 +30,7 @@ const TEMPLATE_COLUMNS = [
     { key: "is_bom", label: "is_bom", required: false, example: "N", hint: "Y/N — komponen BOM tetap diisi lewat halaman edit" },
     { key: "markup_percent", label: "markup_percent", required: false, example: "25", hint: "Angka %" },
     { key: "rounding_type", label: "rounding_type", required: false, example: "100", hint: "0/50/100/500/1000/5000/10000" },
-    { key: "vendor", label: "vendor", required: false, example: "PT Sumber Kopi", hint: "Nama vendor (IsVendor)" },
+    { key: "vendor", label: "vendor", required: false, example: "PT ABC", hint: "Nama vendor (IsVendor)" },
     { key: "vendor_product_no", label: "vendor_product_no", required: false, example: "SKU-VENDOR-1", hint: "Default = name kalau kosong" },
     { key: "vendor_price_list", label: "vendor_price_list", required: false, example: "15000", hint: "Harga beli vendor" },
     { key: "vendor_price_last_po", label: "vendor_price_last_po", required: false, example: "14000", hint: "Harga PO terakhir" },
@@ -42,7 +43,7 @@ const TEMPLATE_COLUMNS = [
 // Baris contoh kedua di template: produk SAMA (value sama), price list lain.
 // Kolom produk dikosongkan — cukup value + kolom price list.
 const SECOND_PRICE_EXAMPLE = {
-    value: "KOP-001",
+    value: "STA-001",
     price_list_version: "Purchase Price 2026",
     sales_price_list: "15000",
     sales_price_std: "15000",
@@ -182,6 +183,10 @@ const ProductImport = () => {
                 <strong>Banyak Price List per produk:</strong> tulis produk yang sama di beberapa baris dengan{" "}
                 <code>value</code> yang sama — satu baris per <code>price_list_version</code>. Data produk
                 cukup diisi di baris pertama; baris berikutnya boleh hanya <code>value</code> + kolom harga jual.
+                <br />                
+                <strong>Kolom UPC/EAN:</strong> <code>upc</code> opsional. Di Excel, format kolom ini sebagai
+                Text supaya barcode tidak berubah jadi notasi ilmiah (8.999E+12) atau kehilangan angka 0 di depan.
+                
             </div>
 
             {/* ─── Drop zone / file picker ─────────────────────────────── */}
@@ -261,6 +266,7 @@ const ProductImport = () => {
                                     <th style={{ width: "70px" }}>Baris</th>
                                     <th>Search Key</th>
                                     <th>Name</th>
+                                    <th>UPC/EAN</th>
                                     <th>Kategori</th>
                                     <th>UOM</th>
                                     <th>Vendor</th>
@@ -274,6 +280,7 @@ const ProductImport = () => {
                                         <td>{(r._rows || [r._row]).join(", ")}</td>
                                         <td>{r.value}</td>
                                         <td>{r.name}</td>
+                                        <td>{r.upc || "-"}</td>
                                         <td>{r.product_category}</td>
                                         <td>{r.uom}</td>
                                         <td>{r.vendor || "-"}</td>

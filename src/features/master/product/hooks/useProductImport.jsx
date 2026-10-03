@@ -67,6 +67,7 @@ function buildProductPayload(row) {
         Value: row.value,
         Name: row.name,
         Description: row.description || "",
+        ...(row.upc ? { UPC: row.upc } : {}),
         IsPurchased: parseBool(row.is_purchased),
         IsSold: parseBool(row.is_sold),
         // Default IsStocked = true, sama seperti default kolom di iDempiere.
@@ -152,6 +153,23 @@ export default function useProductImport() {
                 addError(r, `Search Key "${r.value}" sudah ada di iDempiere`);
             }
         });
+        const uniqueUpcs = [...new Set(
+            rows.filter((r) => !r._productId).map((r) => r.upc).filter(Boolean)
+        )];
+        const existingUpcs = new Set();
+        for (const u of uniqueUpcs) {
+            try {
+                const res = await idempiereApi(
+                    `/models/m_product?$filter=UPC eq '${odataEscape(u)}'&$select=Value&$top=1`
+                );
+                if ((res.records || []).length > 0) existingUpcs.add(u.toLowerCase());
+            } catch (_) { /* biarkan server yang menolak */ }
+        }
+        rows.forEach((r) => {
+            if (!r._productId && r.upc && existingUpcs.has(r.upc.toLowerCase())) {
+                addError(r, `UPC "${r.upc}" sudah dipakai produk lain di iDempiere`);
+            }
+        });
 
         // 4) Resolve vendor per unique nama (hanya kalau ada yang pakai)
         const vendorCache = new Map();
@@ -167,7 +185,13 @@ export default function useProductImport() {
                 vendorCache.set(name.toLowerCase(), null);
             }
         }
-
+        const upcSeen = new Map();
+        rows.forEach((r) => {
+            if (!r.upc) return;
+            const k = r.upc.toLowerCase();
+            if (upcSeen.has(k)) addError(r, `UPC "${r.upc}" sama dengan produk Search Key "${upcSeen.get(k)}"`);
+            else upcSeen.set(k, r.value);
+        });
         // 5) Validasi per baris (= per produk)
         const isId = (s) => /^\d+$/.test(s);
         rows.forEach((r) => {
@@ -195,7 +219,10 @@ export default function useProductImport() {
                 if (!u) addError(r, `UOM "${r.uom}" tidak ditemukan di iDempiere`);
                 else r._resolved.uomId = u.id ?? u.C_UOM_ID;
             }
-
+            // UPC/EAN (opsional): maks 30 karakter sesuai M_Product.UPC
+            if (r.upc && r.upc.length > 30) {
+                addError(r, `UPC "${r.upc}" melebihi 30 karakter`);
+            }
             // Angka: markup & rounding
             if (r.markup_percent && Number.isNaN(parseNumber(r.markup_percent))) {
                 addError(r, `Markup "${r.markup_percent}" bukan angka valid`);

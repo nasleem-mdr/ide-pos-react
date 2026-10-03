@@ -28,8 +28,8 @@ export const menuSections = [
         items: [
             { key: 'posOrder',     windowKey: 'posOrder',    path: '/pos-order',        label: 'Pos Sales',     icon: <CashierIcon size={20}/> },
             { key: 'salesOrder',     windowKey: 'salesOrder',    path: '/sales-order',        label: 'DO (Invoice Bulanan)',     icon: <ShoppingBagIcon size={24}/> },
-            { key: 'salesInvoice',       windowKey: 'salesInvoice', path: '/sales-invoice',         label: 'Sales Invoice',  icon: <ImportIcon size={20}/> },
-            ]
+            { key: 'salesInvoice',       windowKey: 'salesInvoice', path: '/sales-invoice',         label: 'Sales Invoice',  icon: <ImportIcon size={20}/> },    
+        ]
     },
     {
         sectionKey: 'payment',
@@ -60,6 +60,7 @@ export const menuSections = [
             items: [
             { key: 'posOrderList', windowKey: 'posOrderList',  path: '/posorder-list',  label: 'POS Order List',   icon: <PiCashRegister /> },
             { key: 'salesOrderDetailReport', windowKey: 'salesOrderDetailReport',  path: '/salesorder-detailreport',  label: 'POS Order Detail List',   icon: <PiCashRegister /> },
+            { key: 'shipmentCustomerReport', windowKey: 'shipmentCustomerReport', path: '/shipment-customer-report', label: 'Shipment (Customer) Report', icon: <LiaPeopleCarrySolid /> },
             { key: 'salesInvoiceList', windowKey: 'salesInvoiceList',  path: '/salesinvoice-list',  label: 'Sales Invoice List',   icon: <LiaFileInvoiceDollarSolid /> },
             { key: 'outstandingInvoice', windowKey: 'outstandingInvoice', path: '/outstanding-invoice', label: 'Outstanding Invoice', icon: <LiaFileInvoiceDollarSolid /> },
         ]

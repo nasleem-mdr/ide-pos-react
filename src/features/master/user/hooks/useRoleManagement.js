@@ -1,5 +1,6 @@
-// src/features/master/user/hooks/useRoleManagement.js
-// Seluruh state & logika bisnis Manajemen Role. UI hanya memakai return value hook ini.
+/**  src/features/master/user/hooks/useRoleManagement.js
+ *   Seluruh state & logika bisnis Manajemen Role. UI hanya memakai return value hook ini.
+*/
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { ACCESS_DEFS, EMPTY_FORM, APP_WINDOW_NAMES, listValue, isTrue } from "./roleConstants";
 import {
@@ -135,7 +136,7 @@ export default function useRoleManagement() {
                 isCanReport: roleRes.IsCanReport !== false && roleRes.IsCanReport !== "N",
                 isCanExport: roleRes.IsCanExport !== false && roleRes.IsCanExport !== "N",
                 isShowAcct: isTrue(roleRes.IsShowAcct),
-                // ASUMSI: fetchRoleDetail mengembalikan semua kolom (tanpa $select).
+                // fetchRoleDetail mengembalikan semua kolom (tanpa $select).
                 // Kalau memakai $select, tambahkan RestrictedFields ke daftar select-nya.
                 restrictedFields: restrictionSupported
                     ? (typeof roleRes[RESTRICTED_FIELDS_COLUMN] === "string" ? roleRes[RESTRICTED_FIELDS_COLUMN] : "")

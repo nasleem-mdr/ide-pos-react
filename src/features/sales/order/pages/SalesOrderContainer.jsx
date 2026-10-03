@@ -1,3 +1,15 @@
+/**  ─────────────────────────────────────────────────────────────────────────────
+ * SalesOrderContainer.jsx
+ * Standard Order untuk customer datang ambil barang di lokasi — BUKAN POS.
+ * Order → Complete → Shipment otomatis dibuat & Complete. TIDAK ada Payment
+ * atau Invoice di sini — penagihan dilakukan via proses BATCH akhir bulan
+ * di luar aplikasi ini (PaymentRule 'P' / On Credit).
+ *
+ * Diadaptasi dari POSContainer.jsx (product grid, search, cart, UOM, stok)
+ * tapi sumber Warehouse/DocType BUKAN dari C_POS — dipilih manual, sama
+ * pola seperti resolusi Warehouse+Locator di PurchasingContainer.jsx.
+ * ─────────────────────────────────────────────────────────────────────────────
+*/
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useLocation } from "react-router-dom";
 import { useSalesOrderSubmit }    from '@/features/sales/order/hooks/useSalesOrderSubmit';
@@ -9,17 +21,9 @@ import { idempiereApi, fkId } from '@/api/idempiereApi';
 import { useIsDesktop, useScannerInput, getLoginInfo,useOrgInfo } from '@/shared/hooks';
 import SalesOrderSuccessModal from '@/features/sales/order/components/SalesOrderSuccessModal';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// SalesOrderContainer.jsx
-// Standard Order untuk customer datang ambil barang di lokasi — BUKAN POS.
-// Order → Complete → Shipment otomatis dibuat & Complete. TIDAK ada Payment
-// atau Invoice di sini — penagihan dilakukan via proses BATCH akhir bulan
-// di luar aplikasi ini (PaymentRule 'P' / On Credit).
-//
-// Diadaptasi dari POSContainer.jsx (product grid, search, cart, UOM, stok)
-// tapi sumber Warehouse/DocType BUKAN dari C_POS — dipilih manual, sama
-// pola seperti resolusi Warehouse+Locator di PurchasingContainer.jsx.
-// ─────────────────────────────────────────────────────────────────────────────
+const SO_WINDOW_KEY = 'salesOrder';
+const CartItemSO = (props) => <CartItemPOS {...props} windowKey={SO_WINDOW_KEY} />;
+
 const SalesOrderContainer = () => {
     // ─── State dasar ────────────────────────────────────────────────────────
     const [cart, setCart]       = useState([]);
@@ -50,8 +54,9 @@ const SalesOrderContainer = () => {
     const location = useLocation();
     const navigate = useNavigate();
     const [isCartOpen, setIsCartOpen] = useState(false);
-    const { canEdit } = useAccess();
+    const { canEdit, canEditField } = useAccess();
     const canSubmitSalesOrder = canEdit('salesOrder'); // sesuaikan key access map kamu
+    const canEditPrice = canEditField(SO_WINDOW_KEY, 'PriceEntered');
     const [scannerOpen, setScannerOpen] = useState(false);
     const [offset, setOffset]           = useState(0);
     const [hasMore, setHasMore]         = useState(true);
@@ -373,7 +378,7 @@ const SalesOrderContainer = () => {
             console.error('Gagal proses barcode:', err.message);
             triggerAlert('Gagal memproses barcode: ' + err.message, 'Error');
         }
-    }, [cart, selectedPriceList, warehouseInfo, resetSearchInput]);
+    }, [cart, selectedPriceList, warehouseInfo, resetSearchInput, canEditPrice]);
 
     const handleBarcodeDetectedRef = useRef(handleBarcodeDetected);
     useEffect(() => { handleBarcodeDetectedRef.current = handleBarcodeDetected; }, [handleBarcodeDetected]);

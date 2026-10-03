@@ -1,8 +1,3 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { idempiereApi } from '@/api/idempiereApi';
-import { COLOR, RADIUS } from '@/utils/styleTokens';
-import { formatCurrency } from '@/utils/currency';
-
 // ─────────────────────────────────────────────────────────────────────────────
 // InvoiceListModal.jsx
 // Fetch invoice OUTSTANDING (OpenAmt > 0, sudah Complete) milik 1 partner,
@@ -14,6 +9,13 @@ import { formatCurrency } from '@/utils/currency';
 // yang dicentang beda C_Currency_ID dari yang pertama dicentang, baris lain
 // dengan currency beda otomatis di-disable — 1 C_Payment cuma bisa 1 currency.
 // ─────────────────────────────────────────────────────────────────────────────
+
+import React, { useState, useEffect, useMemo } from 'react';
+import { idempiereApi } from '@/api/idempiereApi';
+import { COLOR, RADIUS } from '@/utils/styleTokens';
+import { formatCurrency } from '@/utils/currency';
+
+
 const InvoiceListModal = ({ isOpen, onClose, partnerId, partnerName, isSOTrx, onConfirm }) => {
     const [invoices, setInvoices] = useState([]);
     const [loading, setLoading]   = useState(false);

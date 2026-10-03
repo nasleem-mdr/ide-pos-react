@@ -5,7 +5,7 @@ import { WINDOW_ACCESS_MAP } from "@/config/windowAccessMap";
 import FieldRestrictionEditor from "./FieldRestrictionEditor";
 import styles from "./roleStyles";
 
-// Saran key window untuk editor pembatasan field = semua key di windowAccessMap.
+// key window untuk editor pembatasan field = semua key di windowAccessMap.
 const WINDOW_KEYS = Object.keys(WINDOW_ACCESS_MAP);
 
 const RoleFormFields = ({ form, onChange, windowKeys = WINDOW_KEYS }) => {

@@ -21,7 +21,10 @@ const fmtQty = (n) => {
 // ─────────────────────────────────────────────────────────────────────────────
 const SICartItem = ({ 
   item, itemKey, onRemove, onQtyChange, onPriceChange, 
-  onUomChange, onDescriptionChange, onDateServiceChange, showDateService = false, }) => {
+  onUomChange, onDescriptionChange, onDateServiceChange, showDateService = false,
+  priceLocked = false,   // pembatasan field: harga tampil tapi tidak bisa diubah
+  priceHidden = false,   // pembatasan field: input harga disembunyikan
+}) => {
   const lineAmount = item.Qty * (item.Price || 0);
 
   const isConverted = item.BaseUOM_ID && item.C_UOM_ID !== item.BaseUOM_ID
@@ -78,17 +81,36 @@ const SICartItem = ({
       </div>
 
       <div style={{ display: 'flex', gap: '6px', marginTop: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
-          <span style={{ fontSize: '11px', color: COLOR.textLt }}>Price:</span>
-         <PriceInput
-          value={item.Price}
-          onChange={val => onPriceChange(itemKey, val)}
-          style={{
-            width: '90px', textAlign: 'right', padding: '5px 6px', border: `1px solid ${COLOR.border}`,
-            borderRadius: RADIUS.sm, fontSize: '12px', fontWeight: 600, color: COLOR.textDk,
-          }}
-        />
-        </div>
+        {!priceHidden && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+            <span style={{ fontSize: '11px', color: COLOR.textLt }}>Price:</span>
+            {priceLocked ? (
+              // Terkunci: tampilkan harga apa adanya, bukan input — tidak bergantung
+              // pada dukungan disabled/readOnly di PriceInput.
+              <span
+                title="Role Anda tidak dapat mengubah harga"
+                style={{
+                  display: 'inline-block', width: '90px', boxSizing: 'border-box',
+                  textAlign: 'right', padding: '5px 6px',
+                  border: `1px solid ${COLOR.border}`, borderRadius: RADIUS.sm,
+                  fontSize: '12px', fontWeight: 600, color: COLOR.textDk,
+                  background: '#f3f4f6', cursor: 'not-allowed',
+                }}
+              >
+                {formatCurrency(item.Price || 0)}
+              </span>
+            ) : (
+              <PriceInput
+                value={item.Price}
+                onChange={val => onPriceChange(itemKey, val)}
+                style={{
+                  width: '90px', textAlign: 'right', padding: '5px 6px', border: `1px solid ${COLOR.border}`,
+                  borderRadius: RADIUS.sm, fontSize: '12px', fontWeight: 600, color: COLOR.textDk,
+                }}
+              />
+            )}
+          </div>
+        )}
         <span style={{ fontSize: '11px', color: COLOR.textLt }}>Qty</span>
         <QtyStepper value={item.Qty} onChange={q => onQtyChange(itemKey, q)} size="sm" />
         
