@@ -1,15 +1,16 @@
+/**  ─────────────────────────────────────────────────────────────────────────────
+* useInvoiceCart.jsx
+* Key unik per baris = C_OrderLine_ID (bukan M_Product_ID+UOM seperti di cart
+* PO/Requisition), karena 1 produk yg sama bisa muncul di >1 PO berbeda dan
+* keduanya harus tetap jadi baris terpisah (masing² tertaut ke PO line asal
+* masing-masing — wajib utk 3-way matching).
+*
+* TIDAK ADA updateUom/updateVendor di sini (beda dgn usePOCart) — UOM dan
+* vendor SUDAH FIX dari PO asal, tidak bisa diganti user di layar Invoice.
+* ─────────────────────────────────────────────────────────────────────────────
+*/
 import { useState, useCallback, useMemo } from 'react';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// useInvoiceCart.jsx
-// Key unik per baris = C_OrderLine_ID (bukan M_Product_ID+UOM seperti di cart
-// PO/Requisition), karena 1 produk yg sama bisa muncul di >1 PO berbeda dan
-// keduanya harus tetap jadi baris terpisah (masing² tertaut ke PO line asal
-// masing-masing — wajib utk 3-way matching).
-//
-// TIDAK ADA updateUom/updateVendor di sini (beda dgn usePOCart) — UOM dan
-// vendor SUDAH FIX dari PO asal, tidak bisa diganti user di layar Invoice.
-// ─────────────────────────────────────────────────────────────────────────────
 export const lineKey = (item) => String(item.C_OrderLine_ID);
 
 export function useInvoiceCart() {

@@ -1,23 +1,24 @@
+/** ─────────────────────────────────────────────────────────────────────────────
+* AccessContext.jsx
+* Provider tunggal di root App agar accessMap (AD_Window_Access role aktif)
+* di-fetch SEKALI saat app mount, lalu dipakai bersama oleh Sidebar,
+* ProtectedRoute, dan tombol-tombol aksi di dalam form — tanpa fetch berulang.
+* 
+* Level FIELD: aturan dari kolom RestrictedFields di AD_Role (lihat
+* config/fieldRestriction.js untuk formatnya).
+* 
+* Penggunaan:
+*    const { canView, canEdit, canEditField, isFieldHidden } = useAccess();
+*    if (!canView('requisition')) return null;
+*    const priceLocked = !canEditField('pos', 'PriceEntered');
+* ─────────────────────────────────────────────────────────────────────────────
+*/
 import React, { createContext, useContext } from 'react';
 import { useWindowAccess } from '@/shared/hooks/useWindowAccess';
 import { useFieldRestrictions } from '@/shared/hooks/useFieldRestrictions';
 import { getWindowId } from '@/config/windowAccessMap';
 import { resolveFieldMode } from '@/config/fieldRestriction';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// AccessContext.jsx
-// Provider tunggal di root App agar accessMap (AD_Window_Access role aktif)
-// di-fetch SEKALI saat app mount, lalu dipakai bersama oleh Sidebar,
-// ProtectedRoute, dan tombol-tombol aksi di dalam form — tanpa fetch berulang.
-//
-// Level FIELD: aturan dari kolom RestrictedFields di AD_Role (lihat
-// config/fieldRestriction.js untuk formatnya).
-//
-// Penggunaan:
-//   const { canView, canEdit, canEditField, isFieldHidden } = useAccess();
-//   if (!canView('requisition')) return null;
-//   const priceLocked = !canEditField('pos', 'PriceEntered');
-// ─────────────────────────────────────────────────────────────────────────────
 const AccessContext = createContext(null);
 
 export const AccessProvider = ({ children }) => {

@@ -1,29 +1,31 @@
+/** ─────────────────────────────────────────────────────────────────────────────
+* usePOInvoiceLines.jsx
+* Pengganti useProductSearch.jsx — karena semua pembelian WAJIB lewat PO,
+* container ini tidak lagi menampilkan grid produk, tapi grid PO yang SUDAH
+* Complete dan MASIH ada sisa qty belum ditagih.
+*
+* STRATEGI PERHITUNGAN SISA QTY (supaya tidak N+1 request per PO):
+*   1. Fetch semua C_Order Complete (IsSOTrx=false, DocStatus='CO') — 1 call.
+*   2. Fetch SEMUA C_OrderLine milik PO-PO itu sekaligus — 1 call.
+*   3. Fetch SEMUA C_InvoiceLine yg C_OrderLine_ID-nya termasuk di atas,
+*      dikecualikan invoice Voided/Reversed — 1 call.
+*   4. Agregasi di JS: qtyInvoiced per C_OrderLine_ID, lalu qtyOutstanding
+*      per line = QtyOrdered - qtyInvoiced.
+*
+* ⚠️ Filter nested `C_Invoice_ID.DocStatus notin (...)` BELUM PERNAH DITES
+* (Postman lagi down saat ini) — kalau ternyata tidak didukung versi REST
+* API Anda, sudah ada fallback try/catch di bawah (ambil semua tanpa filter
+* status, sedikit overcount kalau ada invoice voided — cek manual kalau
+* sering kejadian). WAJIB dites ulang begitu Postman normal.
+*
+* PO yang outstanding-nya 0 TETAP di-fetch (browse tidak aneh), tapi
+* ditandai `isFullyInvoiced: true` — card-nya di-gray-out, bukan hilang.
+* ─────────────────────────────────────────────────────────────────────────────
+*/
+
 import { useState, useCallback } from 'react';
 import { idempiereApi, fkId, fkLabel } from '@/api/idempiereApi';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// usePOInvoiceLines.jsx
-// Pengganti useProductSearch.jsx — karena semua pembelian WAJIB lewat PO,
-// container ini tidak lagi menampilkan grid produk, tapi grid PO yang SUDAH
-// Complete dan MASIH ada sisa qty belum ditagih.
-//
-// STRATEGI PERHITUNGAN SISA QTY (supaya tidak N+1 request per PO):
-//   1. Fetch semua C_Order Complete (IsSOTrx=false, DocStatus='CO') — 1 call.
-//   2. Fetch SEMUA C_OrderLine milik PO-PO itu sekaligus — 1 call.
-//   3. Fetch SEMUA C_InvoiceLine yg C_OrderLine_ID-nya termasuk di atas,
-//      dikecualikan invoice Voided/Reversed — 1 call.
-//   4. Agregasi di JS: qtyInvoiced per C_OrderLine_ID, lalu qtyOutstanding
-//      per line = QtyOrdered - qtyInvoiced.
-//
-// ⚠️ Filter nested `C_Invoice_ID.DocStatus notin (...)` BELUM PERNAH DITES
-// (Postman lagi down saat ini) — kalau ternyata tidak didukung versi REST
-// API Anda, sudah ada fallback try/catch di bawah (ambil semua tanpa filter
-// status, sedikit overcount kalau ada invoice voided — cek manual kalau
-// sering kejadian). WAJIB dites ulang begitu Postman normal.
-//
-// PO yang outstanding-nya 0 TETAP di-fetch (browse tidak aneh), tapi
-// ditandai `isFullyInvoiced: true` — card-nya di-gray-out, bukan hilang.
-// ─────────────────────────────────────────────────────────────────────────────
 export function usePOInvoiceLines() {
   const [pos, setPos] = useState([]);
   const [loading, setLoading] = useState(false);

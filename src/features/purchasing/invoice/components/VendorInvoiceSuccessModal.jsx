@@ -1,20 +1,22 @@
+/**  ─────────────────────────────────────────────────────────────────────────────
+* VendorInvoiceSuccessModal.jsx
+* `data` = ARRAY hasil useInvoiceSubmit (1 elemen per vendor/invoice yang
+* berhasil dibuat — bisa >1 kalau cart berisi baris dari beberapa vendor).
+*
+* Bentuk tiap elemen results[] (dari useInvoiceSubmit):
+* {
+*   invoiceId, documentNo, status, grandTotal,
+*   vendorId, vendorName, vendorLocationId, date,
+*   items: [ cart item asli — Name, UomName, QtyOrdered, Price, OrderDocumentNo, ... ]
+* }
+* ─────────────────────────────────────────────────────────────────────────────
+*/
+
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { COLOR, RADIUS } from '@/utils/styleTokens';
 import { formatCurrency } from '@/utils/currency';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// VendorInvoiceSuccessModal.jsx
-// `data` = ARRAY hasil useInvoiceSubmit (1 elemen per vendor/invoice yang
-// berhasil dibuat — bisa >1 kalau cart berisi baris dari beberapa vendor).
-//
-// Bentuk tiap elemen results[] (dari useInvoiceSubmit):
-// {
-//   invoiceId, documentNo, status, grandTotal,
-//   vendorId, vendorName, vendorLocationId, date,
-//   items: [ cart item asli — Name, UomName, QtyOrdered, Price, OrderDocumentNo, ... ]
-// }
-// ─────────────────────────────────────────────────────────────────────────────
 const VendorInvoiceSuccessModal = ({ isOpen, data, onClose }) => {
   const navigate = useNavigate();
   const handleClose = () => { onClose(); navigate('/dashboard'); };

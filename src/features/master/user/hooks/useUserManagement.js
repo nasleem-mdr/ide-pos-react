@@ -1,14 +1,15 @@
 // src/features/master/user/hooks/useUserManagement.js
 // Seluruh state & logika bisnis Manajemen User. UI hanya memakai return value hook ini.
 //
-// CATATAN: Password hanya diisi saat CREATE. Reset password user existing = fitur terpisah.
+// CATATAN: Password diisi saat CREATE. Untuk user existing, password diganti lewat
+// savePassword (aksi terpisah dari saveModal) — tidak ikut terkirim saat Simpan Perubahan.
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { fkId } from "@/api/idempiereApi";
-import { EMPTY_USER_FORM } from "./userConstants";
+import { EMPTY_USER_FORM, EMPTY_PASSWORD_FORM } from "./userConstants";
 import { isTrue } from "./roleConstants";
 import {
     fetchActiveRoles, fetchUserList, fetchUserDetail,
-    createUser, updateUser, deleteUser, syncUserRoles,
+    createUser, updateUser, deleteUser, syncUserRoles, changeUserPassword,
 } from "./userApi";
 
 const emptyModal = () => ({
@@ -20,6 +21,14 @@ const validateCreate = (f) => {
     if (!f.name.trim()) errors.push("Name wajib diisi");
     if (!f.email.trim()) errors.push("Username / Email wajib diisi");
     if (!f.password) errors.push("Password wajib diisi");
+    else if (f.password.length < 6) errors.push("Password minimal 6 karakter");
+    if (f.password !== f.confirm) errors.push("Konfirmasi password tidak sama");
+    return errors;
+};
+
+const validatePassword = (f) => {
+    const errors = [];
+    if (!f.password) errors.push("Password baru wajib diisi");
     else if (f.password.length < 6) errors.push("Password minimal 6 karakter");
     if (f.password !== f.confirm) errors.push("Konfirmasi password tidak sama");
     return errors;
@@ -41,6 +50,12 @@ export default function useUserManagement() {
     const [loadingEditId, setLoadingEditId] = useState(null);
     const [confirm, setConfirm] = useState({ isOpen: false, user: null });
     const [deleting, setDeleting] = useState(false);
+
+    // ── Ganti password (modal edit) ─────────────────────────────────────
+    const [pwForm, setPwForm] = useState({ ...EMPTY_PASSWORD_FORM });
+    const [pwSaving, setPwSaving] = useState(false);
+    const [pwResult, setPwResult] = useState(null);  // { type: success|error, text }
+    const resetPw = () => { setPwForm({ ...EMPTY_PASSWORD_FORM }); setPwResult(null); };
 
     // ── Fetch ───────────────────────────────────────────────────────────
     const fetchRoles = useCallback(async () => {
@@ -75,13 +90,14 @@ export default function useUserManagement() {
     const roleNameById = useMemo(() => new Map(roles.map((r) => [r.id, r.name])), [roles]);
 
     // ── Modal: buka / tutup / ubah ──────────────────────────────────────
-    const openCreate = () => { setFormError(null); setModal(emptyModal()); };
+    const openCreate = () => { setFormError(null); resetPw(); setModal(emptyModal()); };
 
     const openEdit = async (user) => {
         setLoadingEditId(user.id);
         try {
             const { user: u, records } = await fetchUserDetail(user.id);
             setFormError(null);
+            resetPw();
             setModal({
                 mode: "edit",
                 id: user.id,
@@ -102,7 +118,7 @@ export default function useUserManagement() {
         }
     };
 
-    const closeModal = () => { if (!saving) setModal(null); };
+    const closeModal = () => { if (saving || pwSaving) return; resetPw(); setModal(null); };
 
     const setModalForm = (nextForm) => setModal((prev) => ({ ...prev, form: nextForm }));
 
@@ -150,6 +166,7 @@ export default function useUserManagement() {
 
             await fetchUsers();
             setModal(null);
+            resetPw();
             setNotice(roleErrors.length
                 ? { type: "warn", text: `User "${form.name}" tersimpan, tapi ada ${roleErrors.length} role yang gagal disinkronkan:\n• ${roleErrors.join("\n• ")}` }
                 : { type: "success", text: mode === "create" ? `User "${form.name}" berhasil dibuat (AD_User_ID: ${userId}).` : `User "${form.name}" berhasil diperbarui.` });
@@ -157,6 +174,27 @@ export default function useUserManagement() {
             setFormError(err.message);
         } finally {
             setSaving(false);
+        }
+    };
+
+    // ── GANTI PASSWORD (hanya mode edit) ────────────────────────────────
+    // Password dikirim apa adanya (plaintext di body, lewat HTTPS); server yang hash.
+    // Jangan di-log, jangan disimpan di storage — state dikosongkan setelah berhasil.
+    const savePassword = async () => {
+        if (!modal || modal.mode !== "edit" || !modal.id) return;
+        const errors = validatePassword(pwForm);
+        if (errors.length) { setPwResult({ type: "error", text: `• ${errors.join("\n• ")}` }); return; }
+
+        setPwSaving(true);
+        setPwResult(null);
+        try {
+            await changeUserPassword(modal.id, pwForm.password);
+            setPwForm({ ...EMPTY_PASSWORD_FORM });
+            setPwResult({ type: "success", text: `Password user "${modal.form.name}" berhasil diganti.` });
+        } catch (err) {
+            setPwResult({ type: "error", text: err.message });
+        } finally {
+            setPwSaving(false);
         }
     };
 
@@ -196,6 +234,8 @@ export default function useUserManagement() {
         roles, rolesLoading, roleNameById, users, usersLoading,
         // modal
         modal, formError, saving, openCreate, openEdit, closeModal, setModalForm, toggleRole, saveModal,
+        // ganti password
+        pwForm, setPwForm, pwSaving, pwResult, savePassword,
         // aksi baris
         togglingId, loadingEditId, toggleActive,
         deleting, confirm, requestDelete, cancelDelete, confirmDelete,

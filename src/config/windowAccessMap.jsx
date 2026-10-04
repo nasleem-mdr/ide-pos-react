@@ -1,14 +1,14 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// windowAccessMap.js
-// Pemetaan "kunci halaman" (dipakai di route & komponen React) ke AD_Window_ID
-// iDempiere. Ini satu-satunya tempat yang perlu diisi manual — cek nilai
-// AD_Window_ID lewat menu System Admin > Window, atau query:
-//   GET /api/v1/models/ad_window?$select=AD_Window_ID,Name&$filter=contains(Name,'Requisition')
-//
-// Kalau sebuah halaman TIDAK terdaftar di sini, defaultnya dianggap
-// "tidak butuh AD_Window_Access" (lihat hasAccess() di AccessContext) —
-// jadi pastikan semua halaman yang ingin dibatasi role didaftarkan.
-
+/** ─────────────────────────────────────────────────────────────────────────────
+* windowAccessMap.js
+* Pemetaan "kunci halaman" (dipakai di route & komponen React) ke AD_Window_ID
+* iDempiere. Ini satu-satunya tempat yang perlu diisi manual — cek nilai
+* AD_Window_ID lewat menu System Admin > Window, atau query:
+* GET /api/v1/models/ad_window?$select=AD_Window_ID,Name&$filter=contains(Name,'Requisition')
+* 
+* Kalau sebuah halaman TIDAK terdaftar di sini, defaultnya dianggap
+* "tidak butuh AD_Window_Access" (lihat hasAccess() di AccessContext) —
+* jadi pastikan semua halaman yang ingin dibatasi role didaftarkan.
+*/
 import BookingTimeline from "@/features/login/pages/BookingTimeline";
 import DashboardMenu from "../features/menu/pages/DashboardMenu";
 

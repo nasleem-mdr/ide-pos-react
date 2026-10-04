@@ -1,3 +1,13 @@
+/**  ─────────────────────────────────────────────────────────────────────────────
+* PaymentReceiptContainer.jsx
+* Pencarian partner dibuat inline di sini (bukan pakai VendorPickerModal dari
+* Purchasing) karena filternya beda tiap mode: IsCustomer=true untuk AR
+* Receipt, IsVendor=true untuk AP Payment — kalau Anda sudah punya komponen
+* picker BPartner generik di tempat lain, tinggal ganti bagian search di
+* bawah dengan itu.
+* ─────────────────────────────────────────────────────────────────────────────
+*/
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { Dialog } from '@/shared/components';
 import { useBankAccounts, getLoginInfo } from '@/shared/hooks';
@@ -9,14 +19,6 @@ import PayReceiptModal from '../components/PayReceiptModal';
 import PaymentReceiptSuccessModal from '../components/PaymentReceiptSuccessModal';
 import { usePayReceipt } from '../hooks/usePayReceipt';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// PaymentReceiptContainer.jsx
-// Pencarian partner dibuat inline di sini (bukan pakai VendorPickerModal dari
-// Purchasing) karena filternya beda tiap mode: IsCustomer=true untuk AR
-// Receipt, IsVendor=true untuk AP Payment — kalau Anda sudah punya komponen
-// picker BPartner generik di tempat lain, tinggal ganti bagian search di
-// bawah dengan itu.
-// ─────────────────────────────────────────────────────────────────────────────
 const PaymentReceiptContainer = () => {
     const [isReceipt, setIsReceipt] = useState(true); // true = AR Receipt (dari Customer), false = AP Payment (ke Vendor)
 

@@ -53,7 +53,7 @@ export const fetchUserDetail = async (id) => {
 export const createUser = (body) => idempiereApi(`/models/ad_user`, { method: "POST", body: JSON.stringify(body) });
 export const updateUser = (id, body) => idempiereApi(`/models/ad_user/${id}`, { method: "PUT", body: JSON.stringify(body) });
 export const deleteUser = (id) => idempiereApi(`/models/ad_user/${id}`, { method: "DELETE" });
-
+export const changeUserPassword = (id, password) => updateUser(id, { Password: password });
 /**
  * Sinkronisasi role user (dipakai CREATE & EDIT, soft-toggle):
  *   - terpilih tanpa record       → POST

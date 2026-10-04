@@ -1,25 +1,27 @@
+/**  ─────────────────────────────────────────────────────────────────────────────
+* usePayReceipt.js
+* Beda dari usePOSPaymentSubmit / useAPPaymentSubmit (yang SELALU 1 Payment
+* untuk 1 Invoice, auto-allocate via C_Invoice_ID di header): hook ini untuk
+* skenario "Bayar Piutang/Utang" — 1 Payment bisa melunasi/mencicil BANYAK
+* invoice sekaligus.
+*
+* Alur (CONFIRMED WORKING — lihat catatan di idempiere-integration-patterns):
+*   1. Buat C_Payment (Draft, TANPA C_Invoice_ID di header)
+*   2. Insert C_PaymentAllocate — 1 baris per invoice, SELAGI Payment masih
+*      Draft (child tab "Allocate" di window Payment, wajib diisi sebelum
+*      Complete). Field wajib: C_Payment_ID, C_Invoice_ID, Amount, DAN
+*      InvoiceAmt (harus sama dengan Amount — server menolak dengan
+*      "Invoice Amt(0.0) <> Totals(X)" kalau InvoiceAmt tidak diisi).
+*   3. Complete Payment (doc-action: CO) — iDempiere baca C_PaymentAllocate
+*      dan OTOMATIS generate C_AllocationHdr + C_AllocationLine sendiri
+*      (tab "Allocations" di window Payment, read-only — jangan diisi manual).
+* ─────────────────────────────────────────────────────────────────────────────
+*/
+
 import { useState } from 'react';
 import { idempiereApi } from '@/api/idempiereApi';
 import { resolveDocTypeId, DOC_BASE_TYPE, IS_SO_TRX } from '@/utils/docTypeResolver';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// usePayReceipt.js
-// Beda dari usePOSPaymentSubmit / useAPPaymentSubmit (yang SELALU 1 Payment
-// untuk 1 Invoice, auto-allocate via C_Invoice_ID di header): hook ini untuk
-// skenario "Bayar Piutang/Utang" — 1 Payment bisa melunasi/mencicil BANYAK
-// invoice sekaligus.
-//
-// Alur (CONFIRMED WORKING — lihat catatan di idempiere-integration-patterns):
-//   1. Buat C_Payment (Draft, TANPA C_Invoice_ID di header)
-//   2. Insert C_PaymentAllocate — 1 baris per invoice, SELAGI Payment masih
-//      Draft (child tab "Allocate" di window Payment, wajib diisi sebelum
-//      Complete). Field wajib: C_Payment_ID, C_Invoice_ID, Amount, DAN
-//      InvoiceAmt (harus sama dengan Amount — server menolak dengan
-//      "Invoice Amt(0.0) <> Totals(X)" kalau InvoiceAmt tidak diisi).
-//   3. Complete Payment (doc-action: CO) — iDempiere baca C_PaymentAllocate
-//      dan OTOMATIS generate C_AllocationHdr + C_AllocationLine sendiri
-//      (tab "Allocations" di window Payment, read-only — jangan diisi manual).
-// ─────────────────────────────────────────────────────────────────────────────
 export function usePayReceipt() {
     const [isSubmitting, setIsSubmitting] = useState(false);
 

@@ -1,25 +1,27 @@
+/** ─────────────────────────────────────────────────────────────────────────────
+* usePaymentAllocationSubmit.jsx
+* Diekstrak dari useCashPurchaseSubmit.jsx (TAHAP 4 versi sudah-diperbaiki) —
+* dipakai ulang oleh modul manapun yang perlu "bayar invoice langsung"
+* (Cash Purchase, Purchase Invoice "Bayar", dst) tanpa duplikasi kode.
+*
+* ALUR (hasil verifikasi Application Dictionary + Windows client):
+*   1. C_Payment dibuat DRAFT.
+*   2. C_PaymentAllocate diisi SAAT Payment MASIH DRAFT (C_AllocationLine_ID
+*      dibiarkan kosong — mandatory=false di AD).
+*   3. C_Payment di-Complete ('CO') → iDempiere OTOMATIS generate
+*      C_AllocationHdr + C_AllocationLine dari baris C_PaymentAllocate ini,
+*      lalu backfill C_AllocationLine_ID ke baris itu.
+* TIDAK PERLU insert C_AllocationHdr/C_AllocationLine manual.
+*
+* `invoices` = array, supaya 1 Payment bisa melunasi >1 invoice sekaligus
+* (1 baris C_PaymentAllocate per invoice). Untuk 1 invoice, kirim array isi 1.
+* ─────────────────────────────────────────────────────────────────────────────
+*/
+
 import { useState, useCallback } from 'react';
 import { idempiereApi, fkId } from '@/api/idempiereApi';
 import { getLoginInfo } from '@/shared/hooks/useLoginInfo';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// usePaymentAllocationSubmit.jsx
-// Diekstrak dari useCashPurchaseSubmit.jsx (TAHAP 4 versi sudah-diperbaiki) —
-// dipakai ulang oleh modul manapun yang perlu "bayar invoice langsung"
-// (Cash Purchase, Purchase Invoice "Bayar", dst) tanpa duplikasi kode.
-//
-// ALUR (hasil verifikasi Application Dictionary + Windows client):
-//   1. C_Payment dibuat DRAFT.
-//   2. C_PaymentAllocate diisi SAAT Payment MASIH DRAFT (C_AllocationLine_ID
-//      dibiarkan kosong — mandatory=false di AD).
-//   3. C_Payment di-Complete ('CO') → iDempiere OTOMATIS generate
-//      C_AllocationHdr + C_AllocationLine dari baris C_PaymentAllocate ini,
-//      lalu backfill C_AllocationLine_ID ke baris itu.
-// TIDAK PERLU insert C_AllocationHdr/C_AllocationLine manual.
-//
-// `invoices` = array, supaya 1 Payment bisa melunasi >1 invoice sekaligus
-// (1 baris C_PaymentAllocate per invoice). Untuk 1 invoice, kirim array isi 1.
-// ─────────────────────────────────────────────────────────────────────────────
 export function usePaymentAllocationSubmit({ paymentDocTypeId, description, onError }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
 

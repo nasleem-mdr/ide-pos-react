@@ -6,6 +6,7 @@ import useUserManagement from "@/features/master/user/hooks/useUserManagement";
 import UserTable from "@/features/master/user/components/UserTable";
 import UserFormModal from "@/features/master/user/components/UserFormModal";
 import styles from "@/features/master/user/components/userStyles";
+import {AddIcon} from "@/shared/components/icon"
 import "@/App.css";
 
 const NOTICE_COLORS = {
@@ -22,8 +23,8 @@ const UserManagement = () => {
         <div className="card-container">
             {/* Header + menu New */}
             <div style={styles.headerRow}>
-                <PageHeader title="👥 Manajemen User (AD_User + Role)" />
-                <button type="button" style={styles.newBtn} onClick={um.openCreate}>➕ New</button>
+                <PageHeader title="Manajemen User" />
+                <button type="button" style={styles.newBtn} onClick={um.openCreate}><AddIcon /> New </button>
             </div>
 
             {um.notice && (
@@ -60,6 +61,11 @@ const UserManagement = () => {
                 onToggleRole={um.toggleRole}
                 onSave={um.saveModal}
                 onClose={um.closeModal}
+                pwForm={um.pwForm}
+                onChangePwForm={um.setPwForm}
+                pwSaving={um.pwSaving}
+                pwResult={um.pwResult}
+                onSavePassword={um.savePassword}
             />
 
             <ConfirmModal

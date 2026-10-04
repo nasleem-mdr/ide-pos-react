@@ -1,26 +1,27 @@
+/** ─────────────────────────────────────────────────────────────────────────────
+* useInvoiceSubmit.jsx
+* Bikin Vendor Invoice (C_Invoice/C_InvoiceLine, IsSOTrx=false) dari cart yang
+* isinya baris-baris PO Complete yang mau ditagih (hasil import via
+* POToInvoiceImportModal). Pola SAMA PERSIS dgn usePurchaseOrderSubmit.jsx:
+* cart di-groupBy C_BPartner_ID → 1 Invoice per vendor per submit,
+* submitMode 'draft'|'complete' (default 'complete').
+*
+* Item cart WAJIB bawa:
+*   C_OrderLine_ID — link 3-way match ke PO asal (wajib)
+*   C_Order_ID     — dipakai sbg C_Order_ID (referensi) di header invoice
+*   M_InOutLine_ID — opsional, kalau baris ini sudah ketemu matching Receipt
+*                    line (3-way match penuh)
+*   M_Product_ID, C_UOM_ID, Qty (= QtyInvoiced sekarang), Price
+*   C_BPartner_ID, C_BPartner_Location_ID, VendorName
+*
+* PO sumber TIDAK disentuh sama sekali di sini — cuma dibaca lewat modal
+* import (lihat usePOInvoiceLines.jsx, dihitung sisa qty blm diinvoice).
+* ─────────────────────────────────────────────────────────────────────────────
+*/
 import { useState, useCallback } from 'react';
 import { idempiereApi } from '@/api/idempiereApi';
 import { getLoginInfo } from '@/shared/hooks/useLoginInfo';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// useInvoiceSubmit.jsx
-// Bikin Vendor Invoice (C_Invoice/C_InvoiceLine, IsSOTrx=false) dari cart yang
-// isinya baris-baris PO Complete yang mau ditagih (hasil import via
-// POToInvoiceImportModal). Pola SAMA PERSIS dgn usePurchaseOrderSubmit.jsx:
-// cart di-groupBy C_BPartner_ID → 1 Invoice per vendor per submit,
-// submitMode 'draft'|'complete' (default 'complete').
-//
-// Item cart WAJIB bawa:
-//   C_OrderLine_ID — link 3-way match ke PO asal (wajib)
-//   C_Order_ID     — dipakai sbg C_Order_ID (referensi) di header invoice
-//   M_InOutLine_ID — opsional, kalau baris ini sudah ketemu matching Receipt
-//                    line (3-way match penuh)
-//   M_Product_ID, C_UOM_ID, Qty (= QtyInvoiced sekarang), Price
-//   C_BPartner_ID, C_BPartner_Location_ID, VendorName
-//
-// PO sumber TIDAK disentuh sama sekali di sini — cuma dibaca lewat modal
-// import (lihat usePOInvoiceLines.jsx, dihitung sisa qty blm diinvoice).
-// ─────────────────────────────────────────────────────────────────────────────
 export function useInvoiceSubmit({ invoiceDocTypeId, defaultDescription, onError }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
 

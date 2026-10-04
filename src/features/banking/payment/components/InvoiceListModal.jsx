@@ -1,15 +1,15 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// InvoiceListModal.jsx
-// Fetch invoice OUTSTANDING (OpenAmt > 0, sudah Complete) milik 1 partner,
-// untuk transaksi Sales (AR, isSOTrx=true) ATAU Purchase (AP, isSOTrx=false)
-// sesuai mode yang dipilih di PaymentReceiptContainer.
-//
-// Tiap baris: checkbox + input nominal ("Bayar") yang default-nya = OpenAmt
-// penuh, tapi bisa dikurangi untuk bayar sebagian (partial). Kalau invoice
-// yang dicentang beda C_Currency_ID dari yang pertama dicentang, baris lain
-// dengan currency beda otomatis di-disable — 1 C_Payment cuma bisa 1 currency.
-// ─────────────────────────────────────────────────────────────────────────────
-
+/**  ─────────────────────────────────────────────────────────────────────────────
+* InvoiceListModal.jsx
+* Fetch invoice OUTSTANDING (OpenAmt > 0, sudah Complete) milik 1 partner,
+* untuk transaksi Sales (AR, isSOTrx=true) ATAU Purchase (AP, isSOTrx=false)
+* sesuai mode yang dipilih di PaymentReceiptContainer.
+*
+* Tiap baris: checkbox + input nominal ("Bayar") yang default-nya = OpenAmt
+* penuh, tapi bisa dikurangi untuk bayar sebagian (partial). Kalau invoice
+* yang dicentang beda C_Currency_ID dari yang pertama dicentang, baris lain
+* dengan currency beda otomatis di-disable — 1 C_Payment cuma bisa 1 currency.
+* ─────────────────────────────────────────────────────────────────────────────
+*/
 import React, { useState, useEffect, useMemo } from 'react';
 import { idempiereApi } from '@/api/idempiereApi';
 import { COLOR, RADIUS } from '@/utils/styleTokens';

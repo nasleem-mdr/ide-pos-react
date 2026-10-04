@@ -6,6 +6,7 @@ import useRoleManagement from "@/features/master/user/hooks/useRoleManagement";
 import RoleTable from "@/features/master/user/components/RoleTable";
 import RoleFormModal from "@/features/master/user/components/RoleFormModal";
 import styles from "@/features/master/user/components/roleStyles";
+import {AddIcon} from "@/shared/components/icon"
 import "@/App.css";
 
 const NOTICE_COLORS = {
@@ -22,8 +23,8 @@ const RoleManagement = () => {
         <div className="card-container">
             {/* Header + menu New */}
             <div style={styles.headerRow}>
-                <PageHeader title="🛡️ Manajemen Role (AD_Role + Access)" />
-                <button type="button" style={styles.newBtn} onClick={rm.openCreate}>➕ New</button>
+                <PageHeader title="Manajemen Role " />
+                <button type="button" style={styles.newBtn} onClick={rm.openCreate}><AddIcon /> New </button>
             </div>
 
             {rm.notice && (

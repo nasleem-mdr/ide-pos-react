@@ -1,3 +1,11 @@
+/** ─────────────────────────────────────────────────────────────────────────────
+* PayReceiptModal.jsx
+* Layar review terakhir sebelum submit — TIDAK fetch apa-apa sendiri, murni
+* menampilkan apa yang sudah dipilih di container + InvoiceListModal, dan
+* mengumpulkan bankAccountId/tenderType/description terakhir sebelum
+* meneruskan ke usePayReceipt.submit() di container.
+* ─────────────────────────────────────────────────────────────────────────────
+*/
 import React from 'react';
 import { COLOR, RADIUS } from '@/utils/styleTokens';
 import { formatCurrency } from '@/utils/currency';
@@ -10,13 +18,6 @@ const TENDER_TYPE_OPTIONS = [
     { value: 'T', label: 'Direct Debit' },
 ];
 
-// ─────────────────────────────────────────────────────────────────────────────
-// PayReceiptModal.jsx
-// Layar review terakhir sebelum submit — TIDAK fetch apa-apa sendiri, murni
-// menampilkan apa yang sudah dipilih di container + InvoiceListModal, dan
-// mengumpulkan bankAccountId/tenderType/description terakhir sebelum
-// meneruskan ke usePayReceipt.submit() di container.
-// ─────────────────────────────────────────────────────────────────────────────
 const PayReceiptModal = ({
     isOpen, onClose,
     isReceipt, partner, invoices = [],

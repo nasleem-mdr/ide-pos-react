@@ -1,3 +1,13 @@
+/** ─────────────────────────────────────────────────────────────────────────────
+* PaymentReceiptSuccessModal.jsx
+* Ditampilkan setelah usePayReceipt.submit() berhasil — menggantikan Dialog
+* polos sebelumnya. Menunjukkan ringkasan lengkap: nomor dokumen, arah
+* transaksi, partner, cara bayar, dan daftar invoice yang dialokasikan
+* beserta nominalnya masing-masing, supaya user (dan kasir/finance yang
+* membaca layar ini) yakin alokasinya sudah benar tanpa perlu buka window
+* iDempiere untuk cek ulang.
+* ─────────────────────────────────────────────────────────────────────────────
+*/
 import React from 'react';
 import { COLOR, RADIUS } from '@/utils/styleTokens';
 import { formatCurrency } from '@/utils/currency';
@@ -10,15 +20,6 @@ const TENDER_TYPE_LABELS = {
     T: 'Direct Debit',
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// PaymentReceiptSuccessModal.jsx
-// Ditampilkan setelah usePayReceipt.submit() berhasil — menggantikan Dialog
-// polos sebelumnya. Menunjukkan ringkasan lengkap: nomor dokumen, arah
-// transaksi, partner, cara bayar, dan daftar invoice yang dialokasikan
-// beserta nominalnya masing-masing, supaya user (dan kasir/finance yang
-// membaca layar ini) yakin alokasinya sudah benar tanpa perlu buka window
-// iDempiere untuk cek ulang.
-// ─────────────────────────────────────────────────────────────────────────────
 const PaymentReceiptSuccessModal = ({ isOpen, data, onClose }) => {
     if (!isOpen || !data) return null;
 
