@@ -1,11 +1,3 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { PageHeader } from "@/shared/components";
-import { idempiereApi, fkId } from "@/api/idempiereApi";
-import { renderPivotListPDF } from "@/utils/pdf/renderPivotListPDF";
-import { useOrgInfo } from "@/shared/hooks/useOrgInfo";
-import * as XLSX from "xlsx"; // sudah dipakai SalesOrderDetailReport — pastikan terinstall
-import "@/App.css";
-
 /**
  * OutstandingInvoiceReport
  * ─────────────────────────────────────────────────────────────────────────
@@ -26,7 +18,6 @@ import "@/App.css";
  *      (T_Aging TIDAK dipakai: itu tabel temporary per AD_PInstance — hanya
  *      terisi saat report Aging dijalankan di server, datanya bukan live.)
  *
- * ⚠️ ASUMSI yang perlu dicek di instance Anda:
  *   - Kolom standar C_Invoice: DateInvoiced, GrandTotal, IsSOTrx,
  *     DocStatus, C_BPartner_ID — semuanya standar iDempiere.
  *     CATATAN: C_Invoice TIDAK punya kolom DueDate di iDempiere (jatuh tempo
@@ -36,6 +27,14 @@ import "@/App.css";
  *   - Kalau volume invoice > ±2000 per rentang tanggal, naikkan $top atau
  *     persempit rentang tanggal default.
  */
+
+import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { PageHeader } from "@/shared/components";
+import { idempiereApi, fkId } from "@/api/idempiereApi";
+import { renderPivotListPDF } from "@/utils/pdf/renderPivotListPDF";
+import { useOrgInfo } from "@/shared/hooks/useOrgInfo";
+import * as XLSX from "xlsx"; // sudah dipakai SalesOrderDetailReport — pastikan terinstall
+import "@/App.css";
 
 const CHUNK_SIZE = 40; // jumlah C_Invoice_ID per batch query C_AllocationLine
 
@@ -79,7 +78,7 @@ const OutstandingInvoiceReport = () => {
 
             const invRes = await idempiereApi(
                 `/models/c_invoice?$filter=${invoiceFilter}` +
-                `&$select=DocumentNo,DateInvoiced,C_BPartner_ID,GrandTotal,IsSOTrx,DocStatus` +
+                `&$select=DocumentNo,POReference,DateInvoiced,C_BPartner_ID,GrandTotal,IsSOTrx,DocStatus` +
                 `&$orderby=DateInvoiced&$top=2000`
             );
             const invRecords = Array.isArray(invRes.records) ? invRes.records : [];
@@ -95,6 +94,7 @@ const OutstandingInvoiceReport = () => {
                 invMap.set(iid, {
                     invoiceId: iid,
                     documentNo: inv.DocumentNo || `#${iid}`,
+                    poReference: inv.POReference || '',
                     dateInvoiced: inv.DateInvoiced,
                     bpartnerId: fkId(inv.C_BPartner_ID),
                     bpartnerName: inv.C_BPartner_ID?.identifier || inv.C_BPartner_ID?.Name || "-",
@@ -241,6 +241,7 @@ const OutstandingInvoiceReport = () => {
                     rows.push({
                         no,
                         documentNo: r.documentNo,
+                        poReference: r.poReference,
                         dateInvoiced: (r.dateInvoiced || "").slice(0, 10),
                         age: `${r.ageDays} hari`,
                         grandTotal: fmt(r.grandTotal),
@@ -260,6 +261,7 @@ const OutstandingInvoiceReport = () => {
                 columns: [
                     { key: "no", label: "No", width: 25, align: "center" },
                     { key: "documentNo", label: "No. Invoice", width: 60 },
+                    { key: "poReference", label: "Invoice Ref", width: 60 },
                     { key: "dateInvoiced", label: "Tgl Invoice", width: 45 },
                     { key: "age", label: "Umur", width: 35, align: "center" },
                     { key: "grandTotal", label: "Nilai Invoice", width: 65, align: "right" },
@@ -291,7 +293,7 @@ const OutstandingInvoiceReport = () => {
                 ["LAPORAN OUTSTANDING INVOICE"],
                 [`Periode Invoice: ${startDate} s/d ${endDate}  (s/d ${todayStr})`],
                 [],
-                ["No", "No. Invoice", "Tgl Invoice", "Umur (hari)", "Bucket", "Nilai Invoice", "Terbayar", "Outstanding"],
+                ["No", "No. Invoice","Reference", "Tgl Invoice", "Umur (hari)", "Bucket", "Nilai Invoice", "Terbayar", "Outstanding"],
             ];
 
             let no = 0;
@@ -302,6 +304,7 @@ const OutstandingInvoiceReport = () => {
                     aoa.push([
                         no,
                         r.documentNo,
+                        r.poReference,
                         (r.dateInvoiced || "").slice(0, 10),
                         r.ageDays,
                         r.bucket,
@@ -321,9 +324,8 @@ const OutstandingInvoiceReport = () => {
             const worksheet = XLSX.utils.aoa_to_sheet(aoa);
             worksheet["!cols"] = [
                 { wch: 6 }, { wch: 16 }, { wch: 14 }, { wch: 12 },
-                { wch: 10 }, { wch: 16 }, { wch: 16 }, { wch: 16 },
+                { wch: 10 }, { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 16 },
             ];
-
             const workbook = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(workbook, worksheet, "Outstanding Invoice");
             XLSX.writeFile(workbook, `OUTSTANDING-INVOICE-${docType}-${startDate}_${endDate}.xlsx`);
@@ -433,7 +435,7 @@ const OutstandingInvoiceReport = () => {
                         <table className="modern-table">
                             <thead>
                                 <tr>
-                                    <th>No. Invoice</th>
+                                    <th>No. Invoice/Ref</th>
                                     <th>Tgl Invoice</th>
                                     <th style={{ textAlign: "center" }}>Umur</th>
                                     <th style={{ textAlign: "center" }}>Bucket</th>
@@ -461,7 +463,7 @@ const OutstandingInvoiceReport = () => {
                                         </tr>
                                         {g.rows.map((r) => (
                                             <tr key={r.invoiceId}>
-                                                <td>{r.documentNo}</td>
+                                                <td>{r.documentNo}-{r.poReference}</td>
                                                 <td>{(r.dateInvoiced || "").slice(0, 10)}</td>
                                                 <td style={{ textAlign: "center" }}>{r.ageDays} hari</td>
                                                 <td style={{ textAlign: "center" }}>
@@ -479,7 +481,7 @@ const OutstandingInvoiceReport = () => {
                             </tbody>
                             <tfoot>
                                 <tr>
-                                    <td colSpan={7} style={{ textAlign: "right", fontWeight: "bold" }}>
+                                    <td colSpan={6} style={{ textAlign: "right", fontWeight: "bold" }}>
                                         Total Outstanding
                                     </td>
                                     <td style={{ textAlign: "right", fontWeight: "bold" }}>
