@@ -5,10 +5,11 @@ import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-route
 import { 
   PurchasingContainer, 
   PurchasingList, 
-  PurchasingView 
+  PurchasingView,
 } from "@/features/purchasing/order/pages";
 
-import VendorInvoiceContainer from '@/features/purchasing/invoice/pages/VendorInvoiceContainer';
+import PurchaseOrderDetailReport from "@/features/purchasing/report/pages/PurchaseOrderDetailReport";
+import VendorInvoiceContainer from "@/features/purchasing/invoice/pages/VendorInvoiceContainer";
 import VendorInvoiceList from "./features/purchasing/invoice/pages/VendorInvoiceList";
 
 // Material Management
@@ -166,7 +167,11 @@ function AppContent() {
                           <ProductImport />
                         </ProtectedRoute>
                       } />
-                      
+                      <Route path="/purchase-order-detail" element={
+                        <ProtectedRoute windowKey="purchaseOrderDetail">
+                          <PurchaseOrderDetailReport />
+                        </ProtectedRoute>
+                      } />
                       {/* ===== Transaksi ===== */}
                       <Route path="/pos-order" element={
                         <ProtectedRoute windowKey="posOrder">

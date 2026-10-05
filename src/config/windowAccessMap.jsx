@@ -45,6 +45,7 @@ export const WINDOW_ACCESS_MAP = {
   dashboardMenu:           null,
   shipmentCustomerReport:  null,
   inventoryuReport:        null,
+  purchaseOrderDetail:     null,
 };
 
 // Helper: ambil AD_Window_ID dari key, atau null kalau tidak terdaftar/tidak dibatasi.

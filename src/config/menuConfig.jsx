@@ -79,6 +79,7 @@ export const menuSections = [
             items: [
             { key: 'requisition-list', windowKey: 'requisitionList', borderTop: true, path: '/requisition-list',  label: 'Requisition List',    icon: <PiGitPullRequestBold /> },
             { key: 'purchasing-list',  windowKey: 'purchasingList',  path: '/purchasing-list',   label: 'Purchasing List',     icon: <BiPurchaseTagAlt /> },
+            { key: 'purchaseOrderDetail',  windowKey: 'purchaseOrderDetail',  path: '/purchase-order-detail',   label: 'Purchasing Order Detail',     icon: <BiPurchaseTagAlt /> },
             { key: 'goodsreceipt-list', windowKey: 'goodsReceiptList', path: '/goodsreceipt-list', label: 'Goods Receipt List', icon: <LiaPeopleCarrySolid /> },
             { key: 'internaluse-list', windowKey: 'internalUseList',  path: '/internaluse-list',  label: 'Internal Use List',   icon: <TbCreditCardHand /> },
             { key: 'vendorInvoiceList', windowKey: 'vendorInvoiceList',  path: '/vendorinvoice-list',  label: 'Vendor Invoice List',   icon: <MdOutlineStore /> },      
