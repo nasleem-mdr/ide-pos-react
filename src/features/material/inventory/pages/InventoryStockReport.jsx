@@ -1,38 +1,37 @@
 /**
- * InventoryStockReport — Laporan Inventory / Ketersediaan Stok
+ * StorageStockReport — Laporan Inventory / Ketersediaan Stok
  * ─────────────────────────────────────────────────────────────────────────
- * Menampilkan stok tersedia per produk di tiap gudang (warehouse),
- * berbasis M_StorageOnHand (QtyOnHand) dan M_StorageReservation
- * (QtyReserved). Available = OnHand - Reserved.
+ * Menampilkan stok tersedia per produk di tiap gudang (warehouse).
+ * Available = OnHand − Reserved.
  *
- * ALUR FETCH (penting untuk dipahami kalau mau modifikasi):
- *   1) Ambil daftar gudang aktif (M_Warehouse) untuk opsi multi-select
- *      filter gudang + dipakai sebagai pengelompok pivot.
- *   2) Ambil semua M_Locator, lalu buat map locatorId -> warehouseId.
- *      M_StorageOnHand tidak langsung punya kolom M_Warehouse_ID, jadi
- *      harus lewat locator dulu (inilah "join"-nya, dilakukan di JS).
- *   3) Ambil M_StorageOnHand (QtyOnHand per produk per locator) dan
- *      M_StorageReservation (QtyReserved) — masing-masing bisa satu query
- *      saja karena tidak ada filter OR panjang seperti laporan Sales Order.
- *   4) Gabungkan (join di JS) jadi baris stok siap tampil:
- *      { product, warehouse, onHand, reserved, available }.
- *   5) Filter multi-select gudang diterapkan DI SISI CLIENT terhadap hasil
- *      langkah 4 — bukan query ulang ke server.
- *   6) Pivot per gudang (subtotal OnHand/Reserved/Available tiap gudang +
- *      Grand Total) dihitung dari baris yang SUDAH difilter, via useMemo.
+ * ALUR FETCH:
+ *   1) M_Warehouse aktif → opsi filter + pengelompok pivot.
+ *   2) M_Locator aktif → map locatorId → warehouseId. (OnHand hanya punya
+ *      M_Locator_ID, jadi "join" ke gudang dilakukan di JS lewat map ini.)
+ *   3a) OnHand : M_StorageOnHand (QtyOnHand per produk per locator).
+ *       Fallback ke model `m_storage` (view kompatibilitas) kalau
+ *       `m_storageonhand` ditolak REST.
+ *   3b) Reserved: M_StorageReservation (Qty per produk per GUDANG, IsSOTrx=Y).
+ *       OJO: tabel ini TIDAK punya M_Locator_ID — kolomnya M_Warehouse_ID.
+ *       Fallback ke `m_storage.QtyReserved` (per locator) kalau gagal.
+ *       Kalau dua-duanya gagal, laporan tetap tampil dengan Reserved = 0
+ *       dan ada peringatan di layar (tidak menggagalkan seluruh laporan).
+ *   4) Gabung jadi baris { produk, gudang, onHand, reserved, available }.
+ *   5) Filter gudang & pencarian produk di sisi client.
+ *   6) Pivot per gudang dihitung dari baris yang sudah difilter (useMemo).
  *
- * ⚠️ ASUMSI yang perlu kamu cek/sesuaikan:
- *   - Path import "@/features/inventory/report/..." untuk file ini sendiri —
- *     sesuaikan dengan struktur folder project-mu.
- *   - $top=5000 untuk M_StorageOnHand/Reservation. Kalau stok produk×lokasi
- *     di instance-mu lebih banyak, naikkan angkanya atau tambahkan chunking
- *     seperti pola CHUNK_SIZE di SalesOrderDetailReport.
- *   - Kolom lookup (M_Product_ID, M_Locator_ID, M_Warehouse_ID) diasumsikan
- *     otomatis berisi { id, identifier } dari bxservice — sama seperti
- *     C_BPartner_ID di laporan Sales Order.
- *   - Laporan ini SNAPSHOT stok SAAT INI (bukan per periode tanggal).
- *     iDempiere tidak menyimpan histori OnHand per tanggal lewat REST
- *     standar, jadi filter tanggal sengaja TIDAK disediakan.
+ * PERBAIKAN dari versi sebelumnya:
+ *   - Query reserved sebelumnya `m_storage?$select=Qty` — kolom `Qty` tidak
+ *     ada di m_storage (itu kolom M_StorageReservation) → query error.
+ *   - Reserved sebelumnya di-join lewat M_Locator_ID, padahal M_StorageReservation
+ *     per gudang.
+ *   - `$top=5000` bisa diabaikan/dipotong server (batas ukuran halaman REST)
+ *     sehingga data terpotong diam-diam → sekarang diambil per halaman
+ *     ($top + $skip) sampai habis.
+ *   - Error sebelumnya hanya ke console, di layar tampil "Tidak ada data".
+ *     Sekarang pesan error & peringatan tampil di halaman.
+ *
+ * Laporan ini SNAPSHOT stok SAAT INI (bukan per periode tanggal).
  */
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
@@ -43,6 +42,46 @@ import { useOrgInfo } from "@/shared/hooks/useOrgInfo";
 import * as XLSX from "xlsx"; // npm install xlsx (kalau belum ada di project)
 import "@/App.css";
 
+const PAGE_SIZE = 500;     // ukuran permintaan per halaman
+const MAX_PAGES = 100;     // pengaman loop (maks 50.000 record per query)
+
+// Ambil SEMUA record dari sebuah query REST dengan paging $top/$skip.
+// Berhenti saat halaman kosong atau (kalau server mengirim `row-count`)
+// jumlah record terambil sudah mencapai total. Tidak bergantung pada
+// "records.length < pageSize" karena server bisa membatasi ukuran halaman
+// lebih kecil dari yang diminta.
+const fetchAllPages = async (path) => {
+    const all = [];
+    let skip = 0;
+    for (let i = 0; i < MAX_PAGES; i++) {
+        const sep = path.includes("?") ? "&" : "?";
+        const res = await idempiereApi(`${path}${sep}$top=${PAGE_SIZE}&$skip=${skip}`);
+        const recs = Array.isArray(res?.records) ? res.records : [];
+        if (recs.length === 0) break;
+        all.push(...recs);
+        skip += recs.length;
+        const total = res["row-count"];
+        if (typeof total === "number" && skip >= total) break;
+    }
+    return all;
+};
+
+// Coba beberapa query berurutan; kembalikan hasil pertama yang berhasil.
+// Kalau semua gagal, lempar error terakhir.
+const fetchWithFallback = async (attempts) => {
+    let lastErr = null;
+    for (const attempt of attempts) {
+        try {
+            const records = await fetchAllPages(attempt.path);
+            return { records, source: attempt.source };
+        } catch (err) {
+            console.warn(`Query ${attempt.source} gagal:`, err.message);
+            lastErr = err;
+        }
+    }
+    throw lastErr || new Error("Semua percobaan query gagal.");
+};
+
 const StorageStockReport = () => {
     const { orgInfo } = useOrgInfo();
 
@@ -50,6 +89,8 @@ const StorageStockReport = () => {
     const [loading, setLoading] = useState(false);
     const [printing, setPrinting] = useState(false);
     const [exportingExcel, setExportingExcel] = useState(false);
+    const [errorMsg, setErrorMsg] = useState(null);       // error fatal (laporan gagal dimuat)
+    const [warningMsg, setWarningMsg] = useState(null);   // peringatan (mis. Reserved tidak terbaca)
 
     // ─── Multi-select filter gudang ─────────────────────────────────────────
     const [warehouseOptions, setWarehouseOptions] = useState([]);
@@ -75,46 +116,83 @@ const StorageStockReport = () => {
     // ─── FETCH: seluruh data stok (gudang → locator → OnHand & Reserved) ───
     const fetchReportData = useCallback(async () => {
         setLoading(true);
+        setErrorMsg(null);
+        setWarningMsg(null);
         try {
             // Langkah 1: daftar gudang aktif
-            const whRes = await idempiereApi(
-                `/models/m_warehouse?$filter=IsActive eq true&$select=Value,Name&$orderby=Name&$top=200`
+            const warehouses = await fetchAllPages(
+                `/models/m_warehouse?$filter=IsActive eq true&$select=Value,Name&$orderby=Name`
             );
-            const warehouses = Array.isArray(whRes.records) ? whRes.records : [];
             setWarehouseOptions(warehouses);
 
             if (warehouses.length === 0) {
                 setStockRows([]);
+                setWarningMsg("Tidak ada gudang aktif yang dapat diakses oleh role ini.");
                 return;
             }
 
             const warehouseNameMap = new Map();
             warehouses.forEach((w) => {
-                warehouseNameMap.set(w.id ?? w.M_Warehouse_ID, w.Name || `#${w.id}`);
+                const wid = w.id ?? w.M_Warehouse_ID;
+                warehouseNameMap.set(wid, w.Name || `#${wid}`);
             });
 
             // Langkah 2: semua locator → map locatorId -> warehouseId
-            const locRes = await idempiereApi(
-                `/models/m_locator?$filter=IsActive eq true&$select=M_Warehouse_ID&$top=2000`
+            const locators = await fetchAllPages(
+                `/models/m_locator?$filter=IsActive eq true&$select=M_Warehouse_ID`
             );
             const locatorMap = new Map();
-            (Array.isArray(locRes.records) ? locRes.records : []).forEach((loc) => {
+            locators.forEach((loc) => {
                 const locId = loc.id ?? loc.M_Locator_ID;
                 const whId = loc.M_Warehouse_ID?.id ?? loc.M_Warehouse_ID;
                 if (locId != null && whId != null) locatorMap.set(locId, whId);
             });
 
-            // Langkah 3a: QtyOnHand per produk per locator
-            const onHandRes = await idempiereApi(
-                `/models/m_storage?$select=M_Product_ID,M_Locator_ID,QtyOnHand&$top=5000`
-            );
-            const onHandRecords = Array.isArray(onHandRes.records) ? onHandRes.records : [];
+            // Langkah 3a: QtyOnHand per produk per locator (hanya yang ≠ 0)
+            const onHand = await fetchWithFallback([
+                {
+                    source: "m_storageonhand",
+                    path: `/models/m_storageonhand?$filter=QtyOnHand ne 0&$select=M_Product_ID,M_Locator_ID,QtyOnHand`,
+                },
+                {
+                    source: "m_storage",
+                    path: `/models/m_storage?$filter=QtyOnHand ne 0&$select=M_Product_ID,M_Locator_ID,QtyOnHand`,
+                },
+            ]);
 
-            // Langkah 3b: QtyReserved per produk per locator (reservasi SO/draft)
-            const reservedRes = await idempiereApi(
-                `/models/m_storage?$select=M_Product_ID,M_Locator_ID,Qty&$top=5000`
-            );
-            const reservedRecords = Array.isArray(reservedRes.records) ? reservedRes.records : [];
+            // Langkah 3b: Reserved (SO). Kegagalan di sini TIDAK menggagalkan laporan.
+            let reservedByWarehouse = []; // [{ rec, whId, qty }]
+            try {
+                const reserved = await fetchWithFallback([
+                    {
+                        // Per GUDANG (tidak punya M_Locator_ID)
+                        source: "m_storagereservation",
+                        path: `/models/m_storagereservation?$filter=IsSOTrx eq true and Qty ne 0&$select=M_Product_ID,M_Warehouse_ID,Qty`,
+                    },
+                    {
+                        // View kompatibilitas, per LOCATOR
+                        source: "m_storage",
+                        path: `/models/m_storage?$filter=QtyReserved ne 0&$select=M_Product_ID,M_Locator_ID,QtyReserved`,
+                    },
+                ]);
+                reservedByWarehouse = reserved.records
+                    .map((rec) => {
+                        const whId =
+                            reserved.source === "m_storagereservation"
+                                ? rec.M_Warehouse_ID?.id ?? rec.M_Warehouse_ID
+                                : locatorMap.get(rec.M_Locator_ID?.id ?? rec.M_Locator_ID);
+                        const qty = parseFloat(
+                            reserved.source === "m_storagereservation" ? rec.Qty : rec.QtyReserved
+                        ) || 0;
+                        return { rec, whId, qty };
+                    });
+            } catch (err) {
+                console.error("Gagal mengambil data Reserved:", err.message);
+                setWarningMsg(
+                    `Data Reserved tidak dapat dibaca (${err.message}). Kolom Reserved ditampilkan 0, ` +
+                    `jadi Available = On Hand. Cek akses role ke tabel M_StorageReservation.`
+                );
+            }
 
             // Langkah 4: join jadi baris stok, digabung per (produk × gudang)
             // Kunci gabungan: `${productId}|${warehouseId}` — satu produk bisa
@@ -135,7 +213,7 @@ const StorageStockReport = () => {
                 return cellMap.get(key);
             };
 
-            onHandRecords.forEach((rec) => {
+            onHand.records.forEach((rec) => {
                 const productId = rec.M_Product_ID?.id ?? rec.M_Product_ID;
                 const productName = rec.M_Product_ID?.identifier || rec.M_Product_ID?.Name || "-";
                 const locId = rec.M_Locator_ID?.id ?? rec.M_Locator_ID;
@@ -144,13 +222,11 @@ const StorageStockReport = () => {
                 ensureCell(productId, productName, whId).onHand += parseFloat(rec.QtyOnHand || 0);
             });
 
-            reservedRecords.forEach((rec) => {
+            reservedByWarehouse.forEach(({ rec, whId, qty }) => {
                 const productId = rec.M_Product_ID?.id ?? rec.M_Product_ID;
                 const productName = rec.M_Product_ID?.identifier || rec.M_Product_ID?.Name || "-";
-                const locId = rec.M_Locator_ID?.id ?? rec.M_Locator_ID;
-                const whId = locatorMap.get(locId);
-                if (productId == null || whId == null) return;
-                ensureCell(productId, productName, whId).reserved += parseFloat(rec.Qty || 0);
+                if (productId == null || whId == null || !warehouseNameMap.has(whId)) return;
+                ensureCell(productId, productName, whId).reserved += qty;
             });
 
             const rows = Array.from(cellMap.values()).map((c) => ({
@@ -162,6 +238,7 @@ const StorageStockReport = () => {
         } catch (err) {
             console.error("Gagal mengambil data stok:", err.message);
             setStockRows([]);
+            setErrorMsg(err.message || "Gagal mengambil data stok.");
         } finally {
             setLoading(false);
         }
@@ -185,8 +262,6 @@ const StorageStockReport = () => {
     }, [stockRows, selectedWarehouseIds, productSearchText]);
 
     // ─── Pivot per gudang: tiap gudang bawa daftar produk + subtotal sendiri.
-    // Sama persis dengan pola groupedByProduct di SalesOrderDetailReport,
-    // hanya "produk" diganti "gudang" sebagai grup pivot-nya.
     const groupedByWarehouse = useMemo(() => {
         const map = new Map();
         filteredRows.forEach((r) => {
@@ -380,8 +455,7 @@ const StorageStockReport = () => {
 
             {/* ─── Filter bar ─────────────────────────────────────────────── */}
             <div style={styles.filterRow}>
-                {/* Multi-select gudang — dropdown custom + checkbox, pola sama
-                    persis dengan filter produk di SalesOrderDetailReport. */}
+                {/* Multi-select gudang — dropdown custom + checkbox */}
                 <div style={{ position: "relative" }} ref={warehouseDropdownRef}>
                     <label style={styles.fieldLabel}>Filter Gudang</label>
                     <button
@@ -448,15 +522,22 @@ const StorageStockReport = () => {
                 </div>
             </div>
 
-            {/* ─── Ketersediaan Stok per Gudang — ala pivot: dikelompokkan per
-                Gudang, tiap grup punya baris header ringkasan (OnHand,
-                Reserved, Available) sendiri. Pola sama dengan tabel pivot
-                per produk di SalesOrderDetailReport. ─────────────────────── */}
+            {/* ─── Pesan error / peringatan ───────────────────────────────── */}
+            {errorMsg && (
+                <div style={styles.errorBox}>
+                    ❌ <strong>Gagal memuat laporan:</strong> {errorMsg}
+                </div>
+            )}
+            {warningMsg && !errorMsg && (
+                <div style={styles.warningBox}>⚠ {warningMsg}</div>
+            )}
+
+            {/* ─── Ketersediaan Stok per Gudang — ala pivot ───────────────── */}
             <div className="detail-section">
                 <h3>Ketersediaan Stok per Gudang</h3>
                 {loading ? (
                     <p>Memuat data...</p>
-                ) : groupedByWarehouse.length === 0 ? (
+                ) : errorMsg ? null : groupedByWarehouse.length === 0 ? (
                     <p style={{ color: "#777" }}>Tidak ada data untuk filter ini.</p>
                 ) : (
                     <div style={{ overflowX: "auto" }}>
@@ -472,9 +553,6 @@ const StorageStockReport = () => {
                             <tbody>
                                 {groupedByWarehouse.map((group) => (
                                     <React.Fragment key={group.warehouseId ?? group.warehouseName}>
-                                        {/* Baris header ringkasan gudang — sticky secara visual lewat
-                                            warna latar & border, bukan CSS sticky posisi (tabel ini
-                                            tidak pakai scroll container tetap). */}
                                         <tr style={styles.groupHeaderRow}>
                                             <td colSpan={4}>
                                                 <div style={styles.groupHeaderContent}>
@@ -542,6 +620,8 @@ const styles = {
     warehouseOptionList: { maxHeight: "220px", overflowY: "auto" },
     warehouseOptionRow: { display: "flex", alignItems: "center", gap: "8px", padding: "6px 4px", cursor: "pointer", fontSize: "13px" },
     clearFilterBtn: { marginTop: "8px", width: "100%", padding: "6px", background: "#f5f5f5", border: "1px solid #ddd", borderRadius: "4px", cursor: "pointer", fontSize: "12px" },
+    errorBox: { background: "#ffebee", border: "1px solid #ef9a9a", color: "#b71c1c", borderRadius: "8px", padding: "10px 14px", fontSize: "13px", marginBottom: "12px", whiteSpace: "pre-line" },
+    warningBox: { background: "#fff8e1", border: "1px solid #ffe082", color: "#8d6e00", borderRadius: "8px", padding: "10px 14px", fontSize: "13px", marginBottom: "12px" },
     // Baris header ringkasan per grup gudang (ala pivot table)
     groupHeaderRow: { backgroundColor: "#eef7ee", borderTop: "2px solid #a5d6a7", borderBottom: "1px solid #a5d6a7" },
     groupHeaderContent: { display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px", padding: "8px 4px" },
