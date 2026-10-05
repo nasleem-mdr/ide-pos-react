@@ -1,13 +1,15 @@
+/**  ─────────────────────────────────────────────────────────────────────────────
+* ChargePickerModal.jsx
+* Padanan VendorPickerModal.jsx tapi untuk C_Charge (akun/alasan pemakaian
+* internal) — dipakai sebagai fallback kalau produk tidak punya
+* M_Product.Default_C_Charge_ID.
+* ─────────────────────────────────────────────────────────────────────────────
+*/
+
 import React, { useState, useCallback } from 'react';
 import { idempiereApi, fkId } from '@/api/idempiereApi';
 import { COLOR, RADIUS } from '@/utils/styleTokens';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// ChargePickerModal.jsx
-// Padanan VendorPickerModal.jsx tapi untuk C_Charge (akun/alasan pemakaian
-// internal) — dipakai sebagai fallback kalau produk tidak punya
-// M_Product.Default_C_Charge_ID.
-// ─────────────────────────────────────────────────────────────────────────────
 const ChargePickerModal = ({ isOpen, onClose, onSelect }) => {
   const [query, setQuery]     = useState('');
   const [charges, setCharges] = useState([]);

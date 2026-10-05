@@ -1,15 +1,20 @@
+/** Struktur & gaya identik dengan GoodsReceiptSuccessModal.jsx, disesuaikan
+* untuk field Internal Use (Charge & Locator, bukan vendor).
+*
+* ⚠️ `data` sekarang berbentuk { documents: [...] } — BISA lebih dari 1
+* dokumen M_Inventory sekaligus, karena useInternalUseSubmit memecah
+* submission per M_Warehouse_ID (1 cart bisa berisi produk dari beberapa
+* gudang berbeda). Tiap entri di data.documents:
+*   { documentNo, warehouseId, warehouseName, date, items }
+*/
+
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { COLOR, RADIUS } from '@/utils/styleTokens';
+import { 
+  COLOR, 
+  RADIUS, 
+} from '@/utils/styleTokens';
 
-// Struktur & gaya identik dengan GoodsReceiptSuccessModal.jsx, disesuaikan
-// untuk field Internal Use (Charge & Locator, bukan vendor).
-//
-// ⚠️ `data` sekarang berbentuk { documents: [...] } — BISA lebih dari 1
-// dokumen M_Inventory sekaligus, karena useInternalUseSubmit memecah
-// submission per M_Warehouse_ID (1 cart bisa berisi produk dari beberapa
-// gudang berbeda). Tiap entri di data.documents:
-//   { documentNo, warehouseId, warehouseName, date, items }
 const InternalUseSuccessModal = ({ isOpen, data, onClose }) => {
   const navigate = useNavigate();
   const handleClose = () => { onClose(); navigate('/dashboard'); };

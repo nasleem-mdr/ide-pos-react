@@ -8,16 +8,14 @@
 * Kalau sebuah halaman TIDAK terdaftar di sini, defaultnya dianggap
 * "tidak butuh AD_Window_Access" (lihat hasAccess() di AccessContext) —
 * jadi pastikan semua halaman yang ingin dibatasi role didaftarkan.
+* ─────────────────────────────────────────────────────────────────────────────
 */
-import BookingTimeline from "@/features/login/pages/BookingTimeline";
-import DashboardMenu from "../features/menu/pages/DashboardMenu";
 
-// ─────────────────────────────────────────────────────────────────────────────
 export const WINDOW_ACCESS_MAP = {
   dashboard:            null,
   businessPartner:      123,
   businessPartnerEdit:  123,
-  posOrder:                  143,
+  posOrder:             143,
   salesOrder:           143,
   product:              140,
   requisition:          322,
@@ -25,27 +23,28 @@ export const WINDOW_ACCESS_MAP = {
   purchasing:           181,
   internalUse:          168,
   booking:              null,
-  vendorInvoice:         183,
-  bankstatement:        194,
+  vendorInvoice:        183,
+  bankStatement:        194,
   salesInvoice:         167,
   paymentReceipt:       195,
   productDetail:        140,
   productImport:        140,
-  salesOrderDetailReport:  143,
   userManagement:       108,
   roleManagement:       111,
   // ===== List / Report =====
-  requisitionList:      null, 
-  posOrderList:         null,
-  purchasingList:       null,
-  goodsReceiptList:     null,
-  internalUseList:      null,
-  vendorInvoiceList:      null,
-  salesInvoiceList:      null,
-  financialReport:        null,
-  outstandingInvoice: null,
-  dashboardMenu:        null,
-  shipmentCustomerReport: null,
+  salesOrderDetailReport:  143,
+  requisitionList:         null, 
+  posOrderList:            null,
+  purchasingList:          null,
+  goodsReceiptList:        null,
+  internalUseList:         null,
+  vendorInvoiceList:       null,
+  salesInvoiceList:        null,
+  financialReport:         null,
+  outstandingInvoice:      null,
+  dashboardMenu:           null,
+  shipmentCustomerReport:  null,
+  inventoryuReport:        null,
 };
 
 // Helper: ambil AD_Window_ID dari key, atau null kalau tidak terdaftar/tidak dibatasi.

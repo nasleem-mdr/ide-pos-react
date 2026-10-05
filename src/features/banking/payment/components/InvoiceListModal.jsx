@@ -10,6 +10,7 @@
 * dengan currency beda otomatis di-disable — 1 C_Payment cuma bisa 1 currency.
 * ─────────────────────────────────────────────────────────────────────────────
 */
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { idempiereApi } from '@/api/idempiereApi';
 import { COLOR, RADIUS } from '@/utils/styleTokens';

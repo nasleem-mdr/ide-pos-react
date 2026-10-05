@@ -1,6 +1,9 @@
 import React from 'react';
 import InternalUseCartItem from './InternalUseCartItem';
-import { COLOR, RADIUS } from '@/utils/styleTokens';
+import { 
+  COLOR, 
+  RADIUS, 
+} from '@/utils/styleTokens';
 
 const InternalUseCartSidebar = ({
   cart, warehouses = [], onRemove, onQtyChange, onChargeClick, onUomChange, onWarehouseChange, onClearCart,

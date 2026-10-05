@@ -1,10 +1,25 @@
+/** ─────────────────────────────────────────────────────────────────────────────
+* PurchaseOrderImportModal.jsx
+* REVISI dari RequisitionImportModal.jsx — sumber data sekarang C_Order/
+* C_OrderLine (Purchase Order), bukan M_Requisition. Dipicu dari tombol 📥
+* di sebelah "Scan QR" pada GoodsReceiptContainer.
+*
+* Alur 2 langkah:
+*   1. Daftar PO Completed/Approved (DocStatus CO/CL, IsSOTrx=false)
+*   2. Pilih satu → chart stacked "Sudah Diterima" vs "Sisa" per produk
+*      (dari QtyOrdered - QtyDelivered) → tombol Import mengisi cart
+*      dengan Qty = sisa yang belum diterima, DAN mengirim data vendor
+*      PO (C_BPartner_ID + C_BPartner_Location_ID) ke parent supaya
+*      header form otomatis terisi vendor yang benar.
+* ─────────────────────────────────────────────────────────────────────────────
+*/
 import React, { useEffect, useState } from 'react';
 import { 
   BarChart, Bar, 
   XAxis, YAxis, 
   CartesianGrid, 
   Tooltip, Legend, 
-  ResponsiveContainer 
+  ResponsiveContainer,
 } from 'recharts';
 
 import { 
@@ -12,23 +27,10 @@ import {
 } from '@/features/material/receipt/hooks/useApprovedPurchaseOrders';
 
 import { 
-  COLOR, RADIUS 
+  COLOR, 
+  RADIUS, 
 } from '@/utils/styleTokens';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// PurchaseOrderImportModal.jsx
-// REVISI dari RequisitionImportModal.jsx — sumber data sekarang C_Order/
-// C_OrderLine (Purchase Order), bukan M_Requisition. Dipicu dari tombol 📥
-// di sebelah "Scan QR" pada GoodsReceiptContainer.
-//
-// Alur 2 langkah:
-//   1. Daftar PO Completed/Approved (DocStatus CO/CL, IsSOTrx=false)
-//   2. Pilih satu → chart stacked "Sudah Diterima" vs "Sisa" per produk
-//      (dari QtyOrdered - QtyDelivered) → tombol Import mengisi cart
-//      dengan Qty = sisa yang belum diterima, DAN mengirim data vendor
-//      PO (C_BPartner_ID + C_BPartner_Location_ID) ke parent supaya
-//      header form otomatis terisi vendor yang benar.
-// ─────────────────────────────────────────────────────────────────────────────
 const PurchaseOrderImportModal = ({ isOpen, warehouseId, onClose, onImport }) => {
   const {
     orders, loadingList, fetchApprovedOrders,

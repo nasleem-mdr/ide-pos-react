@@ -13,8 +13,14 @@
 */
 
 import React from 'react';
+
 import { useNavigate } from 'react-router-dom';
-import { COLOR, RADIUS } from '@/utils/styleTokens';
+
+import { 
+  COLOR, 
+  RADIUS, 
+} from '@/utils/styleTokens';
+
 import { formatCurrency } from '@/utils/currency';
 
 const VendorInvoiceSuccessModal = ({ isOpen, data, onClose }) => {

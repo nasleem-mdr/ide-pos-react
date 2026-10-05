@@ -1,24 +1,30 @@
-import { useState, useCallback, useMemo } from 'react';
+/**  ─────────────────────────────────────────────────────────────────────────────
+* useInternalUseCart.jsx
+* Padanan usePOCart.jsx untuk Internal Use — bedanya di sini tiap baris
+* butuh M_Locator_ID (sumber stok, hasil resolve dari useProductStock) dan
+* C_Charge_ID (mandatory di M_InventoryLine), BUKAN vendor/harga.
+*
+* Key baris = M_Product_ID saja (bukan produk+vendor seperti Purchasing) —
+* asumsinya 1 produk cuma diambil dari 1 locator dalam 1 dokumen Internal
+* Use. Kalau produk yang sama perlu diambil dari 2 locator berbeda dalam 1
+* dokumen, itu di luar cakupan v1 ini.
+*
+* ⚠️ Setiap item SEKARANG juga bawa M_Warehouse_ID + WarehouseName (bukan
+* cuma M_Locator_ID/LocatorName). Ini dipakai untuk:
+*   1. Dropdown 🏭 di InternalUseCartItem — user bisa ganti gudang sumber
+*      stok per item (bukan cuma ikut gudang default sesi login).
+*   2. useInternalUseSubmit — mengelompokkan cart per M_Warehouse_ID untuk
+*      dipecah jadi beberapa dokumen M_Inventory (1 header cuma boleh 1
+*      M_Warehouse_ID).
+* ─────────────────────────────────────────────────────────────────────────────
+*/
 
-// ─────────────────────────────────────────────────────────────────────────────
-// useInternalUseCart.jsx
-// Padanan usePOCart.jsx untuk Internal Use — bedanya di sini tiap baris
-// butuh M_Locator_ID (sumber stok, hasil resolve dari useProductStock) dan
-// C_Charge_ID (mandatory di M_InventoryLine), BUKAN vendor/harga.
-//
-// Key baris = M_Product_ID saja (bukan produk+vendor seperti Purchasing) —
-// asumsinya 1 produk cuma diambil dari 1 locator dalam 1 dokumen Internal
-// Use. Kalau produk yang sama perlu diambil dari 2 locator berbeda dalam 1
-// dokumen, itu di luar cakupan v1 ini.
-//
-// ⚠️ Setiap item SEKARANG juga bawa M_Warehouse_ID + WarehouseName (bukan
-// cuma M_Locator_ID/LocatorName). Ini dipakai untuk:
-//   1. Dropdown 🏭 di InternalUseCartItem — user bisa ganti gudang sumber
-//      stok per item (bukan cuma ikut gudang default sesi login).
-//   2. useInternalUseSubmit — mengelompokkan cart per M_Warehouse_ID untuk
-//      dipecah jadi beberapa dokumen M_Inventory (1 header cuma boleh 1
-//      M_Warehouse_ID).
-// ─────────────────────────────────────────────────────────────────────────────
+import { 
+  useState, 
+  useCallback, 
+  useMemo, 
+} from 'react';
+
 export function useInternalUseCart(initialItems = []) {
   const [cart, setCart] = useState(initialItems);
 

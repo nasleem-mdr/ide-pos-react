@@ -23,8 +23,16 @@
 * ─────────────────────────────────────────────────────────────────────────────
 */
 
-import { useState, useCallback } from 'react';
-import { idempiereApi, fkId, fkLabel } from '@/api/idempiereApi';
+import { 
+  useState, 
+  useCallback, 
+} from 'react';
+
+import { 
+  idempiereApi, 
+  fkId, 
+  fkLabel, 
+} from '@/api/idempiereApi';
 
 export function usePOInvoiceLines() {
   const [pos, setPos] = useState([]);

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { COLOR, RADIUS } from '@/utils/styleTokens';
-import { useUnreconciledPaymentLines } from '../hooks/useUnreconciledPaymentLines';
+import { useUnreconciledPaymentLines } from '@/features/banking/statement/hooks/useUnreconciledPaymentLines';
 import useSubordinates from '@/shared/hooks/useSubordinates'; 
 import { getLoginInfo } from '@/shared/hooks';
 

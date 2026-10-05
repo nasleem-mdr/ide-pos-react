@@ -8,7 +8,7 @@ import QRCode from "qrcode";
 import { 
     PageHeader, 
     DataTable, 
-    LogoSMAMerahHitam 
+    LogoSMAMerahHitam, 
 } from "@/shared/components";
 
 import { idempiereApi } from "@/api/idempiereApi";
@@ -29,24 +29,6 @@ const GoodsReceiptList = () => {
     const [endDate, setEndDate]           = useState(todayStr);
     const pageSize                        = 10;
     const navigate                        = useNavigate();
-
-    // const API_BASE    = "/api/v1";
-    // const customFetch = async (url, options = {}) => {
-    //     const token    = localStorage.getItem("token");
-    //     const response = await fetch(`${API_BASE}${url}`, {
-    //         ...options,
-    //         headers: {
-    //             ...options.headers,
-    //             Authorization:  `Bearer ${token}`,
-    //             "Content-Type": "application/json",
-    //         },
-    //     });
-    //     if (!response.ok) {
-    //         const text = await response.text().catch(() => "");
-    //         throw new Error(`[${response.status}] ${text}`);
-    //     }
-    //     return response.json();
-    // };
 
     const getStatusLabel = (status) => {
         const map = { DR: "Draft", IP: "In Progress", CO: "Completed", VO: "Voided", RE: "Reversed", NA: "Ditolak" };

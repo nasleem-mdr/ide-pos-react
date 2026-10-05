@@ -13,6 +13,7 @@
 *    const priceLocked = !canEditField('pos', 'PriceEntered');
 * ─────────────────────────────────────────────────────────────────────────────
 */
+
 import React, { createContext, useContext } from 'react';
 import { useWindowAccess } from '@/shared/hooks/useWindowAccess';
 import { useFieldRestrictions } from '@/shared/hooks/useFieldRestrictions';

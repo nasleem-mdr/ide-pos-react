@@ -1,4 +1,9 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { 
+    useState, 
+    useEffect, 
+    useCallback,
+} from "react";
+
 import { useNavigate } from "react-router-dom";
 import ReactDOMServer from "react-dom/server";
 import jsPDF from "jspdf";

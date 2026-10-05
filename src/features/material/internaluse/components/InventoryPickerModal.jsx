@@ -1,26 +1,31 @@
+/** ─────────────────────────────────────────────────────────────────────────────
+* InventoryPickerModal.jsx
+* "Product Info" ala iDempiere — menampilkan produk beserta qty on hand per
+* gudang (filterable), dengan checklist supaya user bisa pilih BANYAK produk
+* sekaligus lalu import semuanya ke cart dalam 1 klik (bukan 1-per-1 seperti
+* ProductDetailSheet biasa).
+*
+* Tiap baris yang dicentang otomatis bawa serta:
+*   - M_Warehouse_ID + WarehouseName — gudang yang SEDANG AKTIF dipilih di
+*     dropdown modal ini (bisa beda dari gudang default sesi login). Field
+*     ini WAJIB ada karena useInternalUseSubmit mengelompokkan cart per
+*     M_Warehouse_ID untuk dipecah jadi beberapa dokumen M_Inventory.
+*   - M_Locator_ID hasil resolve dari useProductStock (locator dengan qty
+*     terbanyak untuk produk itu di gudang terpilih)
+*   - C_Charge_ID hasil suggestion dari M_Product.C_Charge_ID (kalau
+*     ada) — kalau tidak ada, item tetap bisa diimport tapi ditandai perlu
+*     dilengkapi Charge manual di cart (badge merah, sama seperti pola
+*     vendor di modul Purchasing).
+* ─────────────────────────────────────────────────────────────────────────────
+*/
+
 import React, { useEffect, useState } from 'react';
 import { useProductStock } from '@/shared/hooks';
-import { COLOR, RADIUS } from '@/utils/styleTokens';
+import { 
+  COLOR, 
+  RADIUS, 
+} from '@/utils/styleTokens';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// InventoryPickerModal.jsx
-// "Product Info" ala iDempiere — menampilkan produk beserta qty on hand per
-// gudang (filterable), dengan checklist supaya user bisa pilih BANYAK produk
-// sekaligus lalu import semuanya ke cart dalam 1 klik (bukan 1-per-1 seperti
-// ProductDetailSheet biasa).
-//
-// Tiap baris yang dicentang otomatis bawa serta:
-//   - M_Warehouse_ID + WarehouseName — gudang yang SEDANG AKTIF dipilih di
-//     dropdown modal ini (bisa beda dari gudang default sesi login). Field
-//     ini WAJIB ada karena useInternalUseSubmit mengelompokkan cart per
-//     M_Warehouse_ID untuk dipecah jadi beberapa dokumen M_Inventory.
-//   - M_Locator_ID hasil resolve dari useProductStock (locator dengan qty
-//     terbanyak untuk produk itu di gudang terpilih)
-//   - C_Charge_ID hasil suggestion dari M_Product.C_Charge_ID (kalau
-//     ada) — kalau tidak ada, item tetap bisa diimport tapi ditandai perlu
-//     dilengkapi Charge manual di cart (badge merah, sama seperti pola
-//     vendor di modul Purchasing).
-// ─────────────────────────────────────────────────────────────────────────────
 const InventoryPickerModal = ({ isOpen, defaultWarehouseId, onClose, onImport }) => {
   const {
     warehouses, loadingWarehouses, fetchWarehouses,

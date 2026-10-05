@@ -1,10 +1,41 @@
-import { HomeIcon, ImportIcon, BankIcon, VendorIcon,RoleIcon, RequisitionIcon, ShoppingCartIcon, DeliveryIcon, UserTake, UserIcon, PartnerIcon, BoxIcon, CashierIcon, } from '@/shared/components/icon';
+import { 
+    HomeIcon, 
+    ImportIcon, 
+    BankIcon, 
+    VendorIcon,
+    RoleIcon, 
+    RequisitionIcon, 
+    ShoppingCartIcon, 
+    DeliveryIcon, 
+    UserTake, 
+    UserIcon, 
+    PartnerIcon, 
+    BoxIcon, 
+    CashierIcon, 
+} from '@/shared/components/icon';
+
 import { ShoppingBagIcon } from '@/shared/components/icon/ShoppingBagIcon';
-import { MdOutlinePayments, MdOutlineStore } from "react-icons/md";
+
+import { 
+    MdOutlinePayments, 
+    MdOutlineStore, 
+} from "react-icons/md";
+
 import { SiGoogleanalytics } from "react-icons/si";
-import { PiCashRegister, PiGitPullRequestBold, PiPresentationChart } from "react-icons/pi";
-import { LiaFileInvoiceDollarSolid, LiaPeopleCarrySolid } from "react-icons/lia";
+
+import { 
+    PiCashRegister, 
+    PiGitPullRequestBold, 
+    PiPresentationChart, 
+} from "react-icons/pi";
+
+import { 
+    LiaFileInvoiceDollarSolid, 
+    LiaPeopleCarrySolid, 
+} from "react-icons/lia";
+
 import { BiPurchaseTagAlt } from "react-icons/bi";
+
 import { TbCreditCardHand } from "react-icons/tb";
 
 export const menuSections = [ 
@@ -37,7 +68,7 @@ export const menuSections = [
         defaultCollapsed: true,
         items: [
             { key: 'paymentReceipt',   windowKey: 'paymentReceipt',  path: '/payment-receipt',  label: 'Payment and Receipt',  icon: <MdOutlinePayments size={24} /> },
-            { key: 'bankstatement',   windowKey: 'bankstatement',  path: '/bank-statement',  label: 'Bank/Cash Statement',  icon: <BankIcon /> },
+            { key: 'bankStatement',   windowKey: 'bankStatement',  path: '/bank-statement',  label: 'Bank/Cash Statement',  icon: <BankIcon /> },
             { key: 'booking',       windowKey: 'booking', path: '/booking',         label: 'Booking Timeline',  icon: <UserTake /> },
             ]
     },
@@ -63,6 +94,7 @@ export const menuSections = [
             { key: 'shipmentCustomerReport', windowKey: 'shipmentCustomerReport', path: '/shipment-customer-report', label: 'Shipment (Customer) Report', icon: <LiaPeopleCarrySolid /> },
             { key: 'salesInvoiceList', windowKey: 'salesInvoiceList',  path: '/salesinvoice-list',  label: 'Sales Invoice List',   icon: <LiaFileInvoiceDollarSolid /> },
             { key: 'outstandingInvoice', windowKey: 'outstandingInvoice', path: '/outstanding-invoice', label: 'Outstanding Invoice', icon: <LiaFileInvoiceDollarSolid /> },
+            { key: 'inventoryuReport', windowKey: 'inventoryuReport', path: '/inventory-report', label: 'Inventory Report', icon: <LiaFileInvoiceDollarSolid /> },
         ]
     },
     {

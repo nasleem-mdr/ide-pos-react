@@ -5,6 +5,15 @@ import { idempiereApi } from "@/api/idempiereApi";
 import { renderListPDF } from "@/utils/pdf/renderListPDF";
 import { generateInvoicePDF } from '@/features/sales/invoice/utils/generateInvoicePDF';
 import { useOrgInfo } from "@/shared/hooks/useOrgInfo";
+import {
+    STATUS_FILTERS, 
+    StatusBadge, 
+    normalizeStatus,
+    buildStatusCondition, 
+    isEditable, 
+    isDownloadable,
+} from "@/utils/docStatus";
+
 import "@/App.css";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -19,6 +28,7 @@ const SalesInvoiceList = () => {
     const [invoices, setInvoices]             = useState([]);
     const [loading, setLoading]           = useState(false);
     const [search, setSearch]             = useState("");
+    const [statusFilter, setStatusFilter] = useState("ALL");
     const [offset, setOffset]             = useState(0);
     const [totalRecords, setTotalRecords] = useState(0);
     const [totalAmountAll, setTotalAmountAll] = useState(null);
@@ -55,6 +65,11 @@ const SalesInvoiceList = () => {
             if (search) {
                 filterClause += ` and contains(tolower(DocumentNo),'${search.toLowerCase()}')`;
             }
+
+            // Filter Status
+            const statusCond = buildStatusCondition(statusFilter);
+            if (statusCond) filterClause += ` and ${statusCond}`;
+
             const res = await idempiereApi(
                 `/models/c_invoice` +
                 `?$filter=${filterClause}` +
@@ -72,7 +87,7 @@ const SalesInvoiceList = () => {
         } finally {
             setLoading(false);
         }
-    }, [offset, search, startDate, endDate]);
+    }, [offset, search, startDate, endDate, statusFilter]);
 
     const svgToPngDataUrl = (svgString, width, height) => {
         return new Promise((resolve, reject) => {
@@ -110,6 +125,10 @@ const SalesInvoiceList = () => {
                 filterClause += ` and contains(tolower(DocumentNo),'${search.toLowerCase()}')`;
             }
 
+            // Filter Status
+            const statusCond = buildStatusCondition(statusFilter);
+            if (statusCond) filterClause += ` and ${statusCond}`;
+
             const res = await idempiereApi(
                 `/models/c_invoice` +
                 `?$filter=${filterClause}` +
@@ -123,7 +142,7 @@ const SalesInvoiceList = () => {
             console.error("Gagal fetch total grand total:", err.message);
             setTotalAmountAll(0);
         }
-    }, [search, startDate, endDate]);
+    }, [search, startDate, endDate, statusFilter]);
 
     useEffect(() => {
         fetchInvoices();
@@ -191,6 +210,10 @@ const SalesInvoiceList = () => {
         if (search) {
             filterClause += ` and contains(tolower(DocumentNo),'${search.toLowerCase()}')`;
         }
+
+        // Filter Status
+        const statusCond = buildStatusCondition(statusFilter);
+        if (statusCond) filterClause += ` and ${statusCond}`;
     
         const res = await idempiereApi(
             `/models/c_invoice` +
@@ -201,7 +224,7 @@ const SalesInvoiceList = () => {
         );
     
         return Array.isArray(res.records) ? res.records : [];
-    }, [search, startDate, endDate]);
+    }, [search, startDate, endDate, statusFilter]);
 
     const [printingList, setPrintingList] = useState(false);
 
@@ -261,7 +284,8 @@ const SalesInvoiceList = () => {
 
     const tableData = invoices.map((invoice) => {
         const invoiceId = invoice.id ?? invoice.C_Invoice_ID;
-        const status  = invoice.DocStatus?.id ?? invoice.DocStatus ?? "DR";
+        //const status  = invoice.DocStatus?.id ?? invoice.DocStatus ?? "DR";
+        const status = normalizeStatus(invoice.DocStatus);
 
         return {
             ...invoice,
@@ -276,14 +300,15 @@ const SalesInvoiceList = () => {
                 || invoice.C_BPartner_ID?.Name
                 || "-",
             GrandTotal: fmtRp(invoice.GrandTotal),
-            DocStatus: (
-                <span style={{
-                    ...styles.badge,
-                    backgroundColor: getStatusColor(status),
-                }}>
-                    {getStatusLabel(status)}
-                </span>
-            ),
+            DocStatus: <StatusBadge status={status} />,
+            // DocStatus: (
+            //     <span style={{
+            //         ...styles.badge,
+            //         backgroundColor: getStatusColor(status),
+            //     }}>
+            //         {getStatusLabel(status)}
+            //     </span>
+            // ),
         };
     });
 
@@ -342,11 +367,19 @@ const SalesInvoiceList = () => {
         setOffset(0);
     };
 
+    const handleFilterChange = (val) => {
+        setStatusFilter(val);
+        setOffset(0);
+    };
+
     return (
         <div className="card-container">
 
             <PageHeader
                 title="Sales Invoice"
+                filters={STATUS_FILTERS}
+                activeFilter={statusFilter}
+                onFilterChange={handleFilterChange}
                 onSearch={(val) => { setSearch(val); setOffset(0); }}
                 extraAction={
                     <div style={{ display: 'flex', gap: '8px' }}>

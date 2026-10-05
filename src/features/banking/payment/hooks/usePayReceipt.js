@@ -20,7 +20,11 @@
 
 import { useState } from 'react';
 import { idempiereApi } from '@/api/idempiereApi';
-import { resolveDocTypeId, DOC_BASE_TYPE, IS_SO_TRX } from '@/utils/docTypeResolver';
+import { 
+    resolveDocTypeId, 
+    DOC_BASE_TYPE, 
+    IS_SO_TRX, 
+} from '@/utils/docTypeResolver';
 
 export function usePayReceipt() {
     const [isSubmitting, setIsSubmitting] = useState(false);

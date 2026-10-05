@@ -55,6 +55,7 @@ import Dashboard from "@/features/login/pages/Dashboard";
 import { Header, Sidebar } from "@/shared/components/setup"; 
 
 import '@/css/AppLayout.css'; // Pastikan mengimpor file CSS layout Anda
+import InventoryStockReport from "@/features/material/inventory/pages/InventoryStockReport";
 
 export default function App() {
   return (
@@ -177,6 +178,12 @@ function AppContent() {
                           <RequisitionContainer />
                         </ProtectedRoute>
                       } />
+                      <Route  path= "/inventory-report" element={
+                        <ProtectedRoute windowKey="inventoryReport">
+                          <InventoryStockReport /> 
+                        </ProtectedRoute> 
+                      } />
+
                       <Route path="/purchasing" element={
                         <ProtectedRoute windowKey="purchasing">
                           <PurchasingContainer />
@@ -241,7 +248,7 @@ function AppContent() {
                         </ProtectedRoute>
                       } />
                       <Route path="/bank-statement" element={
-                        <ProtectedRoute windowKey="bankstatement">
+                        <ProtectedRoute windowKey="bankStatement">
                           <BankStatementContainer />
                         </ProtectedRoute>
                       } />

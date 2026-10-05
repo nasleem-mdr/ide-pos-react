@@ -1,9 +1,16 @@
-import React from 'react';
-import { COLOR, RADIUS } from '@/utils/styleTokens';
+/**
+* ⚠️ Kalau PurchaseSubmitModal.jsx yang sudah ada propnya cukup generik
+* (onDraft/onComplete/onCashPurchase/bankAccounts), Anda bisa REUSE komponen
+* itu langsung (map onBayar → prop onCashPurchase-nya) tanpa file baru ini.
+*/
 
-// ⚠️ Kalau PurchaseSubmitModal.jsx yang sudah ada propnya cukup generik
-// (onDraft/onComplete/onCashPurchase/bankAccounts), Anda bisa REUSE komponen
-// itu langsung (map onBayar → prop onCashPurchase-nya) tanpa file baru ini.
+import React from 'react';
+
+import { 
+  COLOR, 
+  RADIUS, 
+} from '@/utils/styleTokens';
+
 const InvoiceSubmitModal = ({
   isOpen, onClose, onDraft, onComplete, onBayar,
   bankAccounts = [], selectedBankAccountId, onBankAccountChange,

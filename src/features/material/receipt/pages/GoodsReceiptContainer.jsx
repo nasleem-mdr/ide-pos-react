@@ -1,12 +1,29 @@
-//import from react
+/** ─────────────────────────────────────────────────────────────────────────────
+* GoodsReceiptContainer.jsx (REVISI)
+* Perbedaan dari draf pertama: sumber import sekarang PURCHASE ORDER
+* (C_Order/C_OrderLine), bukan Requisition — karena proses bisnisnya punya
+* tahap "Requisition dikonversi jadi PO" sebelum barang datang. Konsekuensi:
+*
+*   1. Tombol 📥 di sebelah Scan QR membuka PurchaseOrderImportModal, bukan
+*      RequisitionImportModal.
+*   2. Vendor TIDAK lagi input manual bebas di awal — begitu user import
+*      dari PO, vendor & lokasi pengiriman otomatis terisi dari header PO
+*      tersebut (paling akurat, karena itu komitmen resmi ke vendor).
+*   3. Vendor field DIKUNCI (disabled) selama cart berisi item hasil import
+*      PO, supaya header M_InOut tidak salah vendor dibanding line yang
+*      sudah ter-link C_OrderLine_ID. User bisa "Reset" untuk ganti PO/vendor.
+*   4. Pencarian vendor manual tetap tersedia sebagai fallback HANYA saat
+*      cart kosong — untuk kasus penerimaan barang di luar PO (mis. sample,
+*      barang hibah) yang tidak lazim tapi kadang perlu dicatat juga.
+* ─────────────────────────────────────────────────────────────────────────────
+*/
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-//import from GoodsReceipt/Material Receipt feature
 import { PurchaseOrderImportModal, GoodsReceiptSuccessModal}  from '@/features/material/receipt/components';
 import { useGoodsReceiptSubmit } from '@/features/material/receipt/hooks/useGoodsReceiptSubmit';
 
-//import component from shared/components
 import { 
   Dialog, 
   CartFab, 
@@ -20,7 +37,6 @@ import {
   ImportIcon 
 } from '@/shared/components';
 
-//import hooks from shared/hooks
 import { 
   useCart, 
   useIsDesktop, 
@@ -43,27 +59,8 @@ import {
 import '@/css/Header.css';
 
 
-// Deskripsi dokumen — tidak client-specific, aman tetap konstan.
 const GOODS_RECEIPT_DESCRIPTION = 'Goods Receipt via Web';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// GoodsReceiptContainer.jsx (REVISI)
-// Perbedaan dari draf pertama: sumber import sekarang PURCHASE ORDER
-// (C_Order/C_OrderLine), bukan Requisition — karena proses bisnisnya punya
-// tahap "Requisition dikonversi jadi PO" sebelum barang datang. Konsekuensi:
-//
-//   1. Tombol 📥 di sebelah Scan QR membuka PurchaseOrderImportModal, bukan
-//      RequisitionImportModal.
-//   2. Vendor TIDAK lagi input manual bebas di awal — begitu user import
-//      dari PO, vendor & lokasi pengiriman otomatis terisi dari header PO
-//      tersebut (paling akurat, karena itu komitmen resmi ke vendor).
-//   3. Vendor field DIKUNCI (disabled) selama cart berisi item hasil import
-//      PO, supaya header M_InOut tidak salah vendor dibanding line yang
-//      sudah ter-link C_OrderLine_ID. User bisa "Reset" untuk ganti PO/vendor.
-//   4. Pencarian vendor manual tetap tersedia sebagai fallback HANYA saat
-//      cart kosong — untuk kasus penerimaan barang di luar PO (mis. sample,
-//      barang hibah) yang tidak lazim tapi kadang perlu dicatat juga.
-// ─────────────────────────────────────────────────────────────────────────────
 const GoodsReceiptContainer = () => {
   const navigate   = useNavigate();
   const isDesktop  = useIsDesktop();

@@ -1,21 +1,16 @@
+/** ─────────────────────────────────────────────────────────────────────────────
+* useBankStatementSubmit.js
+* BeginningBalance = EndingBalance statement TERAKHIR yang sudah Complete utk
+* bank account ini (0 kalau belum pernah ada statement sama sekali) — sesuai
+* konfirmasi Anda. EndingBalance final dihitung NATIVE oleh iDempiere saat
+* Complete (tidak kita kirim manual).
+* ─────────────────────────────────────────────────────────────────────────────
+*/
+
 import { useState, useCallback } from 'react';
 import { idempiereApi, fkId } from '@/api/idempiereApi';
 import { getLoginInfo } from '@/shared/hooks';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// useBankStatementSubmit.js
-// BeginningBalance = EndingBalance statement TERAKHIR yang sudah Complete utk
-// bank account ini (0 kalau belum pernah ada statement sama sekali) — sesuai
-// konfirmasi Anda. EndingBalance final dihitung NATIVE oleh iDempiere saat
-// Complete (tidak kita kirim manual).
-//
-// ⚠️ BELUM DITES (Postman down saat desain ini dibuat): apakah Complete
-// C_BankStatement otomatis set C_Payment.IsReconciled=true utk semua payment
-// yang di-link di baris-barisnya (native behavior yg diasumsikan). Kalau
-// ternyata TIDAK, perlu tambahan loop PUT manual ke tiap C_Payment_ID
-// setelah Complete sukses — sudah saya siapkan tempatnya (lihat komentar
-// TODO di bagian akhir submit()).
-// ─────────────────────────────────────────────────────────────────────────────
 export function useBankStatementSubmit({ onError }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
 

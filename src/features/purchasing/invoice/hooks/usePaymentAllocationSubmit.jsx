@@ -18,8 +18,16 @@
 * ─────────────────────────────────────────────────────────────────────────────
 */
 
-import { useState, useCallback } from 'react';
-import { idempiereApi, fkId } from '@/api/idempiereApi';
+import { 
+  useState, 
+  useCallback, 
+} from 'react';
+
+import { 
+  idempiereApi, 
+  fkId, 
+} from '@/api/idempiereApi';
+
 import { getLoginInfo } from '@/shared/hooks/useLoginInfo';
 
 export function usePaymentAllocationSubmit({ paymentDocTypeId, description, onError }) {

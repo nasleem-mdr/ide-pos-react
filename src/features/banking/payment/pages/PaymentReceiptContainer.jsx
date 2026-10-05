@@ -14,10 +14,10 @@ import { useBankAccounts, getLoginInfo } from '@/shared/hooks';
 import { idempiereApi, fkId } from '@/api/idempiereApi';
 import { COLOR, RADIUS } from '@/utils/styleTokens';
 import { formatCurrency } from '@/utils/currency';
-import InvoiceListModal from '../components/InvoiceListModal';
-import PayReceiptModal from '../components/PayReceiptModal';
-import PaymentReceiptSuccessModal from '../components/PaymentReceiptSuccessModal';
-import { usePayReceipt } from '../hooks/usePayReceipt';
+import InvoiceListModal from '@/features/banking/payment/components/InvoiceListModal';
+import PayReceiptModal from '@/features/banking/payment/components/PayReceiptModal';
+import PaymentReceiptSuccessModal from '@/features/banking/payment/components/PaymentReceiptSuccessModal';
+import { usePayReceipt } from '@/features/banking/payment/hooks/usePayReceipt';
 
 const PaymentReceiptContainer = () => {
     const [isReceipt, setIsReceipt] = useState(true); // true = AR Receipt (dari Customer), false = AP Payment (ke Vendor)

@@ -1,67 +1,71 @@
-import { useState, useCallback } from 'react';
+/** ─────────────────────────────────────────────────────────────────────────────
+* useInternalUseSubmit.jsx
+* Window iDempiere "Inventory Decrease/Increase" → tabel M_Inventory /
+* M_InventoryLine. Untuk kasus Internal Use (bukan physical count penuh),
+* field yang relevan di tiap line:
+*   • QtyBook   — qty sistem saat ini (informatif, hasil resolve stok, UOM DASAR)
+*   • QtyCount  — disamakan dengan QtyBook (TIDAK ada selisih/variance,
+*                 karena ini bukan stock opname, cuma pengambilan langsung)
+*   • QtyInternalUse — qty yang benar-benar diambil, UOM DASAR
+*   • C_Charge_ID    — MANDATORY, akun/alasan pemakaian (di-suggest dari
+*                       M_Product.C_Charge_ID kalau ada)
+*
+* ⚠️ M_InventoryLine TIDAK punya kolom C_UOM_ID (dikonfirmasi dari struktur
+* tabel) — SEMUA field qty di atas WAJIB dalam UOM dasar produk. Konversi
+* dari UOM entry (mis. "Rim") ke UOM dasar (mis. "Lembar") WAJIB pakai
+* `toBaseQty()` dari useUomConversion.jsx (pola sama seperti Purchasing),
+* BUKAN kalkulasi manual `qty * selectedUom.multiplyRate`. Alasannya:
+* MultiplyRate mentah dari C_UOM_Conversion punya arti "berapa <UOM_To>
+* per 1 <UOM_Dasar>", jadi kalau rate < 1 (mis. 0.002 untuk 1 Rim = 500
+* Lembar), base qty yang benar didapat dari MEMBAGI (entered / rate),
+* bukan mengalikan — lihat komentar "RUMUS SAKTI DIBALIK" di
+* useUomConversion.jsx. Versi sebelumnya di sini mengalikan langsung
+* (qty * rate), jadi utk Rim hasilnya 1 * 0.002 = 0.002 Lembar (salah
+* total, harusnya 500 Lembar) — sudah diperbaiki di bawah.
+* JANGAN kirim field C_UOM_ID ke payload M_InventoryLine — kolomnya
+* memang tidak ada di tabel ini (sudah dikonfirmasi dari struktur tabel).
+*
+* ⚠️ M_InventoryLine dipakai bersama oleh 2 jenis dokumen: Physical
+* Inventory (MMI>PI) dan Internal Use (MMO>IU). Untuk Physical Inventory,
+* QtyBook (stok sistem) dan QtyCount (hasil hitung fisik) memang harus
+* diisi nilai riil karena itu intinya stock opname (selisihnya jadi
+* variance). TAPI untuk Internal Use, iDempiere HANYA memproses
+* QtyInternalUse — QtyBook dan QtyCount cukup diisi 0 (bukan resolve stok
+* sistem), karena bukan proses opname dan tidak menghasilkan variance.
+* Jangan resolve/fetch QtyOnHand untuk transaksi ini — cukup hardcode 0.
+*
+* ⚠️ MULTI-WAREHOUSE: 1 dokumen M_Inventory (header) cuma boleh punya
+* 1 M_Warehouse_ID, dan M_Locator_ID tiap line HARUS berada di dalam
+* warehouse header itu. Karena user bisa pilih gudang berbeda per item di
+* cart (lihat InternalUseCartItem → onWarehouseChange), submit() di sini
+* MENGELOMPOKKAN cart per item.M_Warehouse_ID dan membuat SATU dokumen
+* M_Inventory terpisah untuk tiap kelompok gudang.
+*
+* submitMode ('draft' | 'complete', default 'complete') — SAMA pola dengan
+* useRequisitionSubmit.jsx / usePurchaseOrderSubmit.jsx / useGoodsReceiptSubmit.jsx:
+*   - 'complete' -> doc-action 'CO' dipanggil utk SETIAP dokumen per-gudang.
+*   - 'draft'    -> TIDAK ada doc-action yang dipanggil sama sekali untuk
+*                   dokumen manapun -> semua dokumen per-gudang tetap
+*                   Drafted. Karena ini per-klik-tombol, submitMode berlaku
+*                   SAMA untuk semua kelompok gudang dalam 1 submit (tidak
+*                   bisa sebagian draft sebagian complete dalam 1 klik).
+*
+* Partial success: kalau salah satu kelompok gagal (mis. error validasi di
+* tengah proses Complete), kelompok gudang lain yang SUDAH berhasil
+* diproses (draft ATAU complete) TETAP dianggap sukses — proses tidak
+* dihentikan di tengah jalan. Item pada kelompok yang gagal dikembalikan
+* lewat field `failed` supaya Container bisa membiarkannya tetap di cart
+* untuk di-retry, alih-alih menghapus semuanya begitu saja.
+* ─────────────────────────────────────────────────────────────────────────────
+*/
+import { 
+  useState, 
+  useCallback,
+} from 'react';
 import { idempiereApi } from '@/api/idempiereApi';
 import { getLoginInfo } from '@/shared/hooks/useLoginInfo';
 import { useUomConversion } from '@/shared/hooks/useUomConversion';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// useInternalUseSubmit.jsx
-// Window iDempiere "Inventory Decrease/Increase" → tabel M_Inventory /
-// M_InventoryLine. Untuk kasus Internal Use (bukan physical count penuh),
-// field yang relevan di tiap line:
-//   • QtyBook   — qty sistem saat ini (informatif, hasil resolve stok, UOM DASAR)
-//   • QtyCount  — disamakan dengan QtyBook (TIDAK ada selisih/variance,
-//                 karena ini bukan stock opname, cuma pengambilan langsung)
-//   • QtyInternalUse — qty yang benar-benar diambil, UOM DASAR
-//   • C_Charge_ID    — MANDATORY, akun/alasan pemakaian (di-suggest dari
-//                       M_Product.C_Charge_ID kalau ada)
-//
-// ⚠️ M_InventoryLine TIDAK punya kolom C_UOM_ID (dikonfirmasi dari struktur
-// tabel) — SEMUA field qty di atas WAJIB dalam UOM dasar produk. Konversi
-// dari UOM entry (mis. "Rim") ke UOM dasar (mis. "Lembar") WAJIB pakai
-// `toBaseQty()` dari useUomConversion.jsx (pola sama seperti Purchasing),
-// BUKAN kalkulasi manual `qty * selectedUom.multiplyRate`. Alasannya:
-// MultiplyRate mentah dari C_UOM_Conversion punya arti "berapa <UOM_To>
-// per 1 <UOM_Dasar>", jadi kalau rate < 1 (mis. 0.002 untuk 1 Rim = 500
-// Lembar), base qty yang benar didapat dari MEMBAGI (entered / rate),
-// bukan mengalikan — lihat komentar "RUMUS SAKTI DIBALIK" di
-// useUomConversion.jsx. Versi sebelumnya di sini mengalikan langsung
-// (qty * rate), jadi utk Rim hasilnya 1 * 0.002 = 0.002 Lembar (salah
-// total, harusnya 500 Lembar) — sudah diperbaiki di bawah.
-// JANGAN kirim field C_UOM_ID ke payload M_InventoryLine — kolomnya
-// memang tidak ada di tabel ini (sudah dikonfirmasi dari struktur tabel).
-//
-// ⚠️ M_InventoryLine dipakai bersama oleh 2 jenis dokumen: Physical
-// Inventory (MMI>PI) dan Internal Use (MMO>IU). Untuk Physical Inventory,
-// QtyBook (stok sistem) dan QtyCount (hasil hitung fisik) memang harus
-// diisi nilai riil karena itu intinya stock opname (selisihnya jadi
-// variance). TAPI untuk Internal Use, iDempiere HANYA memproses
-// QtyInternalUse — QtyBook dan QtyCount cukup diisi 0 (bukan resolve stok
-// sistem), karena bukan proses opname dan tidak menghasilkan variance.
-// Jangan resolve/fetch QtyOnHand untuk transaksi ini — cukup hardcode 0.
-//
-// ⚠️ MULTI-WAREHOUSE: 1 dokumen M_Inventory (header) cuma boleh punya
-// 1 M_Warehouse_ID, dan M_Locator_ID tiap line HARUS berada di dalam
-// warehouse header itu. Karena user bisa pilih gudang berbeda per item di
-// cart (lihat InternalUseCartItem → onWarehouseChange), submit() di sini
-// MENGELOMPOKKAN cart per item.M_Warehouse_ID dan membuat SATU dokumen
-// M_Inventory terpisah untuk tiap kelompok gudang.
-//
-// submitMode ('draft' | 'complete', default 'complete') — SAMA pola dengan
-// useRequisitionSubmit.jsx / usePurchaseOrderSubmit.jsx / useGoodsReceiptSubmit.jsx:
-//   - 'complete' -> doc-action 'CO' dipanggil utk SETIAP dokumen per-gudang.
-//   - 'draft'    -> TIDAK ada doc-action yang dipanggil sama sekali untuk
-//                   dokumen manapun -> semua dokumen per-gudang tetap
-//                   Drafted. Karena ini per-klik-tombol, submitMode berlaku
-//                   SAMA untuk semua kelompok gudang dalam 1 submit (tidak
-//                   bisa sebagian draft sebagian complete dalam 1 klik).
-//
-// Partial success: kalau salah satu kelompok gagal (mis. error validasi di
-// tengah proses Complete), kelompok gudang lain yang SUDAH berhasil
-// diproses (draft ATAU complete) TETAP dianggap sukses — proses tidak
-// dihentikan di tengah jalan. Item pada kelompok yang gagal dikembalikan
-// lewat field `failed` supaya Container bisa membiarkannya tetap di cart
-// untuk di-retry, alih-alih menghapus semuanya begitu saja.
-// ─────────────────────────────────────────────────────────────────────────────
 export function useInternalUseSubmit({ docTypeId, description, onError }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toBaseQty } = useUomConversion();

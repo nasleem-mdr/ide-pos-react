@@ -1,24 +1,33 @@
-import React from 'react';
-import { QtyStepper, UomSelector } from '@/shared/components';
-import { COLOR, RADIUS } from '@/utils/styleTokens';
-import { useUomConversion } from '@/shared/hooks/useUomConversion';
+/** Padanan POCartItem.jsx untuk Internal Use — badge-nya Charge (bukan
+* vendor), ada info locator sumber stok (read-only), dan UomSelector untuk
+* entry qty dalam UOM yang familiar bagi user (M_InventoryLine tidak punya
+* C_UOM_ID, jadi konversi ke UOM dasar dilakukan di frontend — lihat
+* useUomConversion.jsx).
+*
+* Qty dalam UOM dasar (buat dibandingkan ke QtyOnHand yang juga UOM dasar).
+* ⚠️ WAJIB pakai toBaseQty() (bukan `item.Qty * multiplyRate` manual) —
+* MultiplyRate mentah dari C_UOM_Conversion punya aturan pembagian khusus
+* saat nilainya < 1 (mis. Rim = 0.002 -> base qty = qty / 0.002 = qty*500,
+* BUKAN qty * 0.002). Lihat komentar "RUMUS SAKTI DIBALIK" di
+* useUomConversion.jsx — sebelumnya di sini pakai perkalian langsung,
+* itu sebabnya 1 Rim tampil sebagai "0.002 Lembar" alih-alih "500 Lembar".
+*/ 
 
-// Padanan POCartItem.jsx untuk Internal Use — badge-nya Charge (bukan
-// vendor), ada info locator sumber stok (read-only), dan UomSelector untuk
-// entry qty dalam UOM yang familiar bagi user (M_InventoryLine tidak punya
-// C_UOM_ID, jadi konversi ke UOM dasar dilakukan di frontend — lihat
-// useUomConversion.jsx).
+import React from 'react';
+import { useUomConversion } from '@/shared/hooks/useUomConversion';
+import { 
+  QtyStepper, 
+  UomSelector, 
+} from '@/shared/components';
+import { 
+  COLOR, 
+  RADIUS, 
+} from '@/utils/styleTokens';
+
 const InternalUseCartItem = ({ item, onRemove, onQtyChange, onChargeClick, onUomChange }) => {
   const hasCharge = !!item.C_Charge_ID;
   const { toBaseQty } = useUomConversion();
-
-  // Qty dalam UOM dasar (buat dibandingkan ke QtyOnHand yang juga UOM dasar).
-  // ⚠️ WAJIB pakai toBaseQty() (bukan `item.Qty * multiplyRate` manual) —
-  // MultiplyRate mentah dari C_UOM_Conversion punya aturan pembagian khusus
-  // saat nilainya < 1 (mis. Rim = 0.002 -> base qty = qty / 0.002 = qty*500,
-  // BUKAN qty * 0.002). Lihat komentar "RUMUS SAKTI DIBALIK" di
-  // useUomConversion.jsx — sebelumnya di sini pakai perkalian langsung,
-  // itu sebabnya 1 Rim tampil sebagai "0.002 Lembar" alih-alih "500 Lembar".
+  
   const qtyInBaseUom = toBaseQty(item.Qty, item.selectedUom);
   const overStock = item.QtyOnHand != null && qtyInBaseUom > item.QtyOnHand;
 

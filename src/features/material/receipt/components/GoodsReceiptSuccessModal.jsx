@@ -5,6 +5,7 @@ import { DeliveryIcon } from '@/shared/components';
 
 // Struktur & gaya sengaja dibuat identik dengan RequisitionSuccessModal.jsx
 // supaya konsisten secara visual antar modul.
+
 const GoodsReceiptSuccessModal = ({ isOpen, data, onClose }) => {
   const navigate = useNavigate();
   const handleClose = () => {

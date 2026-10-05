@@ -1,23 +1,24 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { PageHeader, DataTable } from "@/shared/components/setup";
+import { 
+    PageHeader, 
+    DataTable, 
+} from "@/shared/components/setup";
+
 import { useOrgInfo } from "@/shared/hooks/useOrgInfo";
 import { idempiereApi } from "@/api/idempiereApi";
 import { renderListPDF } from "@/utils/pdf/renderListPDF";
 import { generateOrderPDF } from "@/features/purchasing/order/utils/generateOrderPDF";
 import {
-    STATUS_FILTERS, StatusBadge, normalizeStatus,
-    buildStatusCondition, isEditable, isDownloadable,
+    STATUS_FILTERS, 
+    StatusBadge, 
+    normalizeStatus,
+    buildStatusCondition, 
+    isEditable, 
+    isDownloadable,
 } from "@/utils/docStatus";
-import "@/App.css";
 
-// const STATUS_FILTERS = [
-//     { value: "ALL", label: "Semua" },
-//     { value: "DR",  label: "Draft" },
-//     { value: "IP",  label: "Diproses" },
-//     { value: "NA",  label: "Ditolak" },
-//     { value: "CO",  label: "Selesai" },
-// ];
+import "@/App.css";
 
 const PurchasingList = () => {
     const todayStr = new Date().toISOString().split("T")[0];
@@ -258,34 +259,7 @@ const PurchasingList = () => {
         setStatusFilter(val);
         setOffset(0);
     };
-
-    // const fetchAllOrdersForPrint = useCallback(async () => {
-    //     const loginUserId = localStorage.getItem("AD_User_ID");
-        
-    //     if (!loginUserId) return [];
-
-    //     let filterClause =
-    //         ` CreatedBy eq ${loginUserId}` +
-    //         ` and IsSOTrx eq false` +
-    //         ` and Created ge ${startDate}T00:00:00Z` +
-    //         ` and Created le ${endDate}T23:59:59Z`;
-
-    //     if (search) {
-    //         filterClause += ` and contains(tolower(DocumentNo),'${search.toLowerCase()}')`;
-    //     }
-
-    //     const res = await idempiereApi(
-    //         `/models/c_order` +
-    //         `?$filter=${filterClause}` +
-    //         `&$select=C_Order_ID,DocumentNo,Createdby, DateOrdered,C_BPartner_ID,GrandTotal` +
-    //         `&$orderby=DocumentNo desc` +
-    //         `&$top=5000`
-    //     );
-
-    //     return Array.isArray(res.records) ? res.records : [];
-    // }, [search, startDate, endDate]);
-    // Tambahkan parameter (misal: showAll) ke dalam useCallback atau argumen fungsi
-    
+   
     const fetchAllOrdersForPrint = useCallback(async () => {
         const loginUserId = localStorage.getItem("AD_User_ID");
         
