@@ -110,12 +110,12 @@ export default function useInventoryStockReport() {
             // Langkah 3a: QtyOnHand per produk per locator (hanya yang ≠ 0)
             const onHand = await fetchWithFallback([
                 {
-                    source: "m_storageonhand",
-                    path: `/models/m_storageonhand?$filter=QtyOnHand ne 0&$select=M_Product_ID,M_Locator_ID,QtyOnHand`,
+                source: "m_storageonhand",
+                path: `/models/m_storageonhand?$filter=QtyOnHand neq 0&$select=M_Product_ID,M_Locator_ID,QtyOnHand`,
                 },
                 {
-                    source: "m_storage",
-                    path: `/models/m_storage?$filter=QtyOnHand ne 0&$select=M_Product_ID,M_Locator_ID,QtyOnHand`,
+                source: "m_storage",
+                path: `/models/m_storage?$filter=QtyOnHand neq 0&$select=M_Product_ID,M_Locator_ID,QtyOnHand`,
                 },
             ]);
 
@@ -124,12 +124,12 @@ export default function useInventoryStockReport() {
             try {
                 const reserved = await fetchWithFallback([
                     {
-                        source: "m_storagereservation", // per GUDANG
-                        path: `/models/m_storagereservation?$filter=IsSOTrx eq true and Qty ne 0&$select=M_Product_ID,M_Warehouse_ID,Qty`,
+                        source: "m_storagereservation",
+                        path: `/models/m_storagereservation?$filter=IsSOTrx eq true and Qty neq 0&$select=M_Product_ID,M_Warehouse_ID,Qty`,
                     },
                     {
-                        source: "m_storage", // view kompatibilitas, per LOCATOR
-                        path: `/models/m_storage?$filter=QtyReserved ne 0&$select=M_Product_ID,M_Locator_ID,QtyReserved`,
+                        source: "m_storage",
+                        path: `/models/m_storage?$filter=QtyReserved neq 0&$select=M_Product_ID,M_Locator_ID,QtyReserved`,
                     },
                 ]);
                 const isReservationTable = reserved.source === "m_storagereservation";
