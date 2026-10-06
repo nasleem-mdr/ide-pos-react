@@ -48,6 +48,7 @@ import PaymentReceiptContainer  from '@/features/banking/payment/pages/PaymentRe
 import ShipmentCustomerReport from "@/features/sales/shipment/pages/ShipmentCustomerReport";
 //financial Report
 import FinancialReportPage from '@/features/financial/pages/FinancialReportPage';
+import FinancialComparisonPage from '@/features/financial/pages/FinancialComparisonPage';
 import DashboardMenu from '@/features/menu/pages/DashboardMenu';
 
 import ProtectedRoute from '@/shared/components/ProtectedRoute';
@@ -57,6 +58,7 @@ import { Header, Sidebar } from "@/shared/components/setup";
 
 import '@/css/AppLayout.css'; // Pastikan mengimpor file CSS layout Anda
 import InventoryStockReport from "@/features/material/inventory/pages/InventoryStockReport";
+import GeneralLedgerReport from "./features/financial/pages/GeneralLedgerReport";
 
 export default function App() {
   return (
@@ -265,6 +267,16 @@ function AppContent() {
                       <Route path="/financial-report" element={
                         <ProtectedRoute windowKey="financialReport">
                           <FinancialReportPage token={session?.token} acctSchemaId={session?.acctSchemaId} />
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/financial-comparasion" element={
+                        <ProtectedRoute windowKey="financialComparation">
+                          <FinancialComparisonPage token={session?.token} acctSchemaId={session?.acctSchemaId} />
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/general-ledger" element={
+                        <ProtectedRoute windowKey="generalLedger">
+                          <GeneralLedgerReport token={session?.token} acctSchemaId={session?.acctSchemaId} />
                         </ProtectedRoute>
                       } />
                       <Route path="/sales-order" element={

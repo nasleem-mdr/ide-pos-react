@@ -4,11 +4,11 @@ import { usePOSOrderSubmit }   from '@/features/sales/order/hooks/usePOSOrderSub
 import { usePOSPaymentSubmit } from '@/features/sales/order/hooks/usePOSPaymentSubmit';
 import { usePOSARSubmit }      from '@/features/sales/order/hooks/usePOSARSubmit';
 import { ConfirmModal, PaymentModal, ARModal, ReceiptModal, CartItemPOS } from '@/features/sales/order/components';
-import { ProductCard, SearchBar, ScanIcon, ProductGrid, CartPanel, CartSidebar, BarcodeScanner } from '@/shared/components';
+import { ProductCard, ShoppingCartIcon, SearchBar, ScanIcon, ProductGrid, CartPanel, CartSidebar, BarcodeScanner } from '@/shared/components';
 import { useAccess } from '@/context/AccessContext';
 import { idempiereApi, fkId, fkLabel } from '@/api/idempiereApi';
 import { useIsDesktop, useScannerInput, getLoginInfo } from '@/shared/hooks';
-
+import '@/css/Header.css';
 // Key window POS untuk pembatasan field (kolom RestrictedFields di AD_Role),
 // mis. "pos.PriceEntered". Samakan dengan key di windowAccessMap / CartItemPOS.
 const POS_WINDOW_KEY = 'posOrder';
@@ -1006,12 +1006,30 @@ const POSContainer = () => {
                 onConfirm={dialog.mode === "confirm" ? handleDialogConfirm : null}
                 onCancel={closeDialog}
             />
-
+            <div className="header-pos">
+                <span style={{
+                color: '#fff', fontWeight: 700, fontSize: '15px', flex: 1,
+                display: 'inline-flex', alignItems: 'center', gap: '6px',
+                }}>
+                <ShoppingCartIcon />
+                <span>POS Terminal</span>
+                </span>
+                {isDesktop && (
+                        <div style={{ display: 'flex', gap: '16px', color: '#fff', flexShrink: 0 }}>
+                            <span><strong>POS:</strong> {posConfig?.Name || '...'}</span>
+                            <span><strong>SalesRep:</strong> {posConfig?.SalesRep_ID?.id ?? posConfig?.SalesRep_ID ?? '-'}</span>
+                            <span><strong>Version:</strong> {currentVersionId
+                                ? <span style={{ color: '#2e7d32' }}>{currentVersionId}</span>
+                                : <span style={{ color: '#c62828' }}>Not Found</span>}
+                            </span>
+                        </div>
+                    )}
+            </div>
             {/* Config Bar */}
             <div style={{
                 background: '#f0f4ff',
                 padding: isDesktop ? '12px 16px' : '10px 12px',
-                borderRadius: '8px',
+                borderRadius: '1px',
                 border: '1px solid #c5d0e8',
                 fontSize: '13px'
             }}>
@@ -1022,16 +1040,7 @@ const POSContainer = () => {
                     flexWrap: 'wrap',
                     flexDirection: isDesktop ? 'row' : 'column'
                 }}>
-                    {isDesktop && (
-                        <div style={{ display: 'flex', gap: '16px', color: '#555', flexShrink: 0 }}>
-                            <span><strong>POS:</strong> {posConfig?.Name || '...'}</span>
-                            <span><strong>SalesRep:</strong> {posConfig?.SalesRep_ID?.id ?? posConfig?.SalesRep_ID ?? '-'}</span>
-                            <span><strong>Version:</strong> {currentVersionId
-                                ? <span style={{ color: '#2e7d32' }}>{currentVersionId}</span>
-                                : <span style={{ color: '#c62828' }}>Not Found</span>}
-                            </span>
-                        </div>
-                    )}
+                    
 
                     <div style={{
                         display: 'flex', alignItems: 'center', gap: '8px',

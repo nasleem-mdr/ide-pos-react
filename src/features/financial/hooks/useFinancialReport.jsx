@@ -21,6 +21,9 @@ const getValueStr = (val) => {
   return String(val);
 };
 
+// Jumlah request halaman yang boleh jalan bersamaan saat paging
+const PAGE_CONCURRENCY = 5;
+
 // Helper: Safety parse angka dari response JSON API
 const parseNum = (val) => {
   if (typeof val === 'number') return val;
@@ -40,6 +43,15 @@ const isDebitNormal = (accountType, accountSign) => {
   return type === 'A' || type === 'E' || type === 'M';
 };
 
+// PA_ReportLine.PAPeriodType (Period Type di window Report Line):
+//   T = Total   -> akumulasi dari awal sampai As Per Date (dateTo)      [Neraca]
+//   Y = Year    -> awal tahun fiskal s/d dateTo (year-to-date)
+//   P = Period  -> dateFrom s/d dateTo                                  [Laba Rugi]
+//   N = Natural -> akun Neraca (A/L/O) = Total, akun Laba Rugi (R/E) = Year
+//   kosong      -> default mengikuti `mode` ('neraca' = T, 'labarugi' = P)
+const PERIOD_TYPES = ['T', 'Y', 'P', 'N'];
+const BUCKET_BY_TYPE = { T: 'total', Y: 'year', P: 'period' };
+
 export function useFinancialReport({
   reportLineSetId,
   acctSchemaId,
@@ -53,17 +65,24 @@ export function useFinancialReport({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Helper fetch all pages (pagination OData REST iDempiere)
+  // Helper fetch all pages (pagination OData REST iDempiere).
+  //
+  // PENTING: bxservice membatasi respons maksimal 100 baris per request
+  // meski $top=1000/2000 (terkonfirmasi di useWindowAccess: row-count 337,
+  // fetched 100). Karena itu:
+  //   - JANGAN berhenti dengan `rows.length < pageSize` (100 < 1000 -> berhenti
+  //     di halaman pertama, data terpotong diam-diam).
+  //   - Acuan total = `row-count` dari server; langkah $skip = jumlah baris
+  //     yang BENAR-BENAR diterima di halaman pertama.
+  //   - Wajib pakai $orderby (PK) di path supaya urutan paging stabil.
+  // Halaman ke-2 dst. diambil paralel per batch agar Fact_Acct (ribuan baris)
+  // tidak terlalu lambat.
   const fetchAllPages = useCallback(
-    async (path, pageSize = 1000, signal = null) => {
-      let skip = 0;
-      const allRows = [];
-      
-      while (true) {
-        const sep = path.includes('?') ? '&' : '?';
-        const url = `${baseUrl}${path}${sep}$top=${pageSize}&$skip=${skip}`;
-        
-        const res = await fetch(url, {
+    async (path, pageSize = 100, signal = null) => {
+      const sep = path.includes('?') ? '&' : '?';
+
+      const fetchPage = async (skip) => {
+        const res = await fetch(`${baseUrl}${path}${sep}$top=${pageSize}&$skip=${skip}`, {
           headers: { Authorization: `Bearer ${token}` },
           signal,
         });
@@ -71,19 +90,46 @@ export function useFinancialReport({
         if (res.status === 401 || res.status === 403) {
           throw new Error(`Sesi login kadaluarsa (HTTP ${res.status}). Silakan login ulang.`);
         }
-
         if (!res.ok) {
           throw new Error(`Gagal fetch ${path}: HTTP ${res.status}`);
         }
 
         const json = await res.json();
-        const rows = json.records || json.value || [];
-        for (let i = 0; i < rows.length; i++) {
-          allRows.push(rows[i]);
-        }
+        return {
+          rows: json.records || json.value || [],
+          total: typeof json['row-count'] === 'number' ? json['row-count'] : null,
+        };
+      };
 
-        if (rows.length === 0 || rows.length < pageSize) break;
-        skip += rows.length;
+      const first = await fetchPage(0);
+      const allRows = [];
+      for (let i = 0; i < first.rows.length; i++) allRows.push(first.rows[i]);
+      if (first.rows.length === 0) return allRows;
+
+      // Jalur utama: total diketahui -> hitung semua skip, ambil paralel per batch
+      if (first.total !== null) {
+        const step = first.rows.length; // ukuran halaman riil dari server
+        const skips = [];
+        for (let s = step; s < first.total; s += step) skips.push(s);
+
+        for (let i = 0; i < skips.length; i += PAGE_CONCURRENCY) {
+          const batch = await Promise.all(
+            skips.slice(i, i + PAGE_CONCURRENCY).map((sk) => fetchPage(sk))
+          );
+          for (const b of batch) {
+            for (let j = 0; j < b.rows.length; j++) allRows.push(b.rows[j]);
+          }
+        }
+        return allRows;
+      }
+
+      // Fallback: server tidak mengirim row-count -> lanjut sampai halaman kosong
+      let skip = first.rows.length;
+      while (true) {
+        const page = await fetchPage(skip);
+        if (page.rows.length === 0) break;
+        for (let j = 0; j < page.rows.length; j++) allRows.push(page.rows[j]);
+        skip += page.rows.length;
       }
       return allRows;
     },
@@ -199,18 +245,18 @@ export function useFinancialReport({
         // 1. Fetch metadata secara paralel
         const [linesRaw, allSources, allAccounts] = await Promise.all([
           fetchAllPages(
-            `/api/v1/models/PA_ReportLine?$filter=PA_ReportLineSet_ID eq ${reportLineSetId} and IsActive eq true&$orderby=SeqNo`,
-            1000,
+            `/api/v1/models/PA_ReportLine?$filter=PA_ReportLineSet_ID eq ${reportLineSetId} and IsActive eq true&$orderby=PA_ReportLine_ID`,
+            100,
             signal
           ),
           fetchAllPages(
-            `/api/v1/models/PA_ReportSource?$filter=ElementType eq 'AC' and IsActive eq true`,
-            1000,
+            `/api/v1/models/PA_ReportSource?$filter=ElementType eq 'AC' and IsActive eq true&$orderby=PA_ReportSource_ID`,
+            100,
             signal
           ),
           fetchAllPages(
-            `/api/v1/models/C_ElementValue?$filter=IsActive eq true&$select=C_ElementValue_ID,Name,Value,AccountType,AccountSign,IsSummary`,
-            1000,
+            `/api/v1/models/C_ElementValue?$filter=IsActive eq true&$select=C_ElementValue_ID,Name,Value,AccountType,AccountSign,IsSummary&$orderby=C_ElementValue_ID`,
+            100,
             signal
           ),
         ]);
@@ -309,19 +355,77 @@ export function useFinancialReport({
           return [];
         };
 
-        // 2. Fetch Data Transaksi (Fact_Acct)
-        const dateFilter =
-          mode === 'neraca'
-            ? `DateAcct le '${dateTo}'`
-            : `DateAcct ge '${dateFrom}' and DateAcct le '${dateTo}'`;
+        // 2. Period Type efektif tiap baris Segment ('S')
+        //    Satu laporan boleh campur: baris Total (As Per Date), Year (YTD),
+        //    Period (dateFrom..dateTo) — mis. Neraca yang memuat Laba Berjalan.
+        const effectiveTypeOf = (line) => {
+          const t = getValueStr(line.PAPeriodType).toUpperCase();
+          if (PERIOD_TYPES.includes(t)) return t;
+          return mode === 'neraca' ? 'T' : 'P';
+        };
+
+        const segmentLines = lines.filter((l) => getValueStr(l.LineType) === 'S');
+        const usedTypes = new Set(segmentLines.map(effectiveTypeOf));
+        console.debug('[useFinancialReport] Period Type per baris S:', segmentLines.map((l) => ({
+          seq: l.SeqNo, name: l.Name, raw: l.PAPeriodType, effective: effectiveTypeOf(l),
+        })));
+
+        const needTotal = usedTypes.has('T') || usedTypes.has('N');
+        const needYear = usedTypes.has('Y') || usedTypes.has('N') || (usedTypes.has('P') && !dateFrom);
+
+        // Awal tahun fiskal dari C_Period (fallback 1 Januari tahun dateTo)
+        const resolveFiscalYearStart = async () => {
+          try {
+            const cur = await fetchAllPages(
+              `/api/v1/models/C_Period?$filter=StartDate le '${dateTo}' and EndDate ge '${dateTo}' and PeriodType eq 'S' and IsActive eq true&$select=C_Year_ID,StartDate&$orderby=C_Period_ID`,
+              100,
+              signal
+            );
+            const yearId = getId(cur[0]?.C_Year_ID);
+            if (yearId) {
+              const periods = await fetchAllPages(
+                `/api/v1/models/C_Period?$filter=C_Year_ID eq ${yearId} and PeriodType eq 'S' and IsActive eq true&$select=StartDate&$orderby=StartDate`,
+                100,
+                signal
+              );
+              const first = String(periods[0]?.StartDate || '').slice(0, 10);
+              if (first) return first;
+            }
+          } catch (err) {
+            if (err.name === 'AbortError') throw err;
+            console.warn('[useFinancialReport] Gagal baca C_Period, pakai 1 Januari:', err.message);
+          }
+          return `${String(dateTo).slice(0, 4)}-01-01`;
+        };
+
+        const yearStart = needYear ? await resolveFiscalYearStart() : null;
+        const periodStart = dateFrom || yearStart || null;
+
+        // Batas bawah Fact_Acct: kalau ada baris Total/Natural harus dari awal
+        // (null = tanpa batas bawah). Kalau hanya Year/Period, cukup mulai dari
+        // tanggal paling awal yang dibutuhkan -> data yang ditarik jauh lebih kecil.
+        let lowerBound = null;
+        if (!needTotal) {
+          const starts = [];
+          if (usedTypes.has('Y')) starts.push(yearStart);
+          if (usedTypes.has('P')) starts.push(periodStart);
+          lowerBound = starts.filter(Boolean).sort()[0] ?? null;
+        }
+
+        // 3. Fetch Data Transaksi (Fact_Acct)
+        const dateFilter = lowerBound
+          ? `DateAcct ge '${lowerBound}' and DateAcct le '${dateTo}'`
+          : `DateAcct le '${dateTo}'`;
 
         const factRows = await fetchAllPages(
-          `/api/v1/models/Fact_Acct?$filter=C_AcctSchema_ID eq ${acctSchemaId} and PostingType eq 'A' and ${dateFilter}&$select=Account_ID,AmtAcctDr,AmtAcctCr`,
-          2000,
+          `/api/v1/models/Fact_Acct?$filter=C_AcctSchema_ID eq ${acctSchemaId} and PostingType eq 'A' and ${dateFilter}&$select=Account_ID,AmtAcctDr,AmtAcctCr,DateAcct&$orderby=Fact_Acct_ID`,
+          100,
           signal
         );
 
-        // 3. Agregasi Saldo per Akun
+        // 4. Agregasi Saldo per Akun — 3 bucket sekaligus dalam satu pass:
+        //    total (semua s/d dateTo), year (>= awal tahun), period (>= periodStart)
+        const emptyBucket = () => ({ dr: 0, cr: 0 });
         const balanceByAccount = new Map();
         for (let i = 0; i < factRows.length; i++) {
           const row = factRows[i];
@@ -330,29 +434,47 @@ export function useFinancialReport({
 
           const dr = parseNum(row.AmtAcctDr);
           const cr = parseNum(row.AmtAcctCr);
+          const d = String(row.DateAcct || '').slice(0, 10); // 'YYYY-MM-DD'
 
-          const prev = balanceByAccount.get(accId);
-          if (prev) {
-            prev.dr += dr;
-            prev.cr += cr;
-          } else {
-            balanceByAccount.set(accId, { dr, cr });
+          let entry = balanceByAccount.get(accId);
+          if (!entry) {
+            entry = { total: emptyBucket(), year: emptyBucket(), period: emptyBucket() };
+            balanceByAccount.set(accId, entry);
+          }
+
+          entry.total.dr += dr;
+          entry.total.cr += cr;
+          if (yearStart && d >= yearStart) {
+            entry.year.dr += dr;
+            entry.year.cr += cr;
+          }
+          if (periodStart && d >= periodStart) {
+            entry.period.dr += dr;
+            entry.period.cr += cr;
           }
         }
 
-        const getAccountBalance = (accId) => {
-          const bal = balanceByAccount.get(accId);
-          if (!bal) return 0;
+        const getAccountBalance = (accId, periodType) => {
+          const entry = balanceByAccount.get(accId);
+          if (!entry) return 0;
           const acc = accountMap.get(accId);
+
+          let bucketKey = BUCKET_BY_TYPE[periodType] || 'total';
+          if (periodType === 'N') {
+            const accType = getValueStr(acc?.AccountType);
+            bucketKey = accType === 'R' || accType === 'E' ? 'year' : 'total';
+          }
+          const bal = entry[bucketKey];
+
           const debitNormal = acc ? isDebitNormal(acc.AccountType, acc.AccountSign) : true;
           return debitNormal ? bal.dr - bal.cr : bal.cr - bal.dr;
         };
 
-        // 4. Kalkulasi Nilai Baris Segment ('S')
+        // 4b. Kalkulasi Nilai Baris Segment ('S') sesuai Period Type barisnya
         const segmentAmounts = new Map();
-        for (let i = 0; i < lines.length; i++) {
-          const line = lines[i];
-          if (getValueStr(line.LineType) !== 'S') continue;
+        for (let i = 0; i < segmentLines.length; i++) {
+          const line = segmentLines[i];
+          const periodType = effectiveTypeOf(line);
 
           const sources = sourcesByLineId.get(line.id) || [];
           let lineTotal = 0;
@@ -360,7 +482,7 @@ export function useFinancialReport({
           for (let j = 0; j < sources.length; j++) {
             const accIds = resolveAccountIds(sources[j]);
             for (let k = 0; k < accIds.length; k++) {
-              lineTotal += getAccountBalance(accIds[k]);
+              lineTotal += getAccountBalance(accIds[k], periodType);
             }
           }
 

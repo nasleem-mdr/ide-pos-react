@@ -301,7 +301,7 @@ const POSOrderList = () => {
     return (
         <div className="card-container">
             <PageHeader
-                title="📋 Sales Order — Hari ini"
+                title="📋 Sales Order"
                 onSearch={(val) => { setSearch(val); setOffset(0); }}
                 extraAction={
                     <div style={{ display: 'flex', gap: '8px' }}>

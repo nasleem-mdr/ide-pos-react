@@ -12,13 +12,62 @@
 //      Order → OrderLine yang praktis). Tiap chunk dipaging ($top/$skip).
 //   3) Join di JS jadi baris detail { order, vendor, produk, qty, harga, total }.
 //   4) Filter produk (multi-select) diterapkan di sisi client.
-//   5) Pivot per produk + grand total dihitung dari baris yang sudah difilter (useMemo).
+//   5) Pivot (per Produk / per Vendor / per No. Order) + grand total dihitung
+//      dari baris yang sudah difilter (useMemo). Ganti mode pivot TIDAK
+//      memicu fetch ulang — murni olahan client-side.
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { idempiereApi } from "@/api/idempiereApi";
 
 const CHUNK_SIZE = 40;  // jumlah C_Order_ID per batch query C_OrderLine
 const PAGE_SIZE = 500;  // ukuran permintaan per halaman
 const MAX_PAGES = 100;  // pengaman loop (maks 50.000 record per query)
+
+// ─── Konfigurasi mode pivot ──────────────────────────────────────────────────
+// Satu sumber kebenaran untuk layar, PDF, dan Excel.
+//   detailCols : kolom TEKS pada baris detail (dimensi yang jadi grup tidak
+//                diulang lagi di baris detail). Kolom Qty / Harga / Total
+//                selalu ada di belakangnya.
+const COL = {
+    documentNo:  { key: "documentNo",  label: "No. Order", pdfWidth: 60,  xlsWidth: 16 },
+    vendorName:  { key: "vendorName",  label: "Vendor",    pdfWidth: 165, xlsWidth: 26 },
+    productName: { key: "productName", label: "Produk",    pdfWidth: 165, xlsWidth: 30 },
+};
+
+export const PIVOT_CONFIG = {
+    PRODUCT: {
+        label: "Per Produk", icon: "📦", fileKey: "PRODUK", sheetName: "Detail per Produk",
+        detailCols: [COL.documentNo, COL.vendorName],
+    },
+    VENDOR: {
+        label: "Per Vendor", icon: "🏢", fileKey: "VENDOR", sheetName: "Detail per Vendor",
+        detailCols: [COL.documentNo, COL.productName],
+    },
+    DOCUMENT: {
+        label: "Per No. Order", icon: "🧾", fileKey: "NO-ORDER", sheetName: "Detail per No Order",
+        detailCols: [{ ...COL.productName, pdfWidth: 230 }],
+    },
+};
+
+export const DEFAULT_PIVOT = "PRODUCT";
+
+// Format yang dipakai <PageHeader filters={...} />
+export const PIVOT_FILTERS = Object.entries(PIVOT_CONFIG).map(([value, cfg]) => ({
+    value,
+    label: cfg.label,
+}));
+
+// Tentukan identitas & label grup sebuah baris untuk mode pivot tertentu.
+const getGroupInfo = (mode, r) => {
+    switch (mode) {
+        case "VENDOR":
+            return { id: r.vendorId ?? r.vendorName, label: r.vendorName };
+        case "DOCUMENT":
+            return { id: r.orderId, label: `${r.documentNo} — ${r.vendorName}` };
+        case "PRODUCT":
+        default:
+            return { id: r.productId ?? r.productName, label: r.productName };
+    }
+};
 
 // Ambil SEMUA record dari sebuah query REST dengan paging $top/$skip.
 // Berhenti saat halaman kosong atau jumlah terambil >= `row-count` dari server.
@@ -46,6 +95,9 @@ export default function usePurchaseOrderDetailReport() {
     // ── Filter tanggal ──────────────────────────────────────────────────
     const [startDate, setStartDate] = useState(todayStr);
     const [endDate, setEndDate] = useState(todayStr);
+
+    // ── Mode pivot ──────────────────────────────────────────────────────
+    const [groupBy, setGroupBy] = useState(DEFAULT_PIVOT);
 
     // ── Data ────────────────────────────────────────────────────────────
     const [detailRows, setDetailRows] = useState([]); // hasil join Order+OrderLine, BELUM difilter produk
@@ -99,6 +151,7 @@ export default function usePurchaseOrderDetailReport() {
                 orderMap.set(oid, {
                     documentNo: o.DocumentNo || `#${oid}`,
                     dateOrdered: o.DateOrdered,
+                    vendorId: o.C_BPartner_ID?.id ?? o.C_BPartner_ID ?? null,
                     vendorName: o.C_BPartner_ID?.identifier || o.C_BPartner_ID?.Name || "-",
                     docStatus: o.DocStatus?.id ?? o.DocStatus,
                 });
@@ -133,6 +186,7 @@ export default function usePurchaseOrderDetailReport() {
                     orderId: oid,
                     documentNo: orderInfo.documentNo || `#${oid}`,
                     dateOrdered: orderInfo.dateOrdered,
+                    vendorId: orderInfo.vendorId ?? null,
                     vendorName: orderInfo.vendorName || "-",
                     docStatus: orderInfo.docStatus,
                     productId,
@@ -163,26 +217,38 @@ export default function usePurchaseOrderDetailReport() {
         return detailRows.filter((r) => selectedProductIds.includes(r.productId));
     }, [detailRows, selectedProductIds]);
 
-    // ── Pivot per produk: tiap produk bawa subtotal + daftar baris ──────
-    const groupedByProduct = useMemo(() => {
+    // ── Pivot sesuai mode: tiap grup bawa subtotal + daftar baris ───────
+    //    group = { key, label, sortKey, totalQty, totalAmount, rows }
+    const groups = useMemo(() => {
         const map = new Map();
         filteredRows.forEach((r) => {
-            if (!map.has(r.productId)) {
-                map.set(r.productId, {
-                    productId: r.productId,
-                    productName: r.productName,
+            const { id, label } = getGroupInfo(groupBy, r);
+            if (!map.has(id)) {
+                map.set(id, {
+                    key: id,
+                    label,
+                    sortKey: r.documentNo,
                     totalQty: 0,
                     totalAmount: 0,
                     rows: [],
                 });
             }
-            const group = map.get(r.productId);
+            const group = map.get(id);
             group.totalQty += r.qty;
             group.totalAmount += r.lineTotal;
             group.rows.push(r);
         });
-        return Array.from(map.values()).sort((a, b) => b.totalAmount - a.totalAmount);
-    }, [filteredRows]);
+
+        const list = Array.from(map.values());
+        if (groupBy === "DOCUMENT") {
+            // No. Order terbaru di atas (sama dengan urutan di halaman list)
+            return list.sort((a, b) =>
+                String(b.sortKey).localeCompare(String(a.sortKey), undefined, { numeric: true })
+            );
+        }
+        // Produk / Vendor: nilai terbesar di atas
+        return list.sort((a, b) => b.totalAmount - a.totalAmount);
+    }, [filteredRows, groupBy]);
 
     const grandTotal = useMemo(
         () => filteredRows.reduce((sum, r) => sum + r.lineTotal, 0),
@@ -201,7 +267,9 @@ export default function usePurchaseOrderDetailReport() {
         // data & status
         loading, errorMsg, refresh: fetchReportData,
         // hasil olahan
-        groupedByProduct, grandTotal,
+        groups, grandTotal,
+        // pivot
+        groupBy, setGroupBy, pivotConfig: PIVOT_CONFIG[groupBy] ?? PIVOT_CONFIG[DEFAULT_PIVOT],
         // filter
         startDate, setStartDate, endDate, setEndDate,
         productOptions, selectedProductIds, toggleProduct, clearProductFilter,

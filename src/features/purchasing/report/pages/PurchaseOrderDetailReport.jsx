@@ -1,23 +1,27 @@
 // src/features/purchasing/report/pages/PurchaseOrderDetailReport.jsx
-// Laporan Detail Purchase Order (berbasis C_OrderLine, pivot per produk) — HANYA UI.
-// Data & filter: hooks/usePurchaseOrderDetailReport.js
+// Laporan Detail Purchase Order (berbasis C_OrderLine, pivot per Produk / Vendor / No. Order) — HANYA UI.
+// Data, filter & pivot: hooks/usePurchaseOrderDetailReport.js
 // Print PDF & Excel: hooks/usePurchaseOrderDetailExport.js
 import React, { useState, useEffect, useRef } from "react";
 import { PageHeader } from "@/shared/components";
 import "@/App.css";
-import usePurchaseOrderDetailReport, { getProductId } from "../hooks/usePurchaseOrderDetailReport";
+import usePurchaseOrderDetailReport, {
+    getProductId,
+    PIVOT_FILTERS,
+} from "../hooks/usePurchaseOrderDetailReport";
 import usePurchaseOrderDetailExport from "../hooks/usePurchaseOrderDetailExport";
 
 const PurchaseOrderDetailReport = () => {
     const {
         loading, errorMsg, refresh,
-        groupedByProduct, grandTotal,
+        groups, grandTotal,
+        groupBy, setGroupBy, pivotConfig,
         startDate, setStartDate, endDate, setEndDate,
         productOptions, selectedProductIds, toggleProduct, clearProductFilter,
     } = usePurchaseOrderDetailReport();
 
     const { printing, exportingExcel, printPdf, exportExcel } =
-        usePurchaseOrderDetailExport({ groupedByProduct, grandTotal, startDate, endDate });
+        usePurchaseOrderDetailExport({ groups, groupBy, grandTotal, startDate, endDate });
 
     // ─── State UI dropdown multi-select produk ──────────────────────────────
     const [productSearch, setProductSearch] = useState("");
@@ -44,6 +48,10 @@ const PurchaseOrderDetailReport = () => {
 
     const fmt = (n) => n.toLocaleString("id-ID");
 
+    // Kolom teks detail mengikuti mode pivot; Qty / Harga / Total selalu ada.
+    const detailCols = pivotConfig.detailCols;
+    const totalColCount = detailCols.length + 3;
+
     const handlePrint = async () => {
         const res = await printPdf();
         if (!res.ok) alert(res.message);
@@ -57,6 +65,9 @@ const PurchaseOrderDetailReport = () => {
         <div className="card-container">
             <PageHeader
                 title="🛒 Laporan Detail Purchase Order"
+                filters={PIVOT_FILTERS}
+                activeFilter={groupBy}
+                onFilterChange={setGroupBy}
                 extraAction={
                     <div style={{ display: "flex", gap: "8px" }}>
                         <button onClick={handleExcel} disabled={exportingExcel} style={styles.excelBtn}>
@@ -153,32 +164,35 @@ const PurchaseOrderDetailReport = () => {
                 </div>
             )}
 
-            {/* ─── Detail Transaksi per Produk — ala pivot ────────────────── */}
+            {/* ─── Detail Transaksi — pivot sesuai mode terpilih ──────────── */}
             <div className="detail-section">
-                <h3>Detail Transaksi per Produk</h3>
+                <h3>Detail Transaksi {pivotConfig.label}</h3>
                 {loading ? (
                     <p>Memuat data...</p>
-                ) : errorMsg ? null : groupedByProduct.length === 0 ? (
+                ) : errorMsg ? null : groups.length === 0 ? (
                     <p style={{ color: "#777" }}>Tidak ada data untuk filter ini.</p>
                 ) : (
                     <div style={{ overflowX: "auto" }}>
                         <table className="modern-table">
                             <thead>
                                 <tr>
-                                    <th>No. Order</th>
-                                    <th>Vendor</th>
+                                    {detailCols.map((c) => (
+                                        <th key={c.key}>{c.label}</th>
+                                    ))}
                                     <th style={{ textAlign: "right" }}>Qty</th>
                                     <th style={{ textAlign: "right" }}>Harga</th>
                                     <th style={{ textAlign: "right" }}>Total</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {groupedByProduct.map((group) => (
-                                    <React.Fragment key={group.productId ?? group.productName}>
+                                {groups.map((group) => (
+                                    <React.Fragment key={group.key}>
                                         <tr style={styles.groupHeaderRow}>
-                                            <td colSpan={5}>
+                                            <td colSpan={totalColCount}>
                                                 <div style={styles.groupHeaderContent}>
-                                                    <span style={styles.groupHeaderName}>📦 {group.productName}</span>
+                                                    <span style={styles.groupHeaderName}>
+                                                        {pivotConfig.icon} {group.label}
+                                                    </span>
                                                     <span style={styles.groupHeaderStats}>
                                                         Qty: <strong>{fmt(group.totalQty)}</strong>
                                                         &nbsp;&nbsp;|&nbsp;&nbsp;
@@ -189,8 +203,9 @@ const PurchaseOrderDetailReport = () => {
                                         </tr>
                                         {group.rows.map((r) => (
                                             <tr key={r.key}>
-                                                <td>{r.documentNo}</td>
-                                                <td>{r.vendorName}</td>
+                                                {detailCols.map((c) => (
+                                                    <td key={c.key}>{r[c.key]}</td>
+                                                ))}
                                                 <td style={{ textAlign: "right" }}>{fmt(r.qty)}</td>
                                                 <td style={{ textAlign: "right" }}>{fmt(r.price)}</td>
                                                 <td style={{ textAlign: "right" }}>{fmt(r.lineTotal)}</td>
@@ -201,7 +216,7 @@ const PurchaseOrderDetailReport = () => {
                             </tbody>
                             <tfoot>
                                 <tr>
-                                    <td colSpan={4} style={{ textAlign: "right", fontWeight: "bold" }}>Grand Total</td>
+                                    <td colSpan={totalColCount - 1} style={{ textAlign: "right", fontWeight: "bold" }}>Grand Total</td>
                                     <td style={{ textAlign: "right", fontWeight: "bold" }}>{fmt(grandTotal)}</td>
                                 </tr>
                             </tfoot>
@@ -228,7 +243,7 @@ const styles = {
     productOptionRow: { display: "flex", alignItems: "center", gap: "8px", padding: "6px 4px", cursor: "pointer", fontSize: "13px" },
     clearFilterBtn: { marginTop: "8px", width: "100%", padding: "6px", background: "#f5f5f5", border: "1px solid #ddd", borderRadius: "4px", cursor: "pointer", fontSize: "12px" },
     errorBox: { background: "#ffebee", border: "1px solid #ef9a9a", color: "#b71c1c", borderRadius: "8px", padding: "10px 14px", fontSize: "13px", marginBottom: "12px", whiteSpace: "pre-line" },
-    // Baris header ringkasan per grup produk (ala pivot table) — warna oranye
+    // Baris header ringkasan per grup (ala pivot table) — warna oranye
     // supaya mudah dibedakan dari laporan Sales (biru) & Inventory (hijau).
     groupHeaderRow: { backgroundColor: "#fff3e0", borderTop: "2px solid #ffcc80", borderBottom: "1px solid #ffcc80" },
     groupHeaderContent: { display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px", padding: "8px 4px" },

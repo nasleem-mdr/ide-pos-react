@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Printer,
   Download,
@@ -120,6 +121,10 @@ export default function FinancialReportPage({ token, acctSchemaId }) {
             <FileBarChart size={16} />
             Pilih Laporan
           </button>
+          <Link to={"/financial-comparasion"} className="frp-btn-primary">
+            <FileBarChart size={16} />
+            Laporan Komparasi
+          </Link>
 
           {activeParams && (
             <div className="frp-secondary-group">

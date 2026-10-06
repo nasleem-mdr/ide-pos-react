@@ -56,15 +56,16 @@ const ShipmentCustomerReport = () => {
             ` and MovementType eq 'C-'` +
             ` and MovementDate ge ${startDate}T00:00:00Z` +
             ` and MovementDate le ${endDate}T23:59:59Z`;
-
+    
         if (search) {
             filterClause += ` and contains(tolower(DocumentNo),'${search.toLowerCase().replace(/'/g, "''")}')`;
         }
+    
         const statusCond = buildStatusCondition(statusFilter);
-        if (statusCond) conditions.push(statusCond);
-        
+        if (statusCond) filterClause += ` and ${statusCond}`;
+    
         return filterClause;
-    }, [search, startDate, endDate]);
+    }, [search, startDate, endDate, statusFilter]);   // ← tambah statusFilter
 
     const fetchShipments = useCallback(async () => {
         const loginUserId = localStorage.getItem("AD_User_ID");
@@ -185,8 +186,7 @@ const ShipmentCustomerReport = () => {
 
     const tableData = shipments.map((s) => {
         const shipmentId = s.id ?? s.M_InOut_ID;
-        //const status     = s.DocStatus?.id ?? s.DocStatus ?? "DR";
-        const status = normalizeStatus(order.DocStatus);
+        const status = normalizeStatus(s.DocStatus);
 
         return {
             ...s,
@@ -211,9 +211,8 @@ const ShipmentCustomerReport = () => {
     });
 
     const actionRenderer = (item) => {
-        const isEditDisabled = !isEditable(item._status);
-        const isDownloadDisabled = !isDownloadable(item._status) || isDownloading;
         const isDownloading      = downloadingId === item._shipmentId;
+        const isDownloadDisabled = !isDownloadable(item._status) || isDownloading;
         //const isDownloadDisabled = item._status !== "CO" || isDownloading; // hanya aktif saat Completed
 
         return (

@@ -112,6 +112,7 @@ export const menuSections = [
         defaultCollapsed: true,
             items: [
             { key: 'financialReport', windowKey: 'financialReport',  path: '/financial-report',  label: 'Financial Report',   icon: <PiPresentationChart /> },
+            { key: 'generalLedger', windowKey: 'generalLedger',  path: '/general-ledger',  label: 'General Ledger',   icon: <PiPresentationChart /> },
         ]
     },
     {
