@@ -1,17 +1,21 @@
-import React, { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { PageHeader, DataTable } from "@/shared/components/setup";
 import { idempiereApi } from "@/api/idempiereApi";
 import { renderListPDF } from "@/utils/pdf/renderListPDF";
 import { generateInvoicePDF } from '@/features/sales/invoice/utils/generateInvoicePDF';
 import { useOrgInfo } from "@/shared/hooks/useOrgInfo";
+
+import { 
+    PageHeader, 
+    DataTable, 
+    WorkflowProgressButton,
+} from "@/shared/components";
+
 import {
     STATUS_FILTERS, 
     StatusBadge, 
     normalizeStatus,
     buildStatusCondition, 
-    isEditable, 
-    isDownloadable,
 } from "@/utils/docStatus";
 
 import "@/App.css";
@@ -301,14 +305,6 @@ const SalesInvoiceList = () => {
                 || "-",
             GrandTotal: fmtRp(invoice.GrandTotal),
             DocStatus: <StatusBadge status={status} />,
-            // DocStatus: (
-            //     <span style={{
-            //         ...styles.badge,
-            //         backgroundColor: getStatusColor(status),
-            //     }}>
-            //         {getStatusLabel(status)}
-            //     </span>
-            // ),
         };
     });
 
@@ -353,6 +349,13 @@ const SalesInvoiceList = () => {
                 >
                     {isDownloading ? "⏳ ..." : "⬇️ Download"}
                 </button>
+                <WorkflowProgressButton
+                     tableName="C_Invoice"
+                     recordId={item._invoiceId}
+                     docStatus={item._status}
+                     targetStatus="CO"
+                     buttonStyle={styles.editBtn}
+                />
             </div>
         );
     };

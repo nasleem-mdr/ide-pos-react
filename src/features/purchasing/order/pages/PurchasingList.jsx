@@ -3,8 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { 
     PageHeader, 
     DataTable, 
-} from "@/shared/components/setup";
-
+    WorkflowProgressButton,
+} from "@/shared/components";
 import { useOrgInfo } from "@/shared/hooks/useOrgInfo";
 import { idempiereApi } from "@/api/idempiereApi";
 import { renderListPDF } from "@/utils/pdf/renderListPDF";
@@ -14,8 +14,6 @@ import {
     StatusBadge, 
     normalizeStatus,
     buildStatusCondition, 
-    isEditable, 
-    isDownloadable,
 } from "@/utils/docStatus";
 
 import "@/App.css";
@@ -241,6 +239,13 @@ const PurchasingList = () => {
                 >
                     {isDownloading ? "⏳ ..." : "⬇️ Download"}
                 </button>
+                <WorkflowProgressButton
+                    tableName="C_Order"
+                    recordId={item._orderId}
+                    docStatus={item._status}
+                    targetStatus="CO"
+                    buttonStyle={styles.editBtn}
+                />
             </div>
         );
     };

@@ -1,12 +1,23 @@
-import React, { useState, useEffect, useCallback } from "react";
-import { PageHeader, DataTable } from "@/shared/components/setup";
+import { 
+    useState, 
+    useEffect, 
+    useCallback, 
+} from "react";
+import { 
+    PageHeader, 
+    DataTable, 
+    WorkflowProgressButton,
+} from "@/shared/components";
 import { idempiereApi } from "@/api/idempiereApi";
 import { renderListPDF } from "@/utils/pdf/renderListPDF";
 import { generateShipmentPDF } from "@/features/sales/order/utils/generateShipmentPDF";
 import { useOrgInfo } from "@/shared/hooks/useOrgInfo";
 import {
-    STATUS_FILTERS, StatusBadge, normalizeStatus,
-    buildStatusCondition, isEditable, isDownloadable,
+    STATUS_FILTERS, 
+    StatusBadge, 
+    normalizeStatus,
+    buildStatusCondition, 
+    isDownloadable,
 } from "@/utils/docStatus";
 import "@/App.css";
 
@@ -234,6 +245,13 @@ const ShipmentCustomerReport = () => {
                 >
                     {isDownloading ? "⏳ ..." : "⬇️ Download"}
                 </button>
+                <WorkflowProgressButton
+                     tableName="M_InOut"
+                     recordId={item._shipmentId}
+                     docStatus={item._status}
+                     targetStatus="CO"
+                     buttonStyle={styles.editBtn}
+                />
             </div>
         );
     };
