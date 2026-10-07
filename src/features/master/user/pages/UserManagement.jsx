@@ -23,7 +23,7 @@ const UserManagement = () => {
         <div className="card-container">
             {/* Header + menu New */}
             <div style={styles.headerRow}>
-                <PageHeader title="Manajemen User" />
+                <PageHeader title="Manajemen User" onSearch={um.setSearch} />
                 <button type="button" style={styles.newBtn} onClick={um.openCreate}><AddIcon /> New </button>
             </div>
 
@@ -36,9 +36,9 @@ const UserManagement = () => {
 
             {/* Daftar user (tampilan awal) */}
             <div className="detail-section">
-                <h3>Daftar User ({um.users.length})</h3>
+                <h3>Daftar User ({um.search ? `${um.filteredUsers.length} dari ${um.users.length}` : um.users.length})</h3>
                 <UserTable
-                    users={um.users}
+                    users={um.filteredUsers}
                     loading={um.usersLoading}
                     roleNameById={um.roleNameById}
                     togglingId={um.togglingId}

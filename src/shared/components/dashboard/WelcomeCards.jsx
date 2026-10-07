@@ -14,7 +14,7 @@ const CARDS = [
   { windowKey: 'posOrder',       to: '/pos-order',       icon: <CashierIcon size={32} />,       label: 'Formulir', value: 'POS Sales' },
   { windowKey: 'salesInvoice',   to: '/sales-invoice',   icon: <ImportIcon size={32} />,        label: 'Formulir', value: 'Sales Invoice' },
   { windowKey: 'paymentReceipt', to: '/payment-receipt', icon: <MdOutlinePayments size={32} />, label: 'Formulir', value: 'Payment and Receipt' },
-  { windowKey: 'bankstatement',  to: '/bank-statement',  icon: <BankIcon size={32} />,          label: 'Formulir', value: 'Bank Statement' },
+  { windowKey: 'bankStatement',  to: '/bank-statement',  icon: <BankIcon size={32} />,          label: 'Formulir', value: 'Bank Statement' },
   { windowKey: 'dashboardMenu',  to: '/dashboard-menu',  icon: <SiGoogleanalytics size={32} />, label: 'Report',   value: 'All Report' },
 ];
 

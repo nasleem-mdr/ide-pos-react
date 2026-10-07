@@ -26,10 +26,12 @@ export const ACCESS_DEFS = [
     { key: "form",   label: "📋 Form Access (AD_Form_Access)",     table: "ad_form_access",    fk: "AD_Form_ID" },
 ];
 
-// Window iDempiere yang benar-benar dipakai aplikasi React ini.
-// Hanya window di daftar ini yang tampil di picker Window Access.
-// Cocokkan PERSIS dengan AD_Window.Name (bahasa login REST). ISI SESUAI APLIKASI ANDA — di bawah ini contoh.
-export const APP_WINDOW_NAMES = [
+// Window iDempiere yang dipakai aplikasi React ini. Hanya window di daftar ini yang
+// tampil di picker Window Access.
+//   - angka  → AD_Window_ID   (DISARANKAN: tidak terpengaruh rename / terjemahan)
+//   - string → AD_Window.Name (cocok persis; bisa meleset kalau window di-rename)
+// Boleh dicampur. Entri yang tidak ditemukan di server dicatat lewat console.warn.
+export const APP_WINDOWS = [
     "Requisition",
     "Product",
     "Business Partner",
@@ -42,4 +44,5 @@ export const APP_WINDOW_NAMES = [
     "Sales Invoice and Credit/Debit Note",
     "Bank/Cash Statement",
     "Payment and Receipt",
+    "Sales Invoice",
 ];

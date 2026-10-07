@@ -70,13 +70,6 @@ export default function DashboardMenus({ session }) {
         <div className="welcome-card-value">Bank Statement</div>
       </div>
       </Link>
-      {/* Info: Bahasa 
-      <div className="welcome-card">
-        <div className="welcome-card-icon"><CashierIcon /></div>
-        <div className="welcome-card-label">Bahasa</div>
-        <div className="welcome-card-value">{session.language}</div>
-      </div>
-      */}
     </div>
   );
 }

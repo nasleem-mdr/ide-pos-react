@@ -618,9 +618,9 @@ useEffect(() => {
                  fontWeight: 700, 
                  fontSize: '15px', 
                  flex: 1,
-                 display: 'inline-flex', /* Membuat isi di dalamnya (icon & teks) berjejer ke samping */
-                 alignItems: 'center',    /* Membuat icon dan teks sejajar secara vertikal (tinggi yang sama) */
-                 gap: '6px'              /* Memberikan jarak horizontal antara icon dan tulisan Requisition */
+                 display: 'inline-flex', 
+                 alignItems: 'center',   
+                 gap: '6px'              
                }}>
                  <ShoppingCartIcon />
                  <span>Purchasing</span>

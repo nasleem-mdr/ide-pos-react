@@ -51,6 +51,11 @@ export default function useUserManagement() {
     const [confirm, setConfirm] = useState({ isOpen: false, user: null });
     const [deleting, setDeleting] = useState(false);
 
+    // ── Pencarian (dipanggil PageHeader lewat onSearch) ─────────────────
+    const [search, setSearchState] = useState("");
+    // Terima string maupun event input, supaya cocok dengan cara PageHeader memanggilnya.
+    const setSearch = (v) => setSearchState(typeof v === "string" ? v : (v?.target?.value ?? ""));
+
     // ── Ganti password (modal edit) ─────────────────────────────────────
     const [pwForm, setPwForm] = useState({ ...EMPTY_PASSWORD_FORM });
     const [pwSaving, setPwSaving] = useState(false);
@@ -88,6 +93,17 @@ export default function useUserManagement() {
     }, [fetchRoles, fetchUsers]);
 
     const roleNameById = useMemo(() => new Map(roles.map((r) => [r.id, r.name])), [roles]);
+
+    // Cari di nama, username/email, dan nama role
+    const filteredUsers = useMemo(() => {
+        const q = search.trim().toLowerCase();
+        if (!q) return users;
+        return users.filter((u) =>
+            u.name.toLowerCase().includes(q) ||
+            u.email.toLowerCase().includes(q) ||
+            u.roleIds.some((rid) => (roleNameById.get(rid) || "").toLowerCase().includes(q))
+        );
+    }, [users, search, roleNameById]);
 
     // ── Modal: buka / tutup / ubah ──────────────────────────────────────
     const openCreate = () => { setFormError(null); resetPw(); setModal(emptyModal()); };
@@ -231,7 +247,9 @@ export default function useUserManagement() {
 
     return {
         // data
-        roles, rolesLoading, roleNameById, users, usersLoading,
+        roles, rolesLoading, roleNameById, users, filteredUsers, usersLoading,
+        // pencarian
+        search, setSearch,
         // modal
         modal, formError, saving, openCreate, openEdit, closeModal, setModalForm, toggleRole, saveModal,
         // ganti password

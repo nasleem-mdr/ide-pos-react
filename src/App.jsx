@@ -58,7 +58,8 @@ import { Header, Sidebar } from "@/shared/components/setup";
 
 import '@/css/AppLayout.css'; // Pastikan mengimpor file CSS layout Anda
 import InventoryStockReport from "@/features/material/inventory/pages/InventoryStockReport";
-import GeneralLedgerReport from "./features/financial/pages/GeneralLedgerReport";
+import GeneralLedgerReport from "@/features/financial/pages/GeneralLedgerReport";
+import WorkflowApprovalContainer from "@/features/workflow/pages/WorkflowApprovalContainer";
 
 export default function App() {
   return (
@@ -277,6 +278,11 @@ function AppContent() {
                       <Route path="/general-ledger" element={
                         <ProtectedRoute windowKey="generalLedger">
                           <GeneralLedgerReport token={session?.token} acctSchemaId={session?.acctSchemaId} />
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/workflow-approval" element={
+                        <ProtectedRoute windowKey="workflowApproval">
+                          <WorkflowApprovalContainer />
                         </ProtectedRoute>
                       } />
                       <Route path="/sales-order" element={

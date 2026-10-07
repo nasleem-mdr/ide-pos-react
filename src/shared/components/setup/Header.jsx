@@ -1,7 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { UserIcon, RoleIcon, LogoIconW, LogoutIcon } from '@/shared/components';
 import ChangeRoleModal from './ChangeRoleModal';
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
+import { useWorkflowPendingCount } from '@/shared/hooks/useWorkflowPendingCount';
+
 import '@/css/Header.css';
  
 export default function Header({ session, onLogout, onSessionUpdate }) {
@@ -11,7 +13,8 @@ export default function Header({ session, onLogout, onSessionUpdate }) {
   const [isTouchDevice, setIsTouchDevice] = useState(false);
   const menuRef = useRef(null);
   const navigate = useNavigate();
- 
+  const { count: pendingCount } = useWorkflowPendingCount(roleId);
+  
   // Deteksi apakah device mendukung hover asli (desktop/mouse) atau tidak
   // (mobile/touch). (hover: hover) + (pointer: fine) hanya true untuk mouse.
   useEffect(() => {
@@ -71,21 +74,22 @@ export default function Header({ session, onLogout, onSessionUpdate }) {
         </div>
  
         <div className="header-divider" />
- 
+        
         {/* Role + dropdown Ganti Role — hover di desktop, click di mobile/touch */}
         <div
-          className="header-info-item"
-          style={{ position: 'relative', cursor: 'pointer' }}
+          className="header-role-wrap"
           ref={menuRef}
           {...(!isTouchDevice ? triggerProps : {})}
         >
           <div
             className="header-info-item"
+            style={{ cursor: 'pointer' }}
             {...(isTouchDevice ? triggerProps : {})}
           >
             <RoleIcon />
             <span className="header-info-value">{roleName}</span>
           </div>
+
           {menuOpen && (
             <div className="header-dropdown">
               <button onClick={() => { setShowChangeRole(true); setMenuOpen(false); }}>
@@ -97,6 +101,26 @@ export default function Header({ session, onLogout, onSessionUpdate }) {
             </div>
           )}
         </div>
+         <div className="header-divider" />
+
+        {/* Notifikasi approval pending */}
+        <Link
+          to="/workflow-approval"
+          className="header-notif"
+          title={pendingCount > 0 ? `${pendingCount} approval menunggu` : 'Tidak ada approval pending'}
+          aria-label={`Workflow approval, ${pendingCount} pending`}
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff"
+              strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
+            <path d="M13.7 21a2 2 0 0 1-3.4 0" />
+          </svg>
+          {pendingCount > 0 && (
+            <span className="header-notif-badge">
+              {pendingCount > 99 ? '99+' : pendingCount}
+            </span>
+          )}
+        </Link>
       </div>
       {/* Modal Ganti Role */}
       {showChangeRole && (

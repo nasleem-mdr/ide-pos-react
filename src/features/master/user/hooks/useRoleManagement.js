@@ -1,48 +1,33 @@
-/**  src/features/master/user/hooks/useRoleManagement.js
- *   Seluruh state & logika bisnis Manajemen Role. UI hanya memakai return value hook ini.
-*/
+// src/features/master/user/hooks/useRoleManagement.js
+// Seluruh state & logika bisnis Manajemen Role. UI hanya memakai return value hook ini.
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { ACCESS_DEFS, EMPTY_FORM, APP_WINDOW_NAMES, listValue, isTrue } from "./roleConstants";
+import { ACCESS_DEFS, EMPTY_FORM, APP_WINDOWS, listValue, isTrue } from "./roleConstants";
 import {
     fetchRefList, fetchAppWindows, fetchAccessRecords, fetchRoleList, fetchRoleDetail,
     createRole, updateRole, deleteRole, syncAccess,
 } from "./roleApi";
-import { checkRestrictedColumnExists } from "./restrictedFieldsApi";
-import {
-    RESTRICTED_FIELDS_COLUMN, analyzeRestrictedFields, normalizeRestrictedFields,
-} from "@/config/fieldRestriction";
 
 const REF_LOADERS = {
     org:    () => fetchRefList(`/models/ad_org?$filter=IsActive eq true&$select=Name&$orderby=Name`),
-    window: () => fetchAppWindows(APP_WINDOW_NAMES), // hanya window yang dipakai aplikasi
+    window: () => fetchAppWindows(APP_WINDOWS), // hanya window yang dipakai aplikasi
     form:   () => fetchRefList(`/models/ad_form?$filter=IsActive eq true&$select=Name&$orderby=Name`),
 };
 
-// restrictedFields: string = kolom ada di AD_Role; null = kolom belum ada (input disembunyikan,
-// kolom tidak dikirim saat simpan).
-const emptyModal = (restrictionSupported) => ({
-    mode: "create", id: null,
-    form: { ...EMPTY_FORM, restrictedFields: restrictionSupported ? "" : null },
-    original: null,
+const emptyModal = () => ({
+    mode: "create", id: null, form: { ...EMPTY_FORM }, original: null,
     selected: { org: [], window: [], form: [] },
     records: { org: new Map(), window: new Map(), form: new Map() },
 });
 
-const toRolePayload = (f) => {
-    const payload = {
-        Name: f.name.trim(),
-        Description: f.description.trim(),
-        UserLevel: f.userLevel,
-        IsActive: f.isActive,
-        IsCanReport: f.isCanReport,
-        IsCanExport: f.isCanExport,
-        IsShowAcct: f.isShowAcct,
-    };
-    if (typeof f.restrictedFields === "string") {
-        payload[RESTRICTED_FIELDS_COLUMN] = normalizeRestrictedFields(f.restrictedFields);
-    }
-    return payload;
-};
+const toRolePayload = (f) => ({
+    Name: f.name.trim(),
+    Description: f.description.trim(),
+    UserLevel: f.userLevel,
+    IsActive: f.isActive,
+    IsCanReport: f.isCanReport,
+    IsCanExport: f.isCanExport,
+    IsShowAcct: f.isShowAcct,
+});
 
 export default function useRoleManagement() {
     // ── Data ────────────────────────────────────────────────────────────
@@ -50,7 +35,6 @@ export default function useRoleManagement() {
     const [rolesLoading, setRolesLoading] = useState(false);
     const [refs, setRefs] = useState({ org: [], window: [], form: [] });
     const [loadingRefs, setLoadingRefs] = useState({ org: false, window: false, form: false });
-    const [restrictionSupported, setRestrictionSupported] = useState(false);
 
     // ── UI state ────────────────────────────────────────────────────────
     const [modal, setModal] = useState(null);        // null = tertutup
@@ -75,13 +59,6 @@ export default function useRoleManagement() {
                 setLoadingRefs((p) => ({ ...p, [key]: false }));
             }
         });
-    }, []);
-
-    // ── Cek kolom RestrictedFields di AD_Role (sekali) ──────────────────
-    useEffect(() => {
-        let cancelled = false;
-        checkRestrictedColumnExists().then((ok) => { if (!cancelled) setRestrictionSupported(ok); });
-        return () => { cancelled = true; };
     }, []);
 
     // ── Fetch daftar role + ringkasan akses ─────────────────────────────
@@ -115,7 +92,7 @@ export default function useRoleManagement() {
     }), [refs]);
 
     // ── Modal: buka / tutup / ubah ──────────────────────────────────────
-    const openCreate = () => { setFormError(null); setModal(emptyModal(restrictionSupported)); };
+    const openCreate = () => { setFormError(null); setModal(emptyModal()); };
 
     const openEdit = async (role) => {
         setLoadingEditId(role.id);
@@ -136,11 +113,6 @@ export default function useRoleManagement() {
                 isCanReport: roleRes.IsCanReport !== false && roleRes.IsCanReport !== "N",
                 isCanExport: roleRes.IsCanExport !== false && roleRes.IsCanExport !== "N",
                 isShowAcct: isTrue(roleRes.IsShowAcct),
-                // fetchRoleDetail mengembalikan semua kolom (tanpa $select).
-                // Kalau memakai $select, tambahkan RestrictedFields ke daftar select-nya.
-                restrictedFields: restrictionSupported
-                    ? (typeof roleRes[RESTRICTED_FIELDS_COLUMN] === "string" ? roleRes[RESTRICTED_FIELDS_COLUMN] : "")
-                    : null,
             };
             setFormError(null);
             setModal({
@@ -177,15 +149,6 @@ export default function useRoleManagement() {
     const saveModal = async () => {
         const { mode, id, form, original, selected, records } = modal;
         if (!form.name.trim()) { setFormError("Name role wajib diisi."); return; }
-
-        // Validasi Field Restriction: token tidak valid ditolak (bukan diam-diam dibuang).
-        if (typeof form.restrictedFields === "string") {
-            const { invalid } = analyzeRestrictedFields(form.restrictedFields);
-            if (invalid.length > 0) {
-                setFormError(`Field Restriction tidak valid: ${invalid.join(", ")}\nFormat: windowKey.NamaField (opsional :hide).`);
-                return;
-            }
-        }
 
         setSaving(true);
         setFormError(null);

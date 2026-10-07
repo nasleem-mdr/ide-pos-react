@@ -40,14 +40,28 @@ const toRef = (r) => ({ id: r.id, name: r.Name || `#${r.id}` });
 
 export const fetchRefList = async (url) => (await fetchAllPages(url)).map(toRef);
 
-// Window yang dipakai aplikasi saja (filter di server, daftar kecil → 1 request)
-export const fetchAppWindows = async (names) => {
-    if (!names?.length) return [];
-    const nameFilter = names.map((n) => `Name eq '${odataStr(n)}'`).join(" or ");
+// Window yang dipakai aplikasi saja (filter di server, daftar kecil → 1 request).
+// entries: angka = AD_Window_ID, string = Name (boleh campur).
+export const fetchAppWindows = async (entries) => {
+    if (!entries?.length) return [];
+    const ids = [...new Set(entries.filter((e) => typeof e === "number"))];
+    const names = [...new Set(entries.filter((e) => typeof e === "string"))];
+    const clauses = [
+        ...ids.map((i) => `AD_Window_ID eq ${i}`),
+        ...names.map((n) => `Name eq '${odataStr(n)}'`),
+    ];
     const rows = await fetchAllPages(
-        `/models/ad_window?$filter=IsActive eq true and (${nameFilter})&$select=Name&$orderby=Name`
+        `/models/ad_window?$filter=IsActive eq true and (${clauses.join(" or ")})&$select=Name&$orderby=Name`
     );
-    return rows.map(toRef);
+    const items = rows.map(toRef);
+
+    // Entri yang tidak ketemu (salah ID / window di-rename / non-aktif) → beri tahu developer
+    const foundIds = new Set(items.map((i) => i.id));
+    const foundNames = new Set(items.map((i) => i.name));
+    const missing = [...ids.filter((i) => !foundIds.has(i)), ...names.filter((n) => !foundNames.has(n))];
+    if (missing.length) console.warn("[APP_WINDOWS] tidak ditemukan di iDempiere:", missing);
+
+    return items;
 };
 
 // Fetch SEMUA record access sebuah role (aktif & non-aktif)
@@ -97,27 +111,18 @@ export const deleteRole = (id) => idempiereApi(`/models/ad_role/${id}`, { method
 const isDuplicateErr = (err) => /duplicate key|unique/i.test(err?.message || "");
 
 // Record sudah ada di DB (mis. tak terbaca di daftar) → cari lalu aktifkan bila non-aktif.
-// Return true kalau baris (role, fk) itu KETEMU (berarti duplicate key-nya
-// memang soal baris ini, sudah ditangani). Return false kalau tidak ketemu —
-// artinya duplicate key itu bukan soal baris (role, fk) ini (lihat catatan
-// di syncAccess soal sequence out-of-sync), dan pemanggil perlu retry POST.
 const activateExisting = async (def, roleId, fkVal) => {
     const rows = await fetchAllPages(
         `/models/${def.table}?$filter=AD_Role_ID eq ${roleId} and ${def.fk} eq ${fkVal}`
     );
     const row = rows[0];
-    if (!row) return false;
+    if (!row) throw new Error("record sudah ada tetapi tidak ditemukan saat dicari ulang");
     if (!isTrue(row.IsActive)) {
         await idempiereApi(`/models/${def.table}/${row.uid ?? row.id}`, {
             method: "PUT", body: JSON.stringify({ IsActive: true }),
         });
     }
-    return true;
 };
-
-// Berapa kali retry POST kalau "duplicate key" ternyata bukan soal baris
-// (role, fk) yang kita insert (lihat catatan di syncAccess).
-const MAX_DUPLICATE_RETRY = 3;
 
 /**
  * Sinkronisasi satu tabel access (dipakai CREATE & EDIT, soft-toggle).
@@ -138,41 +143,11 @@ export const syncAccess = async (def, roleId, selectedIds, recordsByFk, nameById
                     IsActive: true,
                 };
                 if (def.key !== "org") body.IsReadWrite = true; // window & form
-
-                // "duplicate key" dari POST bisa berarti 2 hal berbeda:
-                //  (a) baris (role, fk) ini MEMANG sudah ada di DB (mis. tidak
-                //      kebaca waktu fetch awal) → activateExisting menemukannya
-                //      lewat filter (AD_Role_ID, def.fk) dan cukup diaktifkan.
-                //  (b) AD_Sequence untuk def.table tidak sinkron dengan
-                //      MAX(id) sebenarnya (lazim setelah import/migrasi data
-                //      manual) → bentrok terjadi di PK SURROGATE
-                //      (AD_*_Access_ID), pada baris milik role/fk LAIN sama
-                //      sekali → activateExisting (yang mencari berdasarkan
-                //      role+fk kita) tidak akan menemukan apa pun.
-                //      Di kasus (b), solusinya retry POST: nextval() Postgres
-                //      TIDAK di-rollback walau transaksi POST sebelumnya
-                //      gagal, jadi percobaan berikutnya otomatis dapat ID
-                //      baru yang sudah lewat area yang bentrok — sampai
-                //      akhirnya lolos atau MAX_DUPLICATE_RETRY habis.
-                for (let attempt = 0; ; attempt++) {
-                    try {
-                        await idempiereApi(`/models/${def.table}`, { method: "POST", body: JSON.stringify(body) });
-                        break; // sukses
-                    } catch (postErr) {
-                        if (!isDuplicateErr(postErr)) throw postErr;
-
-                        const found = await activateExisting(def, roleId, fkVal);
-                        if (found) break; // kasus (a): sudah diaktifkan, selesai
-
-                        // kasus (b): tidak ketemu → retry POST, kecuali sudah mentok
-                        if (attempt >= MAX_DUPLICATE_RETRY - 1) {
-                            throw new Error(
-                                `duplicate key tapi baris (role, fk) tidak ditemukan setelah ${MAX_DUPLICATE_RETRY}x percobaan ` +
-                                `— kemungkinan AD_Sequence tabel ${def.table} tidak sinkron, perlu di-resync di server.`
-                            );
-                        }
-                        // lanjut ke iterasi berikut → retry POST
-                    }
+                try {
+                    await idempiereApi(`/models/${def.table}`, { method: "POST", body: JSON.stringify(body) });
+                } catch (postErr) {
+                    if (!isDuplicateErr(postErr)) throw postErr;
+                    await activateExisting(def, roleId, fkVal);
                 }
             } else if (!rec.isActive) {
                 await idempiereApi(`/models/${def.table}/${rec.recordId}`, {

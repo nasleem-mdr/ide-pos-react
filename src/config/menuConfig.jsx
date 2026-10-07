@@ -69,7 +69,7 @@ export const menuSections = [
         items: [
             { key: 'paymentReceipt',   windowKey: 'paymentReceipt',  path: '/payment-receipt',  label: 'Payment and Receipt',  icon: <MdOutlinePayments size={24} /> },
             { key: 'bankStatement',   windowKey: 'bankStatement',  path: '/bank-statement',  label: 'Bank/Cash Statement',  icon: <BankIcon /> },
-            { key: 'booking',       windowKey: 'booking', path: '/booking',         label: 'Booking Timeline',  icon: <UserTake /> },
+            //{ key: 'booking',       windowKey: 'booking', path: '/booking',         label: 'Booking Timeline',  icon: <UserTake /> },
             ]
     },
     {
