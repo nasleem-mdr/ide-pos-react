@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { PageHeader, DataTable }  from "@/shared/components";
+import { PageHeader, DataTable, WorkflowProgressButton } from "@/shared/components";
 import { renderListPDF } from "@/utils/pdf/renderListPDF";
 import { generateRequisitionPDF } from '@/features/requisition/utils/generateRequisitionPDF';
 import { idempiereApi } from "@/api/idempiereApi";
@@ -19,19 +19,20 @@ const STATUS_FILTERS = [
 
 const RequisitionList = () => {
     const todayStr = new Date().toISOString().split("T")[0];
-    const { orgInfo } = useOrgInfo(); 
-    const [requisitions, setRequisitions]             = useState([]);
-    const [loading, setLoading]           = useState(false);
-    const [search, setSearch]             = useState("");
-    const [statusFilter, setStatusFilter] = useState("ALL");
-    const [offset, setOffset]             = useState(0);
-    const [totalRecords, setTotalRecords] = useState(0);
+    const { orgInfo } = useOrgInfo();
+    const [requisitions, setRequisitions]   = useState([]);
+    const [loading, setLoading]             = useState(false);
+    const [search, setSearch]               = useState("");
+    const [statusFilter, setStatusFilter]   = useState("ALL");
+    const [offset, setOffset]               = useState(0);
+    const [totalRecords, setTotalRecords]   = useState(0);
     const [totalLinesAll, setTotalLinesAll] = useState(null);
     const [downloadingId, setDownloadingId] = useState(null);
-    const [startDate, setStartDate]       = useState(todayStr);
-    const [endDate, setEndDate]           = useState(todayStr);
-    const pageSize                        = 10;
-    const navigate                        = useNavigate();
+    const [startDate, setStartDate]         = useState(todayStr);
+    const [endDate, setEndDate]             = useState(todayStr);
+    const [printingList, setPrintingList]   = useState(false);
+    const pageSize                          = 10;
+    const navigate                          = useNavigate();
 
     const getStatusLabel = (status) => {
         const map = { DR: "Draft", IP: "In Progress", CO: "Completed", VO: "Voided", RE: "Reversed", NA: "Ditolak" };
@@ -86,25 +87,8 @@ const RequisitionList = () => {
             setLoading(false);
         }
     }, [offset, buildFilterClause]);
-    const svgToPngDataUrl = (svgString, width, height) => {
-        return new Promise((resolve, reject) => {
-            const svgBlob = new Blob([svgString], { type: "image/svg+xml;charset=utf-8" });
-            const url = URL.createObjectURL(svgBlob);
-            const img = new Image();
-            img.onload = () => {
-                const canvas = document.createElement("canvas");
-                canvas.width = width * 2;  // 2x untuk hasil lebih tajam di PDF
-                canvas.height = height * 2;
-                const ctx = canvas.getContext("2d");
-                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                URL.revokeObjectURL(url);
-                resolve(canvas.toDataURL("image/png"));
-            };
-            img.onerror = reject;
-            img.src = url;
-        });
-    };
-    // Fetch total GrandTotal seluruh halaman — hanya dipicu saat filter berubah (bukan saat ganti halaman)
+
+    // Fetch total TotalLines seluruh halaman — hanya dipicu saat filter berubah (bukan saat ganti halaman)
     const fetchTotalLines = useCallback(async () => {
         const loginUserId = localStorage.getItem("AD_User_ID");
         if (!loginUserId) return;
@@ -113,7 +97,7 @@ const RequisitionList = () => {
         try {
             const filterClause = buildFilterClause(loginUserId);
 
-            // Ambil hanya kolom GrandTotal tanpa pagination untuk dijumlahkan
+            // Ambil hanya kolom TotalLines tanpa pagination untuk dijumlahkan
             const res = await idempiereApi(
                 `/models/m_requisition` +
                 `?$filter=${filterClause}` +
@@ -159,20 +143,17 @@ const RequisitionList = () => {
         : ` ${totalLinesAll.toLocaleString("id-ID")}`;
 
     const columns = [
-        { key: "DocumentNo",    label: "No. Dokumen" },
-        { key: "DateDoc",   label: "Tanggal" },
+        { key: "DocumentNo",     label: "No. Dokumen" },
+        { key: "DateDoc",        label: "Tanggal" },
         { key: "M_Warehouse_ID", label: "Gudang" },
         //{ key: "TotalLines",    label: "Total Lines", align: "right" },
-        { key: "DocStatus",     label: "Status", align: "center" },
+        { key: "DocStatus",      label: "Status", align: "center" },
     ];
-    
 
-   
     const handleDownload = async (requisition) => {
         const requisitionId = requisition._requisitionId ?? requisition.id;
         setDownloadingId(requisitionId);
         try {
-            const token = localStorage.getItem("token");
             await generateRequisitionPDF(requisitionId, requisition.DocumentNo, orgInfo);
         } catch (err) {
             console.error("Gagal generate PDF:", err.message);
@@ -181,16 +162,17 @@ const RequisitionList = () => {
             setDownloadingId(null);
         }
     };
+
     const tableData = requisitions.map((requisition) => {
         const requisitionId = requisition.id ?? requisition.M_Requisition_ID;
         const status  = requisition.DocStatus?.id ?? requisition.DocStatus ?? "DR";
 
         return {
             ...requisition,
-            _raw:        requisition, 
-            _requisitionId:    requisitionId,
-            _status:     status,
-            DocumentNo:  requisition.DocumentNo || `#${requisitionId}`,
+            _raw:           requisition,
+            _requisitionId: requisitionId,
+            _status:        status,
+            DocumentNo:     requisition.DocumentNo || `#${requisitionId}`,
             DateDoc: requisition.DateDoc
                 ? new Date(requisition.DateDoc).toLocaleDateString("id-ID")
                 : "-",
@@ -210,89 +192,86 @@ const RequisitionList = () => {
     });
 
     const numberFormatter = new Intl.NumberFormat('en-US');
-    
-        const formatDateService = (dateStr) => {
-            if (!dateStr) return "-";
-            const d = new Date(dateStr);
-            if (isNaN(d)) return "-";
-            const day = d.getDate();
-            const month = d.getMonth() + 1; // getMonth() 0-based
-            const year = d.getFullYear();
-            return `${day}/${month}/${year}`;
-        };
 
-        const fetchAllRequisitionsForPrint = useCallback(async () => {
-                const loginUserId = localStorage.getItem("AD_User_ID");
-                if (!loginUserId) return [];
-            
-                let filterClause =
-                    ` CreatedBy eq ${loginUserId}` +
-                    ` and Created ge ${startDate}T00:00:00Z` +
-                    ` and Created le ${endDate}T23:59:59Z`;
-            
-                if (search) {
-                    filterClause += ` and contains(tolower(DocumentNo),'${search.toLowerCase()}')`;
-                }
-            
-                const res = await idempiereApi(
-                    `/models/m_requisition` +
-                    `?$filter=${filterClause}` +
-                    `&$select=M_Requisition_ID,DocumentNo,Createdby, DateRequired, DateDoc,M_Warehouse_ID,Description, TotalLines` +
-                    `&$orderby=DocumentNo desc` +
-                    `&$top=5000`
-                );
-            
-                return Array.isArray(res.records) ? res.records : [];
-            }, [search, startDate, endDate]);
-        
-            const [printingList, setPrintingList] = useState(false);
-        
-            const handlePrintList = async () => {
-                setPrintingList(true);
-                try {
-                    const allRequisitions = await fetchAllRequisitionsForPrint();
-        
-                    if (allRequisitions.length === 0) {
-                        alert('Tidak ada data untuk dicetak pada periode ini.');
-                        return;
-                    }
-        
-                    const totalAmount = allRequisitions.reduce((s, odr) => s + parseFloat(odr.TotalLines || 0), 0);
-        
-                    await renderListPDF({
-                        title: 'DAFTAR REQUISITION',
-                        orgInfo,
-                        periodLabel: `PERIODE : ${formatDateService(startDate)}  ${formatDateService(endDate)}`,
-                        columns: [
-                            { key: 'no',         label: 'No',                width: 30,  align: 'center' },
-                            { key: 'documentNo', label: 'Document No',       width: 'auto' },
-                            { key: 'dateDoc', label: 'Date Doc',       width: 'auto' },
-                            { key: 'dateReq', label: 'Date Required',       width: 'auto' },
-                            { key: 'createdBy',    label: 'Sales Rep', width: 'auto' },
-                            { key: 'partner',    label: 'Warhouse', width: 'auto' },
-                            { key: 'descript',     label: 'Description',            width: 'flex'},
-                        ],
-                        rows: allRequisitions.map((odr, idx) => ({
-                            no:         idx + 1,
-                            documentNo: odr.DocumentNo || `#${odr.id ?? odr.M_Requisition_ID}`,
-                            dateDoc: odr.DateDoc || `#${odr.id ?? odr.DateDoc}`,
-                            dateReq: odr.DateRequired || `#${odr.id ?? odr.DateRequired}`,
-                            createdBy:    odr.CreatedBy?.identifier || '-',
-                            partner:    odr.M_Warehouse_ID?.identifier || '-',
-                            descript: odr.Description || `#${odr.id ?? odr.Description}`,
-                        })),
-                        totalLabel: 'Total Semua',
-                        totalValue: numberFormatter.format(totalAmount),
-                        filenamePrefix: `DAFTAR-REQUISITION-${startDate}_${endDate}`,
-                    });
-                } catch (err) {
-                    console.error('Gagal generate PDF daftar:', err.message);
-                    alert('Gagal membuat PDF daftar.');
-                } finally {
-                    setPrintingList(false);
-                }
-            };
-    
+    const formatDateService = (dateStr) => {
+        if (!dateStr) return "-";
+        const d = new Date(dateStr);
+        if (isNaN(d)) return "-";
+        const day = d.getDate();
+        const month = d.getMonth() + 1; // getMonth() 0-based
+        const year = d.getFullYear();
+        return `${day}/${month}/${year}`;
+    };
+
+    const fetchAllRequisitionsForPrint = useCallback(async () => {
+        const loginUserId = localStorage.getItem("AD_User_ID");
+        if (!loginUserId) return [];
+
+        let filterClause =
+            ` CreatedBy eq ${loginUserId}` +
+            ` and Created ge ${startDate}T00:00:00Z` +
+            ` and Created le ${endDate}T23:59:59Z`;
+
+        if (search) {
+            filterClause += ` and contains(tolower(DocumentNo),'${search.toLowerCase()}')`;
+        }
+
+        const res = await idempiereApi(
+            `/models/m_requisition` +
+            `?$filter=${filterClause}` +
+            `&$select=M_Requisition_ID,DocumentNo,Createdby, DateRequired, DateDoc,M_Warehouse_ID,Description, TotalLines` +
+            `&$orderby=DocumentNo desc` +
+            `&$top=5000`
+        );
+
+        return Array.isArray(res.records) ? res.records : [];
+    }, [search, startDate, endDate]);
+
+    const handlePrintList = async () => {
+        setPrintingList(true);
+        try {
+            const allRequisitions = await fetchAllRequisitionsForPrint();
+
+            if (allRequisitions.length === 0) {
+                alert('Tidak ada data untuk dicetak pada periode ini.');
+                return;
+            }
+
+            const totalAmount = allRequisitions.reduce((s, odr) => s + parseFloat(odr.TotalLines || 0), 0);
+
+            await renderListPDF({
+                title: 'DAFTAR REQUISITION',
+                orgInfo,
+                periodLabel: `PERIODE : ${formatDateService(startDate)}  ${formatDateService(endDate)}`,
+                columns: [
+                    { key: 'no',         label: 'No',            width: 30,  align: 'center' },
+                    { key: 'documentNo', label: 'Document No',   width: 'auto' },
+                    { key: 'dateDoc',    label: 'Date Doc',      width: 'auto' },
+                    { key: 'dateReq',    label: 'Date Required', width: 'auto' },
+                    { key: 'createdBy',  label: 'Sales Rep',     width: 'auto' },
+                    { key: 'partner',    label: 'Warhouse',      width: 'auto' },
+                    { key: 'descript',   label: 'Description',   width: 'flex' },
+                ],
+                rows: allRequisitions.map((odr, idx) => ({
+                    no:         idx + 1,
+                    documentNo: odr.DocumentNo || `#${odr.id ?? odr.M_Requisition_ID}`,
+                    dateDoc:    odr.DateDoc || `#${odr.id ?? odr.DateDoc}`,
+                    dateReq:    odr.DateRequired || `#${odr.id ?? odr.DateRequired}`,
+                    createdBy:  odr.CreatedBy?.identifier || '-',
+                    partner:    odr.M_Warehouse_ID?.identifier || '-',
+                    descript:   odr.Description || `#${odr.id ?? odr.Description}`,
+                })),
+                totalLabel: 'Total Semua',
+                totalValue: numberFormatter.format(totalAmount),
+                filenamePrefix: `DAFTAR-REQUISITION-${startDate}_${endDate}`,
+            });
+        } catch (err) {
+            console.error('Gagal generate PDF daftar:', err.message);
+            alert('Gagal membuat PDF daftar.');
+        } finally {
+            setPrintingList(false);
+        }
+    };
 
     const actionRenderer = (item) => {
         const isEditDisabled = !["DR", "NA"].includes(item._status);
@@ -300,10 +279,10 @@ const RequisitionList = () => {
             ? "Revisi & ajukan ulang untuk approval"
             : "Edit Dokumen";
         const isDownloading = downloadingId === item._requisitionId;
-        const isDownloadDisabled = item._status !== "CO" || isDownloading; // ⬅️ hanya aktif saat Completed
-    
+        const isDownloadDisabled = item._status !== "CO" || isDownloading; // hanya aktif saat Completed
+
         return (
-            <div style={{ display: "flex", gap: "6px" }}>
+            <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
                 <button
                     onClick={() => !isEditDisabled ? handleEdit(item) : null}
                     disabled={isEditDisabled}
@@ -317,7 +296,7 @@ const RequisitionList = () => {
                 >
                     {item._status === "NA" ? "🔁 Revisi" : "✏️ Edit"}
                 </button>
-    
+
                 <button
                     onClick={() => !isDownloadDisabled ? handleDownload(item) : null}
                     disabled={isDownloadDisabled}
@@ -335,10 +314,18 @@ const RequisitionList = () => {
                 >
                     {isDownloading ? "⏳ ..." : "⬇️ Download"}
                 </button>
+
+                <WorkflowProgressButton
+                    tableName="M_Requisition"
+                    recordId={item._requisitionId}
+                    docStatus={item._status}
+                    targetStatus="CO"
+                    buttonStyle={styles.editBtn}
+                />
             </div>
         );
     };
-    
+
     const handleStartDateChange = (val) => {
         setStartDate(val);
         setOffset(0);
@@ -356,7 +343,7 @@ const RequisitionList = () => {
 
     return (
         <div className="card-container">
-            
+
             <PageHeader
                 title="Requisition"
                 onSearch={(val) => { setSearch(val); setOffset(0); }}
@@ -420,7 +407,7 @@ const styles = {
     dateFilterRow: { display: "flex", gap: "16px", flexWrap: "wrap", margin: "12px 0 16px" },
     dateField:     { display: "flex", flexDirection: "column", gap: "4px" },
     dateLabel:     { fontSize: "12px", fontWeight: "600", color: "#555" },
-    dateInput:      { padding: "8px 10px", borderRadius: "6px", border: "1px solid #ccc", fontSize: "13px" },
+    dateInput:     { padding: "8px 10px", borderRadius: "6px", border: "1px solid #ccc", fontSize: "13px" },
 };
 
 export default RequisitionList;
