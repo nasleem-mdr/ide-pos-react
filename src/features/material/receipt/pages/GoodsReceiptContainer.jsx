@@ -252,13 +252,17 @@ const GoodsReceiptContainer = () => {
     clearCart();
   }, [clearCart]);
 
-  const handleSubmit = async (mode= 'complete') => {
+  const handleSubmit = async (submitMode = 'complete') => {
     if (!docTypeId) {
       alert('Document Type belum siap (gagal di-resolve). Cek konfigurasi Document Type "MMR" di iDempiere, lalu muat ulang halaman.', 'Error');
       return;
     }
     if (!selectedVendor) {
       alert('Vendor belum ditentukan. Import dari Purchase Order, atau pilih vendor manual.', 'Vendor Belum Dipilih');
+      return;
+    }
+    if (!movementDate) {
+      alert('Tanggal penerimaan belum diisi.', 'Data Belum Lengkap');
       return;
     }
     const result = await submit(cart, {
@@ -268,17 +272,26 @@ const GoodsReceiptContainer = () => {
       vendorLocationId: selectedVendor.locationId,
       vendorName:       selectedVendor.Name,
       movementDate,
-    }, mode);
+      submitMode,            // ← sebelumnya salah: dikirim sebagai argumen ke-3
+    });
     if (result) {
       setSuccessData(result);
       handleResetVendor();
+      setMovementDate(todayLocalISO());   // reset ke hari ini setelah sukses
       setCartOpen(false);
       setSuccessOpen(true);
     }
   };
+  
+  const handleSubmitDraft    = () => handleSubmit('draft');
+  const handleSubmitComplete = () => handleSubmit('complete');
 
-  const cartSummaryRight = `📦 ${warehouseInfo?.name || '...'}`;
-
+  //const cartSummaryRight = `📦 ${warehouseInfo?.name || '...'}`;
+  const isNotToday = movementDate !== todayLocalISO();
+  const cartSummaryRight =
+    `📦 ${warehouseInfo?.name || '...'}` +
+    (isNotToday && movementDate ? ` · 📅 ${formatDateID(movementDate)}` : '');
+  
   return (
     <div style={{
       flex: 1, minHeight: 0, background: COLOR.bg,
@@ -346,6 +359,26 @@ const GoodsReceiptContainer = () => {
         }}>
           {warehouseInfo?.name || '...'}
         </span>
+        <input
+          type="date"
+          value={movementDate}
+          onChange={e => setMovementDate(e.target.value)}
+          onBlur={e => { if (!e.target.value) setMovementDate(todayLocalISO()); }}
+          disabled={!canSubmitReceipt}
+          title="Tanggal penerimaan barang (MovementDate)"
+          style={{
+            background: isNotToday ? 'rgba(251,191,36,0.30)' : 'rgba(255,255,255,0.18)',
+            border: `1px solid ${isNotToday ? '#fbbf24' : 'rgba(255,255,255,0.3)'}`,
+            borderRadius: '20px',
+            padding: '3px 10px',
+            fontSize: '11px',
+            color: '#e0eaff',
+            cursor: canSubmitReceipt ? 'pointer' : 'default',
+            outline: 'none',
+            maxWidth: isDesktop ? '150px' : '125px',
+            colorScheme: 'dark',
+          }}
+        />
       </div>
 
       {/* Vendor strip */}
@@ -517,8 +550,8 @@ const GoodsReceiptContainer = () => {
             summaryRight={cartSummaryRight}
             title="📦 Daftar Penerimaan"
             submitLabel="✅ TERIMA BARANG"
-            onSubmitDraft={canSubmitReceipt ? handleSubmit : undefined}
-            onSubmitComplete={canSubmitReceipt ? handleSubmit : undefined}
+            onSubmitDraft={canSubmitReceipt ? handleSubmitDraft : undefined}
+            onSubmitComplete={canSubmitReceipt ? handleSubmitComplete : undefined}
             isSubmitting={isSubmitting}
           />
         )}
@@ -543,8 +576,8 @@ const GoodsReceiptContainer = () => {
           summaryRight={cartSummaryRight}
           title="📦 Daftar Penerimaan"
           submitLabel="✅ TERIMA BARANG"
-          onSubmitDraft={canSubmitReceipt ? handleSubmit : undefined}
-          onSubmitComplete={canSubmitReceipt ? handleSubmit : undefined}
+          onSubmitDraft={canSubmitReceipt ? handleSubmitDraft : undefined}
+          onSubmitComplete={canSubmitReceipt ? handleSubmitComplete : undefined}
           isSubmitting={isSubmitting}
         />
       )}
