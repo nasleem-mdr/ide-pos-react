@@ -2,7 +2,13 @@ import { useState, useCallback } from 'react';
 import { idempiereApi, fkId, waitForDocStatus } from '@/api/idempiereApi';
 import { getLoginInfo } from '@/shared/hooks/useLoginInfo';
 import { checkColumnSupport } from '@/shared/hooks/useSchemaCapability';
-
+import { todayLocalISO } from '@/utils/dateOnly';
+const toIdempiereTimestamp = (dateInput) => {
+  if (!dateInput) return null;
+  const d = dateInput instanceof Date ? dateInput : new Date(dateInput);
+  if (isNaN(d)) return null;
+  return d.toISOString().replace(/\.\d{3}Z$/, 'Z');
+};
 export function useSalesInvoiceSubmit({ invoiceDocTypeId, description, onError, onStepUpdate }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [progressStep, setProgressStep] = useState(null);
