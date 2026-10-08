@@ -637,45 +637,91 @@ useEffect(() => {
       {/* Top Bar */}
       <div className='header-purchasing'>
       <span style={{ 
-                 color: '#fff', 
-                 fontWeight: 700, 
-                 fontSize: '15px', 
-                 flex: 1,
-                 display: 'inline-flex', 
-                 alignItems: 'center',   
-                 gap: '6px'              
-               }}>
-                 <ShoppingCartIcon />
-                 <span>Purchasing</span>
-               </span>
-               
-              <select
-                value={warehouseInfo?.id ?? ''}
-                onChange={handleWarehouseChange}
-                disabled={warehouses.length <= 1 || !!editOrderId}
-                title={editOrderId ? 'Gudang mengikuti PO yang sedang diedit' : undefined}
-                style={{
-                  background: 'rgba(255,255,255,0.18)',
-                  border: '1px solid rgba(255,255,255,0.3)',
-                  borderRadius: '20px',
-                  padding: '3px 10px',
-                  fontSize: '11px',
-                  color: '#e0eaff',
-                  cursor: (warehouses.length <= 1 || !!editOrderId) ? 'default' : 'pointer',
-                  outline: 'none',
-                  maxWidth: isDesktop ? '200px' : '140px',
-                  colorScheme: 'dark',
-                }}
-              >
-              {warehouses.length === 0 && <option value="">Memuat...</option>}
-              {warehouses.map((wh, idx) => (
-                <option key={wh.id || `wh-null-${idx}`} value={wh.id ?? ''} style={{ background: '#1e3a5f', color: '#e0eaff' }}>
-                  🏭 {wh.name}
-                </option>
-              ))}
-            </select>
+        color: '#fff', 
+        fontWeight: 700, 
+        fontSize: '15px', 
+        flex: 1,
+        display: 'inline-flex', 
+        alignItems: 'center',   
+          gap: '6px'              
+      }}>
+      <ShoppingCartIcon />
+      <span>Purchasing</span>
+      </span>
+      <div
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '4px',
+            background: 'rgba(255,255,255,0.18)',
+            border: '1px solid rgba(255,255,255,0.3)',
+            borderRadius: '3px',
+            padding: '2px 8px 2px 10px', // Padding kiri sedikit lebih besar untuk label
+          }}
+        >
+          <span
+            style={{
+              fontSize: '10px',
+              fontWeight: 600,
+              color: 'rgba(224,234,255,0.75)',
+              textTransform: 'uppercase',
+              letterSpacing: '0.4px',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            Warehouse:
+          </span>
 
-            <input
+          <select
+            value={warehouseInfo?.id ?? ''}
+            onChange={handleWarehouseChange}
+            disabled={warehouses.length <= 1 || !!editOrderId}
+            title={editOrderId ? 'Gudang mengikuti PO yang sedang diedit' : undefined}
+            style={{
+              background: 'transparent', 
+              border: 'none',            
+              padding: '2px 4px',
+              fontSize: '11px',
+              color: '#e0eaff',
+              cursor: (warehouses.length <= 1 || !!editOrderId) ? 'default' : 'pointer',
+              outline: 'none',
+              maxWidth: isDesktop ? '160px' : '110px',
+              colorScheme: 'dark',
+            }}
+          >
+            {warehouses.length === 0 && <option value="">Memuat...</option>}
+            {warehouses.map((wh, idx) => (
+              <option key={wh.id || `wh-null-${idx}`} value={wh.id ?? ''} style={{ background: '#1e3a5f', color: '#e0eaff' }}>
+                🏭 {wh.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '4px',
+            background: 'rgba(255,255,255,0.18)',
+            border: '1px solid rgba(255,255,255,0.3)',
+            borderRadius: '3px',
+            padding: '2px 8px 2px 10px', // Padding kiri sedikit lebih besar untuk label
+          }}
+        >
+          <span
+            style={{
+              fontSize: '10px',
+              fontWeight: 600,
+              color: 'rgba(224,234,255,0.75)',
+              textTransform: 'uppercase',
+              letterSpacing: '0.4px',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            Date:
+          </span>
+
+          <input
               type="date"
               value={dateOrdered}
               onChange={e => setDateOrdered(e.target.value)}
@@ -683,18 +729,19 @@ useEffect(() => {
               disabled={!canSubmitPO}
               title="Tanggal pemesanan — pada Cash Purchase juga dipakai untuk Receipt, Invoice & Payment"
               style={{
-                background: isNotToday ? 'rgba(251,191,36,0.30)' : 'rgba(255,255,255,0.18)',
-                border: `1px solid ${isNotToday ? '#fbbf24' : 'rgba(255,255,255,0.3)'}`,
-                borderRadius: '20px',
-                padding: '3px 10px',
+                background: isNotToday ? 'red' : 'transparent',
+                border: `0px solid ${isNotToday ? '#fbbf24' : 'rgba(255,255,255,0.3)'}`,
+                padding: '2px 4px',
                 fontSize: '11px',
                 color: '#e0eaff',
-                cursor: canSubmitPO ? 'pointer' : 'default',
+                cursor: (warehouses.length <= 1 || !!editOrderId) ? 'default' : 'pointer',
                 outline: 'none',
-                maxWidth: isDesktop ? '150px' : '125px',
+                maxWidth: isDesktop ? '160px' : '110px',
                 colorScheme: 'dark',
               }}
             />
+        </div>
+            
       </div>
 
       {loadingEditOrder && (

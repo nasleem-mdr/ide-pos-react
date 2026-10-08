@@ -467,7 +467,7 @@ useEffect(() => {
           gap: '6px',
           background: 'rgba(255,255,255,0.12)',
           border: '1px solid rgba(255,255,255,0.25)',
-          borderRadius: '20px',
+          borderRadius: '3px',
           padding: '3px 10px 3px 12px',
           height: '25px',
         }}>
@@ -479,7 +479,7 @@ useEffect(() => {
             letterSpacing: '0.4px',
             whiteSpace: 'nowrap',
           }}>
-            Date Required:
+            Date :
           </span>
           <input
             type="date"
@@ -506,7 +506,7 @@ useEffect(() => {
           gap: '6px',
           background: 'rgba(255,255,255,0.12)',
           border: '1px solid rgba(255,255,255,0.25)',
-          borderRadius: '20px',
+          borderRadius: '3px',
           padding: '3px 10px 3px 12px',
           height: '25px',
         }}>

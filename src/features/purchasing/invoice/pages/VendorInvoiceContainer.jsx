@@ -213,9 +213,9 @@ const VendorInvoiceContainer = () => {
           disabled={!canSubmitInvoice}
           title="Tanggal invoice — pada opsi Bayar juga dipakai sebagai tanggal pembayaran"
           style={{
-            background: isNotToday ? 'rgba(251,191,36,0.30)' : 'rgba(255,255,255,0.18)',
+            background: isNotToday ? 'rgba(247, 20, 20, 0.3)' : 'rgba(255,255,255,0.18)',
             border: `1px solid ${isNotToday ? '#fbbf24' : 'rgba(255,255,255,0.3)'}`,
-            borderRadius: '20px',
+            borderRadius: '3px',
             padding: '3px 10px',
             fontSize: '11px',
             color: '#e0eaff',

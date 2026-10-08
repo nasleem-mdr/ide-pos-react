@@ -668,7 +668,7 @@ const SalesInvoiceContainer = () => {
       />     
       {/* Top Bar + Customer Search + Description + Bank + Tanggal Invoice */}
       <div
-        className="header-purchasing"
+        className="header-invoicing"
         style={{
           display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px',
           height: 'auto', minHeight: '48px', padding: '6px 14px',
@@ -697,7 +697,7 @@ const SalesInvoiceContainer = () => {
             onFocus={() => setCustomerOpen(true)}
             placeholder="Cari customer..."
             style={{
-              width: '100%', boxSizing: 'border-box', padding: '6px 28px 6px 10px',
+              width: '100%', boxSizing: 'border-box', padding: '3px 10px 3px 10px',
               border: `1.5px solid ${customer ? COLOR.success : 'rgba(255,255,255,0.3)'}`,
               borderRadius: RADIUS.sm, fontSize: '12px', outline: 'none', background: '#fff',
               color: COLOR.textDk,
@@ -740,64 +740,85 @@ const SalesInvoiceContainer = () => {
             </div>
           )}
         </div>
-      
-        {/* Description invoice-level */}
-        <input
-          type="text"
-          value={description}
-          onChange={e => setDescription(e.target.value)}
-          placeholder={SALES_INVOICE_CONFIG.DESCRIPTION}
-          style={{
-            flex: '1 1 180px', minWidth: '160px', maxWidth: '280px', boxSizing: 'border-box',
-            padding: '6px 10px', border: '1.5px solid rgba(255,255,255,0.3)',
-            borderRadius: RADIUS.sm, fontSize: '12px', color: COLOR.textDk, outline: 'none', background: '#fff',
-          }}
-        />
-      
-        {/* Rekening bank, wajib sebelum submit */}
-        {supportsBankAccount && (
-          <select
-            value={bankAccountId ?? ''}
-            onChange={e => setBankAccountId(e.target.value ? parseInt(e.target.value, 10) : null)}
-            style={{
-              minWidth: '160px', boxSizing: 'border-box', padding: '6px 10px',
-              border: `1.5px solid ${bankAccountId ? COLOR.success : 'rgba(255,255,255,0.3)'}`,
-              borderRadius: RADIUS.sm, fontSize: '12px', color: COLOR.textDk,
-              outline: 'none', background: '#fff',
-            }}
+        <button
+            onClick={() => setImportShipmentOpen(true)}
+            disabled={!customer}
+            title={!customer ? 'Pilih customer dulu' : 'Import dari Shipment'}
+            style={{ background: !customer ? '#9ca3af' : COLOR.primary, border: 'none', color: '#fff', borderRadius: RADIUS.md, padding: '10px 14px', cursor: !customer ? 'not-allowed' : 'pointer', fontWeight: 600, fontSize: '13px', flexShrink: 0 }}
           >
-            <option value="">
-              {bankAccountsLoading ? 'Memuat rekening...' : '— Pilih Rekening Bank —'}
-            </option>
-            {bankAccounts.map(b => (
-              <option key={b.id} value={b.id}>
-                {b.name}{b.isDefault ? ' (Default)' : ''}
+            📥 Import DO
+          </button>
+          {/* Description (PO Reference) — Diberi marginLeft: 'auto' agar semua elemen setelah ini ikut terdorong ke kanan */}
+          <input
+            type="text"
+            value={description}
+            onChange={e => setDescription(e.target.value)}
+            placeholder={SALES_INVOICE_CONFIG.DESCRIPTION}
+            style={{
+              marginLeft: 'auto', // 👈 Pindahkan 'auto' ke sini! Mendorong grup ini ke paling kanan
+              flex: '0 1 180px',   // flex '0 1' agar ukurannya stabil dan tidak membesar memenuhi ruang kosong
+              minWidth: '140px', 
+              maxWidth: '200px', 
+              boxSizing: 'border-box',
+              padding: '3px 10px', 
+              border: '1.5px solid rgba(255,255,255,0.3)',
+              borderRadius: RADIUS.sm, 
+              fontSize: '12px', 
+              color: COLOR.textDk, 
+              outline: 'none', 
+              background: '#fff',
+            }}
+          />
+
+          {/* Rekening bank — otomatis ikut ke kanan di samping PO Reference */}
+          {supportsBankAccount && (
+            <select
+              value={bankAccountId ?? ''}
+              onChange={e => setBankAccountId(e.target.value ? parseInt(e.target.value, 10) : null)}
+              style={{
+                minWidth: '160px', 
+                boxSizing: 'border-box', 
+                padding: '5px 10px', // disesuaikan agar tinggi sama dengan input lainnya
+                border: `1.5px solid ${bankAccountId ? COLOR.success : 'rgba(255,255,255,0.3)'}`,
+                borderRadius: RADIUS.sm, 
+                fontSize: '12px', 
+                color: COLOR.textDk,
+                outline: 'none', 
+                background: '#fff',
+              }}
+            >
+              <option value="">
+                {bankAccountsLoading ? 'Memuat rekening...' : '— Pilih Rekening Bank —'}
               </option>
-            ))}
-          </select>
-        )}
-      
-        {/* Tanggal Invoice — paling kanan */}
-        <input
-          type="date"
-          value={dateInvoiced}
-          onChange={e => setDateInvoiced(e.target.value)}
-          onBlur={e => { if (!e.target.value) setDateInvoiced(todayLocalISO()); }}
-          title="Tanggal Invoice (DateInvoiced)"
-          style={{
-            marginLeft: 'auto',
-            background: isNotToday ? 'rgba(251,191,36,0.30)' : 'rgba(255,255,255,0.18)',
-            border: `1px solid ${isNotToday ? '#fbbf24' : 'rgba(255,255,255,0.3)'}`,
-            borderRadius: '20px',
-            padding: '3px 10px',
-            fontSize: '11px',
-            color: '#e0eaff',
-            cursor: 'pointer',
-            outline: 'none',
-            maxWidth: isDesktop ? '150px' : '125px',
-            colorScheme: 'dark',
-          }}
-        />
+              {bankAccounts.map(b => (
+                <option key={b.id} value={b.id}>
+                  {b.name}{b.isDefault ? ' (Default)' : ''}
+                </option>
+              ))}
+            </select>
+          )}
+
+          {/* Tanggal Invoice — hapus marginLeft: 'auto' dari sini */}
+          <input
+            type="date"
+            value={dateInvoiced}
+            onChange={e => setDateInvoiced(e.target.value)}
+            onBlur={e => { if (!e.target.value) setDateInvoiced(todayLocalISO()); }}
+            title="Tanggal Invoice (DateInvoiced)"
+            style={{
+              /* marginLeft: 'auto' -> Dihapus dari sini */
+              background: isNotToday ? 'rgba(251,191,36,0.30)' : 'rgba(255,255,255,0.18)',
+              border: `1px solid ${isNotToday ? '#fbbf24' : 'rgba(255,255,255,0.3)'}`,
+              borderRadius: '3px',
+              padding: '3px 10px',
+              fontSize: '11px',
+              color: '#e0eaff',
+              cursor: 'pointer',
+              outline: 'none',
+              maxWidth: isDesktop ? '150px' : '125px',
+              colorScheme: 'dark',
+            }}
+          />
       </div>
       {loadingEditInvoice && (
         <div style={{
@@ -829,7 +850,7 @@ const SalesInvoiceContainer = () => {
       {/* Body */}
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0 }}>
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-
+        
           {/* Search Produk + Scan */}
           <div style={{
             padding: '12px 14px', background: COLOR.surface, borderBottom: `1px solid ${COLOR.border}`,
@@ -874,14 +895,7 @@ const SalesInvoiceContainer = () => {
               <ScanIcon />
             </button>
           </div>
-        <button
-          onClick={() => setImportShipmentOpen(true)}
-          disabled={!customer}
-          title={!customer ? 'Pilih customer dulu' : 'Import dari Shipment'}
-          style={{ background: !customer ? '#9ca3af' : COLOR.success, border: 'none', color: '#fff', borderRadius: RADIUS.md, padding: '10px 14px', cursor: !customer ? 'not-allowed' : 'pointer', fontWeight: 600, fontSize: '13px', flexShrink: 0 }}
-        >
-          📥 Import Shipment
-        </button>
+        
           {/* Product Grid */}
           <div style={{
             flex: 1, overflowY: 'auto', padding: '12px 14px',

@@ -113,6 +113,7 @@ export const menuSections = [
             items: [
             { key: 'financialReport', windowKey: 'financialReport',  path: '/financial-report',  label: 'Financial Report',   icon: <PiPresentationChart /> },
             { key: 'generalLedger', windowKey: 'generalLedger',  path: '/general-ledger',  label: 'General Ledger',   icon: <PiPresentationChart /> },
+            { key: 'procurementTrace', windowKey: 'procurementTrace',  path: '/procurement-trace',  label: 'Procurement Trace',   icon: <PiPresentationChart /> },
         ]
     },
     {

@@ -60,6 +60,7 @@ import '@/css/AppLayout.css'; // Pastikan mengimpor file CSS layout Anda
 import InventoryStockReport from "@/features/material/inventory/pages/InventoryStockReport";
 import GeneralLedgerReport from "@/features/financial/pages/GeneralLedgerReport";
 import WorkflowApprovalContainer from "@/features/workflow/pages/WorkflowApprovalContainer";
+import ProcurementTraceReport from "@/features/procurement/pages/ProcurementTraceReport";
 
 export default function App() {
   return (
@@ -283,6 +284,12 @@ function AppContent() {
                       <Route path="/workflow-approval" element={
                         <ProtectedRoute windowKey="workflowApproval">
                           <WorkflowApprovalContainer />
+                        </ProtectedRoute>
+                      } />
+                      
+                      <Route path="/procurement-trace" element={
+                        <ProtectedRoute windowKey="procurementTrace">
+                          <ProcurementTraceReport />
                         </ProtectedRoute>
                       } />
                       <Route path="/sales-order" element={

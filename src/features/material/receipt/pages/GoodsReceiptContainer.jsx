@@ -352,33 +352,67 @@ const GoodsReceiptContainer = () => {
         <DeliveryIcon />
         <span>Material Receipt</span>
         </span>
-
-        <span style={{
-          background: 'rgba(255,255,255,0.18)', borderRadius: '20px',
-          padding: '3px 10px', fontSize: '11px', color: '#e0eaff', whiteSpace: 'nowrap',
-        }}>
-          {warehouseInfo?.name || '...'}
-        </span>
-        <input
-          type="date"
-          value={movementDate}
-          onChange={e => setMovementDate(e.target.value)}
-          onBlur={e => { if (!e.target.value) setMovementDate(todayLocalISO()); }}
-          disabled={!canSubmitReceipt}
-          title="Tanggal penerimaan barang (MovementDate)"
+        <div
           style={{
-            background: isNotToday ? 'rgba(251,191,36,0.30)' : 'rgba(255,255,255,0.18)',
-            border: `1px solid ${isNotToday ? '#fbbf24' : 'rgba(255,255,255,0.3)'}`,
-            borderRadius: '20px',
-            padding: '3px 10px',
-            fontSize: '11px',
-            color: '#e0eaff',
-            cursor: canSubmitReceipt ? 'pointer' : 'default',
-            outline: 'none',
-            maxWidth: isDesktop ? '150px' : '125px',
-            colorScheme: 'dark',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '4px',
+            background: 'rgba(255,255,255,0.18)',
+            border: '1px solid rgba(255,255,255,0.3)',
+            borderRadius: '3px',
+            padding: '2px 8px 2px 10px', // Padding kiri sedikit lebih besar untuk label
           }}
-        />
+        >
+          <span
+            style={{
+              fontSize: '10px',
+              fontWeight: 600,
+              color: 'rgba(224,234,255,0.75)',
+              textTransform: 'uppercase',
+              letterSpacing: '0.4px',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            Warehouse:
+          </span>
+          <span style={{
+            background: 'transparent',
+            padding: '3px 10px', fontSize: '11px', color: '#e0eaff', whiteSpace: 'nowrap',
+          }}>
+            🏭  {warehouseInfo?.name || '...'}
+          </span>             
+        </div>
+        <div
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '4px',
+            background: 'rgba(255,255,255,0.18)',
+            border: '1px solid rgba(255,255,255,0.3)',
+            borderRadius: '3px',
+            padding: '2px 8px 2px 10px', // Padding kiri sedikit lebih besar untuk label
+          }}
+        >
+          <input
+            type="date"
+            value={movementDate}
+            onChange={e => setMovementDate(e.target.value)}
+            onBlur={e => { if (!e.target.value) setMovementDate(todayLocalISO()); }}
+            disabled={!canSubmitReceipt}
+            title="Tanggal penerimaan barang (MovementDate)"
+            style={{
+              background: isNotToday ? 'rgba(196, 11, 51, 0.98)' : 'transparent',
+              border: `0px solid ${isNotToday ? '#fbbf24' : 'rgba(255,255,255,0.3)'}`,
+              padding: '3px 10px',
+              fontSize: '11px',
+              color: '#e0eaff',
+              cursor: canSubmitReceipt ? 'pointer' : 'default',
+              outline: 'none',
+              maxWidth: isDesktop ? '150px' : '125px',
+              colorScheme: 'dark',
+            }}
+          />
+        </div>
       </div>
 
       {/* Vendor strip */}

@@ -16,6 +16,9 @@ import {
     buildStatusCondition, 
 } from "@/utils/docStatus";
 
+import DocActionButton from "@/shared/components/DocActionButton";
+import { getAvailableActions } from "@/shared/docAction/docActionConfig";
+
 import "@/App.css";
 
 const PurchasingList = () => {
@@ -33,6 +36,22 @@ const PurchasingList = () => {
     const [endDate, setEndDate]           = useState(todayStr);
     const pageSize                        = 10;
     const navigate                        = useNavigate();
+
+    // --- Pilihan baris untuk aksi massal Close/Void ---
+    const [selected, setSelected] = useState(() => new Map());
+    const toDocItem = (o) => ({ id: o._orderId, documentNo: o.DocumentNo, status: o._status });
+    const toggleSelect = (o) =>
+        setSelected((prev) => {
+            const next = new Map(prev);
+            if (next.has(o._orderId)) next.delete(o._orderId);
+            else next.set(o._orderId, toDocItem(o));
+            return next;
+        });
+    const handleDocActionDone = () => {
+        setSelected(new Map());
+        fetchOrders();
+        fetchTotalAmount();
+    };
 
     const handleDownload = async (order) => {
         const orderId = order._orderId ?? order.id;
@@ -207,7 +226,15 @@ const PurchasingList = () => {
         const isDownloadDisabled = item._status !== "CO" || isDownloading;
 
         return (
-            <div style={{ display: "flex", gap: "6px" }}>
+            <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+                <input
+                    type="checkbox"
+                    checked={selected.has(item._orderId)}
+                    disabled={getAvailableActions("C_Order", item._status).length === 0}
+                    onChange={() => toggleSelect(item)}
+                    title="Pilih untuk aksi massal Close/Void"
+                    style={{ width: "16px", height: "16px" }}
+                />
                 <button
                     onClick={() => !isEditDisabled ? handleEdit(item) : null}
                     disabled={isEditDisabled}
@@ -245,6 +272,12 @@ const PurchasingList = () => {
                     docStatus={item._status}
                     targetStatus="CO"
                     buttonStyle={styles.editBtn}
+                />
+                <DocActionButton
+                    tableName="C_Order"
+                    items={[toDocItem(item)]}
+                    onDone={handleDocActionDone}
+                    style={{ ...styles.editBtn, backgroundColor: "#6d4c41" }}
                 />
             </div>
         );
@@ -373,6 +406,13 @@ const PurchasingList = () => {
                 onFilterChange={handleFilterChange}
                 extraAction={
                     <div style={{ display: 'flex', gap: '8px' }}>
+                        <DocActionButton
+                            tableName="C_Order"
+                            items={[...selected.values()]}
+                            label={`⛔ Close / Void (${selected.size})`}
+                            onDone={handleDocActionDone}
+                            style={{ ...styles.newBtn, backgroundColor: "#6d4c41" }}
+                        />
                         <button onClick={handlePrintList} disabled={printingList} style={styles.newBtn}>
                             {printingList ? '⏳ ...' : '🖨️ Print PDF'}
                         </button>
