@@ -145,7 +145,7 @@ const GoodsReceiptList = () => {
         } catch {
             cleanGoodsReceipt = raw;
         }
-        navigate("/goodsreceipt", { state: { editGoodsReceipt: cleanGoodsReceipt } });
+        navigate("/goods-receipt", { state: { editGoodsReceipt: cleanGoodsReceipt } });
     };
 
     const chargeAmtFormatted = chargeAmtAll === null
@@ -426,11 +426,11 @@ const GoodsReceiptList = () => {
                 filters={STATUS_FILTERS}
                 activeFilter={statusFilter}
                 onFilterChange={(newStatus) => { setStatusFilter(newStatus); setOffset(0); }}
-                title="goodsreceipt"
+                title="Goods Receipt"
                 onSearch={(val) => { setSearch(val); setOffset(0); }}
                 extraAction={
                     <button
-                        onClick={() => navigate("/goodsreceipt")}
+                        onClick={() => navigate("/goods-receipt")}
                         style={styles.newBtn}
                     >
                         + Transaksi Baru

@@ -29,6 +29,7 @@ import {
 } from '@/api/idempiereApi';
 
 import { getLoginInfo } from '@/shared/hooks/useLoginInfo';
+import { todayLocalISO, isDateOnly } from '@/utils/dateOnly';
 
 export function usePaymentAllocationSubmit({ paymentDocTypeId, description, onError }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -37,6 +38,7 @@ export function usePaymentAllocationSubmit({ paymentDocTypeId, description, onEr
     vendorId,
     bankAccountId,
     paymentTenderType = 'K',
+    dateTrx = null, // 'YYYY-MM-DD' untuk DateTrx & DateAcct; null → hari ini (lokal)
   } = {}) => {
     if (!invoices || invoices.length === 0) {
       onError?.('Tidak ada invoice yang akan dibayar.');
@@ -58,10 +60,14 @@ export function usePaymentAllocationSubmit({ paymentDocTypeId, description, onEr
       return null;
     }
 
+    const trxDateISO = dateTrx || todayLocalISO();
+    if (!isDateOnly(trxDateISO)) {
+      onError?.(`Tanggal payment tidak valid: "${trxDateISO}".`, 'Data Belum Lengkap');
+      return null;
+    }
+
     setIsSubmitting(true);
     try {
-      const todayISO = new Date().toISOString().split('T')[0];
-
       const paymentRes = await idempiereApi('/models/c_payment', {
         method: 'POST',
         body: JSON.stringify({
@@ -70,8 +76,8 @@ export function usePaymentAllocationSubmit({ paymentDocTypeId, description, onEr
           C_BPartner_ID: { id: parseInt(vendorId) },
           C_DocType_ID:       { id: paymentDocTypeId },
           C_DocTypeTarget_ID: { id: paymentDocTypeId },
-          DateTrx:      todayISO,
-          DateAcct:     todayISO,
+          DateTrx:      trxDateISO,
+          DateAcct:     trxDateISO,
           IsReceipt:    false, // false = uang KELUAR (kita bayar vendor)
           TenderType:   paymentTenderType,
           PayAmt:       totalAmount,

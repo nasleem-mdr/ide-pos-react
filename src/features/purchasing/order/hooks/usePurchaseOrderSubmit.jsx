@@ -3,6 +3,7 @@ import { idempiereApi, fkId } from '@/api/idempiereApi';
 import { getLoginInfo } from '@/shared/hooks';
 import { useUomConversion } from '@/shared/hooks/useUomConversion';
 import { resolveCurrencyIso } from '@/utils/currency'; 
+import { todayLocalISO, isDateOnly } from '@/utils/dateOnly';
 // ─────────────────────────────────────────────────────────────────────────────
 // usePurchaseOrderSubmit.jsx
 //
@@ -192,7 +193,7 @@ export function usePurchaseOrderSubmit({ docTypeId, defaultDescription, onError 
   return { docNo: draftRes.DocumentNo || `PO-${orderId}`, status: 'Draft', currencyIso };
   }, []);
 
-  const submit = useCallback(async (cart, { warehouseId, description, submitMode = 'complete', editOrderId = null } = {}) => {
+  const submit = useCallback(async (cart, { warehouseId, description, submitMode = 'complete', editOrderId = null, dateOrdered = null } = {}) => {
     if (cart.length === 0) {
       onError?.('Daftar Purchase Order masih kosong!');
       return { results: null, hadError: true };
@@ -229,10 +230,17 @@ export function usePurchaseOrderSubmit({ docTypeId, defaultDescription, onError 
       return { results: null, hadError: true };
     }
 
+    // Tanggal pemesanan pilihan user (default: hari ini, zona waktu lokal).
+    // DateAcct ikut diisi eksplisit supaya sama dengan DateOrdered.
+    const orderDateISO = dateOrdered || todayLocalISO();
+    if (!isDateOnly(orderDateISO)) {
+      onError?.(`Tanggal pemesanan tidak valid: "${orderDateISO}".`, 'Data Belum Lengkap');
+      return { results: null, hadError: true };
+    }
+
     setIsSubmitting(true);
     const results = [];
     const matchFailures = [];
-    const todayISO = new Date().toISOString().split('T')[0];
 
     try {
       if (editOrderId) {
@@ -314,7 +322,8 @@ export function usePurchaseOrderSubmit({ docTypeId, defaultDescription, onError 
           body: JSON.stringify({
             M_Warehouse_ID:          { id: parseInt(warehouseId) },
             C_BPartner_Location_ID:  { id: parseInt(vendorLocationId) },
-            DateOrdered:             todayISO,
+            DateOrdered:             orderDateISO,
+            DateAcct:                orderDateISO,
             Description:             finalDescription,
           }),
         });
@@ -467,7 +476,8 @@ export function usePurchaseOrderSubmit({ docTypeId, defaultDescription, onError 
               C_BPartner_ID:          { id: parseInt(vendorId) },
               C_BPartner_Location_ID: { id: parseInt(vendorLocationId) },
               M_Warehouse_ID:         { id: parseInt(warehouseId) },
-              DateOrdered:            todayISO,
+              DateOrdered:            orderDateISO,
+              DateAcct:               orderDateISO,
               IsSOTrx:                false,
               Description:            finalDescription,
               IsActive:               true,

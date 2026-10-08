@@ -4,6 +4,7 @@ import { getLoginInfo } from '@/shared/hooks/useLoginInfo';
 import { useAPPaymentSubmit } from '@/features/purchasing/order/hooks/useAPPaymentSubmit';
 import { waitForDocStatus } from '@/utils/docStatusWaiter';
 import { useUomConversion } from '@/shared/hooks/useUomConversion';
+import { todayLocalISO, isDateOnly } from '@/utils/dateOnly';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // useCashPurchaseSubmit.jsx
@@ -125,6 +126,7 @@ export function useCashPurchaseSubmit({ poDocTypeId, receiptDocTypeId, invoiceDo
     vendorName,
     paymentTenderType = 'K', // 'K' = Cash, sesuaikan dengan tender type kamu
     bankAccountId,           // C_BankAccount_ID pilihan user untuk C_Payment (opsional — fallback auto-resolve kalau kosong)
+    dateOrdered,             // 'YYYY-MM-DD' — tanggal pemesanan pilihan user; jadi dasar tanggal PO, Receipt, Invoice & Payment
   } = {}) => {
     if (cart.length === 0) {
       onError?.('Keranjang pembelian masih kosong!');
@@ -171,6 +173,24 @@ export function useCashPurchaseSubmit({ poDocTypeId, receiptDocTypeId, invoiceDo
       return null;
     }
 
+    // ── TANGGAL TRANSAKSI ───────────────────────────────────────────────
+    // Satu tanggal untuk SELURUH rantai (PO → Receipt → Invoice → Payment),
+    // DateAcct ikut diisi eksplisit (REST tidak menjalankan callout, jadi
+    // DateAcct bawaan model = HARI INI, bukan tanggal pilihan user).
+    const orderDateISO = dateOrdered || todayLocalISO();
+    if (!isDateOnly(orderDateISO)) {
+      onError?.(`Tanggal pemesanan tidak valid: "${orderDateISO}".`, 'Data Belum Lengkap');
+      return null;
+    }
+    if (orderDateISO > todayLocalISO()) {
+      onError?.(
+        'Cash Purchase tidak boleh bertanggal di masa depan (barang diterima & dibayar saat itu juga).\n' +
+        'Ubah tanggal pemesanan ke hari ini atau sebelumnya, atau gunakan Draft/Complete biasa.',
+        'Tanggal Tidak Valid'
+      );
+      return null;
+    }
+
     setIsSubmitting(true);
     setProgressStep(null);
     // Dilacak via variabel lokal, BUKAN state `progressStep` — closure `submit`
@@ -186,8 +206,6 @@ export function useCashPurchaseSubmit({ poDocTypeId, receiptDocTypeId, invoiceDo
     const created = { poId: null, receiptId: null, invoiceId: null, paymentId: null, invoiceLinesCreated: 0 };
 
     try {
-      const todayISO = new Date().toISOString().split('T')[0];
-
       // ═══════════════════════════════════════════════════════════════════
       // TAHAP 1 — Purchase Order
       // ═══════════════════════════════════════════════════════════════════
@@ -203,8 +221,9 @@ export function useCashPurchaseSubmit({ poDocTypeId, receiptDocTypeId, invoiceDo
           C_BPartner_ID: { id: parseInt(vendorId) },
           C_BPartner_Location_ID: { id: parseInt(vendorLocationId) },
           M_Warehouse_ID: { id: parseInt(warehouseId) },
-          DateOrdered:   todayISO,
-          DatePromised:  todayISO,
+          DateOrdered:   orderDateISO,
+          DatePromised:  orderDateISO,
+          DateAcct:      orderDateISO,
           IsSOTrx:       false,
           PaymentRule:   'P', // Immediate Payment
           Description:   description,
@@ -296,7 +315,8 @@ export function useCashPurchaseSubmit({ poDocTypeId, receiptDocTypeId, invoiceDo
           C_BPartner_ID: { id: parseInt(vendorId) },
           C_BPartner_Location_ID: { id: parseInt(vendorLocationId) },
           M_Warehouse_ID: { id: parseInt(warehouseId) },
-          MovementDate: todayISO,
+          MovementDate: orderDateISO,
+          DateAcct:     orderDateISO,
           IsSOTrx:      false,
           Description:  description,
         }),
@@ -348,7 +368,8 @@ export function useCashPurchaseSubmit({ poDocTypeId, receiptDocTypeId, invoiceDo
         C_Order_ID:   { id: poId },
         C_BPartner_ID: { id: parseInt(vendorId) },
         C_BPartner_Location_ID: { id: parseInt(vendorLocationId) },
-        DateInvoiced: todayISO,
+        DateInvoiced: orderDateISO,
+        DateAcct:     orderDateISO,
         IsSOTrx:      false,
         PaymentRule:  'P',
         Description:  description,
@@ -433,7 +454,7 @@ export function useCashPurchaseSubmit({ poDocTypeId, receiptDocTypeId, invoiceDo
       onStepUpdate?.('payment', 'pending');
       const paymentResult = await submitPaymentAllocation(
         [{ invoiceId, grandTotal: invoiceGrandTotal }],
-        { vendorId, bankAccountId, paymentTenderType }
+        { vendorId, bankAccountId, paymentTenderType, dateTrx: orderDateISO }
       );
       if (!paymentResult || !paymentResult.paymentId) {
         throw new Error('Payment/Allocation gagal — lihat detail error sebelumnya.');

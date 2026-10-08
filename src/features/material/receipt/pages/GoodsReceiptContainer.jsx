@@ -56,6 +56,12 @@ import {
   COLOR, RADIUS 
 } from '@/utils';
 
+import { 
+  todayLocalISO, 
+  toDateOnly, 
+  formatDateID, 
+} from '@/utils/dateOnly';
+
 import '@/css/Header.css';
 
 
@@ -85,7 +91,8 @@ const GoodsReceiptContainer = () => {
   const [warehouses, setWarehouses]           = useState([]);         // list semua WH
   const [selectedWarehouse, setSelectedWarehouse] = useState(null);
   const searchRef = useRef(null);
-
+  const [movementDate, setMovementDate] = useState(todayLocalISO);
+  
   const alert = (message, title = 'Perhatian') => setDialog({ isOpen: true, title, message });
 
   const { products, loading: productsLoading, loadingMore, hasMore,
@@ -260,6 +267,7 @@ const GoodsReceiptContainer = () => {
       vendorId:         selectedVendor.C_BPartner_ID,
       vendorLocationId: selectedVendor.locationId,
       vendorName:       selectedVendor.Name,
+      movementDate,
     }, mode);
     if (result) {
       setSuccessData(result);

@@ -36,6 +36,7 @@ import { COLOR, RADIUS } from '@/utils/styleTokens';
 import { resolveDocTypeId, DOC_BASE_TYPE } from '@/utils/docTypeResolver';
 import { ShoppingCartIcon } from '@/shared/components/icon';
 import { useAccess } from '@/context/AccessContext';
+import { todayLocalISO, formatDateID } from '@/utils/dateOnly';
 import '@/css/Header.css';
 
 const INVOICE_CONFIG = { DESCRIPTION: 'Purchase Invoice via Web' };
@@ -54,7 +55,8 @@ const VendorInvoiceContainer = () => {
   const [invoiceDocTypeId, setInvoiceDocTypeId] = useState(null);
   const [paymentDocTypeId, setPaymentDocTypeId] = useState(null);
   const [selectedBankAccountId, setSelectedBankAccountId] = useState(null);
-
+  const [dateInvoiced, setDateInvoiced] = useState(todayLocalISO);
+  
   const searchRef = useRef(null);
   const alert = (message, title = 'Perhatian') => setDialog({ isOpen: true, title, message });
 
@@ -119,24 +121,24 @@ const VendorInvoiceContainer = () => {
   const openPODetail  = useCallback((po) => { setSelectedPO(po); setDetailOpen(true); }, []);
   const closePODetail = useCallback(() => { setDetailOpen(false); setSelectedPO(null); }, []);
   const handleAddLines  = useCallback((chosenLines) => addItems(chosenLines), [addItems]);
-  const handleClearCart = useCallback(() => { clearCart(); setDescription(''); }, [clearCart]);
+  const handleClearCart = useCallback(() => { clearCart(); setDescription(''); setDateInvoiced(todayLocalISO()); }, [clearCart]);
 
   const handleModalDraft = async () => {
     setSubmitModalOpen(false);
-    const { results, hadError } = await submitInvoice(cart, { description, poReference, submitMode: 'draft' });
+    const { results, hadError } = await submitInvoice(cart, { description, poReference, dateInvoiced, submitMode: 'draft' });
     if (!results) return;
     setSuccessData(results);
     setSuccessOpen(true);
-    if (!hadError) { clearCart(); setDescription(''); fetchPOs(searchValue); }
+    if (!hadError) { clearCart(); setDescription(''); setDateInvoiced(todayLocalISO()); fetchPOs(searchValue); }
   };
 
   const handleModalComplete = async () => {
     setSubmitModalOpen(false);
-    const { results, hadError } = await submitInvoice(cart, { description, poReference, submitMode: 'complete' });
+    const { results, hadError } = await submitInvoice(cart, { description, poReference, dateInvoiced, submitMode: 'complete' });
     if (!results) return;
     setSuccessData(results);
     setSuccessOpen(true);
-    if (!hadError) { clearCart(); setDescription(''); fetchPOs(searchValue); }
+    if (!hadError) { clearCart(); setDescription(''); setDateInvoiced(todayLocalISO()); fetchPOs(searchValue); }
   };
 
   // Complete invoice DULU, baru payment+allocation per vendor
@@ -146,8 +148,16 @@ const VendorInvoiceContainer = () => {
       alert('Pilih rekening bank untuk pembayaran.', 'Data Belum Lengkap');
       return;
     }
+    if (dateInvoiced > todayLocalISO()) {
+      alert(
+        'Tanggal invoice tidak boleh di masa depan untuk opsi Bayar (pembayaran dilakukan saat itu juga).\n' +
+        'Ubah tanggal ke hari ini atau sebelumnya, atau pakai Draft/Complete.',
+        'Tanggal Tidak Valid'
+      );
+      return;
+    }
     setSubmitModalOpen(false);
-    const { results, hadError } = await submitInvoice(cart, { description, poReference, submitMode: 'complete' });
+    const { results, hadError } = await submitInvoice(cart, { description, poReference, dateInvoiced, submitMode: 'complete' });
     if (!results) return;
     if (hadError) { setSuccessData(results); setSuccessOpen(true); return; }
 
@@ -155,7 +165,7 @@ const VendorInvoiceContainer = () => {
     for (const inv of results) {
       const pay = await submitPaymentAllocation(
         [{ invoiceId: inv.invoiceId, grandTotal: inv.grandTotal }],
-        { vendorId: inv.vendorId, bankAccountId: selectedBankAccountId }
+        { vendorId: inv.vendorId, bankAccountId: selectedBankAccountId, dateTrx: dateInvoiced }
       );
       if (pay) paymentResults.push({ ...inv, paymentDocNo: pay.documentNo });
     }
@@ -165,10 +175,15 @@ const VendorInvoiceContainer = () => {
     clearCart();
     setDescription('');
     setSelectedBankAccountId(null);
+    setDateInvoiced(todayLocalISO());
     fetchPOs(searchValue);
   };
 
-  const cartSummaryRight = `🧾 ${totalItems} baris`;
+  // Tanggal selain hari ini sengaja ditampilkan di ringkasan cart supaya tidak terlewat sebelum submit.
+  const isNotToday = dateInvoiced !== todayLocalISO();
+  const cartSummaryRight =
+    `🧾 ${totalItems} baris` +
+    (isNotToday && dateInvoiced ? ` · 📅 ${formatDateID(dateInvoiced)}` : '');
 
   return (
     <div style={{ flex: 1, minHeight: 0, background: COLOR.bg, fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif', display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden' }}>
@@ -189,6 +204,27 @@ const VendorInvoiceContainer = () => {
         <span style={{ color: '#fff', fontWeight: 700, fontSize: '15px', flex: 1, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
           <ShoppingCartIcon /><span>Purchase Invoice</span>
         </span>
+
+        <input
+          type="date"
+          value={dateInvoiced}
+          onChange={e => setDateInvoiced(e.target.value)}
+          onBlur={e => { if (!e.target.value) setDateInvoiced(todayLocalISO()); }}
+          disabled={!canSubmitInvoice}
+          title="Tanggal invoice — pada opsi Bayar juga dipakai sebagai tanggal pembayaran"
+          style={{
+            background: isNotToday ? 'rgba(251,191,36,0.30)' : 'rgba(255,255,255,0.18)',
+            border: `1px solid ${isNotToday ? '#fbbf24' : 'rgba(255,255,255,0.3)'}`,
+            borderRadius: '20px',
+            padding: '3px 10px',
+            fontSize: '11px',
+            color: '#e0eaff',
+            cursor: canSubmitInvoice ? 'pointer' : 'default',
+            outline: 'none',
+            maxWidth: isDesktop ? '150px' : '125px',
+            colorScheme: 'dark',
+          }}
+        />
       </div>
 
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0 }}>

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { idempiereApi } from '@/api/idempiereApi';
 import { resolveDocTypeId, DOC_BASE_TYPE, IS_SO_TRX } from '@/utils/docTypeResolver';
 import { fetchDefaultBankAccount } from '@/utils/bankAccountResolver';
+import { todayLocalISO, isDateOnly } from '@/utils/dateOnly';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // useAPPaymentSubmit.jsx
@@ -47,8 +48,10 @@ export function useAPPaymentSubmit() {
      * @param {string} tenderType - default 'K' (Cash).
      * @param {number|null} bankAccountId - override dari pilihan user; kalau null,
      *   di-resolve otomatis via fetchDefaultBankAccount(orgId, currencyId).
+     * @param {string|null} dateTrx - 'YYYY-MM-DD' untuk DateTrx & DateAcct payment;
+     *   kalau null → hari ini (lokal). Dari Cash Purchase = tanggal pemesanan pilihan user.
      */
-    const submitAPPayment = async (invoice, payAmt, tenderType = 'K', bankAccountId = null) => {
+    const submitAPPayment = async (invoice, payAmt, tenderType = 'K', bankAccountId = null, dateTrx = null) => {
         const clientId   = invoice.AD_Client_ID?.id ?? invoice.AD_Client_ID;
         const orgId      = invoice.AD_Org_ID?.id    ?? invoice.AD_Org_ID;
         const currencyId = invoice.C_Currency_ID?.id ?? invoice.C_Currency_ID;
@@ -61,7 +64,8 @@ export function useAPPaymentSubmit() {
 
         const resolvedBankAccountId = bankAccountId || await fetchDefaultBankAccount(orgId, currencyId);
 
-        const todayISO = new Date().toISOString().split('T')[0];
+        const trxDateISO = dateTrx || todayLocalISO();
+        if (!isDateOnly(trxDateISO)) throw new Error(`Tanggal payment tidak valid: "${trxDateISO}".`);
 
         const invoiceTotal = parseFloat(invoice.GrandTotal || 0);
         const tenderedAmt  = parseFloat(payAmt || 0);
@@ -81,8 +85,8 @@ export function useAPPaymentSubmit() {
                                    : { id: parseInt(currencyId) },
             PayAmt:           actualPayAmt,
             TenderType:       tenderType,
-            DateTrx:          todayISO,
-            DateAcct:         todayISO,
+            DateTrx:          trxDateISO,
+            DateAcct:         trxDateISO,
             IsReceipt:        false, // uang keluar (bayar vendor)
         };
 
@@ -116,7 +120,7 @@ export function useAPPaymentSubmit() {
      */
     const submitPaymentAllocation = async (
         invoices,
-        { vendorId, bankAccountId, paymentTenderType = 'K' } = {}
+        { vendorId, bankAccountId, paymentTenderType = 'K', dateTrx = null } = {}
     ) => {
         setIsSubmittingPayment(true);
         try {
@@ -136,7 +140,7 @@ export function useAPPaymentSubmit() {
 
                 const payAmt = inv.grandTotal ?? invoiceRecord.GrandTotal;
                 const completedPayment = await submitAPPayment(
-                    invoiceRecord, payAmt, paymentTenderType, bankAccountId
+                    invoiceRecord, payAmt, paymentTenderType, bankAccountId, dateTrx
                 );
                 const paymentId = completedPayment.id || completedPayment.C_Payment_ID;
                 const allocated = await verifyAllocation(paymentId);

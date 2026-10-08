@@ -41,34 +41,44 @@ const toRef = (r) => ({ id: r.id, name: r.Name || `#${r.id}` });
 export const fetchRefList = async (url) => (await fetchAllPages(url)).map(toRef);
 
 // Window yang dipakai aplikasi saja (filter di server, daftar kecil → 1 request).
-// entries: angka = AD_Window_ID, string = Name (boleh campur).
+// entries: angka = AD_Window_ID, string = Name, array = alias "salah satu dari".
+// Mengembalikan { items, missing } — `missing` = entri yang TIDAK ketemu di instance ini.
 export const fetchAppWindows = async (entries) => {
-    if (!entries?.length) return [];
-    const ids = [...new Set(entries.filter((e) => typeof e === "number"))];
-    const names = [...new Set(entries.filter((e) => typeof e === "string"))];
-    const clauses = [
-        ...ids.map((i) => `AD_Window_ID eq ${i}`),
-        ...names.map((n) => `Name eq '${odataStr(n)}'`),
-    ];
+    if (!entries?.length) return { items: [], missing: [] };
+
+    const groups = entries.map((e) => {
+        const list = Array.isArray(e) ? e : [e];
+        return {
+            ids: list.filter((x) => typeof x === "number"),
+            names: list.filter((x) => typeof x === "string"),
+            label: list.join(" / "),
+        };
+    });
+    const clauses = [...new Set(groups.flatMap((g) => [
+        ...g.ids.map((i) => `AD_Window_ID eq ${i}`),
+        ...g.names.map((n) => `Name eq '${odataStr(n)}'`),
+    ]))];
+
     const rows = await fetchAllPages(
         `/models/ad_window?$filter=IsActive eq true and (${clauses.join(" or ")})&$select=Name&$orderby=Name`
     );
     const items = rows.map(toRef);
 
-    // Entri yang tidak ketemu (salah ID / window di-rename / non-aktif) → beri tahu developer
     const foundIds = new Set(items.map((i) => i.id));
     const foundNames = new Set(items.map((i) => i.name));
-    const missing = [...ids.filter((i) => !foundIds.has(i)), ...names.filter((n) => !foundNames.has(n))];
+    const missing = groups
+        .filter((g) => !g.ids.some((i) => foundIds.has(i)) && !g.names.some((n) => foundNames.has(n)))
+        .map((g) => g.label);
     if (missing.length) console.warn("[APP_WINDOWS] tidak ditemukan di iDempiere:", missing);
 
-    return items;
+    return { items, missing };
 };
 
 // Fetch SEMUA record access sebuah role (aktif & non-aktif)
 // → { records: [{ recordId, fkId, isActive }], activeIds: [fkId...] }
 export const fetchAccessRecords = async (table, fkColumn, roleId) => {
     const rows = await fetchAllPages(
-        `/models/${table}?$filter=AD_Role_ID eq ${roleId}`
+        `/models/${table}?$filter=AD_Role_ID eq ${roleId} and (IsActive eq true or IsActive eq false)`
     );
     const records = rows.map((r) => ({
         recordId: r.uid ?? r.id,   // tabel access ber-PK komposit: pakai uid
@@ -108,15 +118,32 @@ export const createRole = (body) => idempiereApi(`/models/ad_role`, { method: "P
 export const updateRole = (id, body) => idempiereApi(`/models/ad_role/${id}`, { method: "PUT", body: JSON.stringify(body) });
 export const deleteRole = (id) => idempiereApi(`/models/ad_role/${id}`, { method: "DELETE" });
 
+// Cabut akses: HAPUS record (fallback: nonaktifkan kalau DELETE ditolak).
+// Menghapus — bukan menonaktifkan — mencegah record non-aktif "tak terlihat" yang nanti
+// membuat memberi akses yang sama lagi gagal dengan duplicate key.
+const revokeRecord = async (def, rec) => {
+    if (!rec.recordId) throw new Error("uid record tidak ditemukan");
+    try {
+        await idempiereApi(`/models/${def.table}/${rec.recordId}`, { method: "DELETE" });
+    } catch {
+        await idempiereApi(`/models/${def.table}/${rec.recordId}`, {
+            method: "PUT", body: JSON.stringify({ IsActive: false }),
+        });
+    }
+};
+
 const isDuplicateErr = (err) => /duplicate key|unique/i.test(err?.message || "");
 
 // Record sudah ada di DB (mis. tak terbaca di daftar) → cari lalu aktifkan bila non-aktif.
 const activateExisting = async (def, roleId, fkVal) => {
     const rows = await fetchAllPages(
-        `/models/${def.table}?$filter=AD_Role_ID eq ${roleId} and ${def.fk} eq ${fkVal}`
+        `/models/${def.table}?$filter=AD_Role_ID eq ${roleId} and ${def.fk} eq ${fkVal} and (IsActive eq true or IsActive eq false)`
     );
     const row = rows[0];
-    if (!row) throw new Error("record sudah ada tetapi tidak ditemukan saat dicari ulang");
+    if (!row) throw new Error(
+        "record sudah ada di database tetapi tidak terbaca lewat REST (kemungkinan non-aktif). " +
+        "Aktifkan / hapus manual di iDempiere: Role → Window/Form/Org Access."
+    );
     if (!isTrue(row.IsActive)) {
         await idempiereApi(`/models/${def.table}/${row.uid ?? row.id}`, {
             method: "PUT", body: JSON.stringify({ IsActive: true }),
@@ -163,9 +190,7 @@ export const syncAccess = async (def, roleId, selectedIds, recordsByFk, nameById
     for (const [fkVal, rec] of recordsByFk) {
         if (!sel.includes(Number(fkVal)) && rec.isActive) {
             try {
-                await idempiereApi(`/models/${def.table}/${rec.recordId}`, {
-                    method: "PUT", body: JSON.stringify({ IsActive: false }),
-                });
+                await revokeRecord(def, rec);
             } catch (err) {
                 errors.push(`${def.label}: lepas ${nameOf(fkVal)} → ${err.message}`);
             }

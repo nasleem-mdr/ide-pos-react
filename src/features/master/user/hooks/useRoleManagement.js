@@ -51,8 +51,17 @@ export default function useRoleManagement() {
         Object.entries(REF_LOADERS).forEach(async ([key, load]) => {
             setLoadingRefs((p) => ({ ...p, [key]: true }));
             try {
-                const list = await load();
+                const out = await load();
+                const list = Array.isArray(out) ? out : out.items;
                 setRefs((p) => ({ ...p, [key]: list }));
+                // Window di APP_WINDOWS yang tidak ada di instance ini → beri tahu admin (bukan hilang diam-diam)
+                if (out?.missing?.length) {
+                    setNotice({
+                        type: "warn",
+                        text: `Window berikut di APP_WINDOWS tidak ditemukan di instance ini:\n• ${out.missing.join("\n• ")}\n` +
+                              `Sesuaikan daftar di roleConstants.js atau lewat VITE_APP_WINDOWS.`,
+                    });
+                }
             } catch (err) {
                 console.error(`Gagal mengambil ${key}:`, err.message);
             } finally {

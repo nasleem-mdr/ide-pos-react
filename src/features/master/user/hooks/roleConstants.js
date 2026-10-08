@@ -27,11 +27,13 @@ export const ACCESS_DEFS = [
 ];
 
 // Window iDempiere yang dipakai aplikasi React ini. Hanya window di daftar ini yang
-// tampil di picker Window Access.
-//   - angka  → AD_Window_ID   (DISARANKAN: tidak terpengaruh rename / terjemahan)
-//   - string → AD_Window.Name (cocok persis; bisa meleset kalau window di-rename)
-// Boleh dicampur. Entri yang tidak ditemukan di server dicatat lewat console.warn.
-export const APP_WINDOWS = [
+// tampil di picker Window Access. Tiap entri boleh berupa:
+//   - angka            → AD_Window_ID   (DISARANKAN: tidak terpengaruh rename / terjemahan)
+//   - string           → AD_Window.Name (cocok persis)
+//   - array [..alias..] → "salah satu dari" — untuk window yang namanya beda antar instance,
+//                         mis. ["Bank/Cash Statement", "Bank Statement"]
+// Entri yang tidak ketemu di instance aktif ditampilkan sebagai peringatan di halaman Role.
+const DEFAULT_APP_WINDOWS = [
     "Requisition",
     "Product",
     "Business Partner",
@@ -46,3 +48,18 @@ export const APP_WINDOWS = [
     "Payment and Receipt",
     "Sales Invoice",
 ];
+
+// Override PER INSTANCE tanpa mengubah kode — isi di .env / .env.production, mis.:
+//   VITE_APP_WINDOWS=[108,"Requisition",["Bank/Cash Statement","Bank Statement"]]
+const readEnvWindows = () => {
+    try {
+        const raw = import.meta.env?.VITE_APP_WINDOWS;
+        const parsed = raw ? JSON.parse(raw) : null;
+        return Array.isArray(parsed) && parsed.length ? parsed : null;
+    } catch (err) {
+        console.warn("[APP_WINDOWS] VITE_APP_WINDOWS bukan JSON array yang valid, pakai default:", err.message);
+        return null;
+    }
+};
+
+export const APP_WINDOWS = readEnvWindows() ?? DEFAULT_APP_WINDOWS;

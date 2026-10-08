@@ -21,6 +21,7 @@
 import { useState, useCallback } from 'react';
 import { idempiereApi } from '@/api/idempiereApi';
 import { getLoginInfo } from '@/shared/hooks/useLoginInfo';
+import { todayLocalISO, isDateOnly } from '@/utils/dateOnly';
 
 export function useInvoiceSubmit({ invoiceDocTypeId, defaultDescription, onError }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -44,7 +45,7 @@ export function useInvoiceSubmit({ invoiceDocTypeId, defaultDescription, onError
     return { docNo: draftRes.DocumentNo || `INV-${invoiceId}`, status: 'Draft', grandTotal: parseFloat(draftRes.GrandTotal ?? 0) };
   }, []);
 
-  const submit = useCallback(async (cart, { description, poReference, submitMode = 'complete' } = {}) => {
+  const submit = useCallback(async (cart, { description, poReference, submitMode = 'complete', dateInvoiced = null } = {}) => {
     if (cart.length === 0) {
       onError?.('Daftar tagihan masih kosong!');
       return { results: null, hadError: true };
@@ -68,9 +69,16 @@ export function useInvoiceSubmit({ invoiceDocTypeId, defaultDescription, onError
       return { results: null, hadError: true };
     }
 
+    // Tanggal invoice pilihan user (default: hari ini, zona waktu lokal). DateAcct ikut diisi
+    // eksplisit — REST tidak menjalankan callout, jadi tanpa ini DateAcct tetap HARI INI.
+    const invoiceDateISO = dateInvoiced || todayLocalISO();
+    if (!isDateOnly(invoiceDateISO)) {
+      onError?.(`Tanggal invoice tidak valid: "${invoiceDateISO}".`, 'Data Tidak Lengkap');
+      return { results: null, hadError: true };
+    }
+
     setIsSubmitting(true);
     const results = [];
-    const todayISO = new Date().toISOString().split('T')[0];
 
     try {
       const groups = new Map();
@@ -101,7 +109,8 @@ export function useInvoiceSubmit({ invoiceDocTypeId, defaultDescription, onError
             C_BPartner_ID:          { id: parseInt(vendorId) },
             C_BPartner_Location_ID: { id: parseInt(vendorLocationId) },
             ...(primaryOrderId ? { C_Order_ID: { id: parseInt(primaryOrderId) } } : {}),
-            DateInvoiced:           todayISO,
+            DateInvoiced:           invoiceDateISO,
+            DateAcct:               invoiceDateISO,
             IsSOTrx:                false,
             Description:            finalDescription,
             ...(finalPoReference ? { POReference: finalPoReference } : {}),

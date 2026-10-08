@@ -14,6 +14,7 @@ import { useAccess } from '@/context/AccessContext';
 import { COLOR, RADIUS } from '@/utils/styleTokens';
 import { idempiereApi, fkId } from '@/api/idempiereApi';
 import { resolveDocTypeId, DOC_BASE_TYPE } from '@/utils/docTypeResolver';
+import { todayLocalISO, toDateOnly, formatDateID } from '@/utils/dateOnly';
 
 import '@/css/Header.css';
 
@@ -55,6 +56,8 @@ const PurchasingContainer = () => {
   const [editOrderDocNo, setEditOrderDocNo]   = useState(null);
   const [editOrderStatus, setEditOrderStatus] = useState(null);
   const [loadingEditOrder, setLoadingEditOrder] = useState(false);
+  // Tanggal pemesanan — dasar tanggal PO; di Cash Purchase juga dasar Receipt, Invoice & AP Payment.
+  const [dateOrdered, setDateOrdered] = useState(todayLocalISO);
 
   const searchRef = useRef(null);
   const alert = (message, title = 'Perhatian') => setDialog({ isOpen: true, title, message });
@@ -146,12 +149,14 @@ const handleModalCashPurchase = async () => {
         vendorLocationId, // ⬅️ sekarang sudah pasti terisi (fetched atau dari cart)
         vendorName:       singleVendorGroup.VendorName,
         bankAccountId:    selectedBankAccountId,
+        dateOrdered,      // ⬅️ dasar tanggal PO, Receipt, Invoice & Payment
     });
 
     setProgressDone(true);
     if (result) {
         clearCart();
         setSelectedBankAccountId(null);
+        setDateOrdered(todayLocalISO());
         fetchProducts(searchValue.trim()); 
     }
 };
@@ -332,6 +337,15 @@ useEffect(() => {
         clearCart();
         addItems(cartItems);
         setDescription(editOrder.Description || '');
+        // Tanggal PO yang diedit (kalau header dari PurchasingList tidak membawa DateOrdered, ambil langsung).
+        let orderDate = toDateOnly(editOrder.DateOrdered);
+        if (!orderDate) {
+          try {
+            const o = await idempiereApi(`/models/c_order/${orderId}?$select=DateOrdered`);
+            orderDate = toDateOnly(o?.DateOrdered);
+          } catch { /* fallback hari ini */ }
+        }
+        setDateOrdered(orderDate || todayLocalISO());
         setEditOrderId(orderId);
         setEditOrderDocNo(editOrder.DocumentNo || `#${orderId}`);
         setEditOrderStatus(editOrder.DocStatus?.id ?? editOrder.DocStatus ?? null);
@@ -364,6 +378,7 @@ useEffect(() => {
   const handleCancelEdit = useCallback(() => {
     clearCart();
     setDescription('');
+    setDateOrdered(todayLocalISO());
     setEditOrderId(null);
     setEditOrderDocNo(null);
     setEditOrderStatus(null);
@@ -450,6 +465,7 @@ useEffect(() => {
   const handleClearCart = useCallback(() => {
     clearCart();
     setDescription('');
+    setDateOrdered(todayLocalISO());
   }, [clearCart]);
 
   const handleImportFromRequisition = useCallback((cartItems, requisition) => {
@@ -533,6 +549,7 @@ useEffect(() => {
       description,
       submitMode,
       editOrderId,   // ← null di mode normal, terisi di mode edit
+      dateOrdered,
     });
     if (!results || results.length === 0) return;
   
@@ -543,6 +560,8 @@ useEffect(() => {
     setEditOrderDocNo(null);
     setEditOrderStatus(null);
   
+    setDateOrdered(todayLocalISO());
+
     if (hadError) setPendingSuccessOpen(true);
     else setSuccessOpen(true);
   };
@@ -550,7 +569,11 @@ useEffect(() => {
   const handleSubmitDraft    = () => handleSubmit('draft');
   const handleSubmitComplete = () => handleSubmit('complete');
 
-  const cartSummaryRight = `📦 ${warehouseInfo?.name || '...'}`;
+  // Tanggal selain hari ini sengaja ditampilkan di ringkasan cart supaya tidak terlewat sebelum submit.
+  const isNotToday = dateOrdered !== todayLocalISO();
+  const cartSummaryRight =
+    `📦 ${warehouseInfo?.name || '...'}` +
+    (isNotToday && dateOrdered ? ` · 📅 ${formatDateID(dateOrdered)}` : '');
 
   return (
     <div style={{
@@ -651,6 +674,27 @@ useEffect(() => {
                 </option>
               ))}
             </select>
+
+            <input
+              type="date"
+              value={dateOrdered}
+              onChange={e => setDateOrdered(e.target.value)}
+              onBlur={e => { if (!e.target.value) setDateOrdered(todayLocalISO()); }}
+              disabled={!canSubmitPO}
+              title="Tanggal pemesanan — pada Cash Purchase juga dipakai untuk Receipt, Invoice & Payment"
+              style={{
+                background: isNotToday ? 'rgba(251,191,36,0.30)' : 'rgba(255,255,255,0.18)',
+                border: `1px solid ${isNotToday ? '#fbbf24' : 'rgba(255,255,255,0.3)'}`,
+                borderRadius: '20px',
+                padding: '3px 10px',
+                fontSize: '11px',
+                color: '#e0eaff',
+                cursor: canSubmitPO ? 'pointer' : 'default',
+                outline: 'none',
+                maxWidth: isDesktop ? '150px' : '125px',
+                colorScheme: 'dark',
+              }}
+            />
       </div>
 
       {loadingEditOrder && (
@@ -865,4 +909,3 @@ useEffect(() => {
 };
 
 export default PurchasingContainer;
-
