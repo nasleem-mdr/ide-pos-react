@@ -1,16 +1,31 @@
-import React, { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { PageHeader, DataTable } from "@/shared/components/setup";
+import { 
+    PageHeader, 
+    DataTable,
+    WorkflowProgressButton,
+} from "@/shared/components";
+
+import {
+    STATUS_FILTERS, 
+    StatusBadge, 
+    normalizeStatus,
+    buildStatusCondition, 
+} from "@/utils/docStatus";
+
 import { LogoSMAMerahHitam } from "@/shared/components/icon";
 import { idempiereApi } from "@/api/idempiereApi";
 import { renderDocumentPDF } from "@/utils/pdf/renderDocumentPDF";
+
+import DocActionButton from "@/shared/components/DocActionButton";
+import { getAvailableActions } from "@/shared/docAction/docActionConfig";
 import "@/App.css";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // VendorInvoiceList.jsx
 // GET /api/v1/models/ad_table?$select=AD_Table_ID&$filter=TableName eq 'C_Order'
 // ─────────────────────────────────────────────────────────────────────────────
-const C_INVOICE_AD_TABLE_ID = 318; // ← GANTI kalau berbeda di instance Anda
+const C_INVOICE_AD_TABLE_ID = 318; 
 
 const VendorInvoiceList = () => {
     const todayStr = new Date().toISOString().split("T")[0];
@@ -20,12 +35,29 @@ const VendorInvoiceList = () => {
     const [search, setSearch]             = useState("");
     const [offset, setOffset]             = useState(0);
     const [totalRecords, setTotalRecords] = useState(0);
+    const [statusFilter, setStatusFilter] = useState("ALL");
     const [totalAmountAll, setTotalAmountAll] = useState(null);
     const [downloadingId, setDownloadingId] = useState(null);
     const [startDate, setStartDate]       = useState(todayStr);
     const [endDate, setEndDate]           = useState(todayStr);
     const pageSize                        = 10;
     const navigate                        = useNavigate();
+
+    const [selected, setSelected] = useState(() => new Map());
+        const toDocItem = (i) => ({ id: i._invoiceId, documentNo: i.DocumentNo, status: i._status });
+        const toggleSelect = (i) =>
+            setSelected((prev) => {
+                const next = new Map(prev);
+                if (next.has(i._invoiceId)) next.delete(i._invoiceId);
+                else next.set(i._invoiceId, toDocItem(i));
+                return next;
+            });
+        const handleDocActionDone = () => {
+            setSelected(new Map());
+            fetchInvoices();
+            fetchTotalAmount();
+        };
+    
 
     const getStatusLabel = (status) => {
         const map = { DR: "Draft", IP: "In Progress", CO: "Completed", CL: "Closed", VO: "Voided", RE: "Reversed", NA: "Ditolak" };
@@ -36,7 +68,37 @@ const VendorInvoiceList = () => {
         const map = { DR: "#f57c00", CO: "#19cc22", CL: "#37474f", VO: "#f81010", IP: "#1565c0", NA: "#c62828" };
         return map[status] || "#555";
     };
-
+    const [showAllOption, setShowAllOption] = useState('N');
+    
+    const buildFilterClause = useCallback((loginUserId) => {
+            // Array untuk menampung semua kondisi filter
+            const conditions = [
+                `IsSOTrx eq false`,
+                `Created ge ${startDate}T00:00:00Z`,
+                `Created le ${endDate}T23:59:59Z`
+            ];
+    
+            // Kondisi IF: Hanya tambahkan CreatedBy jika opsi tampilkan semua BUKAN 'Y'
+            if (showAllOption !== 'Y' && loginUserId) {
+                conditions.unshift(`CreatedBy eq ${loginUserId}`);
+            }
+    
+            // Filter Search
+            if (search) {
+                conditions.push(`contains(tolower(DocumentNo),'${search.toLowerCase()}')`);
+            }
+    
+            // Filter Status
+            if (statusFilter && statusFilter !== "ALL") {
+                conditions.push(`DocStatus eq '${statusFilter}'`);
+            }
+            const statusCond = buildStatusCondition(statusFilter);
+            if (statusCond) conditions.push(statusCond);
+    
+            // Gabungkan semua kondisi dengan kata ' and '
+            return conditions.join(' and ');
+    }, [search, startDate, endDate, statusFilter, showAllOption]);
+        
     // Invoice bersifat sentral (tidak scoped ke 1 gudang), tapi tetap
     // hanya menampilkan Invoice yang dibuat oleh user yang sedang login — sama
     // seperti perilaku RequisitionList.jsx untuk FPB.
@@ -46,15 +108,7 @@ const VendorInvoiceList = () => {
 
         setLoading(true);
         try {
-            let filterClause =
-                ` IsSOTrx eq false` + // sisi pembelian saja (bukan Sales Order)
-                ` and Created ge ${startDate}T00:00:00Z` +
-                ` and Created le ${endDate}T23:59:59Z`;
-
-            if (search) {
-                filterClause += ` and contains(tolower(DocumentNo),'${search.toLowerCase()}')`;
-            }
-
+            const filterClause = buildFilterClause(loginUserId);
             const res = await idempiereApi(
                 `/models/c_invoice` +
                 `?$filter=${filterClause}` +
@@ -71,7 +125,7 @@ const VendorInvoiceList = () => {
         } finally {
             setLoading(false);
         }
-    }, [offset, search, startDate, endDate]);
+    }, [offset, buildFilterClause]);
 
     const svgToPngDataUrl = (svgString, width, height) => {
         return new Promise((resolve, reject) => {
@@ -100,14 +154,7 @@ const VendorInvoiceList = () => {
 
         setTotalAmountAll(null); // reset saat filter berubah
         try {
-            let filterClause =
-                ` IsSOTrx eq false` +
-                ` and Created ge ${startDate}T00:00:00Z` +
-                ` and Created le ${endDate}T23:59:59Z`;
-
-            if (search) {
-                filterClause += ` and contains(tolower(DocumentNo),'${search.toLowerCase()}')`;
-            }
+            const filterClause = buildFilterClause(loginUserId);
 
             const res = await idempiereApi(
                 `/models/c_invoice` +
@@ -122,7 +169,7 @@ const VendorInvoiceList = () => {
             console.error("Gagal fetch total grand total:", err.message);
             setTotalAmountAll(0);
         }
-    }, [search, startDate, endDate]);
+    }, [buildFilterClause]);
 
     useEffect(() => {
         fetchInvoices();
@@ -261,14 +308,7 @@ const VendorInvoiceList = () => {
                 || invoice.C_BPartner_ID?.Name
                 || "-",
             GrandTotal: fmtRp(invoice.GrandTotal),
-            DocStatus: (
-                <span style={{
-                    ...styles.badge,
-                    backgroundColor: getStatusColor(status),
-                }}>
-                    {getStatusLabel(status)}
-                </span>
-            ),
+            DocStatus: <StatusBadge status={status} />,
         };
     });
 
@@ -282,6 +322,14 @@ const VendorInvoiceList = () => {
 
         return (
             <div style={{ display: "flex", gap: "6px" }}>
+                <input
+                    type="checkbox"
+                    checked={selected.has(item._invoiceId)}
+                    disabled={getAvailableActions("C_Invoice", item._status).length === 0}
+                    onChange={() => toggleSelect(item)}
+                    title="Pilih untuk aksi massal Close/Void"
+                    style={{ width: "16px", height: "16px" }}
+                />
                 <button
                     onClick={() => !isEditDisabled ? handleEdit(item) : null}
                     disabled={isEditDisabled}
@@ -313,6 +361,19 @@ const VendorInvoiceList = () => {
                 >
                     {isDownloading ? "⏳ ..." : "⬇️ Download"}
                 </button>
+                <WorkflowProgressButton
+                    tableName="C_Invoice"
+                    recordId={item._invoiceId}
+                    docStatus={item._status}
+                    targetStatus="CO"
+                    buttonStyle={styles.editBtn}
+                />
+                <DocActionButton
+                    tableName="C_Invoice"
+                    items={[toDocItem(item)]}
+                    onDone={handleDocActionDone}
+                    style={{ ...styles.editBtn, backgroundColor: "#6d4c41" }}
+                />
             </div>
         );
     };
@@ -326,20 +387,35 @@ const VendorInvoiceList = () => {
         setEndDate(val);
         setOffset(0);
     };
-
+    const handleFilterChange = (val) => {
+        setStatusFilter(val);
+        setOffset(0);
+    };
     return (
         <div className="card-container">
 
             <PageHeader
                 title="Purchasing Invoice"
                 onSearch={(val) => { setSearch(val); setOffset(0); }}
+                filters={STATUS_FILTERS}
+                activeFilter={statusFilter}
+                onFilterChange={handleFilterChange}
                 extraAction={
+                <div style={{ display: 'flex', gap: '8px' }}>
+                    <DocActionButton
+                        tableName="C_Invoice"
+                        items={[...selected.values()]}
+                        label={`⛔ Close / Void (${selected.size})`}
+                        onDone={handleDocActionDone}
+                        style={{ ...styles.newBtn, backgroundColor: "#6d4c41" }}
+                    />
                     <button
                         onClick={() => navigate("/vendor-invoice")}
                         style={styles.newBtn}
                     >
                         + New Transactions 
                     </button>
+                </div>
                 }
             />
 

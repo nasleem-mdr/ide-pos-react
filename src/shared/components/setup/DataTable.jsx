@@ -13,9 +13,9 @@ export default function DataTable({
   pageSize,
   totalRecords = 0,
   onPageChange,
-  renderActions, // Prop fungsi untuk merender tombol aksi khusus
-  summaryRow,    // Opsional: { columnKey: string, value: string, label?: string } untuk summary
-  infiniteScroll, // { fetchMore, hasMore, loadingMore }
+  renderActions, 
+  summaryRow,    
+  infiniteScroll,
 
 }) {
   const isDesktop = useIsDesktop();
@@ -135,7 +135,7 @@ export default function DataTable({
             {columns.map(col => (
               <th key={col.key} style={{ textAlign: col.align || 'left' }}>{col.label}</th>
             ))}
-            <th>Actions</th>
+            <th style={{ textAlign: 'center' }}>Actions</th>
           </tr>
         </thead>
         <tbody>

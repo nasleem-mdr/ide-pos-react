@@ -206,14 +206,6 @@ const PurchasingList = () => {
                 || "-",
             GrandTotal: fmtRp(order.GrandTotal),
             DocStatus: <StatusBadge status={status} />,
-            // DocStatus: (
-            //     <span style={{
-            //         ...styles.badge,
-            //         backgroundColor: getStatusColor(status),
-            //     }}>
-            //         {getStatusLabel(status)}
-            //     </span>
-            // ),
         };
     });
 
@@ -366,7 +358,7 @@ const PurchasingList = () => {
     
                 const totalAmount = allOrders.reduce((s, odr) => s + parseFloat(odr.GrandTotal || 0), 0);
                 await renderListPDF({
-                    title: 'DAFTAR SALES',
+                    title: 'DAFTAR PURCHASE ORDER',
                     orgInfo,   
                     periodLabel: `PERIODE : ${formatDateService(startDate)}  ${formatDateService(endDate)}`,
                     columns: [
@@ -387,7 +379,7 @@ const PurchasingList = () => {
                     })),
                     totalLabel: 'Total Semua',
                     totalValue: numberFormatter.format(totalAmount),
-                    filenamePrefix: `DAFTAR-SALES-${startDate}_${endDate}`,
+                    filenamePrefix: `DAFTAR-PO-${startDate}_${endDate}`,
                 });
             } catch (err) {
                 console.error('Gagal generate PDF daftar:', err.message);
@@ -420,12 +412,6 @@ const PurchasingList = () => {
                             + New
                         </button>
                     </div>
-                    // <button
-                    //     onClick={() => navigate("/purchasing")}
-                    //     style={styles.newBtn}
-                    // >
-                    //     + Transaksi Baru
-                    // </button>
                 }
             />
 

@@ -1,21 +1,24 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { PageHeader, DataTable, WorkflowProgressButton } from "@/shared/components";
+import { 
+    PageHeader, 
+    DataTable, 
+    WorkflowProgressButton, 
+} from "@/shared/components";
+
+import {
+    STATUS_FILTERS, 
+} from "@/utils/docStatus";
+
+
 import { renderListPDF } from "@/utils/pdf/renderListPDF";
 import { generateRequisitionPDF } from '@/features/requisition/utils/generateRequisitionPDF';
 import { idempiereApi } from "@/api/idempiereApi";
 import { useOrgInfo } from "@/shared/hooks/useOrgInfo";
 import "@/App.css";
+import DocActionButton from "@/shared/components/DocActionButton";
+import { getAvailableActions } from "@/shared/docAction/docActionConfig";
 
-// Filter status ala Shopee — value 'ALL' berarti tanpa filter DocStatus sama
-// sekali. Urutan di sini menentukan urutan tab yang tampil di PageHeader.
-const STATUS_FILTERS = [
-    { value: "ALL", label: "Semua" },
-    { value: "DR",  label: "Draft" },
-    { value: "IP",  label: "Diproses" },
-    { value: "NA",  label: "Ditolak" },
-    { value: "CO",  label: "Selesai" },
-];
 
 const RequisitionList = () => {
     const todayStr = new Date().toISOString().split("T")[0];
@@ -33,7 +36,22 @@ const RequisitionList = () => {
     const [printingList, setPrintingList]   = useState(false);
     const pageSize                          = 10;
     const navigate                          = useNavigate();
-
+    
+    // --- Pilihan baris untuk aksi massal Close/Void ---
+    const [selected, setSelected] = useState(() => new Map());
+    const toDocItem = (r) => ({ id: r._requisitionId, documentNo: r.DocumentNo, status: r._status });
+    const toggleSelect = (r) =>
+        setSelected((prev) => {
+            const next = new Map(prev);
+            if (next.has(r._requisitionId)) next.delete(r._requisitionId);
+            else next.set(r._requisitionId, toDocItem(r));
+            return next;
+        });
+    const handleDocActionDone = () => {
+        setSelected(new Map());
+        fetchRequisitions();
+        fetchTotalLines();
+    };
     const getStatusLabel = (status) => {
         const map = { DR: "Draft", IP: "In Progress", CO: "Completed", VO: "Voided", RE: "Reversed", NA: "Ditolak" };
         return map[status] || status;
@@ -263,7 +281,7 @@ const RequisitionList = () => {
                 })),
                 totalLabel: 'Total Semua',
                 totalValue: numberFormatter.format(totalAmount),
-                filenamePrefix: `DAFTAR-REQUISITION-${startDate}_${endDate}`,
+                filenamePrefix: `DAFTAR-REQ-${startDate}_${endDate}`,
             });
         } catch (err) {
             console.error('Gagal generate PDF daftar:', err.message);
@@ -283,6 +301,14 @@ const RequisitionList = () => {
 
         return (
             <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                <input
+                    type="checkbox"
+                    checked={selected.has(item._requisitionId)}
+                    disabled={getAvailableActions("M_Requisition", item._status).length === 0}
+                    onChange={() => toggleSelect(item)}
+                    title="Pilih untuk aksi massal Close/Void"
+                    style={{ width: "16px", height: "16px" }}
+                />
                 <button
                     onClick={() => !isEditDisabled ? handleEdit(item) : null}
                     disabled={isEditDisabled}
@@ -322,6 +348,12 @@ const RequisitionList = () => {
                     targetStatus="CO"
                     buttonStyle={styles.editBtn}
                 />
+                <DocActionButton
+                    tableName="M_Requisition"
+                    items={[toDocItem(item)]}
+                    onDone={handleDocActionDone}
+                    style={{ ...styles.editBtn, backgroundColor: "#6d4c41" }}
+                />
             </div>
         );
     };
@@ -352,6 +384,13 @@ const RequisitionList = () => {
                 onFilterChange={handleFilterChange}
                 extraAction={
                     <div style={{ display: 'flex', gap: '8px' }}>
+                        <DocActionButton
+                            tableName="C_Order"
+                            items={[...selected.values()]}
+                            label={`⛔ Close / Void (${selected.size})`}
+                            onDone={handleDocActionDone}
+                            style={{ ...styles.newBtn, backgroundColor: "#6d4c41" }}
+                        />
                         <button onClick={handlePrintList} disabled={printingList} style={styles.newBtn}>
                             {printingList ? '⏳ ...' : '🖨️ Print PDF'}
                         </button>

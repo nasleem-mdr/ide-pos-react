@@ -17,6 +17,8 @@ export const STATUS_FILTERS = [
     { value: "DR",  label: "Draft" },
     { value: "IP",  label: "Diproses" },
     { value: "NA",  label: "Ditolak" },
+    { value: "VO",  label: "Void" },
+    { value: "RE",  label: "Reversed" },
     { value: "CO",  label: "Selesai" },
 ];
 
