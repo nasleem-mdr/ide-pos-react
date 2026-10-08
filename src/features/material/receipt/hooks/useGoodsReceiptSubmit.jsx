@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { idempiereApi, fkId } from '@/api/idempiereApi';
 import { getLoginInfo } from '@/shared/hooks/useLoginInfo';
+import { todayLocalISO } from '@/utils/dateOnly';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // useGoodsReceiptSubmit.jsx (REVISI)
@@ -29,13 +30,14 @@ export function useGoodsReceiptSubmit({ docTypeId, description, onError }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const submit = useCallback(async (cart, {
-    warehouseId,
-    locatorId,
-    vendorId,
-    vendorLocationId,
-    vendorName,
-    submitMode = 'complete',
-  } = {}) => {
+      warehouseId,
+      locatorId,
+      vendorId,
+      vendorLocationId,
+      vendorName,
+      movementDate,
+      submitMode = 'complete',
+    } = {}) => {
     if (cart.length === 0) {
       onError?.('Daftar penerimaan masih kosong!');
       return null;
@@ -58,7 +60,7 @@ export function useGoodsReceiptSubmit({ docTypeId, description, onError }) {
 
     setIsSubmitting(true);
     try {
-      const todayISO = new Date().toISOString().split('T')[0];
+      const effectiveDate = movementDate || todayLocalISO();
 
       // Kalau semua item cart berasal dari satu C_Order yang sama, ikutkan
       // di header — kalau tidak seragam (campuran PO / ada item manual),
@@ -76,7 +78,8 @@ export function useGoodsReceiptSubmit({ docTypeId, description, onError }) {
           C_BPartner_ID:           { id: parseInt(vendorId) },
           C_BPartner_Location_ID:  { id: parseInt(vendorLocationId) },
           M_Warehouse_ID:          { id: parseInt(warehouseId) },
-          MovementDate:            todayISO,
+          MovementDate:            effectiveDate,
+          DateAcct:                effectiveDate,
           IsSOTrx:                 false, // sisi pembelian: barang MASUK ke gudang kita
           Description:             description,
           IsActive:                true,
