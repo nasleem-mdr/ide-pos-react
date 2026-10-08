@@ -38,7 +38,7 @@ import { SICartSidebar, SICartPanel } from '@/features/sales/shared/components';
 import { idempiereApi, fkId } from '@/api/idempiereApi';
 import { COLOR, RADIUS } from '@/utils/styleTokens';
 import { resolveDocTypeId, DOC_BASE_TYPE } from '@/utils/docTypeResolver';
-
+import { todayLocalISO, toDateOnly, formatDateID } from '@/utils/dateOnly';
 import '@/css/Header.css';
 
 const SALES_INVOICE_CONFIG = {
@@ -85,7 +85,8 @@ const SalesInvoiceContainer = () => {
   const [customerQuery, setCustomerQuery] = useState('');
   const [customerOpen, setCustomerOpen]   = useState(false);
   const { customers, loading: customerLoading, searchCustomer, resolveCustomerPricing } = useCustomerSearch();
-
+  const [dateInvoiced, setDateInvoiced] = useState(todayLocalISO);
+  
   const searchRef = useRef(null);
   const customerBoxRef = useRef(null);
   const alert = (message, title = 'Perhatian') => setDialog({ isOpen: true, title, message });
@@ -214,7 +215,14 @@ const SalesInvoiceContainer = () => {
         setCustomerQuery(bpName);
         addItems(cartItems);
         setDescription(editInvoice.Description || '');
-  
+        let invDate = toDateOnly(editInvoice.DateInvoiced);
+        if (!invDate) {
+          try {
+            const inv = await idempiereApi(`/models/c_invoice/${invoiceId}?$select=DateInvoiced`);
+            invDate = toDateOnly(inv?.DateInvoiced);
+          } catch { /* fallback hari ini */ }
+        }
+        setDateInvoiced(invDate || todayLocalISO());
         const bankAccId = fkId(editInvoice.C_BankAccount_ID) ?? editInvoice.C_BankAccount_ID?.id ?? null;
         if (bankAccId) setBankAccountId(bankAccId);
   
@@ -244,6 +252,7 @@ const SalesInvoiceContainer = () => {
     setEditInvoiceId(null);
     setEditInvoiceDocNo(null);
     setEditInvoiceStatus(null);
+    setDateInvoiced(todayLocalISO());
   }, [clearCart, setCustomer]);
   
   const handleImportFromShipment = (chosenLines) => addItems(chosenLines);
@@ -576,13 +585,18 @@ const SalesInvoiceContainer = () => {
       alert('Pilih rekening bank dulu sebelum submit invoice.', 'Data Belum Lengkap');
       return;
     }
+    if (!dateInvoiced) {
+      alert('Tanggal invoice belum diisi.', 'Data Belum Lengkap');
+      return;
+    }
     const result = await submitInvoice(cart, {
       customerId:         customer.C_BPartner_ID,
       customerLocationId: customer.locationId,
       customerName:       customer.Name,
       bankAccountId,
+      dateInvoiced,          // ← BARU
       submitMode,
-      editInvoiceId,   // null di mode normal, terisi di mode edit
+      editInvoiceId,
     });
     if (!result) return;
   
@@ -598,9 +612,13 @@ const SalesInvoiceContainer = () => {
     setEditInvoiceId(null);
     setEditInvoiceDocNo(null);
     setEditInvoiceStatus(null);
+    setDateInvoiced(todayLocalISO());
   };
 
-  const cartSummaryRight = customer?.Name ? `👤 ${customer.Name}` : '👤 Belum dipilih';
+  const isNotToday = dateInvoiced !== todayLocalISO();
+  const cartSummaryRight =
+    (customer?.Name ? `👤 ${customer.Name}` : '👤 Belum dipilih') +
+    (isNotToday && dateInvoiced ? ` · 📅 ${formatDateID(dateInvoiced)}` : '');
 
   return (
     <div style={{
@@ -647,25 +665,26 @@ const SalesInvoiceContainer = () => {
         isOpen={scannerOpen}
         onDetected={handleBarcodeDetected}
         onClose={() => setScannerOpen(false)}
-      />
-
-      {/* Top Bar — tanpa tombol Pilih Customer lagi, search inline dipindah ke bawah */}
-      <div className="header-purchasing">
+      />     
+      {/* Top Bar + Customer Search + Description + Bank + Tanggal Invoice */}
+      <div
+        className="header-purchasing"
+        style={{
+          display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px',
+          height: 'auto', minHeight: '48px', padding: '6px 14px',
+          overflow: 'visible', position: 'relative', zIndex: 20, // supaya dropdown customer tidak terpotong
+        }}
+      >
         <span style={{
-          color: '#fff', fontWeight: 700, fontSize: '15px', flex: 1,
+          color: '#fff', fontWeight: 700, fontSize: '15px', flexShrink: 0,
           display: 'inline-flex', alignItems: 'center', gap: '6px',
         }}>
           <ShoppingCartIcon />
           <span>Sales Invoice</span>
         </span>
-      </div>
-
-      {/* Customer Search + Description — inline, pola GoodsReceiptContainer */}
-      <div style={{
-        padding: '10px 14px', background: COLOR.surface, borderBottom: `1px solid ${COLOR.border}`,
-        display: 'flex', gap: '10px', alignItems: 'flex-start', flexWrap: 'wrap', flexShrink: 0,
-      }}>
-        <div ref={customerBoxRef} style={{ position: 'relative', flex: 1, minWidth: '200px', maxWidth: '360px' }}>
+      
+        {/* Customer search inline */}
+        <div ref={customerBoxRef} style={{ position: 'relative', flex: '1 1 200px', minWidth: '180px', maxWidth: '320px' }}>
           <input
             type="text"
             value={customerQuery}
@@ -678,10 +697,10 @@ const SalesInvoiceContainer = () => {
             onFocus={() => setCustomerOpen(true)}
             placeholder="Cari customer..."
             style={{
-              width: '100%', boxSizing: 'border-box', padding: '8px 10px',
-              border: `1.5px solid ${customer ? COLOR.success : COLOR.border}`,
-              borderRadius: RADIUS.sm, fontSize: '13px', outline: 'none',
-              background: '#fff',
+              width: '100%', boxSizing: 'border-box', padding: '6px 28px 6px 10px',
+              border: `1.5px solid ${customer ? COLOR.success : 'rgba(255,255,255,0.3)'}`,
+              borderRadius: RADIUS.sm, fontSize: '12px', outline: 'none', background: '#fff',
+              color: COLOR.textDk,
             }}
           />
           {customer && (
@@ -694,7 +713,7 @@ const SalesInvoiceContainer = () => {
               }}
             >✕</button>
           )}
-
+      
           {customerOpen && customerQuery && !customer && (
             <div style={{
               position: 'absolute', top: '100%', left: 0, right: 0, marginTop: '4px',
@@ -721,28 +740,29 @@ const SalesInvoiceContainer = () => {
             </div>
           )}
         </div>
-
-        {/* Description invoice-level, pindahan dari SICartSidebar */}
+      
+        {/* Description invoice-level */}
         <input
           type="text"
           value={description}
           onChange={e => setDescription(e.target.value)}
           placeholder={SALES_INVOICE_CONFIG.DESCRIPTION}
           style={{
-            flex: 1, minWidth: '200px', boxSizing: 'border-box', padding: '8px 10px',
-            border: `1.5px solid ${COLOR.border}`, borderRadius: RADIUS.sm,
-            fontSize: '13px', color: COLOR.textDk, outline: 'none', background: '#fff',
+            flex: '1 1 180px', minWidth: '160px', maxWidth: '280px', boxSizing: 'border-box',
+            padding: '6px 10px', border: '1.5px solid rgba(255,255,255,0.3)',
+            borderRadius: RADIUS.sm, fontSize: '12px', color: COLOR.textDk, outline: 'none', background: '#fff',
           }}
         />
-        {/* Pilih C_BankAccount_ID, wajib sebelum submit */}
+      
+        {/* Rekening bank, wajib sebelum submit */}
         {supportsBankAccount && (
           <select
             value={bankAccountId ?? ''}
             onChange={e => setBankAccountId(e.target.value ? parseInt(e.target.value, 10) : null)}
             style={{
-              minWidth: '180px', boxSizing: 'border-box', padding: '8px 10px',
-              border: `1.5px solid ${bankAccountId ? COLOR.success : COLOR.border}`,
-              borderRadius: RADIUS.sm, fontSize: '13px', color: COLOR.textDk,
+              minWidth: '160px', boxSizing: 'border-box', padding: '6px 10px',
+              border: `1.5px solid ${bankAccountId ? COLOR.success : 'rgba(255,255,255,0.3)'}`,
+              borderRadius: RADIUS.sm, fontSize: '12px', color: COLOR.textDk,
               outline: 'none', background: '#fff',
             }}
           >
@@ -756,7 +776,28 @@ const SalesInvoiceContainer = () => {
             ))}
           </select>
         )}
-        
+      
+        {/* Tanggal Invoice — paling kanan */}
+        <input
+          type="date"
+          value={dateInvoiced}
+          onChange={e => setDateInvoiced(e.target.value)}
+          onBlur={e => { if (!e.target.value) setDateInvoiced(todayLocalISO()); }}
+          title="Tanggal Invoice (DateInvoiced)"
+          style={{
+            marginLeft: 'auto',
+            background: isNotToday ? 'rgba(251,191,36,0.30)' : 'rgba(255,255,255,0.18)',
+            border: `1px solid ${isNotToday ? '#fbbf24' : 'rgba(255,255,255,0.3)'}`,
+            borderRadius: '20px',
+            padding: '3px 10px',
+            fontSize: '11px',
+            color: '#e0eaff',
+            cursor: 'pointer',
+            outline: 'none',
+            maxWidth: isDesktop ? '150px' : '125px',
+            colorScheme: 'dark',
+          }}
+        />
       </div>
       {loadingEditInvoice && (
         <div style={{
