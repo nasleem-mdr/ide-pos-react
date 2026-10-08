@@ -14,14 +14,15 @@ export function useSalesInvoiceSubmit({ invoiceDocTypeId, description, onError, 
   const [progressStep, setProgressStep] = useState(null);
 
   const submit = useCallback(async (cart, {
-    customerId,
-    customerLocationId,
-    customerName,
-    bankAccountId,
-    paymentRule = 'P',
-    submitMode = 'complete',
-    editInvoiceId = null,   // ⬅️ BARU — null = create baru, terisi = update existing
-  } = {}) => {
+      customerId,
+      customerLocationId,
+      customerName,
+      bankAccountId,
+      dateInvoiced,          
+      paymentRule = 'P',
+      submitMode = 'complete',
+      editInvoiceId = null,
+    } = {}) => {
     if (cart.length === 0) {
       onError?.('Keranjang penjualan masih kosong!');
       return null;
@@ -43,7 +44,7 @@ export function useSalesInvoiceSubmit({ invoiceDocTypeId, description, onError, 
     const created = { invoiceId: isEditMode ? editInvoiceId : null };
 
     try {
-      const todayISO = new Date().toISOString().split('T')[0];
+      const effectiveDate = dateInvoiced || todayLocalISO();
       const trimmedDescription = (description || '').trim();
 
       setProgressStep('invoice');
@@ -78,6 +79,8 @@ export function useSalesInvoiceSubmit({ invoiceDocTypeId, description, onError, 
           C_BPartner_ID: { id: parseInt(customerId) },
           C_BPartner_Location_ID: { id: parseInt(customerLocationId) },
           PaymentRule: paymentRule,
+          DateInvoiced: effectiveDate,
+          DateAcct:     effectiveDate,
         };
         if (trimmedDescription) headerPayload.POReference = trimmedDescription;
         if (hasBankAccount) {
@@ -155,7 +158,8 @@ export function useSalesInvoiceSubmit({ invoiceDocTypeId, description, onError, 
           C_DocTypeTarget_ID: { id: invoiceDocTypeId },
           C_BPartner_ID: { id: parseInt(customerId) },
           C_BPartner_Location_ID: { id: parseInt(customerLocationId) },
-          DateInvoiced:  todayISO,
+          DateInvoiced:  effectiveDate,
+          DateAcct:      effectiveDate,
           IsSOTrx:       true,
           PaymentRule:   paymentRule,
         };
@@ -178,12 +182,12 @@ export function useSalesInvoiceSubmit({ invoiceDocTypeId, description, onError, 
           const uom = item.selectedUom || { C_UOM_ID: item.C_UOM_ID, multiplyRate: 1 };
           const qtyEntered = parseFloat(item.Qty);
           const qtyInvoiced = qtyEntered * (uom.multiplyRate || 1);
-          const toIdempiereTimestamp = (dateInput) => {
-            if (!dateInput) return null;
-            const d = dateInput instanceof Date ? dateInput : new Date(dateInput);
-            if (isNaN(d)) return null;
-            return d.toISOString().replace(/\.\d{3}Z$/, 'Z'); // "2026-08-20T00:00:00Z"
-          };
+          // const toIdempiereTimestamp = (dateInput) => {
+          //   if (!dateInput) return null;
+          //   const d = dateInput instanceof Date ? dateInput : new Date(dateInput);
+          //   if (isNaN(d)) return null;
+          //   return d.toISOString().replace(/\.\d{3}Z$/, 'Z'); // "2026-08-20T00:00:00Z"
+          // };
 
           await idempiereApi('/models/c_invoiceline', {
             method: 'POST',
