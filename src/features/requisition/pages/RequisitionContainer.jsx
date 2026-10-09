@@ -494,7 +494,7 @@ useEffect(() => {
               fontWeight: 500,
               color: '#374151',
               outline: 'none',
-              colorScheme: 'dark',
+              colorScheme: 'light',
               cursor: 'pointer',
             }}
           />
@@ -531,7 +531,7 @@ useEffect(() => {
               padding: '2px 0',
               fontSize: '11px',
               fontWeight: 500,
-              color: '#fff',
+              color: '#374151',
               cursor: warehouses.length <= 1 ? 'default' : 'pointer',
               outline: 'none',
               maxWidth: isDesktop ? '160px' : '110px',
@@ -599,7 +599,7 @@ useEffect(() => {
 
           {/* Search bar */}
           <div style={{
-            padding: '12px 14px', background: COLOR.surface,
+            padding: '10px 50px 10px 30px', background: COLOR.surface,
             borderBottom: `1px solid ${COLOR.border}`,
             display: 'flex', gap: '8px', alignItems: 'center', flexShrink: 0,
           }}>

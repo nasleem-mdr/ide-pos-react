@@ -1,5 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { UserIcon, RoleIcon, LogoIconW, LogoutIcon } from '@/shared/components';
+import { 
+  UserIcon, 
+  RoleIcon, 
+  LogoIconW, 
+  LogoutIcon, 
+  NotificationIcon, 
+} from '@/shared/components';
+
 import { useUserAvatar } from '@/shared/hooks/useUserAvatar';
 import ChangeRoleModal from './ChangeRoleModal';
 import { useNavigate, Link } from "react-router-dom";
@@ -68,7 +75,7 @@ export default function Header({ session, onLogout, onSessionUpdate }) {
  
       {/* Session Info — Sisi Kanan */}
       <div className="header-session">
-       <div className="header-divider" />
+       {/*<div className="header-divider" />*/}
 
         {/* 2. Notifikasi Approval Pending */}
         <Link
@@ -77,11 +84,8 @@ export default function Header({ session, onLogout, onSessionUpdate }) {
           title={pendingCount > 0 ? `${pendingCount} approval menunggu` : 'Tidak ada approval pending'}
           aria-label={`Workflow approval, ${pendingCount} pending`}
         >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff"
-              strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
-            <path d="M13.7 21a2 2 0 0 1-3.4 0" />
-          </svg>
+          <NotificationIcon />
+          
           {pendingCount > 0 && (
             <span className="header-notif-badge">
               {pendingCount > 99 ? '99+' : pendingCount}

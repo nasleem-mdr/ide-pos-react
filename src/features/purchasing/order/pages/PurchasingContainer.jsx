@@ -683,7 +683,7 @@ useEffect(() => {
       {/* Top Bar */}
       <div className='header-content'>
       <span style={{ 
-        color: '#fff', 
+        color: '#000', 
         fontWeight: 700, 
         fontSize: '15px', 
         flex: 1,
@@ -709,7 +709,7 @@ useEffect(() => {
             style={{
               fontSize: '10px',
               fontWeight: 600,
-              color: 'rgba(224,234,255,0.75)',
+              color: '#000',
               textTransform: 'uppercase',
               letterSpacing: '0.4px',
               whiteSpace: 'nowrap',
@@ -728,7 +728,7 @@ useEffect(() => {
               border: 'none',            
               padding: '2px 4px',
               fontSize: '11px',
-              color: '#e0eaff',
+              color: '#000f',
               cursor: (warehouses.length <= 1 || !!editOrderId) ? 'default' : 'pointer',
               outline: 'none',
               maxWidth: isDesktop ? '160px' : '110px',
@@ -758,7 +758,7 @@ useEffect(() => {
             style={{
               fontSize: '10px',
               fontWeight: 600,
-              color: 'rgba(224,234,255,0.75)',
+              color: '#000',
               textTransform: 'uppercase',
               letterSpacing: '0.4px',
               whiteSpace: 'nowrap',
@@ -779,11 +779,10 @@ useEffect(() => {
                 border: `0px solid ${isNotToday ? '#fbbf24' : 'rgba(255,255,255,0.3)'}`,
                 padding: '2px 4px',
                 fontSize: '11px',
-                color: '#e0eaff',
+                color: '#000',
                 cursor: (warehouses.length <= 1 || !!editOrderId) ? 'default' : 'pointer',
                 outline: 'none',
                 maxWidth: isDesktop ? '160px' : '110px',
-                colorScheme: 'dark',
               }}
             />
         </div>
