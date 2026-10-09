@@ -71,7 +71,7 @@ export default function WorkflowApprovalContainer() {
   return (
     <div className="wf-page">
       
-      <header className="header-purchasing">
+      <header className="header-content">
         <span
           style={{
             color: '#fff',

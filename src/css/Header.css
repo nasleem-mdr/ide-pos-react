@@ -2,69 +2,32 @@
 
 .header {
     display: flex;
+    justify-content: space-between; 
     align-items: center;
     gap: 12px;
     height: 50px;
     padding: 24px;
     background:#161b22;
-    border-bottom: 1px solid #1e2230;
+    border-bottom: 5px solid #00d1b2;
     position: sticky;
     top: 0;
     margin-top: 18px;
     z-index: 100;
   }
-  .header-purchasing {
+  .header-content {
     display: flex;
     align-items: center;
     gap: 12px;
     height: 50px;
     padding: 24px;
-    background:#03b15f;
-    border-bottom: 1px solid #1e2230;
+    background: #b7c0cc;
+    border-bottom: 4px solid #161b22;
     position: sticky;
     top: 0;
-    margin-top: 18px;
+    margin-top: 0px;
     z-index: 10;
   }
-  .header-invoicing {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    height: 50px;
-    padding: 24px;
-    background:#142ae9;
-    border-bottom: 1px solid #1e2230;
-    position: sticky;
-    top: 0;
-    margin-top: 18px;
-    z-index: 10;
-  }
-  .header-pos {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    height: 50px;
-    padding: 24px;
-    background:#1d03b1;
-    border-bottom: 1px solid #1e2230;
-    position: sticky;
-    top: 0;
-    margin-top: 18px;
-    z-index: 10;
-  }
-  .header-shipment {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    height: 50px;
-    padding: 24px;
-    background:#8ea702;
-    border-bottom: 1px solid #1e2230;
-    position: sticky;
-    top: 0;
-    margin-top: 18px;
-    z-index: 10;
-  }
+  
   .page-header-left {
     display: flex;
     gap: 8px; /* Ubah jadi 0px jika ingin benar-benar dempet tanpa jarak */
@@ -121,11 +84,10 @@
   .header-session {
     display: flex;
     align-items: center;
-    gap: 4px;
-    flex: 1;
-    justify-content: center;
+    gap: 8px; /* Sesuaikan jarak antar elemen */
+    margin-left: auto; /* Memastikan dorongan penuh ke kanan */
+    justify-content: flex-end; /* Rata Kanan */
   }
-  
   .header-info-item {
     display: flex;
     align-items: center;

@@ -43,7 +43,7 @@ const GoodsReceiptList = () => {
         setSelected((prev) => {
             const next = new Map(prev);
             if (next.has(g._goodsreceiptId)) next.delete(g._goodsreceiptId);
-            else next.set(g._orderId, toDocItem(g));
+            else next.set(g._goodsreceiptId, toDocItem(g));
             return next;
         });
     const handleDocActionDone = () => {

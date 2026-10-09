@@ -762,7 +762,7 @@ const SalesOrderContainer = () => {
                 shipmentDocNo={successModal?.shipmentDocNo}
                 logoDataUrl={orgInfo?.logoUrl}
             />
-             <div className="header-shipment">
+             <div className="header-content">
                 <span style={{
                 color: '#fff', fontWeight: 700, fontSize: '15px', flex: 1,
                 display: 'inline-flex', alignItems: 'center', gap: '6px',

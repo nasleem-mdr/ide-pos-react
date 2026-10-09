@@ -668,7 +668,7 @@ const SalesInvoiceContainer = () => {
       />     
       {/* Top Bar + Customer Search + Description + Bank + Tanggal Invoice */}
       <div
-        className="header-invoicing"
+        className="header-content"
         style={{
           display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px',
           height: 'auto', minHeight: '48px', padding: '6px 14px',

@@ -5,7 +5,15 @@ const idOf    = (v) => (v && typeof v === "object" ? v.id : v);
 const labelOf = (v) => (v && typeof v === "object" ? v.identifier : v);
 const isTrue  = (v) => v === true || v === "Y" || v === "true";
 const toNum   = (v) => (v === null || v === undefined || v === "" ? null : Number(idOf(v)));
-
+const cleanNote = (raw) => {
+    if (!raw) return null;
+    const cleaned = String(raw)
+        .replace(/\bIsApproved\s*=\s*[YN]\b\s*-?\s*/gi, "")  // "IsApproved=Y - "
+        .replace(/\s+/g, " ")                                // rapikan spasi / baris baru
+        .replace(/^[\s-]+|[\s-]+$/g, "")                     // buang strip sisa di ujung
+        .trim();
+    return cleaned || null;
+};
 const tableIdCache = new Map();
 const chunk = (arr, n) => {
     const out = [];
@@ -161,7 +169,7 @@ async function fetchProgress({ tableName, tableId, recordId, fallbackWorkflowId 
                 actor: i?.user || null,
                 responsible: i?.responsible || labelOf(node.AD_WF_Responsible_ID) || null,
                 time: i?.time || null,
-                text: i?.text || null,
+                text: cleanNote(i?.text),
             };
         });
 

@@ -1,20 +1,63 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 
-import {Dialog, CartFab, ProductCard, ProductDetailSheet, BarcodeScanner,HomeIcon, ImportIcon, ShoppingCartIcon, ScanIcon }from '@/shared/components';
+import {
+  Dialog, 
+  CartFab, 
+  ProductCard, 
+  ProductDetailSheet, 
+  BarcodeScanner,
+  ImportIcon, 
+  ShoppingCartIcon,
+  ScanIcon, 
+}from '@/shared/components';
 
-import { useIsDesktop, useBankAccounts, useUomConversion, getLoginInfo, getMissingSessionFields } from '@/shared/hooks';
-import { VendorPickerModal, RequisitionToPOImportModal, PurchaseOrderSuccessModal, PurchaseSubmitModal, CashPurchaseProgressModal } from '@/features/purchasing/order/components';
-import { POCartSidebar, POCartPanel } from '@/features/purchasing/shared/components';
-import { useCashPurchaseSubmit, usePurchaseOrderSubmit } from '@/features/purchasing/order/hooks';
+import { 
+  useIsDesktop, 
+  useBankAccounts, 
+  useUomConversion, 
+  getLoginInfo, 
+  getMissingSessionFields,
+  sessionFieldLabel,
+} from '@/shared/hooks';
 
-import { useProductSearch, usePOCart, lineKey, useProductVendorInfo } from '@/shared/hooks';
+import { 
+  VendorPickerModal, 
+  RequisitionToPOImportModal, 
+  PurchaseOrderSuccessModal, 
+  PurchaseSubmitModal,
+  CashPurchaseProgressModal, 
+} from '@/features/purchasing/order/components';
+
+import { 
+  POCartSidebar, 
+  POCartPanel 
+} from '@/features/purchasing/shared/components';
+import { 
+  useCashPurchaseSubmit, 
+  usePurchaseOrderSubmit 
+} from '@/features/purchasing/order/hooks';
+
+import { 
+  useProductSearch, 
+  usePOCart, 
+  lineKey, 
+  useProductVendorInfo 
+} from '@/shared/hooks';
 
 import { useAccess } from '@/context/AccessContext';
 import { COLOR, RADIUS } from '@/utils/styleTokens';
 import { idempiereApi, fkId } from '@/api/idempiereApi';
-import { resolveDocTypeId, DOC_BASE_TYPE } from '@/utils/docTypeResolver';
-import { todayLocalISO, toDateOnly, formatDateID } from '@/utils/dateOnly';
+import { 
+  resolveDocTypeId, 
+  DOC_BASE_TYPE 
+} from '@/utils/docTypeResolver';
+
+import { 
+  todayLocalISO, 
+  toDateOnly, 
+  formatDateID 
+} from '@/utils/dateOnly';
 
 import '@/css/Header.css';
 
@@ -179,10 +222,13 @@ useEffect(() => {
     try {
       const info = getLoginInfo();
       const missing = getMissingSessionFields(info);
-      if (missing.length) {
-        alert(`Data sesi tidak lengkap:\n${missing.map(k => `• ${k}`).join('\n')}\n\nSilakan login kembali.`, 'Sesi Tidak Valid');
-        return;
-      }
+        if (missing.length) {
+          alert(
+            `Data sesi tidak lengkap:\n${missing.map(k => `• ${sessionFieldLabel(k)}`).join('\n')}\n\nSilakan login kembali.`,
+            'Sesi Tidak Valid'
+          );
+          return;
+        }
 
       try {
         const [poDt, receiptDt, invoiceDt, paymentDt] = await Promise.all([
@@ -635,7 +681,7 @@ useEffect(() => {
       />
 
       {/* Top Bar */}
-      <div className='header-purchasing'>
+      <div className='header-content'>
       <span style={{ 
         color: '#fff', 
         fontWeight: 700, 

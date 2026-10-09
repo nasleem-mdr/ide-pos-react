@@ -1006,7 +1006,7 @@ const POSContainer = () => {
                 onConfirm={dialog.mode === "confirm" ? handleDialogConfirm : null}
                 onCancel={closeDialog}
             />
-            <div className="header-pos">
+            <div className="header-content">
                 <span style={{
                 color: '#fff', fontWeight: 700, fontSize: '15px', flex: 1,
                 display: 'inline-flex', alignItems: 'center', gap: '6px',

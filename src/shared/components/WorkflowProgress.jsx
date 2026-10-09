@@ -1,15 +1,43 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useLayoutEffect, useMemo } from "react";
 import { useWorkflowProgress } from "@/shared/hooks/useWorkflowProgress";
 
 const COLORS = {
     done:    { bg: "#808000", fg: "#000" },
     current: { bg: "#f57c00", fg: "#fff" },
-    aborted: { bg: "#c62828", fg: "#fff" },
+    aborted: { bg: "#ff3333", fg: "#fff" },
     pending: { bg: "#d4d4d4", fg: "#666" },
 };
+const REJECT_COLOR = "#ff3333";
 const STATUS_TEXT = { done: "Selesai", current: "Menunggu", aborted: "Ditolak / Dihentikan", pending: "Belum dijalankan" };
 
 const fmtTime = (t) => (t ? new Date(t).toLocaleString("id-ID") : "-");
+
+// ---------- deteksi penolakan ----------
+// Dokumen dianggap ditolak bila DocStatus = NA, ada node berstatus aborted,
+// atau instance workflow berstatus CA/CT. Node penolak = node aborted; kalau
+// tidak ada, node User Choice (Y/N) terakhir yang sudah dijalankan; kalau
+// tidak ada juga, node terakhir yang sudah dijalankan.
+function applyRejection(steps, docStatus, wfState) {
+    const rejected =
+        docStatus === "NA" ||
+        steps.some((x) => x.status === "aborted") ||
+        ["CA", "CT"].includes(wfState);
+    if (!rejected) return { steps, rejected: false, rejectIdx: -1 };
+
+    let idx = steps.findIndex((x) => x.status === "aborted");
+    if (idx < 0) {
+        for (let i = steps.length - 1; i >= 0; i--) {
+            if (steps[i].isChoice && steps[i].status !== "pending") { idx = i; break; }
+        }
+    }
+    if (idx < 0) {
+        for (let i = steps.length - 1; i >= 0; i--) {
+            if (steps[i].status !== "pending") { idx = i; break; }
+        }
+    }
+    const next = steps.map((x, i) => (i === idx ? { ...x, status: "aborted" } : x));
+    return { steps: next, rejected: true, rejectIdx: idx };
+}
 
 // ---------- elemen grafik ----------
 const Connector = ({ active }) => (
@@ -52,17 +80,33 @@ const EndDoc = ({ status, label }) => {
 };
 
 // ---------- pesan status ----------
-function buildMessage(data, docStatus) {
-    const { process, steps } = data;
-    if (!process) return "Dokumen belum masuk ke workflow (belum diajukan).";
+function buildMessage(data, docStatus, steps, rejected, rejectIdx) {
+    const { process } = data;
+    if (!process) {
+        return ["CO", "CL"].includes(docStatus)
+            ? "Dokumen ini diproses langsung (tanpa approval workflow), sehingga tidak ada riwayat workflow."
+            : rejected
+                ? "Dokumen ditolak."
+                : "Dokumen belum masuk ke workflow (belum diajukan).";
+    }
     const wfState = process.WFState?.id ?? process.WFState;
-    const aborted = steps.find((x) => x.status === "aborted");
     const current = [...steps].reverse().find((x) => x.status === "current");
 
-    if (wfState === "CC") return "Workflow selesai — dokumen telah disetujui dan diproses.";
-    if (aborted || ["CA", "CT"].includes(wfState)) {
-        return `Workflow dihentikan${aborted ? ` pada langkah "${aborted.name}"` : ""}${aborted?.actor ? ` oleh ${aborted.actor}` : ""}.`;
+    if (rejected) {
+        const r = rejectIdx >= 0 ? steps[rejectIdx] : null;
+        const by     = r?.actor ? ` oleh ${r.actor}` : "";
+        const at     = r ? ` pada langkah "${r.name}"` : "";
+        const reason = (r?.text || "").replace(/\s+/g, " ").trim();
+        const why    = reason ? ` dengan alasan "${reason}"` : "";
+        return (
+            <>
+                {`Dokumen ditolak${by}${at}${why}.`}
+                <br />
+                Alur kembali ke Start — dokumen perlu direvisi dan diajukan ulang.
+            </>
+        );
     }
+    if (wfState === "CC") return "Workflow selesai — dokumen telah disetujui dan diproses.";
     if (current) {
         const who = current.responsible || current.actor;
         return current.isChoice
@@ -77,12 +121,48 @@ export const WorkflowProgressModal = ({ open, onClose, tableName, tableId, recor
     const { loading, error, data, reload } = useWorkflowProgress({
         tableName, tableId, recordId, fallbackWorkflowId, enabled: open,
     });
+
+    const wfState = data?.process?.WFState?.id ?? data?.process?.WFState;
+
+    // Status node setelah memperhitungkan penolakan
+    const view = useMemo(
+        () => (data ? applyRejection(data.steps, docStatus, wfState) : { steps: [], rejected: false, rejectIdx: -1 }),
+        [data, docStatus, wfState]
+    );
+    const showLoop = !!data && view.rejected && view.rejectIdx >= 0;
+
+    // Ukur posisi Start & node penolak supaya panah kembali bisa digambar
+    const flowRef   = useRef(null);
+    const startRef  = useRef(null);
+    const rejectRef = useRef(null);
+    const [loop, setLoop] = useState(null);
+
+    useLayoutEffect(() => {
+        if (!open || loading || !showLoop) { setLoop(null); return undefined; }
+        const measure = () => {
+            const f = flowRef.current, st = startRef.current, rj = rejectRef.current;
+            if (!f || !st || !rj) return;
+            setLoop({
+                x1: st.offsetLeft + st.offsetWidth / 2,
+                y1: st.offsetTop + st.offsetHeight + 3,
+                x2: rj.offsetLeft + rj.offsetWidth / 2,
+                y2: rj.offsetTop + rj.offsetHeight,
+                w:  f.scrollWidth,
+                h:  f.scrollHeight,
+            });
+        };
+        measure();
+        window.addEventListener("resize", measure);
+        return () => window.removeEventListener("resize", measure);
+    }, [open, loading, showLoop, data]);
+
     if (!open) return null;
 
     const startStatus = data?.process ? "done" : "pending";
-    const wfState     = data?.process?.WFState?.id ?? data?.process?.WFState;
-    const endStatus   = wfState === "CC" ? "done" : ["CA", "CT"].includes(wfState) || docStatus === "NA" ? "aborted" : "pending";
-    const endLabel    = endStatus === "aborted" && docStatus ? docStatus : targetStatus;
+    const endStatus   = view.rejected ? "aborted" : wfState === "CC" ? "done" : "pending";
+    const endLabel    = endStatus === "aborted"
+        ? (docStatus && docStatus !== "IP" ? docStatus : "NA")
+        : targetStatus;
 
     return (
         <div style={s.overlay} onClick={onClose}>
@@ -98,28 +178,67 @@ export const WorkflowProgressModal = ({ open, onClose, tableName, tableId, recor
                 <div style={s.body}>
                     {loading && <p>Memuat progress workflow...</p>}
                     {error && <p style={{ color: "#8b0000" }}>Gagal memuat: {error}</p>}
+                    {!loading && !error && !data && <p>Tidak ada data workflow.</p>}
 
                     {data && !loading && (
                         <>
                             {data.workflowName && <div style={s.wfName}>Workflow: {data.workflowName}</div>}
 
                             {/* Grafik */}
-                            <div style={s.flowRow}>
-                                <StartCircle status={startStatus} />
-                                {data.steps.map((st, i) => (
-                                    <React.Fragment key={st.id}>
-                                        <Connector active={st.status !== "pending"} />
-                                        <NodeBox step={st} />
-                                    </React.Fragment>
-                                ))}
-                                <Connector active={endStatus !== "pending"} />
-                                <EndDoc status={endStatus} label={endLabel} />
+                            <div style={{ overflowX: "auto" }}>
+                                <div
+                                    ref={flowRef}
+                                    style={{ ...s.flowRow, paddingBottom: showLoop ? 64 : 28 }}
+                                >
+                                    <div ref={startRef} style={{ flex: "0 0 auto" }}>
+                                        <StartCircle status={startStatus} />
+                                    </div>
+
+                                    {view.steps.map((st, i) => (
+                                        <React.Fragment key={st.id}>
+                                            <Connector active={st.status !== "pending"} />
+                                            <div
+                                                ref={showLoop && i === view.rejectIdx ? rejectRef : null}
+                                                style={{ flex: "0 0 auto" }}
+                                            >
+                                                <NodeBox step={st} />
+                                            </div>
+                                        </React.Fragment>
+                                    ))}
+
+                                    <Connector active={endStatus !== "pending"} />
+                                    <EndDoc status={endStatus} label={endLabel} />
+
+                                    {/* Panah putus-putus merah: dari node penolak kembali ke Start */}
+                                    {loop && (
+                                        <svg
+                                            width={loop.w}
+                                            height={loop.h}
+                                            style={{ position: "absolute", left: 0, top: 0, pointerEvents: "none" }}
+                                        >
+                                            <defs>
+                                                <marker id="wf-loop-arrow" viewBox="0 0 10 10" refX="5" refY="5"
+                                                    markerWidth="5" markerHeight="5" orient="auto">
+                                                    <path d="M 0 0 L 10 5 L 0 10 z" fill={REJECT_COLOR} />
+                                                </marker>
+                                            </defs>
+                                            <path
+                                                d={`M ${loop.x2} ${loop.y2} V ${Math.max(loop.y1, loop.y2) + 34} H ${loop.x1} V ${loop.y1 + 8}`}
+                                                fill="none"
+                                                stroke={REJECT_COLOR}
+                                                strokeWidth="3"
+                                                strokeDasharray="8 6"
+                                                markerEnd="url(#wf-loop-arrow)"
+                                            />
+                                        </svg>
+                                    )}
+                                </div>
                             </div>
 
-                            <p style={s.message}>{buildMessage(data, docStatus)}</p>
+                            <p style={s.message}>{buildMessage(data, docStatus, view.steps, view.rejected, view.rejectIdx)}</p>
 
                             {/* Perbandingan definisi workflow vs aktivitas */}
-                            {data.steps.length > 0 && (
+                            {view.steps.length > 0 && (
                                 <div style={{ overflowX: "auto" }}>
                                     <table style={s.table}>
                                         <thead>
@@ -129,10 +248,11 @@ export const WorkflowProgressModal = ({ open, onClose, tableName, tableId, recor
                                                 <th style={s.th}>Status Activity</th>
                                                 <th style={s.th}>Responsible / Oleh</th>
                                                 <th style={s.th}>Waktu</th>
+                                                <th style={s.th}>Catatan</th>
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {data.steps.map((st, i) => (
+                                            {view.steps.map((st, i) => (
                                                 <tr key={st.id}>
                                                     <td style={s.td}>{i + 1}</td>
                                                     <td style={s.td}>{st.name}{st.branch ? " (cabang)" : ""}</td>
@@ -143,6 +263,9 @@ export const WorkflowProgressModal = ({ open, onClose, tableName, tableId, recor
                                                     </td>
                                                     <td style={s.td}>{st.actor || st.responsible || "-"}</td>
                                                     <td style={s.td}>{fmtTime(st.time)}</td>
+                                                    <td style={{ ...s.td, maxWidth: 260, wordBreak: "break-word" }}>
+                                                        {(st.text || "").replace(/\s+/g, " ").trim() || "-"}
+                                                    </td>
                                                 </tr>
                                             ))}
                                         </tbody>
@@ -178,21 +301,23 @@ export const WorkflowProgressButton = ({ buttonStyle, label = "🔀 Progress", d
 const s = {
     btn: { background: "#6a1b9a", color: "#fff", border: "none", padding: "6px 14px", borderRadius: 6, fontWeight: "bold", fontSize: 12, cursor: "pointer" },
     overlay: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 12 },
-    modal: { background: "#fcfbfb", width: "min(900px, 100%)", maxHeight: "90vh", overflow: "auto", borderRadius: 4, boxShadow: "0 8px 30px rgba(0,0,0,.35)" },
+    modal: { background: "#f3f3f3", width: "min(900px, 100%)", maxHeight: "90vh", overflow: "auto", borderRadius: 4, boxShadow: "0 8px 30px rgba(0,0,0,.35)" },
     header: { background: "#cfcfcf", padding: "16px 20px", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 18 },
     closeBtn: { width: 36, height: 36, borderRadius: "50%", border: "none", background: "#444", color: "#fff", cursor: "pointer", fontSize: 16 },
     iconBtn: { width: 36, height: 36, borderRadius: "50%", border: "none", background: "#777", color: "#fff", cursor: "pointer", fontSize: 18 },
     body: { padding: "24px 28px" },
     wfName: { fontSize: 12, color: "#333", marginBottom: 12 },
-    flowRow: { display: "flex", alignItems: "center", overflowX: "auto", padding: "20px 0 28px" },
-    circle: { width: 68, height: 68, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flex: "0 0 auto" },
-    box: { minWidth: 120, padding: "14px 16px", borderRadius: 10, textAlign: "center", fontSize: 17, flex: "0 0 auto", maxWidth: 200, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
-    diamondWrap: { position: "relative", width: 70, height: 70, flex: "0 0 auto", display: "flex", alignItems: "center", justifyContent: "center" },
+    // position: relative + width: max-content supaya SVG panah ikut ter-scroll bersama grafik
+    flowRow: { position: "relative", display: "flex", alignItems: "center", width: "max-content", minWidth: "100%", padding: "30px 0 28px" },
+    circle: { width: 78, height: 78, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flex: "0 0 auto" },
+    box: { minWidth: 120, padding: "14px 16px", borderRadius: 10, textAlign: "center", fontSize: 17, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 200 },
+    diamondWrap: { position: "relative", width: 70, height: 70, display: "flex", alignItems: "center", justifyContent: "center" },
     diamond: { position: "absolute", width: 50, height: 50, transform: "rotate(45deg)", borderRadius: 3 },
     diamondText: { position: "relative", fontSize: 16 },
-    caption: { position: "absolute", top: "100%", marginTop: 6, fontSize: 11, color: "#333", whiteSpace: "nowrap" },
-    doc: { position: "relative", width: 48, height: 60, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, flex: "0 0 auto", borderRadius: 2 },
-    docFold: { position: "absolute", top: 0, right: 0, borderTop: "14px solid #777", borderLeft: "14px solid #b3b3b3" },
+    // caption di atas belah ketupat supaya tidak bertabrakan dengan panah kembali di bawahnya
+    caption: { position: "absolute", bottom: "100%", marginBottom: 4, fontSize: 11, color: "#333", whiteSpace: "nowrap" },
+    doc: { position: "relative", width: 52, height: 64, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, flex: "0 0 auto", borderRadius: 2 },
+    docFold: { position: "absolute", top: 0, right: 0, borderTop: "14px solid #777", borderLeft: "14px solid #f3f3f3" },
     message: { fontSize: 17, margin: "8px 0 20px", color: "#000" },
     table: { width: "100%", borderCollapse: "collapse", fontSize: 12, background: "#e6e6e6" },
     th: { textAlign: "left", padding: "8px 10px", background: "#999", color: "#fff" },

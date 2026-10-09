@@ -5,7 +5,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { useWorkflowPendingCount } from '@/shared/hooks/useWorkflowPendingCount';
 
 import '@/css/Header.css';
- 
+ 
 export default function Header({ session, onLogout, onSessionUpdate }) {
   const { username, clientName, clientId, roleName, roleId } = session;
   const [menuOpen, setMenuOpen] = useState(false);
@@ -24,7 +24,7 @@ export default function Header({ session, onLogout, onSessionUpdate }) {
     mq.addEventListener('change', handler);
     return () => mq.removeEventListener('change', handler);
   }, []);
- 
+ 
   // Tutup dropdown saat klik di luar area menu — hanya relevan untuk mode click (mobile).
   useEffect(() => {
     if (!menuOpen || !isTouchDevice) return;
@@ -40,7 +40,7 @@ export default function Header({ session, onLogout, onSessionUpdate }) {
       document.removeEventListener('touchstart', handleClickOutside);
     };
   }, [menuOpen, isTouchDevice]);
- 
+ 
   // Handler untuk trigger Role: click di mobile/touch, hover di desktop.
   const triggerProps = isTouchDevice
     ? { onClick: () => setMenuOpen((p) => !p) }
@@ -48,34 +48,25 @@ export default function Header({ session, onLogout, onSessionUpdate }) {
         onMouseEnter: () => setMenuOpen(true),
         onMouseLeave: () => setMenuOpen(false),
       };
- 
+ 
   return (
     <header className="header">
-      {/* Brand & Navigation */}
+      {/* Brand & Navigation — Mepet Ke Kiri */}
       <div className="header-left" style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-      </div>
- 
-      {/* Session Info */}
-      <div className="header-session">
-        
         <div className="header-info-item">
-        <button 
-          onClick={() => navigate('/dashboard')} 
-          style={{ cursor: 'pointer', background: 'none', border: 'none', padding: 0 }}
-          ><LogoIconW size={20}/>
+          <button 
+            onClick={() => navigate('/dashboard')} 
+            style={{ cursor: 'pointer', background: 'none', border: 'none', padding: 0 }}
+          >
+            <LogoIconW size={20}/>
           </button>
           <span className="header-info-value header-hide-mobile">Procure<em>Grid</em></span>
         </div>
-        <div className="header-divider header-hide-mobile" />
- 
-        <div className="header-info-item header-hide-mobile">
-          <UserIcon />
-          <span className="header-info-value">{username}</span>
-        </div>
- 
-        <div className="header-divider" />
-        
-        {/* Role + dropdown Ganti Role — hover di desktop, click di mobile/touch */}
+      </div>
+ 
+      {/* Session Info — Sisi Kanan */}
+      <div className="header-session">
+        {/* 1. Role + Dropdown Ganti Role */}
         <div
           className="header-role-wrap"
           ref={menuRef}
@@ -92,6 +83,11 @@ export default function Header({ session, onLogout, onSessionUpdate }) {
 
           {menuOpen && (
             <div className="header-dropdown">
+              {/* 3. User Info (Geser ke paling kanan) */}
+            <div className="header-info-item header-hide-mobile">
+              <UserIcon />
+              <span className="header-info-value">{username}</span>
+            </div>
               <button onClick={() => { setShowChangeRole(true); setMenuOpen(false); }}>
                 <RoleIcon />Change Role
               </button>
@@ -101,9 +97,10 @@ export default function Header({ session, onLogout, onSessionUpdate }) {
             </div>
           )}
         </div>
-         <div className="header-divider" />
 
-        {/* Notifikasi approval pending */}
+        <div className="header-divider" />
+
+        {/* 2. Notifikasi Approval Pending */}
         <Link
           to="/workflow-approval"
           className="header-notif"
@@ -121,7 +118,12 @@ export default function Header({ session, onLogout, onSessionUpdate }) {
             </span>
           )}
         </Link>
+
+        <div className="header-divider header-hide-mobile" />
+
+        
       </div>
+
       {/* Modal Ganti Role */}
       {showChangeRole && (
         <ChangeRoleModal

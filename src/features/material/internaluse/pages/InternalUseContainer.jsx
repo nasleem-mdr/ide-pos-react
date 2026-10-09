@@ -14,6 +14,7 @@ import {
 import { 
   getLoginInfo, 
   getMissingSessionFields, 
+  sessionFieldLabel,
   useProductStock, 
   useIsDesktop, 
   useProductSearch 
@@ -38,7 +39,7 @@ import { resolveDocTypeId, DOC_BASE_TYPE, DOC_SUB_TYPE_INV } from '@/utils/docTy
 import { useAccess } from '@/context/AccessContext';
 import '@/css/Header.css';
 
-const INTERNAL_USE_DESCRIPTION = 'Internal Use via Web';
+const INTERNAL_USE_DESCRIPTION = 'Internal Use';
 
 const InternalUseContainer = () => {
   const navigate  = useNavigate();
@@ -85,7 +86,10 @@ const InternalUseContainer = () => {
         const info = getLoginInfo();
         const missing = getMissingSessionFields(info);
         if (missing.length) {
-          alert(`Data sesi tidak lengkap:\n${missing.map(k => `• ${k}`).join('\n')}\n\nSilakan login kembali.`, 'Sesi Tidak Valid');
+          alert(
+            `Data sesi tidak lengkap:\n${missing.map(k => `• ${sessionFieldLabel(k)}`).join('\n')}\n\nSilakan login kembali.`,
+            'Sesi Tidak Valid'
+          );
           return;
         }
 
@@ -328,15 +332,15 @@ const InternalUseContainer = () => {
         onImport={handleImportFromPicker}
       />
 
-      <div className='header'>
+      <div className='header-content'>
       <span style={{ 
                  color: '#fff', 
                  fontWeight: 700, 
                  fontSize: '15px', 
                  flex: 1,
-                 display: 'inline-flex', /* Membuat isi di dalamnya (icon & teks) berjejer ke samping */
-                 alignItems: 'center',    /* Membuat icon dan teks sejajar secara vertikal (tinggi yang sama) */
-                 gap: '6px'              /* Memberikan jarak horizontal antara icon dan tulisan Requisition */
+                 display: 'inline-flex',
+                 alignItems: 'center', 
+                 gap: '6px'            
                }}>
                  <UserTake />
                  <span>Internal Use</span>

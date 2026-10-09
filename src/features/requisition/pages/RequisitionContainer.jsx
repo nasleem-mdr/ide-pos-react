@@ -16,7 +16,8 @@ import {
   useCart, 
   useProductSearch, 
   useIsDesktop,
-  useScannerInput 
+  useScannerInput,
+  sessionFieldLabel, 
 } from '@/shared/hooks'; 
 
 // 5. Shared Components
@@ -138,12 +139,12 @@ const RequisitionContainer = () => {
         const missing = getMissingSessionFields(info);
         if (missing.length) {
           alert(
-            `Data sesi tidak lengkap:\n${missing.map(k => `• ${k}`).join('\n')}\n\nSilakan login kembali.`,
+            `Data sesi tidak lengkap:\n${missing.map(k => `• ${sessionFieldLabel(k)}`).join('\n')}\n\nSilakan login kembali.`,
             'Sesi Tidak Valid'
           );
           return;
         }
-      try {
+        try {
             const dt = await resolveDocTypeId(DOC_BASE_TYPE.PURCHASE_REQUISITION, { orgId: info.orgId });
               setDocTypeId(dt);
             } catch (err) {
@@ -438,10 +439,10 @@ useEffect(() => {
       />
 
       {/* ── Top Bar ─────────────────────────────────────────────────────── */}
-      <div className='header-requisition'>
+      <div className='header-content'>
        
         <span style={{ 
-          color: '#fff', 
+          color: '#374151', 
           fontWeight: 700, 
           fontSize: '15px', 
           flex: 1,
@@ -452,7 +453,7 @@ useEffect(() => {
           <RequisitionIcon />
           <span>Requisition</span>
           {isSyncing && (
-            <span style={{ fontSize: '11px', fontWeight: 500, color: 'rgba(224,234,255,0.85)' }}>
+            <span style={{ fontSize: '11px', fontWeight: 500, color: '#374151' }}>
               (menyinkronkan offline...)
             </span>
           )}
@@ -474,7 +475,7 @@ useEffect(() => {
           <span style={{
             fontSize: '10px',
             fontWeight: 600,
-            color: 'rgba(224,234,255,0.75)',
+            color: '#374151',
             textTransform: 'uppercase',
             letterSpacing: '0.4px',
             whiteSpace: 'nowrap',
@@ -491,7 +492,7 @@ useEffect(() => {
               padding: '2px 0',
               fontSize: '11px',
               fontWeight: 500,
-              color: '#fff',
+              color: '#374151',
               outline: 'none',
               colorScheme: 'dark',
               cursor: 'pointer',
@@ -513,7 +514,7 @@ useEffect(() => {
           <span style={{
             fontSize: '10px',
             fontWeight: 600,
-            color: 'rgba(224,234,255,0.75)',
+            color: '#374151',
             textTransform: 'uppercase',
             letterSpacing: '0.4px',
             whiteSpace: 'nowrap',

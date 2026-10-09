@@ -43,7 +43,8 @@ import {
   useVendorSearch, 
   useProductSearch, 
   getLoginInfo, 
-  getMissingSessionFields
+  getMissingSessionFields,
+  sessionFieldLabel,
 } from '@/shared/hooks';
 
 import { useAccess } from '@/context/AccessContext';
@@ -65,7 +66,7 @@ import {
 import '@/css/Header.css';
 
 
-const GOODS_RECEIPT_DESCRIPTION = 'Goods Receipt via Web';
+const GOODS_RECEIPT_DESCRIPTION = 'Goods Receipt';
 
 const GoodsReceiptContainer = () => {
   const navigate   = useNavigate();
@@ -119,9 +120,11 @@ const GoodsReceiptContainer = () => {
       try {
         const info = getLoginInfo();
         const missing = getMissingSessionFields(info);
-
         if (missing.length) {
-          alert(`Data sesi tidak lengkap:\n${missing.map(k => `• ${k}`).join('\n')}\n\nSilakan login kembali.`, 'Sesi Tidak Valid');
+          alert(
+            `Data sesi tidak lengkap:\n${missing.map(k => `• ${sessionFieldLabel(k)}`).join('\n')}\n\nSilakan login kembali.`,
+            'Sesi Tidak Valid'
+          );
           return;
         }
 
@@ -339,15 +342,15 @@ const GoodsReceiptContainer = () => {
       />
 
       {/* Top Bar */}
-      <div className='header'>
+      <div className='header-content'>
         <span style={{ 
-          color: '#fff', 
+          color: '#374151', 
           fontWeight: 700, 
           fontSize: '15px', 
           flex: 1,
-          display: 'inline-flex', /* Membuat isi di dalamnya (icon & teks) berjejer ke samping */
-          alignItems: 'center',    /* Membuat icon dan teks sejajar secara vertikal (tinggi yang sama) */
-          gap: '6px'              /* Memberikan jarak horizontal antara icon dan tulisan Requisition */
+          display: 'inline-flex',
+          alignItems: 'center',  
+          gap: '6px'             
         }}>
         <DeliveryIcon />
         <span>Material Receipt</span>
@@ -367,7 +370,7 @@ const GoodsReceiptContainer = () => {
             style={{
               fontSize: '10px',
               fontWeight: 600,
-              color: 'rgba(224,234,255,0.75)',
+              color: '#374151',
               textTransform: 'uppercase',
               letterSpacing: '0.4px',
               whiteSpace: 'nowrap',
