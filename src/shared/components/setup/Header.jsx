@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { UserIcon, RoleIcon, LogoIconW, LogoutIcon } from '@/shared/components';
+import { useUserAvatar } from '@/shared/hooks/useUserAvatar';
 import ChangeRoleModal from './ChangeRoleModal';
 import { useNavigate, Link } from "react-router-dom";
 import { useWorkflowPendingCount } from '@/shared/hooks/useWorkflowPendingCount';
@@ -14,7 +15,8 @@ export default function Header({ session, onLogout, onSessionUpdate }) {
   const menuRef = useRef(null);
   const navigate = useNavigate();
   const { count: pendingCount } = useWorkflowPendingCount(roleId);
-  
+  const avatarUrl = useUserAvatar();
+ 
   // Deteksi apakah device mendukung hover asli (desktop/mouse) atau tidak
   // (mobile/touch). (hover: hover) + (pointer: fine) hanya true untuk mouse.
   useEffect(() => {
@@ -66,39 +68,7 @@ export default function Header({ session, onLogout, onSessionUpdate }) {
  
       {/* Session Info — Sisi Kanan */}
       <div className="header-session">
-        {/* 1. Role + Dropdown Ganti Role */}
-        <div
-          className="header-role-wrap"
-          ref={menuRef}
-          {...(!isTouchDevice ? triggerProps : {})}
-        >
-          <div
-            className="header-info-item"
-            style={{ cursor: 'pointer' }}
-            {...(isTouchDevice ? triggerProps : {})}
-          >
-            <RoleIcon />
-            <span className="header-info-value">{roleName}</span>
-          </div>
-
-          {menuOpen && (
-            <div className="header-dropdown">
-              {/* 3. User Info (Geser ke paling kanan) */}
-            <div className="header-info-item header-hide-mobile">
-              <UserIcon />
-              <span className="header-info-value">{username}</span>
-            </div>
-              <button onClick={() => { setShowChangeRole(true); setMenuOpen(false); }}>
-                <RoleIcon />Change Role
-              </button>
-              <button onClick={onLogout}>
-                <LogoutIcon />Logout
-              </button>
-            </div>
-          )}
-        </div>
-
-        <div className="header-divider" />
+       <div className="header-divider" />
 
         {/* 2. Notifikasi Approval Pending */}
         <Link
@@ -120,6 +90,45 @@ export default function Header({ session, onLogout, onSessionUpdate }) {
         </Link>
 
         <div className="header-divider header-hide-mobile" />
+        {/* 1. Role + Dropdown Ganti Role */}
+        <div
+          className="header-role-wrap"
+          ref={menuRef}
+          {...(!isTouchDevice ? triggerProps : {})}
+        >
+       <div
+         className="header-info-item"
+         style={{ cursor: 'pointer' }}
+         {...(isTouchDevice ? triggerProps : {})}
+       >
+         <div className="header-avatar" title={username}>
+           {avatarUrl ? (
+             <img src={avatarUrl} alt={username} />
+           ) : (
+             <UserIcon />
+           )}
+         </div>
+         <span className="header-info-value header-hide-mobile">{username}</span>
+       </div>
+
+          {menuOpen && (
+            <div className="header-dropdown">
+              {/* 3. User Info (Geser ke paling kanan) */}
+            <div className="header-info-item">
+              <RoleIcon />
+              <span className="header-info-value">{roleName}</span>
+            </div>
+              <button onClick={() => { setShowChangeRole(true); setMenuOpen(false); }}>
+                <RoleIcon />Change Role
+              </button>
+              <button onClick={onLogout}>
+                <LogoutIcon />Logout
+              </button>
+            </div>
+          )}
+        </div>
+
+        
 
         
       </div>
