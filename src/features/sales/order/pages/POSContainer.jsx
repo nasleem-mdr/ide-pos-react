@@ -986,21 +986,20 @@ const POSContainer = () => {
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '20px', fontFamily: 'Arial, sans-serif', height: '100vh', boxSizing: 'border-box', overflow: 'hidden' }}>
-
             <ConfirmModal
                 isOpen={dialog.isOpen}
                 title={dialog.title}
                 message={
-                    dialog.mode === "confirm" ? (
-                        <>
-                            Produk <strong>{dialog.product?.Name}</strong> tidak memiliki harga
-                            di Price List yang dipilih.<br /><br />
-                            Tetap tambahkan ke cart dengan harga Rp 0?
-                        </>
-                    ) : (
-                        <span style={{ whiteSpace: 'pre-line' }}>{dialog.message}</span>
-                    )
-                }
+                dialog.mode === "confirm" ? (
+            <>
+                Produk <strong>{dialog.product?.Name}</strong> tidak memiliki harga
+                di Price List yang dipilih.<br /><br />
+                Tetap tambahkan ke cart dengan harga Rp 0?
+            </>
+            ) : (
+                <span style={{ whiteSpace: 'pre-line' }}>{dialog.message}</span>
+            )
+            }
                 confirmLabel={dialog.mode === "confirm" ? "OK, Tambahkan" : null}
                 cancelLabel={dialog.mode === "confirm" ? "Batal" : "Tutup"}
                 onConfirm={dialog.mode === "confirm" ? handleDialogConfirm : null}
@@ -1008,22 +1007,22 @@ const POSContainer = () => {
             />
             <div className="header-content">
                 <span style={{
-                color: '#fff', fontWeight: 700, fontSize: '15px', flex: 1,
+                color: '#0c0000', fontWeight: 700, fontSize: '15px', flex: 1,
                 display: 'inline-flex', alignItems: 'center', gap: '6px',
                 }}>
                 <ShoppingCartIcon />
                 <span>POS Terminal</span>
                 </span>
                 {isDesktop && (
-                        <div style={{ display: 'flex', gap: '16px', color: '#fff', flexShrink: 0 }}>
-                            <span><strong>POS:</strong> {posConfig?.Name || '...'}</span>
-                            <span><strong>SalesRep:</strong> {posConfig?.SalesRep_ID?.id ?? posConfig?.SalesRep_ID ?? '-'}</span>
-                            <span><strong>Version:</strong> {currentVersionId
-                                ? <span style={{ color: '#2e7d32' }}>{currentVersionId}</span>
-                                : <span style={{ color: '#c62828' }}>Not Found</span>}
-                            </span>
-                        </div>
-                    )}
+                <div style={{ display: 'flex', gap: '16px', color: '#180101', flexShrink: 0 }}>
+                    <span><strong>POS:</strong> {posConfig?.Name || '...'}</span>
+                    <span><strong>SalesRep:</strong> {posConfig?.SalesRep_ID?.id ?? posConfig?.SalesRep_ID ?? '-'}</span>
+                    <span><strong>Version:</strong> {currentVersionId
+                        ? <span style={{ color: '#2e7d32' }}>{currentVersionId}</span>
+                        : <span style={{ color: '#c62828' }}>Not Found</span>}
+                    </span>
+                </div>
+                )}
             </div>
             {/* Config Bar */}
             <div style={{
@@ -1033,168 +1032,163 @@ const POSContainer = () => {
                 border: '1px solid #c5d0e8',
                 fontSize: '13px'
             }}>
-                <div style={{
-                    display: 'flex',
-                    alignItems: isDesktop ? 'center' : 'stretch',
-                    gap: isDesktop ? '24px' : '10px',
-                    flexWrap: 'wrap',
-                    flexDirection: isDesktop ? 'row' : 'column'
-                }}>
-                    
-
-                    <div style={{
-                        display: 'flex', alignItems: 'center', gap: '8px',
-                        flex: isDesktop ? 1 : undefined,
-                        width: isDesktop ? undefined : '100%',
-                        minWidth: isDesktop ? '200px' : undefined
-                    }}>
-                        <label style={{ fontWeight: 'bold', whiteSpace: 'nowrap', color: '#333' }}>Customer:</label>
-                        <select
-                            value={selectedBPartner?.id || ''}
-                            onChange={handleBPartnerChange}
-                            style={{ flex: 1, minWidth: 0, padding: '5px 8px', borderRadius: '6px', border: '1px solid #bbb', fontSize: '13px', background: selectedBPartner ? '#fff' : '#fff3f3', color: '#333' }}
-                        >
-                            <option value="">-- Pilih Customer --</option>
-                            {bPartnerList.map(bp => (
-                                <option key={bp.id} value={bp.id}>{bp.name}</option>
-                            ))}
-                        </select>
-                        {!selectedBPartner && (
-                            <span style={{ color: '#c62828', fontSize: '11px', whiteSpace: 'nowrap' }}>⚠ Wajib</span>
-                        )}
-                    </div>
-
-                    <div style={{
-                        display: 'flex', alignItems: 'center', gap: '8px',
-                        flex: isDesktop ? 1 : undefined,
-                        width: isDesktop ? undefined : '100%',
-                        minWidth: isDesktop ? '200px' : undefined
-                    }}>
-                        <label style={{ fontWeight: 'bold', whiteSpace: 'nowrap', color: '#333' }}>Price List:</label>
-                        <select
-                            value={selectedPriceList?.id || ''}
-                            onChange={handlePriceListChange}
-                            disabled={loading}
-                            style={{ flex: 1, minWidth: 0, padding: '5px 8px', borderRadius: '6px', border: '1px solid #bbb', fontSize: '13px', background: '#fff', color: '#333' }}
-                        >
-                            <option value="">-- Pilih Price List --</option>
-                            {priceListList.map(pl => (
-                                <option key={pl.id} value={pl.id}>{pl.name}</option>
-                            ))}
-                        </select>
-                    </div>
-                </div>
-            </div>
-
-            {/* Main Layout */}
             <div style={{
                 display: 'flex',
-                flexDirection: isDesktop ? 'row' : 'column',
-                gap: '0px',
-                flex: '1',
-                overflow: 'hidden'
-            }}>
-                {/* Kiri: Search + Product Grid */}
-                <div style={{
-                    flex: 1,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '0px',
-                    overflow: 'hidden',
-                    paddingRight: isDesktop ? '16px' : '0',
+                alignItems: isDesktop ? 'center' : 'stretch',
+                gap: isDesktop ? '24px' : '10px',
+                flexWrap: 'wrap',
+                flexDirection: isDesktop ? 'row' : 'column'
+            }}> 
+            <div style={{
+                display: 'flex', alignItems: 'center', gap: '8px',
+                flex: isDesktop ? 1 : undefined,
+                width: isDesktop ? undefined : '100%',
+                minWidth: isDesktop ? '200px' : undefined
                 }}>
-                    {isEditMode && (
-                        <div style={{
-                            backgroundColor: "#fff3e0", border: "1px solid #f57c00", borderRadius: "6px",
-                            padding: "8px 14px", marginBottom: "10px", fontSize: "13px",
-                            display: "flex", justifyContent: "space-between", alignItems: "center",
-                        }}>
-                            <span>✏️ <strong>Mode Edit</strong> — Draft Order ID: {editOrderId}</span>
-                            <button
-                                onClick={() => {
-                                    setIsEditMode(false);
-                                    setEditOrderId(null);
-                                    setCart([]);
-                                    navigate("/pos", { replace: true, state: {} });
-                                }}
-                                style={{ background: "none", border: "1px solid #f57c00", color: "#f57c00", borderRadius: "4px", padding: "3px 10px", cursor: "pointer", fontSize: "12px" }}
-                            >
-                                Batalkan Edit
-                            </button>
-                        </div>
-                    )}
-                    <div style={{ display: 'flex', gap: '8px', alignItems: 'stretch', marginBottom: '10px' }}>
-                        <div style={{ flex: 1, display: 'flex' }}>
-                            <SearchBar
-                                value={searchInput}
-                                onChange={handleSearchInputChange}
-                                onKeyDown={handleSearchKeyDown}
-                                inputRef={scanInputRef}
-                                disabled={versionMissing}
-                                placeholder="Cari nama / kode produk, atau scan barcode..."
-                            />
-                        </div>
-                        <button
-                            onClick={() => setScannerOpen(true)}
-                            title="Scan Barcode/QR"
-                            style={{
-                                background: '#1a237e', color: '#fff', border: 'none',
-                                borderRadius: '6px', width: '42px', height: '42px', flexShrink: 0,
-                                fontSize: '18px', cursor: 'pointer',
-                                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            }}
-                        ><ScanIcon /></button>
-                    </div>
-
-                    <ProductGrid
-                        products={products}
-                        loading={loading}
-                        loadingMore={loadingMore}
-                        hasMore={hasMore}
-                        fetchMore={loadMore}
-                        onProductClick={addToCart}
-                        isDesktop={isDesktop}
-                        CardComponent={ProductCard}
-                        emptyHint={versionMissing ? null : "Tidak ada produk ditemukan dengan harga aktif."}
+                <label style={{ fontWeight: 'bold', whiteSpace: 'nowrap', color: '#333' }}>Customer:</label>
+                <select
+                    value={selectedBPartner?.id || ''}
+                    onChange={handleBPartnerChange}
+                    style={{ flex: 1, minWidth: 0, padding: '5px 8px', borderRadius: '6px', border: '1px solid #bbb', fontSize: '13px', background: selectedBPartner ? '#fff' : '#fff3f3', color: '#333' }}
+                >
+                    <option value="">-- Pilih Customer --</option>
+                    {bPartnerList.map(bp => (
+                    <option key={bp.id} value={bp.id}>{bp.name}</option>
+                    ))}
+                </select>
+                {!selectedBPartner && (
+                <span style={{ color: '#c62828', fontSize: '11px', whiteSpace: 'nowrap' }}>⚠ Wajib</span>
+                )}
+            </div>
+            <div style={{
+                display: 'flex', alignItems: 'center', gap: '8px',
+                flex: isDesktop ? 1 : undefined,
+                width: isDesktop ? undefined : '100%',
+                minWidth: isDesktop ? '200px' : undefined
+                }}>
+                <label style={{ fontWeight: 'bold', whiteSpace: 'nowrap', color: '#333' }}>Price List:</label>
+                <select
+                    value={selectedPriceList?.id || ''}
+                    onChange={handlePriceListChange}
+                    disabled={loading}
+                    style={{ flex: 1, minWidth: 0, padding: '5px 8px', borderRadius: '6px', border: '1px solid #bbb', fontSize: '13px', background: '#fff', color: '#333' }}
+                >
+                    <option value="">-- Pilih Price List --</option>
+                    {priceListList.map(pl => (
+                    <option key={pl.id} value={pl.id}>{pl.name}</option>
+                    ))}
+                </select>
+            </div>
+        </div>
+    </div>
+    {/* Main Layout */}
+    <div style={{
+        display: 'flex',
+        flexDirection: isDesktop ? 'row' : 'column',
+        gap: '0px',
+        flex: '1',
+        overflow: 'hidden'
+        }}>
+        {/* Kiri: Search + Product Grid */}
+        <div style={{
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '0px',
+            overflow: 'hidden',
+            paddingRight: isDesktop ? '16px' : '0',
+            }}>
+            {isEditMode && (
+            <div style={{
+                backgroundColor: "#fff3e0", border: "1px solid #f57c00", borderRadius: "6px",
+                padding: "8px 14px", marginBottom: "10px", fontSize: "13px",
+                display: "flex", justifyContent: "space-between", alignItems: "center",
+                }}>
+                <span>✏️ <strong>Mode Edit</strong> — Draft Order ID: {editOrderId}</span>
+                <button
+                    onClick={() => {
+                    setIsEditMode(false);
+                    setEditOrderId(null);
+                    setCart([]);
+                    navigate("/pos", { replace: true, state: {} });
+                    }}
+                    style={{ background: "none", border: "1px solid #f57c00", color: "#f57c00", borderRadius: "4px", padding: "3px 10px", cursor: "pointer", fontSize: "12px" }}
+                >
+                    Batalkan Edit
+                </button>
+            </div>
+            )}
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'stretch', marginBottom: '10px' }}>
+                <div style={{ flex: 1, display: 'flex' }}>
+                    <SearchBar
+                        value={searchInput}
+                        onChange={handleSearchInputChange}
+                        onKeyDown={handleSearchKeyDown}
+                        inputRef={scanInputRef}
+                        disabled={versionMissing}
+                        placeholder="Cari nama / kode produk, atau scan barcode..."
                     />
                 </div>
-
-                {isDesktop ? (
-                    <CartSidebar
-                        cart={cart}
-                        onRemove={removeFromCart}
-                        onQtyChange={updateCartQty}
-                        onUomChange={updateCartUOM}
-                        onPriceChange={updateCartPrice}
-                        totalItems={cart.length}
-                        totalQty={cart.reduce((s, i) => s + i.Qty, 0)}
-                        summaryRight={`Rp ${calculateTotal().toLocaleString('id-ID')}`}
-                        title=" Cart"
-                        submitDraftLabel=" CASH"
-                        submitCompleteLabel=" PIUTANG"
-                        onSubmitDraft={handleCheckoutCash}
-                        onSubmitComplete={handleCheckoutAR}
-                        isSubmitting={isProcessingCheckout || isSettlingPayment || isProcessingAR}
-                        CartItemComponent={CartItemPOS}
-                    />
-                ) : (
-                    <>
-                        {cart.length > 0 && (
-                            <button
-                                onClick={() => setIsCartOpen(true)}
-                                style={{
-                                    position: 'fixed', bottom: '20px', left: '16px', right: '16px',
-                                    zIndex: 200, background: '#28a745', color: '#fff', border: 'none',
-                                    borderRadius: '12px', padding: '14px 18px', fontWeight: 700, fontSize: '15px',
-                                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                                    boxShadow: '0 4px 16px rgba(0,0,0,0.2)', cursor: 'pointer',
-                                }}
-                            >
-                                <span> {cart.length} item</span>
-                                <span>{calculateTotal().toLocaleString('id-ID')} · Lihat Cart</span>
-                            </button>
-                        )}
-                        <CartPanel
+                <button
+                    onClick={() => setScannerOpen(true)}
+                    title="Scan Barcode/QR"
+                    style={{
+                        background: '#1a237e', color: '#fff', border: 'none',
+                        borderRadius: '6px', width: '42px', height: '42px', flexShrink: 0,
+                        fontSize: '18px', cursor: 'pointer',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        }}
+                    ><ScanIcon />
+                </button>
+            </div>
+            <ProductGrid
+                products={products}
+                loading={loading}
+                loadingMore={loadingMore}
+                hasMore={hasMore}
+                fetchMore={loadMore}
+                onProductClick={addToCart}
+                isDesktop={isDesktop}
+                CardComponent={ProductCard}
+                emptyHint={versionMissing ? null : "Tidak ada produk ditemukan dengan harga aktif."}
+            />
+        </div>
+        {isDesktop ? (
+            <CartSidebar
+                cart={cart}
+                onRemove={removeFromCart}
+                onQtyChange={updateCartQty}
+                onUomChange={updateCartUOM}
+                onPriceChange={updateCartPrice}
+                totalItems={cart.length}
+                totalQty={cart.reduce((s, i) => s + i.Qty, 0)}
+                summaryRight={`Rp ${calculateTotal().toLocaleString('id-ID')}`}
+                title=" Cart"
+                submitDraftLabel=" CASH"
+                submitCompleteLabel=" PIUTANG"
+                onSubmitDraft={handleCheckoutCash}
+                onSubmitComplete={handleCheckoutAR}
+                isSubmitting={isProcessingCheckout || isSettlingPayment || isProcessingAR}
+                CartItemComponent={CartItemPOS}
+            />
+            ) : (
+            <>
+            {cart.length > 0 && (
+            <button
+                onClick={() => setIsCartOpen(true)}
+                style={{
+                    position: 'fixed', bottom: '20px', left: '16px', right: '16px',
+                    zIndex: 200, background: '#28a745', color: '#fff', border: 'none',
+                    borderRadius: '12px', padding: '14px 18px', fontWeight: 700, fontSize: '15px',
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    boxShadow: '0 4px 16px rgba(0,0,0,0.2)', cursor: 'pointer',
+                    }}
+            >
+                <span> {cart.length} item</span>
+                <span>{calculateTotal().toLocaleString('id-ID')} · Lihat Cart</span>
+            </button>
+            )}
+            <CartPanel
                             isOpen={isCartOpen}
                             onClose={() => setIsCartOpen(false)}
                             cart={cart}

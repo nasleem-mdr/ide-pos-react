@@ -334,21 +334,21 @@ const InternalUseContainer = () => {
 
       <div className='header-content'>
       <span style={{ 
-                 color: '#fff', 
-                 fontWeight: 700, 
-                 fontSize: '15px', 
-                 flex: 1,
-                 display: 'inline-flex',
-                 alignItems: 'center', 
-                 gap: '6px'            
-               }}>
-                 <UserTake />
-                 <span>Internal Use</span>
-               </span>
+        color: '#0e0101', 
+        fontWeight: 700, 
+        fontSize: '15px', 
+        flex: 1,
+        display: 'inline-flex',
+        alignItems: 'center', 
+        gap: '6px'            
+        }}>
+        <UserTake />
+          <span>Internal Use</span>
+        </span>
         <span style={{
           background: 'rgba(255,255,255,0.18)', borderRadius: '20px',
-          padding: '3px 10px', fontSize: '11px', color: '#e0eaff', whiteSpace: 'nowrap',
-        }}>
+          padding: '3px 10px', fontSize: '11px', color: '#020b1f', whiteSpace: 'nowrap',
+        }}>Warehouse : 
           {warehouseInfo?.name || '...'}
         </span>
       </div>

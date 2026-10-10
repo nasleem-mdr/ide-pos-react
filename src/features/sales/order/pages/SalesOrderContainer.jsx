@@ -737,7 +737,16 @@ const SalesOrderContainer = () => {
     if (loading && !warehouseInfo) return <p style={{ padding: '20px' }}>Loading Sales Order...</p>;
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '20px', fontFamily: 'Arial, sans-serif', height: '100vh', boxSizing: 'border-box', overflow: 'hidden' }}>
+        <div style={{ 
+            display: 'flex', 
+            flexDirection: 'column', 
+            gap: '16px', 
+            padding: '20px', 
+            fontFamily: 'Arial, sans-serif', 
+            height: '100vh', 
+            boxSizing: 'border-box',
+            overflow: 'hidden' 
+            }}>
 
             <ConfirmModal
                 isOpen={dialog.isOpen}
@@ -764,52 +773,90 @@ const SalesOrderContainer = () => {
             />
              <div className="header-content">
                 <span style={{
-                color: '#fff', fontWeight: 700, fontSize: '15px', flex: 1,
-                display: 'inline-flex', alignItems: 'center', gap: '6px',
+                color: '#080000', 
+                fontWeight: 700, 
+                fontSize: '15px', 
+                flex: 1,
+                display: 'inline-flex', 
+                alignItems: 'center', 
+                gap: '6px',
                 }}>
                 <DeliveryIcon />
                     <span>SO - Delivery</span>
                 </span>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: isDesktop ? 1 : undefined, width: isDesktop ? undefined : '100%', minWidth: isDesktop ? '180px' : undefined }}>
-                        <label style={{ fontWeight: 'bold', whiteSpace: 'nowrap', color: '#333' }}>Doc Type:</label>
-                        <select value={docTypeId || ''} onChange={handleDocTypeChange} style={{ flex: 1, minWidth: 0, padding: '5px 8px', borderRadius: '6px', border: '1px solid #bbb', fontSize: '13px' }}>
-                            <option value="">-- Pilih --</option>
-                            {salesDocTypes.map(dt => <option key={dt.id} value={dt.id}>{dt.name}</option>)}
-                        </select>
-                    </div>
-            </div>
-            {/* Config Bar */}
-            <div style={{ 
-                background: '#f0f4ff', 
-                padding: isDesktop ? '12px 16px' : '10px 12px', 
-                borderRadius: '1px', border: '1px solid #c5d0e8', 
-                fontSize: '13px' }}>
-                <div style={{ display: 'flex', alignItems: isDesktop ? 'center' : 'stretch', gap: isDesktop ? '16px' : '10px', flexWrap: 'wrap', flexDirection: isDesktop ? 'row' : 'column' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: isDesktop ? 1 : undefined, width: isDesktop ? undefined : '100%', minWidth: isDesktop ? '200px' : undefined }}>
-                        <label style={{ fontWeight: 'bold', whiteSpace: 'nowrap', color: '#333' }}>Customer:</label>
-                        <select value={selectedBPartner?.id || ''} onChange={handleBPartnerChange} style={{ flex: 1, minWidth: 0, padding: '5px 8px', borderRadius: '6px', border: '1px solid #bbb', fontSize: '13px', background: selectedBPartner ? '#fff' : '#fff3f3' }}>
-                            <option value="">-- Pilih Customer --</option>
-                            {bPartnerList.map(bp => <option key={bp.id} value={bp.id}>{bp.name}</option>)}
-                        </select>
-                        {!selectedBPartner && <span style={{ color: '#c62828', fontSize: '11px', whiteSpace: 'nowrap' }}>⚠ Wajib</span>}
-                    </div>
+                <div style={{ 
+                    display: 'flex', 
+                    alignItems: isDesktop ? 'center' : 'stretch', 
+                    gap: '8px', 
+                    flex: isDesktop ? 1 : undefined, width: isDesktop ? undefined : '100%', 
+                    minWidth: isDesktop ? '180px' : undefined 
+                    }}>
+                    <label style={{ 
+                        fontWeight: 'bold', 
+                        whiteSpace: 'nowrap', 
+                        color: '#333' 
+                        }}>Doc Type:
+                    </label>
+                    <select value={docTypeId || ''} onChange={handleDocTypeChange} style={{ 
+                        flex: 1, 
+                        minWidth: 0, 
+                        padding: '5px 8px', 
+                        borderRadius: '6px', 
+                        border: '1px solid #bbb', 
+                        fontSize: '13px' 
+                        }}>
+                        <option value="">-- Pilih --</option>
+                        {salesDocTypes.map(dt => <option key={dt.id} value={dt.id}>{dt.name}</option>)}
+                    </select>
+                </div>
+                <div style={{ 
+                    display: 'flex', 
+                    alignItems: isDesktop ? 'center' : 'stretch', 
+                    gap: '8px', 
+                    flex: isDesktop ? 1 : undefined, width: isDesktop ? undefined : '100%', 
+                    minWidth: isDesktop ? '180px' : undefined 
+                    }}>
+                    <label style={{ 
+                        fontWeight: 'bold', 
+                        whiteSpace: 'nowrap', 
+                        color: '#333' 
+                        }}>Customer:
+                    </label>
+                    <select value={selectedBPartner?.id || ''} onChange={handleBPartnerChange} style={{
+                        flex: 1, 
+                        minWidth: 0, 
+                        padding: '5px 8px', 
+                        borderRadius: '6px', 
+                        border: '1px solid #bbb', 
+                        fontSize: '13px',  
+                        }}>
+                        <option value="">-- Pilih Customer --</option>
+                        {bPartnerList.map(bp => <option key={bp.id} value={bp.id}>{bp.name}</option>)}
+                    </select>
+                    {!selectedBPartner && 
+                    <span style={{ 
+                        color: '#c62828', 
+                        fontSize: '11px', 
+                        whiteSpace: 'nowrap' 
+                    }}>⚠ Wajib
+                    </span>}
+                </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: isDesktop ? 1 : undefined, width: isDesktop ? undefined : '100%', minWidth: isDesktop ? '200px' : undefined }}>
-                        <label style={{ fontWeight: 'bold', whiteSpace: 'nowrap', color: '#333' }}>Price List:</label>
-                        <select value={selectedPriceList?.id || ''} onChange={handlePriceListChange} disabled={loading} style={{ flex: 1, minWidth: 0, padding: '5px 8px', borderRadius: '6px', border: '1px solid #bbb', fontSize: '13px' }}>
-                            <option value="">-- Pilih Price List --</option>
-                            {priceListList.map(pl => <option key={pl.id} value={pl.id}>{pl.name}</option>)}
-                        </select>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: isDesktop ? 1 : undefined, width: isDesktop ? undefined : '100%', minWidth: isDesktop ? '180px' : undefined }}>
-                        <label style={{ fontWeight: 'bold', whiteSpace: 'nowrap', color: '#333' }}>Gudang:</label>
-                        <select value={warehouseInfo?.id || ''} onChange={handleWarehouseChange} disabled={loading} style={{ flex: 1, minWidth: 0, padding: '5px 8px', borderRadius: '6px', border: '1px solid #bbb', fontSize: '13px' }}>
-                            {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
-                        </select>
-                    </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: isDesktop ? 1 : undefined, width: isDesktop ? undefined : '100%', minWidth: isDesktop ? '200px' : undefined }}>
+                    <label style={{ fontWeight: 'bold', whiteSpace: 'nowrap', color: '#333' }}>Price List:</label>
+                    <select value={selectedPriceList?.id || ''} onChange={handlePriceListChange} disabled={loading} style={{ flex: 1, minWidth: 0, padding: '5px 8px', borderRadius: '6px', border: '1px solid #bbb', fontSize: '13px' }}>
+                        <option value="">-- Pilih Price List --</option>
+                        {priceListList.map(pl => <option key={pl.id} value={pl.id}>{pl.name}</option>)}
+                    </select>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: isDesktop ? 1 : undefined, width: isDesktop ? undefined : '100%', minWidth: isDesktop ? '180px' : undefined }}>
+                    <label style={{ fontWeight: 'bold', whiteSpace: 'nowrap', color: '#333' }}>Gudang:</label>
+                    <select value={warehouseInfo?.id || ''} onChange={handleWarehouseChange} disabled={loading} style={{ flex: 1, minWidth: 0, padding: '5px 8px', borderRadius: '6px', border: '1px solid #bbb', fontSize: '13px' }}>
+                       {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+                    </select>
                 </div>
             </div>
-
+                        
             {/* Main Layout */}
             <div style={{ display: 'flex', flexDirection: isDesktop ? 'row' : 'column', gap: '0px', flex: '1', overflow: 'hidden' }}>
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0px', overflow: 'hidden', paddingRight: isDesktop ? '16px' : '0' }}>

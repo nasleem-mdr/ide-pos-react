@@ -355,72 +355,10 @@ const GoodsReceiptContainer = () => {
         <DeliveryIcon />
         <span>Material Receipt</span>
         </span>
-        <div
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '4px',
-            background: 'rgba(255,255,255,0.18)',
-            border: '1px solid rgba(255,255,255,0.3)',
-            borderRadius: '3px',
-            padding: '2px 8px 2px 10px', // Padding kiri sedikit lebih besar untuk label
-          }}
-        >
-          <span
-            style={{
-              fontSize: '10px',
-              fontWeight: 600,
-              color: '#374151',
-              textTransform: 'uppercase',
-              letterSpacing: '0.4px',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            Warehouse:
-          </span>
-          <span style={{
-            background: 'transparent',
-            padding: '3px 10px', fontSize: '11px', color: '#e0eaff', whiteSpace: 'nowrap',
-          }}>
-            🏭  {warehouseInfo?.name || '...'}
-          </span>             
-        </div>
-        <div
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '4px',
-            background: 'rgba(255,255,255,0.18)',
-            border: '1px solid rgba(255,255,255,0.3)',
-            borderRadius: '3px',
-            padding: '2px 8px 2px 10px', // Padding kiri sedikit lebih besar untuk label
-          }}
-        >
-          <input
-            type="date"
-            value={movementDate}
-            onChange={e => setMovementDate(e.target.value)}
-            onBlur={e => { if (!e.target.value) setMovementDate(todayLocalISO()); }}
-            disabled={!canSubmitReceipt}
-            title="Tanggal penerimaan barang (MovementDate)"
-            style={{
-              background: isNotToday ? 'rgba(196, 11, 51, 0.98)' : 'transparent',
-              border: `0px solid ${isNotToday ? '#fbbf24' : 'rgba(255,255,255,0.3)'}`,
-              padding: '3px 10px',
-              fontSize: '11px',
-              color: '#e0eaff',
-              cursor: canSubmitReceipt ? 'pointer' : 'default',
-              outline: 'none',
-              maxWidth: isDesktop ? '150px' : '125px',
-              colorScheme: 'dark',
-            }}
-          />
-        </div>
-      </div>
-
+        
       {/* Vendor strip */}
       <div style={{
-        background: vendorLocked ? '#f0fdf4' : '#dbeafe', padding: '8px 16px', fontSize: '12px', color: COLOR.textMd,
+        background: vendorLocked ? '#f4f6fb' : '#f4f6fb', padding: '8px 16px', fontSize: '12px', color: COLOR.textMd,
         display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap', flexShrink: 0,
         position: 'relative',
       }}>
@@ -493,8 +431,75 @@ const GoodsReceiptContainer = () => {
             </span>
           </>
         )}
+
+        <div
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '4px',
+            background: 'rgba(255,255,255,0.18)',
+            border: '1px solid rgba(255,255,255,0.3)',
+            borderRadius: '3px',
+            padding: '2px 8px 2px 10px', // Padding kiri sedikit lebih besar untuk label
+          }}
+        >
+          <span
+            style={{
+              fontSize: '10px',
+              fontWeight: 600,
+              color: '#374151',
+              textTransform: 'uppercase',
+              letterSpacing: '0.4px',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            Warehouse:
+          </span>
+          <span style={{
+            background: 'transparent',
+            padding: '3px 10px', fontSize: '11px', color: '#000b22', whiteSpace: 'nowrap',
+          }}>
+            🏭  {warehouseInfo?.name || '...'}
+          </span>             
+        </div>
+        <div
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '4px',
+            background: 'rgba(255,255,255,0.18)',
+            border: '1px solid rgba(255,255,255,0.3)',
+            borderRadius: '3px',
+            padding: '2px 8px 2px 10px', // Padding kiri sedikit lebih besar untuk label
+          }}
+        >
+          <input
+            type="date"
+            value={movementDate}
+            onChange={e => setMovementDate(e.target.value)}
+            onBlur={e => { if (!e.target.value) setMovementDate(todayLocalISO()); }}
+            disabled={!canSubmitReceipt}
+            title="Tanggal penerimaan barang (MovementDate)"
+            style={{
+              background: isNotToday ? 'rgba(196, 11, 51, 0.98)' : 'transparent',
+              border: `0px solid ${isNotToday ? '#fbbf24' : 'rgba(255,255,255,0.3)'}`,
+              padding: '3px 10px',
+              fontSize: '11px',
+              color: '#010611',
+              cursor: canSubmitReceipt ? 'pointer' : 'default',
+              outline: 'none',
+              maxWidth: isDesktop ? '150px' : '125px',
+              colorScheme: 'light',
+            }}
+          />
+        </div>
       </div>
 
+        
+        
+      </div>
+
+      
       {/* Body: dua kolom di desktop (produk + sidebar cart), satu kolom di mobile */}
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0 }}>
 

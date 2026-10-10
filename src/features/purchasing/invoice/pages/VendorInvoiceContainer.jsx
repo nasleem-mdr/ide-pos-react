@@ -201,7 +201,14 @@ const VendorInvoiceContainer = () => {
       <VendorInvoiceSuccessModal isOpen={successOpen} data={successData} onClose={() => { setSuccessOpen(false); setSuccessData(null); }} />
 
       <div className='header-content'>
-        <span style={{ color: '#fff', fontWeight: 700, fontSize: '15px', flex: 1, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+        <span style={{ 
+          color: '#0f0101', 
+          fontWeight: 700, 
+          fontSize: '15px', 
+          flex: 1, 
+          display: 'inline-flex', 
+          alignItems: 'center', 
+          gap: '6px' }}>
           <ShoppingCartIcon /><span>Purchase Invoice</span>
         </span>
 
@@ -218,11 +225,11 @@ const VendorInvoiceContainer = () => {
             borderRadius: '3px',
             padding: '3px 10px',
             fontSize: '11px',
-            color: '#e0eaff',
+            color: '#020711',
             cursor: canSubmitInvoice ? 'pointer' : 'default',
             outline: 'none',
             maxWidth: isDesktop ? '150px' : '125px',
-            colorScheme: 'dark',
+            colorScheme: 'light',
           }}
         />
       </div>

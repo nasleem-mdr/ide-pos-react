@@ -9,7 +9,6 @@ import {
 import {
     STATUS_FILTERS, 
     StatusBadge, 
-    normalizeStatus,
     buildStatusCondition, 
 } from "@/utils/docStatus";
 
@@ -21,10 +20,12 @@ import DocActionButton from "@/shared/components/DocActionButton";
 import { getAvailableActions } from "@/shared/docAction/docActionConfig";
 import "@/App.css";
 
-// ─────────────────────────────────────────────────────────────────────────────
-// VendorInvoiceList.jsx
-// GET /api/v1/models/ad_table?$select=AD_Table_ID&$filter=TableName eq 'C_Order'
-// ─────────────────────────────────────────────────────────────────────────────
+/** ─────────────────────────────────────────────────────────────────────────────
+ * VendorInvoiceList.jsx
+ * GET /api/v1/models/ad_table?$select=AD_Table_ID&$filter=TableName eq 'C_Order'
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
+
 const C_INVOICE_AD_TABLE_ID = 318; 
 
 const VendorInvoiceList = () => {

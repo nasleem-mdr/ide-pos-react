@@ -676,7 +676,7 @@ const SalesInvoiceContainer = () => {
         }}
       >
         <span style={{
-          color: '#fff', fontWeight: 700, fontSize: '15px', flexShrink: 0,
+          color: '#0c0101', fontWeight: 700, fontSize: '15px', flexShrink: 0,
           display: 'inline-flex', alignItems: 'center', gap: '6px',
         }}>
           <ShoppingCartIcon />
@@ -684,7 +684,12 @@ const SalesInvoiceContainer = () => {
         </span>
       
         {/* Customer search inline */}
-        <div ref={customerBoxRef} style={{ position: 'relative', flex: '1 1 200px', minWidth: '180px', maxWidth: '320px' }}>
+        <div ref={customerBoxRef} style={{ 
+          position: 'relative', 
+          flex: '1 1 200px', 
+          minWidth: '180px', 
+          maxWidth: '320px' 
+          }}>
           <input
             type="text"
             value={customerQuery}
@@ -744,7 +749,7 @@ const SalesInvoiceContainer = () => {
             onClick={() => setImportShipmentOpen(true)}
             disabled={!customer}
             title={!customer ? 'Pilih customer dulu' : 'Import dari Shipment'}
-            style={{ background: !customer ? '#9ca3af' : COLOR.primary, border: 'none', color: '#fff', borderRadius: RADIUS.md, padding: '10px 14px', cursor: !customer ? 'not-allowed' : 'pointer', fontWeight: 600, fontSize: '13px', flexShrink: 0 }}
+            style={{ background: !customer ? '#9ca3af' : COLOR.primary, border: 'none', color: '#130101', borderRadius: RADIUS.md, padding: '10px 14px', cursor: !customer ? 'not-allowed' : 'pointer', fontWeight: 600, fontSize: '13px', flexShrink: 0 }}
           >
             📥 Import DO
           </button>
