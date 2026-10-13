@@ -1,15 +1,11 @@
-SMA ERP & POS App  |  Dokumentasi Fungsional v2.0 
+ProcureGrid  |  Dokumentasi Fungsional v2.0 
 
 # **DOKUMENTASI FUNGSIONAL APLIKASI** 
-
-SMA ERP & POS App (React Frontend) 
 
 |**Versi Dokumen**|2.0|
 |---|---|
 |**Tanggal Update**|21 September 2026|
 |**Platform Backend**|iDempiere ERP Platform (REST/OData API)|
-
-
 
 ## **BAB 1: PENDAHULUAN & ARSITEKTUR** 
 
@@ -40,8 +36,8 @@ Setelah pengguna melakukan autentikasi dan memilih sesi (Client, Role, Organizat
 |**Modul**|**Sub-Menu**|**Fungsi Utama**|**Dokumen**<br>**iDempiere**|
 |---|---|---|---|
 ||**Requisition**<br>**(FPB)**|Permintaan barang internal antar<br>divisi/gudang|M_Requisition|
-|**Pt**|**Purchasing (PO)**|Pembuatan order pembelian ke<br>vendor berdasarkan FPB|C_Order (PO)|
-|**rocuremen**|**Goods Receipt**|Pencatatan penerimaan fisik barang<br>dari vendor|M_InOut (Receipt)|
+|****|**Purchasing (PO)**|Pembuatan order pembelian ke<br>vendor berdasarkan FPB|C_Order (PO)|
+|**Procurement**|**Goods Receipt**|Pencatatan penerimaan fisik barang<br>dari vendor|M_InOut (Receipt)|
 ||**Internal Use**|Pengeluaran barang dari gudang<br>untuk kebutuhan operasional|M_Inventory|
 ||**POS Sales**|Transaksi Kasir/Toko (Instan Kas atau<br>Piutang)|C_Order /<br>C_Payment|
 |**Sales**|**Sales Order - DO**|Transaksi harian pelanggan (Otomatis<br>SO + Shipment M_InOut)|C_Order &<br>M_InOut|
