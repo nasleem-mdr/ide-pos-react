@@ -60,7 +60,7 @@ const BankStatementContainer = () => {
       <ChargeLineForm isOpen={chargeFormOpen} onClose={() => setChargeFormOpen(false)} onAdd={addChargeLine} />
   
       <div className='header-content'>
-        <span style={{ color: '#fff', fontWeight: 700, fontSize: '15px' }}>🏦 Cash/Bank Statement</span>
+        <span style={{ color: '#000', fontWeight: 700, fontSize: '15px' }}>🏦 Cash/Bank Statement</span>
       </div>
   
       <div style={{ padding: '14px', background: COLOR.surface, marginBottom:'3px', borderBottom: `1px solid ${COLOR.border}` }}>
