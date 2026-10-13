@@ -1,160 +1,243 @@
-# ProcureGrid & POS System (React + iDempiere REST Integration)
+SMA ERP & POS App  |  Dokumentasi Fungsional v2.0 
 
-Aplikasi client berbasis React yang awalnya dibangun untuk sistem Kasir (*Point of Sale*), kini telah dikembangkan dan ditambahkan modul **Procurement (Pengadaan Barang)**.
-Aplikasi ini bisa dikatakan ini adalah IDempiere versi lite, dimana hampir semua transaksi sudah tercover, minus untuk setup dan konfigurasi yang masih harus dilakukan di IDempiere.
-Aplikasi ini terhubung dan terintegrasi langsung dengan **iDempiere ERP REST API**. melalui 
-idempiere-rest(bxsercices)
+# **DOKUMENTASI FUNGSIONAL APLIKASI** 
 
-Aplikasi ini bersifat *free & open-source*. 
-*(Catatan Produksi: Masih banyak baris `console.log` aktif untuk keperluan debugging/pengujian lokal. Pastikan untuk membersihkannya sebelum naik ke lingkungan production).*
+SMA ERP & POS App (React Frontend) 
 
----
-
-## 🚀 Fitur Utama
-
-1. **Modul Point Of Sales**
-Fungsi penjualan dengan berbagai penyederhanaan tampilan dan design modern selayaknya yang banyak dipakai pada gerai-gerai retail.
-2. **Modul Pengadaan Lengkap:** Mendukung alur kerja dari *Requisition*, *Purchase Order*, *Material/Goods Receipt*, hingga *Internal Use (Inventory Decrease/Increase)*.
-3. **Scan Barcode & QR Code:** Input entri barang/transaksi secara instan menggunakan perangkat pemindai.
-4. **Alur Kerja Interaktif (Shopping Cart Style):** Panel formulir transaksi dirancang menyerupai keranjang belanja *marketplace* agar ramah pengguna (*user-friendly*).
-5. **Impor Transaksi Berjenjang:** Mempercepat proses entri dengan fitur tarik data dari dokumen sebelumnya (contoh: membuat PO langsung dari data Requisition yang telah disetujui).
-6. **Validasi Dokumen Publik (Tanpa Login):** Menyediakan gerbang verifikasi status dokumen bagi pihak luar (vendor) melalui pemindaian QR Code (didukung oleh Servlet Express).
-
-> 💡 **Informasi untuk Sistem POS:**
-> Fitur POS utama masih aktif dan dapat digunakan. Anda cukup mendaftarkan ulang komponen `POSContainer.jsx` ke dalam berkas `App.js`, `Sidebar.jsx`, atau `Dashboard.jsx`. Fitur POS ini masih sangat dasar dan terbuka untuk dikembangkan lebih lanjut (misalnya penambahan metode pembayaran *mixed-cash* atau QRIS).
-
----
-
-## 🛠️ Panduan Memulai & Pengembangan Lokal
-
-### Prasyarat (Prerequisites)
-* **Node.js & NPM** (Direkomendasikan versi LTS terbaru)
-* **React / Vite v5.x ke atas** *(Catatan: Pastikan versi runtime Node Anda mendukung Vite terbaru)*
-* **idempiere-server 11** * atau terbaru yang terinstall plugin rest-api https://github.com/bxservice/idempiere-rest
-### Dependencies Utama Proyek
-```bash
-npm install recharts jspdf jspdf-autotable qrcode react-router-dom
-```
-
-### Langkah Instalasi
-1. Clone pada local server anda
-   ```text
-   git clone [https://github.com/nasleem-mdr/ide-pos-react.git](https://github.com/nasleem-mdr/ide-pos-react.git)
-   cd ide-pos-react
-   ```
-2. Install paket dependency
-   ```bash
-   npm install
-   ```
-3. Konfigurasi Proksi API:
-   Buka file vite.config.js atau package.json Anda, lalu arahkan konfigurasi proxy ke URL endpoint iDempiere REST API asli milik perusahaan Anda. Untuk keperluan pengujian awal, Anda dapat memanfaatkan server demo di    www.demo.globalqss.com.
-4. Setup beberapa custom field pada IDempiere, tambahkan QtyEntered pada M_RequisitionLine(dibutuhkan untuk konversi UoM sejak Requisition), tambahkan C_Charge_ID pada M_Product(dibutuhkan untuk default charge pada proses internal use)
-5. Jalankan server
-   ```
-   npm run dev
-   ```
-6. Akses antarmuka aplikasi melalui alamat lokal yang tertera pada terminal Anda (biasanya di http://localhost:5173).
-   
-📁 Struktur Folder Proyek
-
-```
-ide-pos-react/
-├── public/              # Aset statis (index.html, favicon, dll.)
-├── src/
-│   ├── api/          # rest api 
-│   ├── config/       # 
-│   ├── context/      # State management global (jika menggunakan React Context)
-│   ├── features/         #
-│   ├── hooks/           # Custom React Hooks (misal: useCart, useAuth)
-│   ├── pages/           # Komponen halaman utama (Dashboard, Kasir/POS, Laporan) 
-│   ├── utils/           # Fungsi Api IDempiere dan pembantu / helper
-│   ├── App.js           # Komponen root dan konfigurasi routing
-│   └── index.js         # Entry point aplikasi
-├── .gitignore
-├── package.json
-├── vite.config.json
-└── README.md
-```
-
-🔄 Alur Fungsionalitas Modul Procurement
-
-<img width="1479" height="703" alt="image" src="https://github.com/user-attachments/assets/05f80e1f-2092-438c-ad0c-7e28a16de2df" />
-
-🔑 Login dan Role Access
-
-Login system menggunakan 2 step authentification sebagaimana yang digunakan pada IDempiere.
-Pengguna login — data sesi (Client, Role, Organisasi, Gudang) otomatis terisi berdasarkan hak akses pengguna.
-
-1. Menu Requisition
-   Deskripsi
-   Modul ini digunakan oleh staf/unit kerja untuk mengajukan permintaan barang secara digital, menggantikan formulir kertas. Setiap FPB berisi daftar produk beserta jumlah yang diminta, dan akan melalui proses persetujuan    berjenjang sebelum dapat diproses lebih lanjut (dibelikan atau diambil dari gudang).
-   Alur Pengisian Formulir
-   a.	Pengguna login — data sesi (Client, Role, Organisasi, Gudang) otomatis terisi berdasarkan hak akses pengguna.
-   b.	Pilih menu Requisition pada Dashboard atau Sidebar
-   c.	Pilih (scan atau search) produk yang ingin diminta — daftar produk otomatis difilter berdasarkan gudang (M_Locator_ID) tempat pengguna bertugas.
-   d.	Pilihan produk akan disimpan pada Cart Panel disisi kanan(desktop) atau tersembunyi/mengambang dibawah untuk versi mobile.
-   e.	Tentukan jumlah (Qty) dan satuan (UOM) — sistem mendukung konversi satuan (mis. Dus ↔ Pcs) menggunakan tabel konversi UOM di iDempiere.
-   f.	Ulangi untuk setiap produk yang dibutuhkan hingga daftar permintaan lengkap.
-   g.	Submit/Kirim Requisition/FPB — dokumen tersimpan mengikuti alur Workflow Engine IDempiere dengan status InProgress (complete dari sisi Invoker), kemudian dokumen masuk ke antrian approval.
-   h.	Approval masih diproses melalui Workflow Activities di Windows iDempiere. 
-<img width="1056" height="500" alt="image" src="https://github.com/user-attachments/assets/0d939a69-25c8-474c-8c62-4ee25103f8d2" />
-
-<img width="1056" height="415" alt="image" src="https://github.com/user-attachments/assets/400ba59a-3aca-4cd1-baa0-3e1a7fe0645f" />
+|**Versi Dokumen**|2.0|
+|---|---|
+|**Tanggal Update**|21 September 2026|
+|**Platform Backend**|iDempiere ERP Platform (REST/OData API)|
 
 
-2. Menu Purchasing
-   Secara tampilan hampir sama dengan formulir requisition, perbedaannya, ada tambahan menu import (dari requisition complete/approved) disebelah input search dan scan
-3. Menu Material Receipt/Goods Receipt
-   Sama seperti formulir Purchasing, penambahan cart bisa diambil dari PO Complete
-4. Menu Internal Use
-   Yang membedakan Formulir ini adalah adanya tambahan Field Charge pada cart panel, karena c_charge_id adalah field mandatory pada m_inventoryline, yang secara default diisi menggunakan Custom field di table M_Product (tambahkan c_charge_id melalui Aplication Dictionary).
-   Tips Konfigurasi ERP: Pengembang disarankan menambahkan custom field c_charge_id pada tabel M_Product melalui menu Application Dictionary (AD) di iDempiere agar nilai default-nya dapat dimuat secara otomatis.
-   
-## 🔄 Alur Kerja Verifikasi & Validasi Dokumen (Procurement Workflow)
 
-Sistem verifikasi dokumen untuk Vendor (Requisition & Purchasing) dibagi menjadi dua fase pengembangan:
+## **BAB 1: PENDAHULUAN & ARSITEKTUR** 
 
-### 🟢 FASE 1: Verifikasi Status Dokumen Bersih (Status Saat Ini - Produksi)
-Saat ini, sistem berfungsi sebagai alat **Verifikasi Validitas Mandiri (Read-Only Verification)**:
-1. Staff Internal mencetak Purchase Order (PO) / Requisition yang dilengkapi QR Code berisi URL publik unik berbasis UUID.
-2. Vendor menerima dokumen (fisik/PDF) dan memindai QR Code menggunakan ponsel.
-3. Browser membuka halaman publik React POS (`/view/order/:uuid`) tanpa perlu login.
-4. Aplikasi memanggil Servlet Express untuk mencocokkan UUID dengan database iDempiere ERP.
-5. Layar menampilkan data validitas: Nama Barang, Kuantitas, Tanggal, dan Status Terkini dokumen di ERP (apakah *Approved*, *Void*, atau *Draft*) untuk memastikan dokumen tidak dipalsukan.
+### **1.1 Gambaran Umum** 
 
----
+Aplikasi ini adalah ekstensi frontend berbasis web (React) yang dibangun di atas platform iDempiere ERP. Aplikasi ini hadir untuk menyediakan antarmuka yang modern, cepat, intuitif, dan mobile-friendly guna mengoperasikan transaksi sehari-hari — mencakup siklus Procurement, Sales, hingga Bank Statement & Cash Reconciliation. 
 
-### 🔵 FASE 2: Legalitas Tanda Tangan Digital Bersama DocuSign (Rencana Pengembangan / Roadmap)
-*Catatan: Fitur ini sedang dalam tahap perancangan teknis dan belum diimplementasikan di lingkungan produksi.*
+Seluruh data transaksi yang diinput melalui aplikasi React disinkronkan secara real-time ke tabel-tabel standar iDempiere (seperti M_Requisition, C_Order, M_InOut, M_Inventory, C_Invoice, C_BankStatement, dsb.) melalui REST/OData API resmi iDempiere. 
 
-Untuk kebutuhan legalitas formal hukum, alur verifikasi akan ditingkatkan dengan integrasi **DocuSign API**:
-* **Embedded Signing:** Pada halaman publik React POS, akan ditambahkan tombol "Tanda Tangani Dokumen".
-* **Automated Webhook:** Setelah Vendor menandatangani dokumen di platform DocuSign, Servlet Express akan menerima notifikasi Webhook (`Envelope: Completed`) dan otomatis mengubah *DocStatus* di iDempiere ERP menjadi `Signed / Closed`.
-```text
-                                 ┌────────────────────────┐
-                                 │    iDempiere ERP       │
-                                 │  (Sistem Core & DB)    │
-                                 └───────────▲────────────┘
-                                             │
-                       (1) REST API          │ (3) Ambil & Update Status
-                       Transaksi             │     Dokumen ERP
-                                             │
-  ┌────────────────────────┐     (2) QR Code │     ┌────────────────────────┐
-  │      React POS         ├─────────────────┼─────►    Servlet Express     │
-  │ (Aplikasi Internal)    │     URL Link    │     │  (Validasi & Webhook)  │
-  └────────────────────────┘                 │     └───────────▲────────────┘
-                                             │                 │
-                                             │                 │ (4) Kirim Envelope /
-                                             │                 │     Status Webhook
-                                             │     ┌───────────┴────────────┐
-                                             └─────┤    DocuSign API        │
-                                                   │   (Legalitas TTD)      │
-                                                   └───────────▲────────────┘
-                                                               │
-                                                               │ (5) Tanda Tangan
-                                                               │     Digital
-                                                   ┌───────────┴────────────┐
-                                                   │     External Vendor    │
-                                                   │  (Penerima Order/PO)   │
-                                                   └────────────────────────┘
-```
+### **1.2 Arsitektur Sistem** 
+
+Sistem terdiri dari tiga lapisan utama: 
+
+1. **Frontend React:** Antarmuka pengguna (User Interface) untuk mengelola transaksi Procurement, Sales, dan Rekonsiliasi Kas/Bank. 
+
+2. **iDempiere REST/OData API:** Jembatan data dua arah untuk membaca dan memperbarui data operasional dan transaksi. 
+
+3. **Engine & Reporting Services:** 
+
+   - **Workflow Engine iDempiere:** Memproses persetujuan dokumen (approval chain). 
+
+   - **Plugin Pelaporan (OSGi / JasperReports):** Mencetak dokumen PDF resmi yang dilengkapi dengan QR Code Verifikasi. 
+
+## **BAB 2: STRUKTUR MENU UTAMA** 
+
+Setelah pengguna melakukan autentikasi dan memilih sesi (Client, Role, Organization, Warehouse), sistem menyediakan 3 modul utama yang terbagi menjadi sub-menu fungsional: 
+
+|**Modul**|**Sub-Menu**|**Fungsi Utama**|**Dokumen**<br>**iDempiere**|
+|---|---|---|---|
+||**Requisition**<br>**(FPB)**|Permintaan barang internal antar<br>divisi/gudang|M_Requisition|
+|**Pt**|**Purchasing (PO)**|Pembuatan order pembelian ke<br>vendor berdasarkan FPB|C_Order (PO)|
+|**rocuremen**|**Goods Receipt**|Pencatatan penerimaan fisik barang<br>dari vendor|M_InOut (Receipt)|
+||**Internal Use**|Pengeluaran barang dari gudang<br>untuk kebutuhan operasional|M_Inventory|
+||**POS Sales**|Transaksi Kasir/Toko (Instan Kas atau<br>Piutang)|C_Order /<br>C_Payment|
+|**Sales**|**Sales Order - DO**|Transaksi harian pelanggan (Otomatis<br>SO + Shipment M_InOut)|C_Order &<br>M_InOut|
+||**Sales Invoice**|Penagihan faktur (Manual atau Import<br>gabungan dari M_InOut)|C_Invoice|
+|**Finance**|**Bank Statement**|Pencocokan Kas/Bank, Import<br>Statement, dan Manual Charge|C_BankStatement<br>/ C_Cash|
+
+
+
+## **BAB 3: MODUL PROCUREMENT** 
+
+Modul Procurement bertugas mengelola siklus pengadaan barang secara tertelusur (traceable). 
+
+### **3.1 Requisition (FPB — Formulir Permintaan Barang)** 
+
+#### **Tujuan:** 
+
+Memfasilitasi unit kerja untuk mengajukan kebutuhan barang secara digital. 
+
+#### **Fitur Utama:** 
+
+- Filtering produk otomatis berdasarkan lokasi gudang user (M_Locator_ID). 
+
+- Dukungan konversi unit satuan (UOM) otomatis (misal: Dus ↔ Pcs). 
+
+- Integrasi Cart Panel (desktop di sisi kanan, mobile berupa panel mengambang). 
+
+- Begitu dikirim (Submitted), dokumen masuk ke antrian Workflow Approval iDempiere dengan status InProgress. 
+
+### **3.2 Purchasing (Purchase Order / PO)** 
+
+#### **Tujuan:** 
+
+Menerbitkan pesanan pembelian resmi kepada vendor berdasarkan permintaan yang sah. 
+
+#### **Fitur Utama:** 
+
+- **Import dari FPB:** Menarik item barang dari Requisition/FPB yang telah berstatus Approved/Completed. 
+
+- Pengisian detail vendor, kesepakatan harga beli, dan jadwal pengiriman. 
+
+- Mengunci kesepakatan harga sebagai dasar verifikasi saat barang datang. 
+
+### **3.3 Goods Receipt (Penerimaan Barang)** 
+
+#### **Tujuan:** 
+
+Mencatat penerimaan fisik barang di gudang hasil pembelian dari vendor. 
+
+#### **Fitur Utama:** 
+
+- **Import dari PO:** Menampilkan sisa barang yang belum diterima (partial receipt). 
+
+- Grafik progres penerimaan barang visual untuk mempermudah pengecekan. 
+
+- Dukungan pindaian Scan QR / Barcode pada fisik kemasan produk. 
+
+- **Update Stok:** Begitu di-Submit, stok gudang bertambah secara otomatis (M_InOut). 
+
+### **3.4 Internal Use (Pengambilan Barang Gudang)** 
+
+#### **Tujuan:** 
+
+Pencatatan pengeluaran persediaan barang untuk dipakai sendiri oleh unit/divisi perusahaan (bukan untuk dijual). 
+
+#### **Fitur Utama:** 
+
+- **Import dari FPB:** Menarik barang dari FPB berstatus Approved yang tidak membutuhkan pembelian luar. 
+
+- Verifikasi kuantitas fisik yang diserahkan petugas gudang. 
+
+- **Update Stok:** Mengurangi jumlah stok gudang dan mencatat pembebanan biaya operasional internal. 
+
+## **BAB 4: MODUL SALES** 
+
+Modul Sales mengelola alur penjualan ritel (Point of Sale) maupun transaksi berlangganan/B2B dengan pola tagihan harian yang di-faktur-kan pada akhir bulan. 
+
+### **4.1 POS Sales (Point of Sale)** 
+
+#### **Tujuan:** 
+
+Mengakomodasi penjualan langsung di kasir toko dengan pemrosesan transaksi yang cepat. 
+
+#### **Fitur Utama:** 
+
+- Pencarian cepat dan pencatatan keranjang belanja real-time. 
+
+- **Opsi Pembayaran Fleksibel:** 
+
+   - **Tombol CASH:** Pelunasan langsung secara instan via Tunai, QRIS, atau Kartu (EDC). 
+
+   - **Tombol PIUTANG:** Mengarahkan transaksi penjualan ke akun Piutang Pelanggan (Accounts Receivable) tanpa pembayaran tunai langsung di tempat. 
+
+- Pembaruan stok terpotong seketika saat cetak struk/nota. 
+
+### **4.2 Sales Order - Delivery Order (SO - DO / M_InOut)** 
+
+#### **Tujuan:** 
+
+Mengakomodasi skenario khusus di mana pelanggan mengambil barang ke toko setiap hari, dan penagihan dilakukan secara kolektif di akhir bulan. 
+
+#### **Fitur Utama:** 
+
+- **Otomasi Dokumen Dual:** Saat transaksi penyerahan barang harian di-input, sistem secara otomatis meng-generasi dokumen Sales Order sekaligus Shipment / Delivery Order (M_InOut). 
+
+- Stok barang langsung terpotong saat penyerahan harian terjadi. 
+
+- Setiap riwayat pengiriman tercatat sebagai draf serah-terima (Delivery Order) yang valid untuk ditagihkan nanti. 
+
+### **4.3 Sales Invoice (Faktur Penjualan)** 
+
+#### **Tujuan:** 
+
+Penerbitan dokumen penagihan resmi (Invoice) kepada pelanggan. 
+
+#### **Fitur Utama:** 
+
+- **Import dari M_InOut (DO):** Menarik dan mengonsolidasikan seluruh dokumen pengiriman (Delivery Order) harian milik pelanggan dalam 1 bulan menjadi 1 Faktur Tagihan Bulanan. 
+
+- **Manual Invoice:** Penerbitan faktur tagihan langsung secara manual tanpa alur pengiriman barang. 
+
+- Pencatatan nilai piutang resmi di sistem keuangan beserta penetapan tanggal jatuh tempo. 
+
+## **BAB 5: MODUL BANK STATEMENT & CASH RECONCILIATION** 
+
+Modul ini berfungsi untuk menjaga akurasi keuangan dan memastikan ketersediaan dana tercatat sesuai dengan realita lapangan. 
+
+### **5.1 Rekonsiliasi Kas Register & Rekening Bank** 
+
+#### **Tujuan:** 
+
+Mencocokkan saldo fisik kasir (Cash Register) atau mutasi rekening bank dengan pencatatan pembukuan internal. 
+
+#### **Fitur Utama:** 
+
+- Komparasi nilai saldo sistem vs saldo riil. 
+
+- Penandaan transaksi yang terverifikasi (cleared/matched). 
+
+### **5.2 Import Bank Statement** 
+
+#### **Tujuan:** 
+
+Mengunggah file mutasi rekening dari bank (format CSV/Excel) untuk melakukan pencocokan (matching) transaksi penerimaan dan pengeluaran secara masal. 
+
+### **5.3 Pembuatan Charge Manual (Biaya Operasional Langsung)** 
+
+#### **Tujuan:** 
+
+Mencatat transaksi pengeluaran kas/bank yang bersifat langsung tanpa melalui dokumen Purchase Order terlebih dahulu. 
+
+#### **Contoh Kasus:** 
+
+Pembayaran biaya kebersihan, iuran keamanan, biaya admin bank, atau pembelian perlengkapan kecil. 
+
+#### **Dampak Akuntansi:** 
+
+- Pencatatan Charge Manual secara otomatis mengurangi saldo Kas/Bank yang dipilih. 
+
+- Secara bersamaan menambah akun Beban/Biaya (Charge Account) pada laporan keuangan. 
+
+## **BAB 6: INTEGRASI WORKFLOW APPROVAL & SECURITY** 
+
+#### **Persetujuan Terpusat (Workflow Engine iDempiere):** 
+
+- Proses Approval tidak dipindahkan ke aplikasi React frontend, melainkan dieksekusi oleh mesin Workflow resmi bawaan iDempiere. 
+
+- Aplikasi React bertugas mengirimkan status dokumen (Draft → Complete). 
+
+#### **Visibilitas Status:** 
+
+- Pengguna aplikasi React dapat melihat riwayat dan tahap persetujuan terkini (approval stepper) pada dokumen. 
+
+#### **Audit Trail:** 
+
+- Seluruh jejak persetujuan terekam pada tabel audit iDempiere (AD_WF_EventAudit) guna memenuhi standar pemeriksaan audit. 
+
+## **BAB 7: CETAK & VERIFIKASI DOKUMEN VIA QR CODE** 
+
+- **Template JasperReports:** Setiap dokumen transaksi resmi (FPB, PO, Goods Receipt, Internal Use, Invoice) dilengkapi dengan QR Code unik. 
+
+- **Keamanan HMAC-SHA256:** QR Code memuat token enkripsi aman yang dipasangkan dengan UUID dokumen. 
+
+- **Verifikasi Publik:** Pindaian QR Code melalui kamera ponsel akan mengarahkan pengguna ke endpoint verifikasi publik untuk menampilkan keaslian dokumen, status terkini, dan riwayat approval secara real-time tanpa perlu login ke sistem. 
+
+## **MATRIKS RANGKUMAN FITUR APLIKASI** 
+
+|**Fitur / Fasilitas**|**Requisition**|**Purchasing**|**Goods**<br>**Receipt**|**Internal Use**|**POS Sales**|**Sales Order -**<br>**DO**|**Sales Invoice**|**Bank**<br>**Statement**|
+|---|---|---|---|---|---|---|---|---|
+|**Scan QR / Barcode**|—|—|**Ya**|**Ya**|**Ya**|—|—|—|
+|**Import Dokumen Acuan**|—|dari FPB|dari PO|dari FPB|—|—|dari DO<br>(M_InOut)|Import<br>CSV/Bank|
+|**Otomasi Potong/Tambah**<br>**Stok**|—|—|(+ Tambah)|(- Kurang)|(- Kurang)|(- Kurang)|—|—|
+|**Cetak PDF + QR Code**|**Ya**|**Ya**|**Ya**|**Ya**|Struk|**Ya**|**Ya**|**Ya**|
+|**Opsi Piutang / Cash**|—|—|—|—|**Ya**|—|**Ya**|—|
+|**Charge Manual (Beban Kas)**|—|—|—|—|—|—|—|**Ya**|
+
+
+
+
+
