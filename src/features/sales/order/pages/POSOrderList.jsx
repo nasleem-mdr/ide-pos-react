@@ -148,8 +148,18 @@ const POSOrderList = () => {
         fetchGrandTotal();
     }, [fetchGrandTotal]);
 
-    const handleEdit = (order) => {
-        navigate("/pos-order", { state: { editOrder: order } });
+    const handleEdit = (item) => {
+        // `item` adalah BARIS TABEL (tableData): DocStatus-nya elemen JSX, dan
+        // DocumentNo / DateOrdered / C_BPartner_ID / GrandTotal sudah berupa string
+        // terformat. Elemen React tidak bisa di-clone oleh history.pushState
+        // (DataCloneError), jadi navigate() gagal diam-diam. Kirim record ASLI
+        // dari API (C_BPartner_ID tetap {id, identifier}, dst.).
+        const rawOrder = orders.find((o) => (o.id ?? o.C_Order_ID) === item._orderId);
+        if (!rawOrder) {
+            alert("Data order tidak ditemukan. Silakan refresh daftar lalu coba lagi.");
+            return;
+        }
+        navigate("/pos-order", { state: { editOrder: rawOrder } });
     };
 
     const numberFormatter = new Intl.NumberFormat('en-US');

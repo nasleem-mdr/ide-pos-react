@@ -63,6 +63,8 @@ import {
   formatDateID, 
 } from '@/utils/dateOnly';
 
+import { formStyles } from '@/utils/formStyles'
+
 import '@/css/Header.css';
 
 
@@ -295,293 +297,243 @@ const GoodsReceiptContainer = () => {
     `📦 ${warehouseInfo?.name || '...'}` +
     (isNotToday && movementDate ? ` · 📅 ${formatDateID(movementDate)}` : '');
   
-  return (
-    <div style={{
-      flex: 1, minHeight: 0, background: COLOR.bg,
-      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif',
-      display: 'flex', flexDirection: 'column', position: 'relative',
-      overflow: 'hidden',
-    }}>
-
-      <Dialog
-        isOpen={dialog.isOpen} title={dialog.title} message={dialog.message}
-        onClose={() => setDialog({ isOpen: false, title: '', message: '' })}
-      />
-
-      <ProductDetailSheet
-        isOpen={detailOpen}
-        product={selectedProduct}
-        onClose={closeProductDetail}
-        onConfirm={handleConfirmAddToCart}
-        confirmLabel="Tambah ke Penerimaan"
-      />
-
-      <GoodsReceiptSuccessModal
-        isOpen={successOpen}
-        data={successData}
-        onClose={() => {
-          setSuccessOpen(false);
-          setSuccessData(null);
-          fetchProducts('');
-          setSearchValue('');
-          setTimeout(() => searchRef.current?.focus(), 150);
-        }}
-      />
-
-      <BarcodeScanner
-        isOpen={scannerOpen}
-        onDetected={handleBarcodeDetected}
-        onClose={() => setScannerOpen(false)}
-      />
-
-      <PurchaseOrderImportModal
-        isOpen={importOpen}
-        warehouseId={warehouseInfo?.id}
-        onClose={() => setImportOpen(false)}
-        onImport={handleImportFromPO}
-      />
-
-      {/* Top Bar */}
-      <div className='header-content'>
-        <span style={{ 
-          color: '#374151', 
-          fontWeight: 700, 
-          fontSize: '15px', 
-          flex: 1,
-          display: 'inline-flex',
-          alignItems: 'center',  
-          gap: '6px'             
-        }}>
-        <DeliveryIcon />
-        <span>Material Receipt</span>
-        </span>
-        
-      {/* Vendor strip */}
-      <div style={{
-        background: vendorLocked ? '#f4f6fb' : '#f4f6fb', padding: '8px 16px', fontSize: '12px', color: COLOR.textMd,
-        display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap', flexShrink: 0,
-        position: 'relative',
-      }}>
-        <span>🚚</span>
-
-        {vendorLocked ? (
-          <>
-            <div style={{ fontSize: '12px' }}>
-              Vendor (dari PO): <strong style={{ color: COLOR.textDk }}>{selectedVendor?.Name}</strong>
-              <span style={{ marginLeft: '6px', color: COLOR.success }}>🔒</span>
-            </div>
-            <button
-              onClick={handleResetVendor}
-              title="Kosongkan cart & ganti PO/vendor"
-              style={{
-                background: 'none', border: 'none', color: COLOR.danger,
-                fontSize: '11px', cursor: 'pointer', fontWeight: 600, padding: 0,
-              }}
-            >✕ Reset & Ganti PO</button>
-          </>
-        ) : (
-          <>
-            <div style={{ position: 'relative', flex: 1, minWidth: '200px', maxWidth: '360px' }}>
-              <input
-                type="text"
-                value={vendorQuery}
-                onChange={e => {
-                  setVendorQuery(e.target.value);
-                  setSelectedVendor(null);
-                  setVendorOpen(true);
-                  searchVendor(e.target.value);
-                }}
-                onFocus={() => setVendorOpen(true)}
-                placeholder="Vendor manual (tanpa PO)..."
-                style={{
-                  width: '100%', boxSizing: 'border-box', padding: '6px 10px',
-                  border: `1.5px solid ${selectedVendor ? COLOR.success : COLOR.border}`,
-                  borderRadius: RADIUS.sm, fontSize: '12px', outline: 'none',
-                  background: '#fff',
-                }}
-              />
-              {vendorOpen && vendorQuery && (
-                <div style={{
-                  position: 'absolute', top: '100%', left: 0, right: 0, marginTop: '4px',
-                  background: COLOR.surface, border: `1px solid ${COLOR.border}`,
-                  borderRadius: RADIUS.md, boxShadow: '0 6px 20px rgba(0,0,0,0.12)',
-                  maxHeight: '220px', overflowY: 'auto', zIndex: 200,
-                }}>
-                  {vendorLoading ? (
-                    <div style={{ padding: '10px', fontSize: '12px', color: COLOR.textLt }}>Mencari...</div>
-                  ) : vendors.length === 0 ? (
-                    <div style={{ padding: '10px', fontSize: '12px', color: COLOR.textLt }}>Vendor tidak ditemukan.</div>
-                  ) : (
-                    vendors.map(v => (
-                      <div
-                        key={v.C_BPartner_ID}
-                        onClick={() => handleSelectVendor(v)}
-                        style={{ padding: '8px 12px', fontSize: '12px', cursor: 'pointer', color: COLOR.textDk }}
-                        onMouseDown={e => e.preventDefault()}
-                      >
-                        <strong>{v.Name}</strong> {v.Value ? <span style={{ color: COLOR.textLt }}>({v.Value})</span> : null}
-                      </div>
-                    ))
+    return (
+      <div style={styles.container}>
+        {/* Modals & Dialogs */}
+        <Dialog
+          isOpen={dialog.isOpen} title={dialog.title} message={dialog.message}
+          onClose={() => setDialog({ isOpen: false, title: '', message: '' })}
+        />
+  
+        <ProductDetailSheet
+          isOpen={detailOpen}
+          product={selectedProduct}
+          onClose={closeProductDetail}
+          onConfirm={handleConfirmAddToCart}
+          confirmLabel="Tambah ke Penerimaan"
+        />
+  
+        <GoodsReceiptSuccessModal
+          isOpen={successOpen}
+          data={successData}
+          onClose={() => {
+            setSuccessOpen(false);
+            setSuccessData(null);
+            fetchProducts('');
+            setSearchValue('');
+            setTimeout(() => searchRef.current?.focus(), 150);
+          }}
+        />
+  
+        <BarcodeScanner
+          isOpen={scannerOpen}
+          onDetected={handleBarcodeDetected}
+          onClose={() => setScannerOpen(false)}
+        />
+  
+        <PurchaseOrderImportModal
+          isOpen={importOpen}
+          warehouseId={warehouseInfo?.id}
+          onClose={() => setImportOpen(false)}
+          onImport={handleImportFromPO}
+        />
+  
+        {/* Top Bar */}
+        <div className='header-content'>
+          <span style={styles.headerTitle}>
+            <DeliveryIcon />
+            <span>Material Receipt</span>
+          </span>
+          
+          {/* Vendor strip */}
+          <div style={styles.vendorStrip}>
+            <span>🚚</span>
+  
+            {vendorLocked ? (
+              <>
+                <div style={{ fontSize: '12px' }}>
+                  Vendor (dari PO): <strong style={{ color: COLOR.textDk }}>{selectedVendor?.Name}</strong>
+                  <span style={{ marginLeft: '6px', color: COLOR.success }}>🔒</span>
+                </div>
+                <button
+                  onClick={handleResetVendor}
+                  title="Kosongkan cart & ganti PO/vendor"
+                  style={styles.btnReset}
+                >✕ Reset & Ganti PO</button>
+              </>
+            ) : (
+              <>
+                <div style={styles.vendorInputWrapper}>
+                  <input
+                    type="text"
+                    value={vendorQuery}
+                    onChange={e => {
+                      setVendorQuery(e.target.value);
+                      setSelectedVendor(null);
+                      setVendorOpen(true);
+                      searchVendor(e.target.value);
+                    }}
+                    onFocus={() => setVendorOpen(true)}
+                    placeholder="Vendor manual (tanpa PO)..."
+                    style={{
+                      width: '100%', boxSizing: 'border-box', padding: '6px 10px',
+                      border: `1.5px solid ${selectedVendor ? COLOR.success : COLOR.border}`,
+                      borderRadius: RADIUS.sm, fontSize: '12px', outline: 'none',
+                      background: '#fff',
+                    }}
+                  />
+                  {vendorOpen && vendorQuery && (
+                    <div style={styles.vendorDropdown}>
+                      {vendorLoading ? (
+                        <div style={styles.dropdownEmpty}>Mencari...</div>
+                      ) : vendors.length === 0 ? (
+                        <div style={styles.dropdownEmpty}>Vendor tidak ditemukan.</div>
+                      ) : (
+                        vendors.map(v => (
+                          <div
+                            key={v.C_BPartner_ID}
+                            onClick={() => handleSelectVendor(v)}
+                            style={styles.dropdownItem}
+                            onMouseDown={e => e.preventDefault()}
+                          >
+                            <strong>{v.Name}</strong> {v.Value ? <span style={{ color: COLOR.textLt }}>({v.Value})</span> : null}
+                          </div>
+                        ))
+                      )}
+                    </div>
                   )}
                 </div>
-              )}
+                <span style={{ color: COLOR.textLt, fontSize: '11px' }}>
+                  atau klik 📥 di bawah untuk import dari PO (vendor otomatis terisi)
+                </span>
+              </>
+            )}
+  
+            {/* Warehouse Badge */}
+            <div style={styles.badgeWrapper}>
+              <span style={styles.badgeLabel}>Warehouse:</span>
+              <span style={styles.badgeContent}>🏭 {warehouseInfo?.name || '...'}</span>             
             </div>
-            <span style={{ color: COLOR.textLt, fontSize: '11px' }}>
-              atau klik 📥 di bawah untuk import dari PO (vendor otomatis terisi)
-            </span>
-          </>
-        )}
-
-        <div
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '4px',
-            background: 'rgba(255,255,255,0.18)',
-            border: '1px solid rgba(255,255,255,0.3)',
-            borderRadius: '3px',
-            padding: '2px 8px 2px 10px', // Padding kiri sedikit lebih besar untuk label
-          }}
-        >
-          <span
-            style={{
-              fontSize: '10px',
-              fontWeight: 600,
-              color: '#374151',
-              textTransform: 'uppercase',
-              letterSpacing: '0.4px',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            Warehouse:
-          </span>
-          <span style={{
-            background: 'transparent',
-            padding: '3px 10px', fontSize: '11px', color: '#000b22', whiteSpace: 'nowrap',
-          }}>
-            🏭  {warehouseInfo?.name || '...'}
-          </span>             
-        </div>
-        <div
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '4px',
-            background: 'rgba(255,255,255,0.18)',
-            border: '1px solid rgba(255,255,255,0.3)',
-            borderRadius: '3px',
-            padding: '2px 8px 2px 10px', // Padding kiri sedikit lebih besar untuk label
-          }}
-        >
-          <input
-            type="date"
-            value={movementDate}
-            onChange={e => setMovementDate(e.target.value)}
-            onBlur={e => { if (!e.target.value) setMovementDate(todayLocalISO()); }}
-            disabled={!canSubmitReceipt}
-            title="Tanggal penerimaan barang (MovementDate)"
-            style={{
-              background: isNotToday ? 'rgba(196, 11, 51, 0.98)' : 'transparent',
-              border: `0px solid ${isNotToday ? '#fbbf24' : 'rgba(255,255,255,0.3)'}`,
-              padding: '3px 10px',
-              fontSize: '11px',
-              color: '#010611',
-              cursor: canSubmitReceipt ? 'pointer' : 'default',
-              outline: 'none',
-              maxWidth: isDesktop ? '150px' : '125px',
-              colorScheme: 'light',
-            }}
-          />
-        </div>
-      </div>
-
-        
-        
-      </div>
-
-      
-      {/* Body: dua kolom di desktop (produk + sidebar cart), satu kolom di mobile */}
-      <div style={{ flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0 }}>
-
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-
-          {/* Search bar + Scan + Import PO */}
-          <div style={{
-            padding: '12px 14px', background: COLOR.surface, borderBottom: `1px solid ${COLOR.border}`,
-            display: 'flex', gap: '8px', alignItems: 'center', flexShrink: 0,
-          }}>
-            <div style={{ flex: 1, position: 'relative' }}>
-              <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '15px', pointerEvents: 'none' }}>🔍</span>
+  
+            {/* Movement Date Picker */}
+            <div style={styles.badgeWrapper}>
               <input
-                ref={searchRef}
-                type="text"
-                value={searchValue}
-                onChange={e => search(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); fetchProducts(searchValue.trim()); } }}
-                placeholder="Cari nama / kode produk (tambahan manual)..."
+                type="date"
+                value={movementDate}
+                onChange={e => setMovementDate(e.target.value)}
+                onBlur={e => { if (!e.target.value) setMovementDate(todayLocalISO()); }}
+                disabled={!canSubmitReceipt}
+                title="Tanggal penerimaan barang (MovementDate)"
                 style={{
-                  width: '100%', boxSizing: 'border-box', padding: '10px 12px 10px 34px',
-                  border: `1.5px solid ${COLOR.border}`, borderRadius: RADIUS.md,
-                  fontSize: '14px', color: COLOR.textDk, background: COLOR.bg, outline: 'none',
+                  background: isNotToday ? 'rgba(196, 11, 51, 0.98)' : 'transparent',
+                  border: `0px solid ${isNotToday ? '#fbbf24' : 'rgba(255,255,255,0.3)'}`,
+                  padding: '3px 10px',
+                  fontSize: '11px',
+                  color: '#010611',
+                  cursor: canSubmitReceipt ? 'pointer' : 'default',
+                  outline: 'none',
+                  maxWidth: isDesktop ? '150px' : '125px',
+                  colorScheme: 'light',
                 }}
               />
-              {searchValue && (
-                <button
-                  onClick={() => { setSearchValue(''); fetchProducts(''); }}
-                  style={{
-                    position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)',
-                    background: 'none', border: 'none', cursor: 'pointer', color: COLOR.textLt,
-                    fontSize: '16px', padding: '2px',
-                  }}
-                >✕</button>
-              )}
             </div>
-
-            <button
-              onClick={() => setScannerOpen(true)}
-              title="Scan QR / Barcode"
-              style={{
-                background: COLOR.primary, border: 'none', color: '#fff',
-                borderRadius: RADIUS.md, padding: '10px 14px', cursor: 'pointer',
-                fontSize: '20px', lineHeight: 1, flexShrink: 0, WebkitTapHighlightColor: 'transparent',
-              }}
-            >
-              <ScanIcon />
-            </button>
-
-            {/* Tombol: Import dari Purchase Order Completed/Approved */}
-            <button
-              onClick={() => setImportOpen(true)}
-              title="Import dari Purchase Order yang sudah Approved"
-              style={{
-                background: COLOR.success, border: 'none', color: '#fff',
-                borderRadius: RADIUS.md, padding: '10px 14px', cursor: 'pointer',
-                fontSize: '18px', lineHeight: 1, flexShrink: 0, WebkitTapHighlightColor: 'transparent',
-              }}
-            ><ImportIcon /></button>
-          </div>
-
-          {/* Product Grid */}
-          <div style={{
-            flex: 1, overflowY: 'auto', padding: '12px 14px',
-            paddingBottom: (!isDesktop && cart.length > 0) ? '80px' : '14px',
-          }}>
-            <ProductGrid
-                          products={products}
-                          loading={productsLoading}
-                          loadingMore={loadingMore}
-                          hasMore={hasMore}
-                          fetchMore={loadMore}
-                          onProductClick={openProductDetail}
-                          isDesktop={isDesktop}
-                          selectedWarehouse={selectedWarehouse}
-                        />
           </div>
         </div>
-
-        {/* Kolom kanan: cart sidebar — HANYA di desktop */}
-        {isDesktop && (
-          <CartSidebar
+  
+        {/* Main Body */}
+        <div style={styles.mainBody}>
+          <div style={styles.leftColumn}>
+  
+            {/* Search bar + Scan + Import PO */}
+            <div style={styles.searchBarContainer}>
+              <div style={{ flex: 1, position: 'relative' }}>
+                <span style={styles.searchIcon}>🔍</span>
+                <input
+                  ref={searchRef}
+                  type="text"
+                  value={searchValue}
+                  onChange={e => search(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); fetchProducts(searchValue.trim()); } }}
+                  placeholder="Cari nama / kode produk (tambahan manual)..."
+                  style={{
+                    width: '100%', boxSizing: 'border-box', padding: '10px 12px 10px 34px',
+                    border: `1.5px solid ${COLOR.border}`, borderRadius: RADIUS.md,
+                    fontSize: '14px', color: COLOR.textDk, background: COLOR.bg, outline: 'none',
+                  }}
+                />
+                {searchValue && (
+                  <button onClick={() => { setSearchValue(''); fetchProducts(''); }} style={styles.btnClearSearch}>
+                    ✕
+                  </button>
+                )}
+              </div>
+  
+              {/* Scan Button */}
+              <button
+                onClick={() => setScannerOpen(true)}
+                title="Scan QR / Barcode"
+                style={{ ...styles.iconButton(COLOR.primary), fontSize: '20px' }}
+              >
+                <ScanIcon />
+              </button>
+  
+              {/* Import PO Button */}
+              <button
+                onClick={() => setImportOpen(true)}
+                title="Import dari Purchase Order yang sudah Approved"
+                style={{ ...styles.iconButton(COLOR.success), fontSize: '18px' }}
+              >
+                <ImportIcon />
+              </button>
+            </div>
+  
+            {/* Product Grid */}
+            <div style={{
+              flex: 1, overflowY: 'auto', padding: '12px 14px',
+              paddingBottom: (!isDesktop && cart.length > 0) ? '80px' : '14px',
+            }}>
+              <ProductGrid
+                products={products}
+                loading={productsLoading}
+                loadingMore={loadingMore}
+                hasMore={hasMore}
+                fetchMore={loadMore}
+                onProductClick={openProductDetail}
+                isDesktop={isDesktop}
+                selectedWarehouse={selectedWarehouse}
+              />
+            </div>
+          </div>
+  
+          {/* Kolom kanan: Cart Sidebar (Desktop) */}
+          {isDesktop && (
+            <CartSidebar
+              cart={cart}
+              onRemove={removeFromCart}
+              onQtyChange={updateQty}
+              onUomChange={updateUom}
+              onClearCart={canSubmitReceipt ? clearCart : undefined}
+              totalItems={totalItems}
+              totalQty={totalQty}
+              summaryRight={cartSummaryRight}
+              title="📦 Daftar Penerimaan"
+              submitLabel="✅ TERIMA BARANG"
+              onSubmitDraft={canSubmitReceipt ? handleSubmitDraft : undefined}
+              onSubmitComplete={canSubmitReceipt ? handleSubmitComplete : undefined}
+              isSubmitting={isSubmitting}
+            />
+          )}
+        </div>
+  
+        {/* Mobile Cart FAB & Sheet */}
+        {!isDesktop && cart.length > 0 && !cartOpen && (
+          <CartFab count={totalItems} label="Daftar Penerimaan" onClick={() => setCartOpen(true)} />
+        )}
+  
+        {!isDesktop && (
+          <CartPanel
+            isOpen={cartOpen}
+            onClose={() => setCartOpen(false)}
             cart={cart}
             onRemove={removeFromCart}
             onQtyChange={updateQty}
@@ -597,44 +549,101 @@ const GoodsReceiptContainer = () => {
             isSubmitting={isSubmitting}
           />
         )}
+  
+        {/* Read-Only Banner */}
+        {!canSubmitReceipt && (
+          <div style={styles.readOnlyBanner}>
+            ⚠ Role Anda hanya memiliki akses lihat (read-only) untuk Goods Receipt.
+          </div>
+        )}
       </div>
+    );
+  }
+  const styles = {
+    container: {
+      flex: 1, minHeight: 0, background: COLOR.bg,
+      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif',
+      display: 'flex', flexDirection: 'column', position: 'relative',
+      overflow: 'hidden',
+    },
+    headerTitle: {
+      color: '#374151',
+      fontWeight: 700,
+      fontSize: '15px',
+      flex: 1,
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: '6px',
+    },
+    vendorStrip: {
+      background: '#f4f6fb',
+      padding: '8px 16px',
+      fontSize: '12px',
+      color: COLOR.textMd,
+      display: 'flex',
+      gap: '10px',
+      alignItems: 'center',
+      flexWrap: 'wrap',
+      flexShrink: 0,
+      position: 'relative',
+    },
+    btnReset: {
+      background: 'none', border: 'none', color: COLOR.danger,
+      fontSize: '11px', cursor: 'pointer', fontWeight: 600, padding: 0,
+    },
+    vendorInputWrapper: { position: 'relative', flex: 1, minWidth: '200px', maxWidth: '360px' },
+    vendorDropdown: {
+      position: 'absolute', top: '100%', left: 0, right: 0, marginTop: '4px',
+      background: COLOR.surface, border: `1px solid ${COLOR.border}`,
+      borderRadius: RADIUS.md, boxShadow: '0 6px 20px rgba(0,0,0,0.12)',
+      maxHeight: '220px', overflowY: 'auto', zIndex: 200,
+    },
+    badgeWrapper: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: '4px',
+      background: 'rgba(255,255,255,0.18)',
+      border: '1px solid rgba(255,255,255,0.3)',
+      borderRadius: '3px',
+      padding: '2px 8px 2px 10px',
+    },
+    badgeLabel: {
+      fontSize: '10px',
+      fontWeight: 600,
+      color: '#374151',
+      textTransform: 'uppercase',
+      letterSpacing: '0.4px',
+      whiteSpace: 'nowrap',
+    },
+    badgeContent: {
+      background: 'transparent',
+      padding: '3px 10px', fontSize: '11px', color: '#000b22', whiteSpace: 'nowrap',
+    },
+    mainBody: { flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0 },
+    leftColumn: { flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 },
+    searchBarContainer: {
+      padding: '12px 14px', background: COLOR.surface, borderBottom: `1px solid ${COLOR.border}`,
+      display: 'flex', gap: '8px', alignItems: 'center', flexShrink: 0,
+    },
+    searchIcon: { position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '15px', pointerEvents: 'none' },
+    btnClearSearch: {
+      position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)',
+      background: 'none', border: 'none', cursor: 'pointer', color: COLOR.textLt,
+      fontSize: '16px', padding: '2px',
+    },
+    iconButton: (bg) => ({
+      background: bg, border: 'none', color: '#fff',
+      borderRadius: RADIUS.md, padding: '10px 14px', cursor: 'pointer',
+      lineHeight: 1, flexShrink: 0, WebkitTapHighlightColor: 'transparent',
+    }),
+    dropdownItem: { padding: '8px 12px', fontSize: '12px', cursor: 'pointer', color: COLOR.textDk },
+    dropdownEmpty: { padding: '10px', fontSize: '12px', color: COLOR.textLt },
+    readOnlyBanner: {
+      position: 'fixed', bottom: 0, left: 0, right: 0,
+      background: '#fef3c7', color: '#92400e', fontSize: '12px',
+      padding: '8px 14px', textAlign: 'center', zIndex: 150,
+    }
+  };
 
-      {/* Mobile only: FAB + bottom sheet cart */}
-      {!isDesktop && cart.length > 0 && !cartOpen && (
-        <CartFab count={totalItems} label="Daftar Penerimaan" onClick={() => setCartOpen(true)} />
-      )}
-
-      {!isDesktop && (
-        <CartPanel
-          isOpen={cartOpen}
-          onClose={() => setCartOpen(false)}
-          cart={cart}
-          onRemove={removeFromCart}
-          onQtyChange={updateQty}
-          onUomChange={updateUom}
-          onClearCart={canSubmitReceipt ? clearCart : undefined}
-          totalItems={totalItems}
-          totalQty={totalQty}
-          summaryRight={cartSummaryRight}
-          title="📦 Daftar Penerimaan"
-          submitLabel="✅ TERIMA BARANG"
-          onSubmitDraft={canSubmitReceipt ? handleSubmitDraft : undefined}
-          onSubmitComplete={canSubmitReceipt ? handleSubmitComplete : undefined}
-          isSubmitting={isSubmitting}
-        />
-      )}
-
-      {!canSubmitReceipt && (
-        <div style={{
-          position: 'fixed', bottom: 0, left: 0, right: 0,
-          background: '#fef3c7', color: '#92400e', fontSize: '12px',
-          padding: '8px 14px', textAlign: 'center', zIndex: 150,
-        }}>
-          ⚠ Role Anda hanya memiliki akses lihat (read-only) untuk Goods Receipt.
-        </div>
-      )}
-    </div>
-  );
-};
 
 export default GoodsReceiptContainer;

@@ -40,7 +40,7 @@ import { COLOR, RADIUS } from '@/utils/styleTokens';
 import { resolveDocTypeId, DOC_BASE_TYPE } from '@/utils/docTypeResolver';
 import { todayLocalISO, toDateOnly, formatDateID } from '@/utils/dateOnly';
 import '@/css/Header.css';
-
+import { formStyles } from '@/utils/formStyles';
 const SALES_INVOICE_CONFIG = {
   DESCRIPTION: 'POReference',
 };

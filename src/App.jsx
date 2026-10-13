@@ -61,6 +61,7 @@ import InventoryStockReport from "@/features/material/inventory/pages/InventoryS
 import GeneralLedgerReport from "@/features/financial/pages/GeneralLedgerReport";
 import WorkflowApprovalContainer from "@/features/workflow/pages/WorkflowApprovalContainer";
 import ProcurementTraceReport from "@/features/procurement/pages/ProcurementTraceReport";
+import ProductAnalysisContainer from "@/features/product-analysis/pages/ProductAnalysisContainer";
 
 export default function App() {
   return (
@@ -279,6 +280,11 @@ function AppContent() {
                       <Route path="/general-ledger" element={
                         <ProtectedRoute windowKey="generalLedger">
                           <GeneralLedgerReport token={session?.token} acctSchemaId={session?.acctSchemaId} />
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/product-analysis" element={
+                        <ProtectedRoute windowKey="productAnalysis">
+                          <ProductAnalysisContainer />
                         </ProtectedRoute>
                       } />
                       <Route path="/workflow-approval" element={

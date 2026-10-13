@@ -15,21 +15,21 @@ async function fetchImageUrl(path) {
     headers: { Authorization: `Bearer ${token}` },
   });
   const type = res.headers.get('content-type') || '';
-  console.log('[avatar] GET', path, '→', res.status, type);
+  //console.log('[avatar] GET', path, '→', res.status, type);
   if (!res.ok) return null;
 
   if (type.startsWith('image/')) {
     const blob = await res.blob();
-    console.log('[avatar] blob size', blob.size, blob.type);
+    //console.log('[avatar] blob size', blob.size, blob.type);
     return blob.size ? URL.createObjectURL(blob) : null;
   }
 
   const text = await res.text();
-  console.log('[avatar] body (200 karakter pertama):', text.slice(0, 200));
+  //console.log('[avatar] body (200 karakter pertama):', text.slice(0, 200));
   let b64 = text;
   try {
     const j = JSON.parse(text);
-    console.log('[avatar] keys JSON:', Object.keys(j));
+    //console.log('[avatar] keys JSON:', Object.keys(j));
     b64 =
       j.BinaryData ?? j.binaryData ?? j.data ??
       Object.values(j).find((v) => typeof v === 'string' && v.length > 100) ?? '';
@@ -58,7 +58,7 @@ export function useUserAvatar() {
       try {
         const user = await idempiereApi(`/models/ad_user/${userId}?$select=AD_Image_ID`);
         const imageId = fkId(user?.AD_Image_ID);
-        console.log('[avatar] AD_Image_ID =', imageId);
+        //console.log('[avatar] AD_Image_ID =', imageId);
 
         if (imageId) {
           const candidates = [
@@ -85,7 +85,7 @@ export function useUserAvatar() {
       } catch (e) {
         console.warn('[avatar] error', e.message);
       }
-      console.log('[avatar] hasil akhir:', objectUrl);
+      //console.log('[avatar] hasil akhir:', objectUrl);
       if (cancelled) {
         if (objectUrl) URL.revokeObjectURL(objectUrl);
       } else {
