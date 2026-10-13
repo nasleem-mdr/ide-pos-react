@@ -33,74 +33,22 @@ Sistem terdiri dari tiga lapisan utama:
 
 Setelah pengguna melakukan autentikasi dan memilih sesi (Client, Role, Organization, Warehouse), sistem menyediakan 3 modul utama yang terbagi menjadi sub-menu fungsional: 
 
-|**Modul**|**Sub-Menu**|**Fungsi Utama**|**Dokumen**<br>**iDempiere**|
 <table>
-  <thead>
-    <tr>
-      <th>Modul</th>
-      <th>Sub-Menu</th>
-      <th>Fungsi Utama</th>
-      <th>Dokumen iDempiere</th>
-    </tr>
-  </thead>
-  <tbody>
-    <!-- ═══ PROCUREMENT ═══ -->
-    <tr>
-      <td rowspan="4" align="center" valign="middle"><b>Procurement</b></td>
-      <td><b>Requisition<br>(FPB)</b></td>
-      <td>Permintaan barang internal antar<br>divisi/gudang</td>
-      <td><code>M_Requisition</code></td>
-    </tr>
-    <tr>
-      <td><b>Purchasing (PO)</b></td>
-      <td>Pembuatan order pembelian ke<br>vendor berdasarkan FPB</td>
-      <td><code>C_Order</code> (PO)</td>
-    </tr>
-    <tr>
-      <td><b>Goods Receipt</b></td>
-      <td>Pencatatan penerimaan fisik barang<br>dari vendor</td>
-      <td><code>M_InOut</code> (Receipt)</td>
-    </tr>
-    <tr>
-      <td><b>Internal Use</b></td>
-      <td>Pengeluaran barang dari gudang<br>untuk kebutuhan operasional</td>
-      <td><code>M_Inventory</code></td>
-    </tr>
-
-    <!-- ═══ SALES ═══ -->
-    <tr>
-      <td rowspan="3" align="center" valign="middle"><b>Sales</b></td>
-      <td><b>POS Sales</b></td>
-      <td>Transaksi Kasir/Toko (Instan Kas atau<br>Piutang)</td>
-      <td><code>C_Order</code> /<br><code>C_Payment</code></td>
-    </tr>
-    <tr>
-      <td><b>Sales Order - DO</b></td>
-      <td>Transaksi harian pelanggan (Otomatis<br>SO + Shipment M_InOut)</td>
-      <td><code>C_Order</code> &amp;<br><code>M_InOut</code></td>
-    </tr>
-    <tr>
-      <td><b>Sales Invoice</b></td>
-      <td>Penagihan faktur (Manual atau Import<br>gabungan dari M_InOut)</td>
-      <td><code>C_Invoice</code></td>
-    </tr>
-
-    <!-- ═══ FINANCE ═══ -->
-    <tr>
-      <td rowspan="2" align="center" valign="middle"><b>Finance</b></td>
-      <td><b>Payment/Receipt</b></td>
-      <td>Pelunasan tagihan Vendor (AP<br>Payment) &amp; Penerimaan Pembayaran<br>Customer (AR Receipt)</td>
-      <td><code>C_Payment</code></td>
-    </tr>
-    <tr>
-      <td><b>Bank Statement</b></td>
-      <td>Pencocokan Kas/Bank, Import<br>Statement, dan Manual Charge</td>
-      <td><code>C_BankStatement</code><br>/ <code>C_Cash</code></td>
-    </tr>
-  </tbody>
+<thead>
+<tr><th>Modul</th><th>Sub-Menu</th><th>Fungsi Utama</th><th>Dokumen iDempiere</th></tr>
+</thead>
+<tbody>
+<tr><td rowspan="4" align="center" valign="middle"><b>Procurement</b></td><td><b>Requisition<br>(FPB)</b></td><td>Permintaan barang internal antar<br>divisi/gudang</td><td><code>M_Requisition</code></td></tr>
+<tr><td><b>Purchasing (PO)</b></td><td>Pembuatan order pembelian ke<br>vendor berdasarkan FPB</td><td><code>C_Order</code> (PO)</td></tr>
+<tr><td><b>Goods Receipt</b></td><td>Pencatatan penerimaan fisik barang<br>dari vendor</td><td><code>M_InOut</code> (Receipt)</td></tr>
+<tr><td><b>Internal Use</b></td><td>Pengeluaran barang dari gudang<br>untuk kebutuhan operasional</td><td><code>M_Inventory</code></td></tr>
+<tr><td rowspan="3" align="center" valign="middle"><b>Sales</b></td><td><b>POS Sales</b></td><td>Transaksi Kasir/Toko (Instan Kas atau<br>Piutang)</td><td><code>C_Order</code> /<br><code>C_Payment</code></td></tr>
+<tr><td><b>Sales Order - DO</b></td><td>Transaksi harian pelanggan (Otomatis<br>SO + Shipment M_InOut)</td><td><code>C_Order</code> &amp;<br><code>M_InOut</code></td></tr>
+<tr><td><b>Sales Invoice</b></td><td>Penagihan faktur (Manual atau Import<br>gabungan dari M_InOut)</td><td><code>C_Invoice</code></td></tr>
+<tr><td rowspan="2" align="center" valign="middle"><b>Finance</b></td><td><b>Payment/Receipt</b></td><td>Pelunasan tagihan Vendor (AP<br>Payment) &amp; Penerimaan Pembayaran<br>Customer (AR Receipt)</td><td><code>C_Payment</code></td></tr>
+<tr><td><b>Bank Statement</b></td><td>Pencocokan Kas/Bank, Import<br>Statement, dan Manual Charge</td><td><code>C_BankStatement</code><br>/ <code>C_Cash</code></td></tr>
+</tbody>
 </table>
-
-
 
 ## **BAB 3: MODUL PROCUREMENT** 
 
