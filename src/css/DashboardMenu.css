@@ -8,24 +8,29 @@
   border-radius: 15px;
   overflow-y: auto;
 }
-
-.dashboard-main {
-  flex: 1;
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  padding: 48px 24px;
-}
-
+/* Pastikan container utama membentang penuh */
 .dashboard-welcome {
   display: flex;
   flex-direction: column;
-  align-items: stretch;
+  align-items: center; /* Membuat semua isi di dalam dashboard-welcome berada di tengah */
   text-align: center;
-  max-width: 1200px;
+}
+
+.welcome-header-top {
+  display: flex;
+  align-items: center;
+  justify-content: center; /* Memastikan isi flexbox berada di tengah */
+  gap: 16px;           /* Jarak antara icon dan judul */
+  margin-bottom: 2px; 
+}
+
+.welcome-header-top .welcome-title {
+  margin: 0; 
+}
+/* Pastikan banner kembali membentang penuh (lebar 100%) */
+.report-active-banner {
   width: 100%;
-  gap: 24px;
-  animation: fadeUp 0.4s ease both;
+  /* Tambahkan properti flex/layout banner Anda yang sebelumnya di sini jika ada */
 }
 
 @keyframes fadeUp {

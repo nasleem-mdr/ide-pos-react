@@ -44,6 +44,7 @@ import RoleManagement from "@/features/master/user/pages/RoleManagement";
 
 // Banking
 import BankStatementContainer  from '@/features/banking/statement/pages/BankStatementContainer';
+import BankStatementList  from '@/features/banking/statement/pages/BankStatementList';
 import PaymentReceiptContainer  from '@/features/banking/payment/pages/PaymentReceiptContainer';
 import ShipmentCustomerReport from "@/features/sales/shipment/pages/ShipmentCustomerReport";
 //financial Report
@@ -57,7 +58,7 @@ import IDempiereAuth from "@/features/login/pages/IDempiereAuth";
 import Dashboard from "@/features/login/pages/Dashboard";
 import { Header, Sidebar } from "@/shared/components/setup"; 
 
-import '@/css/AppLayout.css'; // Pastikan mengimpor file CSS layout Anda
+import '@/css/AppLayout.css'; 
 import InventoryStockReport from "@/features/material/inventory/pages/InventoryStockReport";
 import GeneralLedgerReport from "@/features/financial/pages/GeneralLedgerReport";
 import WorkflowApprovalContainer from "@/features/workflow/pages/WorkflowApprovalContainer";
@@ -261,6 +262,11 @@ function AppContent() {
                       <Route path="/bank-statement" element={
                         <ProtectedRoute windowKey="bankStatement">
                           <BankStatementContainer />
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/statement-list" element={
+                        <ProtectedRoute windowKey="statementList">
+                          <BankStatementList />
                         </ProtectedRoute>
                       } />
                       <Route path="/payment-receipt" element={

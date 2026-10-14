@@ -8,14 +8,20 @@ import BankStatementImportModal from '@/features/banking/statement/components/Ba
 import ChargeLineForm from '@/features/banking/statement/components/ChargeLineForm';
 import { useBankStatementCart, lineKey } from '@/features/banking/statement/hooks/useBankStatementCart';
 import { useBankStatementSubmit } from '@/features/banking/statement/hooks/useBankStatementSubmit';
+const todayLocalISO = () => {
+  const d = new Date();
+  const p = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+};
 
 const BankStatementContainer = () => {
   const [dialog, setDialog] = useState({ isOpen: false, title: '', message: '' });
   const alert = (message, title = 'Attention') => setDialog({ isOpen: true, title, message });
-
+  
   const { bankAccounts } = useBankAccounts();
   const [bankAccountId, setBankAccountId] = useState(null);
   const [beginningBalance, setBeginningBalance] = useState(0);
+  const [statementDate, setStatementDate] = useState(todayLocalISO());
   const [importOpen, setImportOpen] = useState(false);
   const [chargeFormOpen, setChargeFormOpen] = useState(false);
   const selectedBank = bankAccounts.find(b => String(b.id) === String(bankAccountId));
@@ -36,13 +42,12 @@ const BankStatementContainer = () => {
   const endingBalancePreview = beginningBalance + totalStmtAmt;
 
   const handleSubmit = async (submitMode) => {
-    const { result, hadError } = await submit(cart, { bankAccountId, beginningBalance, submitMode });
+    const { result, hadError } = await submit(cart, { bankAccountId, beginningBalance, statementDate, submitMode });
     if (!result) return;
     alert(`Bank Statement ${result.documentNo} has been successfully ${result.status === 'Completed' ? 'di-Complete' : 'Save as Draft'}.`, 'Success');
     fetchBeginningBalance(bankAccountId).then(setBeginningBalance);
     if (!hadError) { clearCart(); }
   };
-
   return (
     <div style={{ flex: 1, minHeight: 0, background: COLOR.bg, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       <Dialog isOpen={dialog.isOpen} title={dialog.title} message={dialog.message} onClose={() => setDialog({ isOpen: false, title: '', message: '' })} />
@@ -70,7 +75,7 @@ const BankStatementContainer = () => {
             value={bankAccountId || ''}
             onChange={e => setBankAccountId(e.target.value || null)}
             style={{
-              flex: '1 1 auto', minWidth: 0, padding: '10px',
+              flex: '1 1 auto', minWidth: 0, padding: '5px',
               border: `1px solid ${COLOR.border}`, borderRadius: RADIUS.md,
             }}
           >
@@ -128,7 +133,22 @@ const BankStatementContainer = () => {
             </>
           )}
         </div>
-  
+        {bankAccountId && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '10px', fontSize: '13px' }}>
+            <label htmlFor="stmtDate" style={{ fontWeight: 600 }}>Statement Date</label>
+            <input
+              id="stmtDate"
+              type="date"
+              value={statementDate}
+              onChange={e => setStatementDate(e.target.value)}
+              style={{
+                padding: '5px 8px', height: '30px',
+                border: `1px solid ${COLOR.border}`, borderRadius: RADIUS.md,
+              }}
+            />
+          </div>
+        )}
+
         {bankAccountId && (
           <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '10px', fontSize: '13px' }}>
             <span>Begining Balance: <b>{beginningBalance.toLocaleString('id-ID')}</b></span>
@@ -173,7 +193,7 @@ const BankStatementContainer = () => {
           }}>
             <div style={{ display: 'flex', gap: '6px' }}>
               <button
-                disabled={isSubmitting}
+                disabled={isSubmitting || !statementDate}
                 onClick={() => handleSubmit('draft')}
                 style={{
                   padding: '7px 12px',
@@ -188,7 +208,7 @@ const BankStatementContainer = () => {
                 Simpan Draft
               </button>
               <button
-                disabled={isSubmitting}
+                disabled={isSubmitting || !statementDate}
                 onClick={() => handleSubmit('complete')}
                 style={{
                   padding: '7px 14px',

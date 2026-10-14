@@ -37,12 +37,16 @@ export function useBankStatementSubmit({ onError }) {
       onError?.('Bank Account belum dipilih.', 'Data Belum Lengkap');
       return { result: null, hadError: true };
     }
+    if (!statementDate) {
+      onError?.('Statement Date belum diisi.', 'Data Belum Lengkap');
+      return { result: null, hadError: true };
+    }
 
     const { orgId, clientId } = getLoginInfo();
     setIsSubmitting(true);
 
     try {
-      const todayISO = statementDate || new Date().toISOString().split('T')[0];
+      const stmtDate = statementDate; // format YYYY-MM-DD
 
       const hdrRes = await idempiereApi('/models/c_bankstatement', {
         method: 'POST',
@@ -50,8 +54,9 @@ export function useBankStatementSubmit({ onError }) {
           AD_Client_ID: { id: clientId },
           AD_Org_ID:    { id: orgId },
           C_BankAccount_ID: { id: parseInt(bankAccountId) },
-          StatementDate:    todayISO,
-          DateAcct: todayISO,
+          Name:             stmtDate,
+          StatementDate:    stmtDate,
+          DateAcct:         stmtDate,
           BeginningBalance: parseFloat(beginningBalance || 0),
         }),
       });
@@ -62,11 +67,12 @@ export function useBankStatementSubmit({ onError }) {
         const basePayload = {
           AD_Org_ID: { id: orgId },
           C_BankStatement_ID: { id: statementId },
-          StmtAmt: parseFloat(item.StmtAmt || 0),          
-          DateAcct: item.DateTrx ? item.DateTrx.split('T')[0] : todayISO,
-          StatementLineDate: item.DateTrx ? item.DateTrx.split('T')[0] : todayISO,
-          ValutaDate: item.DateTrx ? item.DateTrx.split('T')[0] : todayISO,
+          StmtAmt: parseFloat(item.StmtAmt || 0),
+          DateAcct:          stmtDate,
+          StatementLineDate: stmtDate,
+          ValutaDate:        stmtDate,
         };
+        
         if (item.type === 'payment') {
           await idempiereApi('/models/c_bankstatementline', {
             method: 'POST',
