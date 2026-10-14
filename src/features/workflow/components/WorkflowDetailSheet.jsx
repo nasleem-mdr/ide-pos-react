@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { getAvailableActions, useProductHistory } from '../hooks';
 import { ProductHistoryModal } from './index';
+import WorkflowHistoryTimeline from './WorkflowHistoryTimeline';
 
 function formatWhen(iso) {
   if (!iso) return '';
@@ -87,15 +88,15 @@ export default function WorkflowDetailSheet({ activity, detail, loading, error, 
 
         {activity['history-records'] && (
           <div className="wf-history">
-            <button type="button" className="wf-history__toggle" onClick={() => setShowHistory(v => !v)}>
+            <button
+              type="button"
+              className="wf-history__toggle"
+              aria-expanded={showHistory}
+              onClick={() => setShowHistory((v) => !v)}
+            >
               {showHistory ? '▾ Sembunyikan Riwayat' : '▸ Lihat Riwayat Workflow'}
             </button>
-            {showHistory && (
-              <div
-                className="wf-history__body"
-                dangerouslySetInnerHTML={{ __html: activity['history-records'] }}
-              />
-            )}
+            {showHistory && <WorkflowHistoryTimeline raw={activity['history-records']} />}
           </div>
         )}
       </div>

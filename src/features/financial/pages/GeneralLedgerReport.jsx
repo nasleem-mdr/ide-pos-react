@@ -41,9 +41,24 @@ import "@/App.css";
  *   3) Di useMemo: klasifikasi per akun → hitung saldo awal & running
  *      balance sesuai aturan neraca/laba-rugi di atas.
  *
+ * ⚠️ CATATAN PAGINATION (PENTING):
+ *   bxservice REST API instance ini TERBUKTI membatasi hasil maksimal
+ *   100 baris per request, berapa pun nilai `$top` yang dikirim (kasus
+ *   sama persis sudah ketemu di useWindowAccess.jsx untuk ad_window_access).
+ *   Tanpa filter akun, jumlah baris Fact_Acct bisa jauh di atas 100, jadi
+ *   baris yang "hilang" bukan karena query salah — hanya 100 baris
+ *   pertama (hasil $orderby=DateAcct) yang benar-benar kebawa, sisanya
+ *   diam-diam terpotong oleh server. Saat difilter ke satu akun, volume
+ *   datanya kebetulan di bawah 100 sehingga tampak lengkap.
+ *   FIX: fetchAllFactAcctPages() di bawah melakukan loop `$skip` per
+ *   halaman (PAGE_SIZE) sampai halaman terakhir (hasil < PAGE_SIZE),
+ *   dipakai baik untuk query tanpa filter akun maupun tiap chunk filter
+ *   akun.
+ *
  * ⚠️ ASUMSI yang perlu kamu cek/sesuaikan:
  *   - Path import "@/features/accounting/report/..." sesuaikan struktur project.
- *   - $top=5000 per chunk. Volume posting besar → naikkan atau chunk per bulan.
+ *   - PAGE_SIZE=100 mengikuti batas server yang sudah dikonfirmasi; kalau
+ *     instance-mu ternyata beda, sesuaikan konstanta di bawah.
  *   - Filter default hanya DateAcct. Tambahkan PostingType eq 'A',
  *     C_AcctSchema_ID, AD_Org_ID di factFilter bila perlu (lihat komentar).
  *   - FY_START_MONTH: 1 = Januari (tahun kalender), 7 = Juli (FY Juli–Juni).
@@ -51,6 +66,15 @@ import "@/App.css";
  */
 
 const CHUNK_SIZE = 40; // jumlah Account_ID per batch query Fact_Acct
+
+// Batas baris per request yang benar-benar dihormati server (bxservice REST
+// mengembalikan maksimal 100 baris meski $top diset lebih besar) — dipakai
+// sebagai ukuran halaman untuk loop $skip di fetchAllFactAcctPages().
+const PAGE_SIZE = 100;
+
+// Jaga-jaga supaya loop paging tidak jalan tanpa batas kalau server
+// mengembalikan data yang tidak pernah < PAGE_SIZE (mis. bug tak terduga).
+const MAX_PAGES_PER_QUERY = 500; // 500 x 100 = 50.000 baris per query, cukup generous
 
 // ─── KONFIGURASI TAHUN FISKAL ────────────────────────────────────────────────
 // 1 = Januari (tahun kalender), 7 = Juli (tahun fiskal Juli–Juni), dll.
@@ -76,6 +100,25 @@ const getFiscalYearStartTs = (dateStr) => {
     return d.getTime() >= candidate
         ? candidate
         : new Date(Date.UTC(y - 1, FY_START_MONTH - 1, 1)).getTime();
+};
+
+// ─── PAGING HELPER: ambil SEMUA baris Fact_Acct untuk satu query dasar ──────
+// `queryBase` harus SUDAH berisi $filter/$select/$orderby tapi BELUM
+// $top/$skip — keduanya ditambahkan di sini per halaman. $orderby WAJIB ada
+// di queryBase supaya urutan antar halaman konsisten (tanpa ini hasil $skip
+// bisa tumpang-tindih/terlompat di Postgres).
+const fetchAllFactAcctPages = async (queryBase) => {
+    let skip = 0;
+    let allRecords = [];
+    for (let page = 0; page < MAX_PAGES_PER_QUERY; page++) {
+        const res = await idempiereApi(`${queryBase}&$top=${PAGE_SIZE}&$skip=${skip}`);
+        const records = Array.isArray(res.records) ? res.records : [];
+        allRecords.push(...records);
+        // Halaman terakhir: server mengembalikan kurang dari PAGE_SIZE baris.
+        if (records.length < PAGE_SIZE) break;
+        skip += PAGE_SIZE;
+    }
+    return allRecords;
 };
 
 const GeneralLedgerReport = () => {
@@ -109,6 +152,11 @@ const GeneralLedgerReport = () => {
     }, []);
 
     // ─── FETCH: opsi akun + AccountType (untuk klasifikasi neraca/laba-rugi) ─
+    // Catatan: $top=1000 di sini TIDAK diubah ke paging karena C_ElementValue
+    // biasanya jauh di bawah 100 baris aktif; kalau ternyata chart of
+    // account-mu lebih dari 100 akun aktif, bungkus juga pakai paging serupa
+    // (fetchAllFactAcctPages() di sini generik soal endpoint, hanya namanya
+    // yang menyebut Fact_Acct — tinggal pass queryBase ke c_elementvalue).
     const fetchAccountOptions = useCallback(async () => {
         try {
             const res = await idempiereApi(
@@ -150,19 +198,21 @@ const GeneralLedgerReport = () => {
 
             let allRecords = [];
             if (selectedAccountIds.length === 0) {
-                const res = await idempiereApi(
-                    `/models/fact_acct?$filter=${factFilter}&$select=${selectFields}&$orderby=DateAcct&$top=5000`
-                );
-                allRecords = Array.isArray(res.records) ? res.records : [];
+                // Tanpa filter akun → volume baris bisa jauh di atas batas
+                // 100/request server, WAJIB di-page penuh pakai $skip loop.
+                const queryBase =
+                    `/models/fact_acct?$filter=${factFilter}` +
+                    `&$select=${selectFields}&$orderby=DateAcct`;
+                allRecords = await fetchAllFactAcctPages(queryBase);
             } else {
                 for (let i = 0; i < selectedAccountIds.length; i += CHUNK_SIZE) {
                     const chunk = selectedAccountIds.slice(i, i + CHUNK_SIZE);
                     const orClause = chunk.map((aid) => `Account_ID eq ${aid}`).join(" or ");
-                    const res = await idempiereApi(
+                    const queryBase =
                         `/models/fact_acct?$filter=(${orClause}) and ${factFilter}` +
-                        `&$select=${selectFields}&$orderby=DateAcct&$top=5000`
-                    );
-                    allRecords.push(...(Array.isArray(res.records) ? res.records : []));
+                        `&$select=${selectFields}&$orderby=DateAcct`;
+                    const records = await fetchAllFactAcctPages(queryBase);
+                    allRecords.push(...records);
                 }
             }
 

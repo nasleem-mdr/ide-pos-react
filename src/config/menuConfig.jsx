@@ -115,6 +115,7 @@ export const menuSections = [
             { key: 'generalLedger', windowKey: 'generalLedger',  path: '/general-ledger',  label: 'General Ledger',   icon: <PiPresentationChart /> },
             { key: 'procurementTrace', windowKey: 'procurementTrace',  path: '/procurement-trace',  label: 'Procurement Trace',   icon: <PiPresentationChart /> },
             { key: 'productAnalysis', windowKey: 'productAnalysis',  path: '/product-analysis',  label: 'Product Analysis',   icon: <PiPresentationChart /> },
+            { key: 'trendReport', windowKey: 'trendReport',  path: '/trend-report',  label: 'Trend Report',   icon: <PiPresentationChart /> },
         ]
     },
     {

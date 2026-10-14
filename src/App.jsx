@@ -49,6 +49,7 @@ import ShipmentCustomerReport from "@/features/sales/shipment/pages/ShipmentCust
 //financial Report
 import FinancialReportPage from '@/features/financial/pages/FinancialReportPage';
 import FinancialComparisonPage from '@/features/financial/pages/FinancialComparisonPage';
+import MonthlyTrendReport from '@/features/financial/pages/MonthlyTrendReport';
 import DashboardMenu from '@/features/menu/pages/DashboardMenu';
 
 import ProtectedRoute from '@/shared/components/ProtectedRoute';
@@ -275,6 +276,11 @@ function AppContent() {
                       <Route path="/financial-comparasion" element={
                         <ProtectedRoute windowKey="financialComparation">
                           <FinancialComparisonPage token={session?.token} acctSchemaId={session?.acctSchemaId} />
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/trend-report" element={
+                        <ProtectedRoute windowKey="trendReport">
+                          <MonthlyTrendReport token={session?.token} acctSchemaId={session?.acctSchemaId} />
                         </ProtectedRoute>
                       } />
                       <Route path="/general-ledger" element={

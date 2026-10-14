@@ -134,12 +134,14 @@ const OutstandingInvoiceReport = () => {
                     console.error(`Gagal ambil allocation (chunk ${i / CHUNK_SIZE + 1}):`, err.message);
                 }
             }
-
             // Langkah 3: hitung OpenAmt, hanya simpan yang benar-benar outstanding
             const todayMs = Date.now();
             const rows = [];
             invMap.forEach((inv) => {
-                const openAmt = inv.grandTotal - inv.paid;
+                // AP: allocation line disimpan negatif di iDempiere → balik tandanya
+                // supaya "Terbayar" selalu positif, sejajar dengan GrandTotal invoice.
+                const paid = inv.isSales ? inv.paid : -inv.paid;
+                const openAmt = inv.grandTotal - paid;
                 if (openAmt <= 0.005) return; // sudah lunas (toleransi pembulatan)
 
                 const invMs = new Date(inv.dateInvoiced).getTime();
@@ -149,6 +151,7 @@ const OutstandingInvoiceReport = () => {
 
                 rows.push({
                     ...inv,
+                    paid,        // timpa dengan nilai yang sudah dinormalisasi
                     openAmt,
                     ageDays,
                     bucket: ageBucket(ageDays),

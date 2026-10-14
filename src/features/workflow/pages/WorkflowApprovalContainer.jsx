@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useWorkflowActivities, useWorkflowDecision, useWorkflowDocumentDetail } from '../hooks';
 import { WorkflowActivityCard, WorkflowDetailSheet, DecisionModal, ForwardModal } from '../components';
 import '@/css/WorkflowApproval.css';
-
+import '@/css/WorkflowApproval.timeline.css';
 export default function WorkflowApprovalContainer() {
   const { activities, loading, error, lastUpdated, fetchActivities, removeActivity } =
     useWorkflowActivities({ autoRefreshMs: 60000 });
