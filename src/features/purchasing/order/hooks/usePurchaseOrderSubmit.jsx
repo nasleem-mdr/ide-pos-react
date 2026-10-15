@@ -45,8 +45,29 @@ import { todayLocalISO, isDateOnly } from '@/utils/dateOnly';
 //     PriceActual = (PriceEntered × QtyEntered) ÷ QtyOrdered
 //
 // RETURN CONTRACT: submit() mengembalikan { results, hadError }. Setiap entry
-// di `results` punya field `status: 'Draft' | 'Completed'`.
+// di `results` punya field `status: 'Draft' | 'Completed' | 'Pending Approval'`.
+// 'Pending Approval' = doc-action CO sudah dikirim dan PO masuk approval
+// workflow (status IP/WP). Ini BUKAN error: PO sudah terbuat dan menunggu
+// approver, jadi cart dibersihkan dan tidak ada dialog error. Kalau status IP
+// padahal TIDAK ada workflow yang berjalan (Complete gagal, mis. field wajib
+// kosong), tetap dilempar sebagai error seperti sebelumnya.
+// Tambahan: submit() juga mengembalikan `pendingApproval` (boolean).
 // ─────────────────────────────────────────────────────────────────────────────
+const AD_TABLE_C_ORDER = 259;
+
+// Apakah PO ini punya workflow activity yang masih berjalan (menunggu approver)?
+// true = ada, false = tidak ada, null = tidak bisa dicek (mis. role tanpa akses).
+async function hasOpenWorkflow(orderId) {
+  try {
+    const res = await idempiereApi(
+      `/models/ad_wf_activity?$filter=AD_Table_ID eq ${AD_TABLE_C_ORDER} and Record_ID eq ${orderId} and Processed eq false&$top=1`
+    );
+    return (res?.records?.length ?? 0) > 0;
+  } catch {
+    return null;
+  }
+}
+
 export function usePurchaseOrderSubmit({ docTypeId, defaultDescription, onError }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { fetchUomOptions, toBaseQty } = useUomConversion();
@@ -175,17 +196,33 @@ export function usePurchaseOrderSubmit({ docTypeId, defaultDescription, onError 
         body: JSON.stringify({ 'doc-action': 'CO' }),
       });
       const finalStatus = completedRes.DocStatus?.id ?? completedRes.DocStatus;
+      const docNo = completedRes.DocumentNo || `PO-${orderId}`;
+      const failMessage =
+        `PO untuk vendor "${vendorName}" (${completedRes.DocumentNo || `#${orderId}`}) gagal di-Complete ` +
+        `(status: ${finalStatus || 'tidak diketahui'}). ` +
+        `Kemungkinan ada field wajib yang belum terisi (mis. Company Agent) — cek dokumen ini langsung di iDempiere.`;
+
+      let status = 'Completed';
+      let statusNote = null;
+
       if (finalStatus !== 'CO' && finalStatus !== 'CL') {
-        throw new Error(
-          `PO untuk vendor "${vendorName}" (${completedRes.DocumentNo || `#${orderId}`}) gagal di-Complete ` +
-          `(status: ${finalStatus || 'tidak diketahui'}). ` +
-          `Kemungkinan ada field wajib yang belum terisi (mis. Company Agent) — cek dokumen ini langsung di iDempiere.`
-        );
+        if (finalStatus === 'IP' || finalStatus === 'WP') {
+          // IP/WP: menunggu approval workflow, ATAU Complete gagal tanpa workflow.
+          const waiting = await hasOpenWorkflow(orderId);
+          if (waiting === false) throw new Error(failMessage);
+          status = 'Pending Approval';
+          if (waiting === null) {
+            statusNote = 'Status IP — diasumsikan menunggu approval (workflow tidak bisa diverifikasi dari sini).';
+          }
+        } else {
+          throw new Error(failMessage);
+        }
       }
+
       const currencyRef = completedRes.C_Currency_ID
       ?? (await idempiereApi(`/models/c_order/${orderId}?$select=C_Currency_ID`)).C_Currency_ID;
       const currencyIso = await resolveCurrencyIso(currencyRef);
-      return { docNo: completedRes.DocumentNo || `PO-${orderId}`, status: 'Completed', currencyIso  };
+      return { docNo, status, statusNote, currencyIso };
     }
     // draft — tidak ada doc-action sama sekali
     const draftRes = await idempiereApi(`/models/c_order/${orderId}?$select=DocumentNo,DocStatus,C_Currency_ID`);
@@ -429,10 +466,11 @@ export function usePurchaseOrderSubmit({ docTypeId, defaultDescription, onError 
         }
 
         // ── Complete / draft ─────────────────────────────────────────────
-        const { docNo, status, currencyIso } = await finalizeOrder(editOrderId, submitMode, vendorName);
+        const { docNo, status, statusNote, currencyIso } = await finalizeOrder(editOrderId, submitMode, vendorName);
         results.push({
           documentNo: docNo,
           status,
+          statusNote,
           currencyIso, 
           vendorName,
           date: new Date().toLocaleString('id-ID'),
@@ -492,11 +530,12 @@ export function usePurchaseOrderSubmit({ docTypeId, defaultDescription, onError 
             if (!ok) matchFailures.push(name);
           }
 
-          const { docNo, status, currencyIso } = await finalizeOrder(orderId, submitMode, vendorName);
+          const { docNo, status, statusNote, currencyIso } = await finalizeOrder(orderId, submitMode, vendorName);
 
           results.push({
             documentNo: docNo,
             status,
+            statusNote,
             currencyIso,   // ⬅️ baru
             vendorName,
             date: new Date().toLocaleString('id-ID'),
@@ -514,10 +553,10 @@ export function usePurchaseOrderSubmit({ docTypeId, defaultDescription, onError 
           `disebutkan di atas (link status FPB dan/atau baris yang gagal dihapus) perlu dicek manual di iDempiere.`,
           'Peringatan: Ada Baris Perlu Dicek Manual'
         );
-        return { results, hadError: true };
+        return { results, hadError: true, pendingApproval: results.some(r => r.status === 'Pending Approval') };
       }
 
-      return { results, hadError: false };
+      return { results, hadError: false, pendingApproval: results.some(r => r.status === 'Pending Approval') };
     } catch (err) {
       onError?.(
         `Gagal memproses Purchase Order:\n\n${err.message}` +

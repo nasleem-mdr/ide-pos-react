@@ -48,11 +48,13 @@ import {
 import { useAccess } from '@/context/AccessContext';
 import { COLOR, RADIUS } from '@/utils/styleTokens';
 import { idempiereApi, fkId } from '@/api/idempiereApi';
+
 import { 
   resolveDocTypeId, 
-  DOC_BASE_TYPE 
+  DOC_BASE_TYPE, 
+  IS_SO_TRX, 
+  CASH_PO_DOCTYPE_NAME 
 } from '@/utils/docTypeResolver';
-
 import { 
   todayLocalISO, 
   toDateOnly, 
@@ -91,6 +93,8 @@ const PurchasingContainer = () => {
   const [defaultLocatorId, setDefaultLocatorId] = useState(null);
   const [description, setDescription]         = useState('');
   const [poDocTypeId, setPoDocTypeId]           = useState(null);
+  const [cashPoDocTypeId, setCashPoDocTypeId] = useState(null); 
+
   const [receiptDocTypeId, setReceiptDocTypeId] = useState(null);
   const [invoiceDocTypeId, setInvoiceDocTypeId] = useState(null);
   const [paymentDocTypeId, setPaymentDocTypeId] = useState(null);
@@ -101,7 +105,7 @@ const PurchasingContainer = () => {
   const [loadingEditOrder, setLoadingEditOrder] = useState(false);
   // Tanggal pemesanan — dasar tanggal PO; di Cash Purchase juga dasar Receipt, Invoice & AP Payment.
   const [dateOrdered, setDateOrdered] = useState(todayLocalISO);
-
+  
   const searchRef = useRef(null);
   const alert = (message, title = 'Perhatian') => setDialog({ isOpen: true, title, message });
 
@@ -126,17 +130,24 @@ const PurchasingContainer = () => {
   const [progressModalOpen, setProgressModalOpen] = useState(false);
   const [progressSteps, setProgressSteps] = useState({});
   const [progressDone, setProgressDone] = useState(false);
-
-  const { submit: submitCashPurchase, isSubmitting: cashPurchaseSubmitting } = useCashPurchaseSubmit({
-      poDocTypeId, receiptDocTypeId, invoiceDocTypeId, paymentDocTypeId,
-      description: 'Cash Purchase',
-      onError: alert,
-      onStepUpdate: (stepKey, status, meta) => {
-          setProgressSteps(prev => ({ ...prev, [stepKey]: { status, ...meta } }));
-          if (status === 'error') setProgressDone(true);
-      },
+  
+//   const { submit: submitCashPurchase, isSubmitting: cashPurchaseSubmitting } = useCashPurchaseSubmit({
+//     poDocTypeId: cashPoDocTypeId,          // ← bukan poDocTypeId
+//     receiptDocTypeId, invoiceDocTypeId, paymentDocTypeId,
+//     description: 'Cash Purchase',
+//     onError: alert,
+//     onStepUpdate: (stepKey, status, meta) => { /* tetap */ },
+// });
+const { submit: submitCashPurchase, isSubmitting: cashPurchaseSubmitting, steps: cashSteps } =
+  useCashPurchaseSubmit({
+    poDocTypeId: cashPoDocTypeId,
+    receiptDocTypeId, invoiceDocTypeId, paymentDocTypeId,
+    description: 'Cash Purchase',
+    onError: alert,
+    onStepUpdate: (stepKey, status) => {
+      if (status === 'error') setProgressDone(true);
+    },
   });
-
   const handleModalDraft = () => {
       setSubmitModalOpen(false);
       handleSubmit('draft');   // fungsi submit draft yang sudah ada sebelumnya
@@ -230,21 +241,37 @@ useEffect(() => {
           return;
         }
 
-      try {
-        const [poDt, receiptDt, invoiceDt, paymentDt] = await Promise.all([
-          resolveDocTypeId(DOC_BASE_TYPE.PURCHASE_ORDER,   { orgId: info.orgId }),
-          resolveDocTypeId(DOC_BASE_TYPE.MATERIAL_RECEIPT, { orgId: info.orgId }),
-          resolveDocTypeId(DOC_BASE_TYPE.AP_INVOICE,       { orgId: info.orgId }),
-          resolveDocTypeId(DOC_BASE_TYPE.AP_PAYMENT,       { orgId: info.orgId }),
-        ]);
-        setPoDocTypeId(poDt);
-        setDocTypeId(poDt);
-        setReceiptDocTypeId(receiptDt);
-        setInvoiceDocTypeId(invoiceDt);
-        setPaymentDocTypeId(paymentDt);
-      } catch (err) {
-        alert(err.message, 'Document Type Tidak Ditemukan');
-      }
+        try {
+          const [poDt, receiptDt, invoiceDt, paymentDt] = await Promise.all([
+            resolveDocTypeId(DOC_BASE_TYPE.PURCHASE_ORDER, {
+              orgId: info.orgId,
+              isSOTrx: IS_SO_TRX.PURCHASE,
+              excludeName: CASH_PO_DOCTYPE_NAME,   // PO biasa tidak boleh ikut DocType tunai
+            }),
+            resolveDocTypeId(DOC_BASE_TYPE.MATERIAL_RECEIPT, { orgId: info.orgId }),
+            resolveDocTypeId(DOC_BASE_TYPE.AP_INVOICE,       { orgId: info.orgId }),
+            resolveDocTypeId(DOC_BASE_TYPE.AP_PAYMENT,       { orgId: info.orgId }),
+          ]);
+          setPoDocTypeId(poDt);
+          setDocTypeId(poDt);
+          setReceiptDocTypeId(receiptDt);
+          setInvoiceDocTypeId(invoiceDt);
+          setPaymentDocTypeId(paymentDt);
+        } catch (err) {
+          alert(err.message, 'Document Type Tidak Ditemukan');
+        }
+        
+        try {
+          const cashDt = await resolveDocTypeId(DOC_BASE_TYPE.PURCHASE_ORDER, {
+            orgId: info.orgId,
+            isSOTrx: IS_SO_TRX.PURCHASE,
+            name: CASH_PO_DOCTYPE_NAME,
+          });
+          setCashPoDocTypeId(cashDt);
+        } catch (err) {
+          console.warn('[Purchasing] DocType Cash Purchase tidak ditemukan:', err.message);
+          setCashPoDocTypeId(null);
+        }
 
       let resolvedWarehouseId = info.warehouseId;
       try {
@@ -931,12 +958,12 @@ useEffect(() => {
         />
         
         <CashPurchaseProgressModal
-           isOpen={progressModalOpen}
-           steps={progressSteps}
-           isDone={progressDone}
-           onClose={() => setProgressModalOpen(false)}
+          isOpen={progressModalOpen}
+          steps={cashSteps}          // ← sebelumnya steps={progressSteps}
+          isDone={progressDone}
+          onClose={() => setProgressModalOpen(false)}
         />
-            
+                 
           {isDesktop && (
           <POCartSidebar
             isOpen={cartOpen}

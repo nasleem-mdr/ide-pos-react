@@ -53,25 +53,22 @@ const _cache = new Map();
  *   cukup membedakan Internal Use vs Physical Inventory.
  * @returns {Promise<number>} C_DocType_ID yang sesuai untuk client user login.
  */
-export async function resolveDocTypeId(docBaseType, { orgId = null, docSubTypeInv = null, isSOTrx = null } = {}) {
+export async function resolveDocTypeId(docBaseType, { orgId = null, docSubTypeInv = null, isSOTrx = null, name = null, excludeName = null } = {}) {
   const { clientId } = getLoginInfo();
   if (!clientId) {
     throw new Error('AD_Client_ID tidak ditemukan di sesi login — silakan login kembali.');
   }
 
-  const cacheKey = `${clientId}_${docBaseType}_${docSubTypeInv ?? '-'}_${isSOTrx ?? '-'}_${orgId ?? 0}`;
+  const cacheKey =`${clientId}_${docBaseType}_${docSubTypeInv ?? '-'}_${isSOTrx ?? '-'}_${orgId ?? 0}` +
+    `_${name ?? '-'}_${excludeName ?? '-'}`;
   if (_cache.has(cacheKey)) return _cache.get(cacheKey);
 
+  const esc = (s) => s.replace(/'/g, "''");
   let filter = `DocBaseType eq '${docBaseType}' and AD_Client_ID eq ${clientId} and IsActive eq true`;
-  if (docSubTypeInv) {
-    filter += ` and DocSubTypeInv eq '${docSubTypeInv}'`;
-  }
-  if (isSOTrx !== null) {
-    // FIX: IsSOTrx serialize sebagai boolean literal (true/false) di instance
-    // ini, sama seperti IsCustomer/IsVendor — bukan string 'Y'/'N'. Jangan
-    // dikutip, dan pastikan caller mengirim boolean (lihat IS_SO_TRX di bawah).
-    filter += ` and IsSOTrx eq ${isSOTrx}`;
-  }
+  if (docSubTypeInv) filter += ` and DocSubTypeInv eq '${docSubTypeInv}'`;
+  if (isSOTrx !== null) filter += ` and IsSOTrx eq ${isSOTrx}`;
+  if (name)        filter += ` and Name eq '${esc(name)}'`;
+  if (excludeName) filter += ` and Name neq '${esc(excludeName)}'`;
 
   const res = await idempiereApi(
     `/models/c_doctype?$select=C_DocType_ID,Name,AD_Org_ID,IsDefault` +
@@ -124,6 +121,8 @@ export const DOC_BASE_TYPE = {
   AR_RECEIPT:            'ARR',
   SALES_ORDER:            'SOO',
 };
+
+export const CASH_PO_DOCTYPE_NAME = 'Cash Purchase Order';
 
 // Referensi nilai DocSubTypeInv (AD_Reference_ID=200068) — pembeda transaksi
 // di dalam DocBaseType='MMI' (M_Inventory).

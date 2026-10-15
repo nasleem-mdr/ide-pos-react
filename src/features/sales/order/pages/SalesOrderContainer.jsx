@@ -323,7 +323,7 @@ const SalesOrderContainer = () => {
 
         const safeBarcode = barcode.replace(/'/g, "''").toUpperCase();
         const productRes = await idempiereApi(
-            `/models/m_product?$select=M_Product_ID,Name,Value,UPC,ProductType,C_UOM_ID,IsPhantom` +
+            `/models/m_product?$select=M_Product_ID,Name,Value,UPC,ProductType,C_UOM_ID,IsPhantom,IsVerified` +
             `&$filter=IsSold eq true and IsActive eq true and ` +
             `(toupper(Value) eq '${safeBarcode}' or toupper(UPC) eq '${safeBarcode}')&$top=1`
         );
@@ -347,6 +347,7 @@ const SalesOrderContainer = () => {
             // Dibutuhkan addToCart untuk re-check stok yang benar (BOM Phantom
             // tidak boleh dicek lewat M_Storage langsung — lihat fetchQtyOnHandBatch).
             IsPhantom: productRec.IsPhantom === true || productRec.IsPhantom === 'Y',
+            IsVerified: productRec.IsVerified === true || productRec.IsVerified === 'Y',
             defaultUOM: {
                 id: productRec.C_UOM_ID?.id ?? productRec.C_UOM_ID,
                 name: productRec.C_UOM_ID?.Name || productRec.C_UOM_ID?.identifier || 'EA',
@@ -386,7 +387,7 @@ const SalesOrderContainer = () => {
     const resolveProducts = async (productFilter, versionId, signal, top = 20, skip = 0) => {
         const [priceData, productData] = await Promise.all([
             idempiereApi(`/models/m_productprice?$filter=M_PriceList_Version_ID eq ${versionId}&$select=M_Product_ID,PriceStd`, { signal }),
-            idempiereApi(`/models/m_product?$select=M_Product_ID,Name,Value,UPC,C_UOM_ID,M_Product_Category_ID,ProductType,IsPhantom&$filter=${productFilter}&$top=${top}&$skip=${skip}`, { signal }),
+            idempiereApi(`/models/m_product?$select=M_Product_ID,Name,Value,UPC,C_UOM_ID,M_Product_Category_ID,ProductType,IsPhantom,IsVerified&$filter=${productFilter}&$top=${top}&$skip=${skip}`, { signal }),
         ]);
 
         const productRecords = Array.isArray(productData.records) ? productData.records : productData.records ? [productData.records] : [];
@@ -420,6 +421,7 @@ const SalesOrderContainer = () => {
                 ProductCategory: { id: p.M_Product_Category_ID?.id ?? p.M_Product_Category_ID, name: p.M_Product_Category_ID?.Name || 'N/A' },
                 ProductType: p.ProductType?.id ?? p.ProductType ?? null,
                 IsPhantom: p.IsPhantom === true || p.IsPhantom === 'Y',
+                IsVerified: p.IsVerified === true || p.IsVerified === 'Y',
                 QtyOnHand: qtyOnHandMap.get(pId) ?? 0,
             };
         }).filter(Boolean);
@@ -587,7 +589,42 @@ const SalesOrderContainer = () => {
         }
     };
 
+    // ─── Pengaman BOM Phantom: struktur BOM harus sudah diverifikasi ──────────
+    // Produk Phantom yang BOM-nya belum lewat proses "Verify BOM Structure"
+    // (org.compiere.process.BOMVerify, tombol ada di ProductDetail) punya
+    // M_Product.IsVerified = N, dan explosion BOM-nya tidak bisa diandalkan.
+    // Status dicek ULANG ke server tiap add-to-cart (bukan percaya flag di
+    // grid) karena user bisa saja baru selesai verify di halaman lain sementara
+    // daftar produk di sini masih cache lama. Return: true | false | null
+    // (null = gagal cek, diperlakukan sebagai blokir / fail-closed).
+    const fetchIsBomVerified = async (productId) => {
+        try {
+            const res = await idempiereApi(`/models/m_product/${productId}?$select=IsVerified`);
+            return res?.IsVerified === true || res?.IsVerified === 'Y';
+        } catch (err) {
+            console.error('Gagal cek IsVerified produk #' + productId + ':', err.message);
+            return null;
+        }
+    };
+
     const addToCart = async (product) => {
+        // Pengaman BOM Phantom: BOM belum diverifikasi → tidak boleh masuk keranjang.
+        {
+            const guardId = product.M_Product_ID?.id ?? product.M_Product_ID;
+            if (product.IsPhantom === true || product.IsPhantom === 'Y') {
+                const verified = await fetchIsBomVerified(guardId);
+                if (verified !== true) {
+                    triggerAlert(
+                        verified === null
+                            ? `Status verifikasi BOM produk "${product.Name}" tidak dapat dicek. Produk tidak dapat ditambahkan ke keranjang, coba lagi.`
+                            : `Produk "${product.Name}" adalah produk BOM Phantom yang struktur BOM-nya belum diverifikasi. Buka Master Produk > Detail Produk > Bill of Materials, lalu klik "Verify BOM Structure". Produk tidak dapat ditambahkan ke keranjang.`,
+                        "BOM Belum Diverifikasi"
+                    );
+                    return;
+                }
+            }
+        }
+
         const productTypeId = product.ProductType?.id ?? product.ProductType;
         const isService = productTypeId === 'S';
         let qtyOnHand = 0;
