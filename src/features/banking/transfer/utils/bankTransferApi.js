@@ -223,3 +223,77 @@ export async function getVoidBlocker(id) {
   }
   return null;
 }
+// ─── auto Bank Statement (lewati rekonsiliasi manual) ─────────────────────────
+const STMT = '/models/c_bankstatement';
+const STMT_LINE = '/models/c_bankstatementline';
+const newId = (res, col) => fkId(res?.id) ?? res?.id ?? fkId(res?.[col]);
+
+// Payment hasil Complete transfer (1 keluar dari rekening asal, 1 masuk ke rekening tujuan)
+export async function findTransferPayments(transferId) {
+  const rows = await fetchAll(`/models/c_payment?$filter=C_BankTransfer_ID eq ${transferId}&$orderby=C_Payment_ID`);
+  return rows.map((r) => ({
+    id: pk(r, 'C_Payment_ID'),
+    documentNo: r.DocumentNo || '',
+    bankAccountId: fkId(r.C_BankAccount_ID),
+    currencyId: fkId(r.C_Currency_ID),
+    isReceipt: isTrue(r.IsReceipt),
+    payAmt: num(r.PayAmt),
+    reconciled: isTrue(r.IsReconciled),
+    docStatus: r.DocStatus?.id ?? r.DocStatus,
+  }));
+}
+
+async function createStatementForPayment(p, { statementDate, dateAcct, description }) {
+  // Callout tidak jalan via REST → saldo awal/akhir dihitung manual
+  const acc = await idempiereApi(`/models/c_bankaccount/${p.bankAccountId}`);
+  const beginning = num(acc?.CurrentBalance);
+  const stmtAmt = p.isReceipt ? p.payAmt : -p.payAmt; // masuk (+), keluar (−)
+  const orgId = getLoginOrgId();
+
+  const hdr = await send('POST', STMT, {
+    C_BankAccount_ID: p.bankAccountId,
+    Name: statementDate,
+    StatementDate: toTs(statementDate),
+    DateAcct: toTs(dateAcct),
+    BeginningBalance: beginning,
+    EndingBalance: beginning + stmtAmt,
+    ...(orgId ? { AD_Org_ID: orgId } : {}),
+  });
+  const hdrId = newId(hdr, 'C_BankStatement_ID');
+
+  try {
+    await send('POST', STMT_LINE, {
+      C_BankStatement_ID: hdrId,
+      Line: 10,
+      StatementLineDate: toTs(statementDate),
+      ValutaDate: toTs(statementDate),
+      DateAcct: toTs(dateAcct),
+      C_Payment_ID: p.id,
+      C_Currency_ID: p.currencyId,
+      TrxAmt: stmtAmt,
+      StmtAmt: stmtAmt,
+      ChargeAmt: 0,
+      InterestAmt: 0,
+      Description: description || '',
+    });
+    await send('PUT', `${STMT}/${hdrId}`, { 'doc-action': 'CO' });
+  } catch (err) {
+    // Jangan tinggalkan header draft yatim
+    try { await send('DELETE', `${STMT}/${hdrId}`); } catch { /* abaikan */ }
+    throw err;
+  }
+  return hdrId;
+}
+
+// Idempotent: hanya payment yang belum terekonsiliasi diproses, jadi aman diulang
+// kalau salah satu rekening gagal.
+export async function reconcileTransfer(transferId, { statementDate, dateAcct, description }) {
+  const payments = await findTransferPayments(transferId);
+  if (payments.length === 0) throw new Error('Payment hasil transfer tidak ditemukan.');
+  const pending = payments.filter((p) => !p.reconciled && p.docStatus === 'CO');
+  const created = [];
+  for (const p of pending) {
+    created.push(await createStatementForPayment(p, { statementDate, dateAcct, description }));
+  }
+  return created;
+}
