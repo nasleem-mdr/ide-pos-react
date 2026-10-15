@@ -45,6 +45,7 @@ import RoleManagement from "@/features/master/user/pages/RoleManagement";
 // Banking
 import BankStatementContainer  from '@/features/banking/statement/pages/BankStatementContainer';
 import BankStatementList  from '@/features/banking/statement/pages/BankStatementList';
+import BankTransferList  from '@/features/banking/transfer/pages/BankTransferList';
 import PaymentReceiptContainer  from '@/features/banking/payment/pages/PaymentReceiptContainer';
 import ShipmentCustomerReport from "@/features/sales/shipment/pages/ShipmentCustomerReport";
 //financial Report
@@ -262,6 +263,11 @@ function AppContent() {
                       <Route path="/bank-statement" element={
                         <ProtectedRoute windowKey="bankStatement">
                           <BankStatementContainer />
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/bank-transfer" element={
+                        <ProtectedRoute windowKey="bankTransfer">
+                          <BankTransferList />
                         </ProtectedRoute>
                       } />
                       <Route path="/statement-list" element={
