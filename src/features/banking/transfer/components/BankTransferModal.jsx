@@ -29,6 +29,7 @@ const emptyForm = () => ({
     fromTender: "A",
     toTender: "A",
     description: "",
+    autoStatement: true,
 });
 
 const round2 = (n) => String(Math.round(n * 100) / 100);
@@ -43,7 +44,7 @@ const BankTransferModal = ({ isOpen, onClose, onSaved, editRecord = null }) => {
     const [error, setError] = useState(null);
     // Kalau create sukses tapi Complete gagal, dokumen draft sudah ada: klik berikutnya = update
     const [savedId, setSavedId] = useState(null);
-
+    const [transferDone, setTransferDone] = useState(false);
     // Lookup dimuat tiap modal dibuka
     useEffect(() => {
         if (!isOpen) return;
@@ -72,6 +73,7 @@ const BankTransferModal = ({ isOpen, onClose, onSaved, editRecord = null }) => {
     useEffect(() => {
         if (!isOpen) return;
         setSavedId(null);
+        setTransferDone(false);
         setError(null);
         if (editRecord) {
             setForm({
@@ -90,6 +92,7 @@ const BankTransferModal = ({ isOpen, onClose, onSaved, editRecord = null }) => {
                 fromBPartner: editRecord.fromBPartner || null,
                 toBPartner: editRecord.toBPartner || null,
                 sameBp: !editRecord.toBPartner || editRecord.toBPartner.id === editRecord.fromBPartner?.id,
+                autoStatement: true,
             });
         } else {
             setForm(emptyForm());
@@ -142,30 +145,52 @@ const BankTransferModal = ({ isOpen, onClose, onSaved, editRecord = null }) => {
     const handleSubmit = async (andComplete) => {
         const msg = validate();
         if (msg) { setError(msg); return; }
-
+    
         setSaving(true);
         setError(null);
         let id = editRecord?.id ?? savedId;
-        try {
-            const saved = await saveTransfer({ id, form, fromAcc, toAcc });
-            id = saved.id;
-            setSavedId(id);
-        } catch (err) {
-            setError("Gagal menyimpan: " + readError(err));
-            setSaving(false);
-            return;
-        }
-
-        if (andComplete) {
+    
+        // Kalau transfer sudah Complete (retry bank statement), lewati simpan & complete
+        if (!transferDone) {
             try {
-                await runDocAction(id, "CO");
+                const saved = await saveTransfer({ id, form, fromAcc, toAcc });
+                id = saved.id;
+                setSavedId(id);
             } catch (err) {
-                setError("Draft tersimpan, tetapi gagal Complete: " + readError(err));
-                onSaved?.(); // refresh daftar: draft sudah ada
+                setError("Gagal menyimpan: " + readError(err));
+                setSaving(false);
+                return;
+            }
+    
+            if (andComplete) {
+                try {
+                    await runDocAction(id, "CO");
+                    setTransferDone(true);
+                } catch (err) {
+                    setError("Draft tersimpan, tetapi gagal Complete: " + readError(err));
+                    onSaved?.();
+                    setSaving(false);
+                    return;
+                }
+            }
+        }
+    
+        if (andComplete && form.autoStatement) {
+            try {
+                await reconcileTransfer(id, {
+                    statementDate: form.payDate,
+                    dateAcct: form.dateAcct,
+                    description: form.description,
+                });
+            } catch (err) {
+                setError("Transfer sudah Complete, tetapi Bank Statement gagal dibuat: " + readError(err) +
+                    "\nKlik tombol di bawah untuk mengulang (yang sudah berhasil tidak akan dobel).");
+                onSaved?.();
                 setSaving(false);
                 return;
             }
         }
+    
         try { localStorage.setItem(LAST_BP_KEY, JSON.stringify(form.fromBPartner)); } catch { /* abaikan */ }
         setSaving(false);
         onSaved?.();
@@ -271,7 +296,10 @@ const BankTransferModal = ({ isOpen, onClose, onSaved, editRecord = null }) => {
                             </select>
                         </Field>
                     </div>
-
+                    <label style={styles.checkRow}>
+                        <input type="checkbox" checked={form.autoStatement} onChange={(e) => set("autoStatement", e.target.checked)} />
+                        Langsung buat Bank Statement kedua rekening (tanpa rekonsiliasi manual)
+                    </label>
                     <Field label="Keterangan">
                         <textarea rows={2} value={form.description} maxLength={255} onChange={(e) => set("description", e.target.value)} style={{ ...styles.input, resize: "vertical" }} />
                     </Field>
@@ -281,12 +309,13 @@ const BankTransferModal = ({ isOpen, onClose, onSaved, editRecord = null }) => {
 
                 <div style={styles.footer}>
                     <button onClick={onClose} disabled={saving} style={styles.cancelBtn}>Batal</button>
-                    <button onClick={() => handleSubmit(false)} disabled={disabled} style={styles.saveBtn}>
+                    <button onClick={() => handleSubmit(false)} disabled={disabled || transferDone} style={styles.saveBtn}>
                         {saving ? "⏳ ..." : "💾 Simpan Draft"}
                     </button>
                     <button onClick={() => handleSubmit(true)} disabled={disabled} style={styles.completeBtn}>
-                        {saving ? "⏳ ..." : "✅ Simpan & Complete"}
+                        {saving ? "⏳ ..." : transferDone ? "🔁 Ulangi Bank Statement" : "✅ Simpan & Complete"}
                     </button>
+                    
                 </div>
             </div>
         </div>
