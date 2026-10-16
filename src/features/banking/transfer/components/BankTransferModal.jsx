@@ -1,12 +1,12 @@
 // src/features/finance/bank-transfer/components/BankTransferModal.jsx
 // Form buat / edit Bank-Cash Transfer. Edit hanya untuk dokumen berstatus Draft.
 import React, { useState, useEffect, useMemo, useRef } from "react";
+
 import {
     fetchBankAccounts, fetchCharges, fetchConversionTypes, fetchBPartners,
-    saveTransfer, runDocAction,
+    saveTransfer, runDocAction, reconcileTransfer,
     TENDER_TYPES, num, todayIso, toDateInput, readError,
 } from "../utils/bankTransferApi";
-
 // BP terakhir yang dipakai diingat di browser sebagai default transfer berikutnya
 const LAST_BP_KEY = "bankTransfer.lastBPartner";
 const readLastBp = () => {
@@ -242,30 +242,41 @@ const BankTransferModal = ({ isOpen, onClose, onSaved, editRecord = null }) => {
                         <Field label={`Jumlah Transfer${fromAcc?.currencyCode ? ` (${fromAcc.currencyCode})` : ""}`}>
                             <input type="number" min="0" step="any" value={form.amount} onChange={(e) => onAmountChange(e.target.value)} style={{ ...styles.input, textAlign: "right" }} />
                         </Field>
-                        <Field label="Business Partner">
-                            <BPartnerSelect value={form.fromBPartner} onChange={(bp) => set("fromBPartner", bp)} />
-                        </Field>
-                        <Field label=" ">
-                            <label style={styles.checkRow}>
-                                <input type="checkbox" checked={!form.sameBp} onChange={(e) => set("sameBp", !e.target.checked)} />
-                                BP tujuan berbeda
-                            </label>
-                        </Field>
-                        {!form.sameBp && (
-                            <>
-                                <Field label="Business Partner (tujuan)">
-                                    <BPartnerSelect value={form.toBPartner} onChange={(bp) => set("toBPartner", bp)} />
-                                </Field>
-                                <div />
-                            </>
-                        )}
-
                         <Field label="Charge (akun transit)">
                             <select value={form.chargeId} onChange={(e) => set("chargeId", e.target.value)} style={styles.input}>
                                 <option value="">— Pilih charge —</option>
                                 {charges.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
                             </select>
                         </Field>
+                        {form.sameBp ? (
+                            <>
+                                <Field label=" ">
+                                    <label style={styles.checkRow}>
+                                        <input type="checkbox" checked={!form.sameBp} onChange={(e) => set("sameBp", !e.target.checked)} />
+                                        BP tujuan berbeda
+                                    </label>
+                                </Field>
+                                <Field label="Business Partner">
+                                    <BPartnerSelect value={form.fromBPartner} onChange={(bp) => set("fromBPartner", bp)} />
+                                </Field>
+                            </>
+                        ) : (
+                            <>
+                                {/* BP tujuan berbeda: checkbox satu baris penuh, lalu BP asal (kiri) & BP tujuan (kanan) sejajar */}
+                                <div style={{ gridColumn: "1 / -1" }}>
+                                    <label style={styles.checkRow}>
+                                        <input type="checkbox" checked={!form.sameBp} onChange={(e) => set("sameBp", !e.target.checked)} />
+                                        BP tujuan berbeda
+                                    </label>
+                                </div>
+                                <Field label="Business Partner">
+                                    <BPartnerSelect value={form.fromBPartner} onChange={(bp) => set("fromBPartner", bp)} />
+                                </Field>
+                                <Field label="Business Partner (tujuan)">
+                                    <BPartnerSelect value={form.toBPartner} onChange={(bp) => set("toBPartner", bp)} />
+                                </Field>
+                            </>
+                        )}
 
                         {crossCurrency && (
                             <>

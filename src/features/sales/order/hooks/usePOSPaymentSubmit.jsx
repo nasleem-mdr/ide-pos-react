@@ -2,6 +2,22 @@ import { useState } from 'react';
 import { idempiereApi } from '@/api/idempiereApi';
 import { resolveDocTypeId, DOC_BASE_TYPE, IS_SO_TRX } from '@/utils/docTypeResolver';
 
+const docStatusOf = (rec) => rec?.DocStatus?.id ?? rec?.DocStatus ?? null;
+
+// doc-action CO pada order yang kena approval workflow TIDAK langsung CO — statusnya IP
+// (menunggu approver). Untuk POS itu tidak boleh terjadi (kasir tidak bisa menunggu
+// approval), jadi hentikan dengan pesan yang jelas, bukan error "Invoice belum terbentuk".
+// Kalau status tidak terbaca (null), dibiarkan lanjut — pengecekan Invoice di bawah jadi pengamannya.
+function assertOrderCompleted(order, orderId) {
+    const st = docStatusOf(order);
+    if (!st || st === 'CO' || st === 'CL') return;
+    throw new Error(
+      `Order POS ${order?.DocumentNo ?? '#' + orderId} masuk approval workflow (status ${st}), sehingga Shipment/Invoice tidak terbentuk. ` +
+      `Transaksi POS harus bypass workflow: pasang Transition Condition IsSOTrx = false pada transisi ke node QC Check di workflow Process_Order. ` +
+      `Order ini sudah terbentuk dengan status ${st} — selesaikan atau Void manual di iDempiere sebelum mengulang, supaya tidak ada transaksi ganda.`
+    );
+}
+
 // Mapping TenderType (C_POSTenderType / C_POSPayment) -> PaymentRule (C_Order).
 const TENDER_TO_PAYMENTRULE = {
     X: "B", // Cash
@@ -104,6 +120,11 @@ export function usePOSPaymentSubmit() {
             body: JSON.stringify({ "doc-action": "CO" }),
         });
 
+        const payStatus = docStatusOf(completedPayment);
+        if (payStatus && payStatus !== 'CO') {
+            throw new Error(`Payment (AR Receipt) belum Complete (status: ${payStatus}). Cek workflow Payment di iDempiere.`);
+        }
+
         return completedPayment;
     };
 
@@ -154,6 +175,8 @@ export function usePOSPaymentSubmit() {
                 body: JSON.stringify({ "doc-action": "CO" }),
             });
             
+            assertOrderCompleted(completedOrder, orderId);
+
             let invoice = await fetchInvoiceForOrder(orderId);
             
             if (isSettled(invoice)) {

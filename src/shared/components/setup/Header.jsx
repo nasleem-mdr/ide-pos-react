@@ -10,8 +10,7 @@ import {
 import { useUserAvatar } from '@/shared/hooks/useUserAvatar';
 import ChangeRoleModal from './ChangeRoleModal';
 import { useNavigate, Link } from "react-router-dom";
-import { useWorkflowPendingCount } from '@/shared/hooks/useWorkflowPendingCount';
-
+import NotificationBell from './NotificationBell';
 import '@/css/Header.css';
  
 export default function Header({ session, onLogout, onSessionUpdate }) {
@@ -21,7 +20,6 @@ export default function Header({ session, onLogout, onSessionUpdate }) {
   const [isTouchDevice, setIsTouchDevice] = useState(false);
   const menuRef = useRef(null);
   const navigate = useNavigate();
-  const { count: pendingCount } = useWorkflowPendingCount(roleId);
   const avatarUrl = useUserAvatar();
  
   // Deteksi apakah device mendukung hover asli (desktop/mouse) atau tidak
@@ -78,21 +76,8 @@ export default function Header({ session, onLogout, onSessionUpdate }) {
        {/*<div className="header-divider" />*/}
 
         {/* 2. Notifikasi Approval Pending */}
-        <Link
-          to="/workflow-approval"
-          className="header-notif"
-          title={pendingCount > 0 ? `${pendingCount} approval menunggu` : 'Tidak ada approval pending'}
-          aria-label={`Workflow approval, ${pendingCount} pending`}
-        >
-          <NotificationIcon />
-          
-          {pendingCount > 0 && (
-            <span className="header-notif-badge">
-              {pendingCount > 99 ? '99+' : pendingCount}
-            </span>
-          )}
-        </Link>
-
+        <NotificationBell roleId={roleId} workflowPath="/workflow-approval" purchasingPath="/purchasing" />
+        
         <div className="header-divider header-hide-mobile" />
         {/* 1. Role + Dropdown Ganti Role */}
         <div

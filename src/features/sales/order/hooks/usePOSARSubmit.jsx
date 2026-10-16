@@ -29,7 +29,26 @@ export function usePOSARSubmit() {
         return res?.records?.[0] || null;
     };
 
-    const docStatusOf = (rec) => rec?.DocStatus?.id ?? rec?.DocStatus;
+    const docStatusOf = (rec) => rec?.DocStatus?.id ?? rec?.DocStatus ?? null;
+
+    // Order kena approval workflow → status IP, Shipment/Invoice tidak ter-generate.
+    // POS harus bypass workflow, jadi hentikan dengan pesan yang jelas.
+    const assertOrderCompleted = (order, orderId) => {
+        const st = docStatusOf(order);
+        if (!st || st === 'CO' || st === 'CL') return;
+        throw new Error(
+          `Order POS ${order?.DocumentNo ?? '#' + orderId} masuk approval workflow (status ${st}), sehingga Shipment/Invoice tidak terbentuk. ` +
+      `Transaksi POS harus bypass workflow: pasang Transition Condition IsSOTrx = false pada transisi ke node QC Check di workflow Process_Order. ` +
+      `Order ini sudah terbentuk dengan status ${st} — selesaikan atau Void manual di iDempiere sebelum mengulang, supaya tidak ada transaksi ganda.`
+        );
+    };
+
+    const assertDocCompleted = (rec, label) => {
+        const st = docStatusOf(rec);
+        if (st && st !== 'CO' && st !== 'CL') {
+            throw new Error(`${label} ${rec?.DocumentNo ?? ''} belum Complete (status: ${st}). Cek workflow ${label} di iDempiere.`);
+        }
+    };
 
     const completeDoc = async (model, id) => {
         return idempiereApi(`/models/${model}/${id}`, {
@@ -58,6 +77,7 @@ export function usePOSARSubmit() {
             //    SESUAI DeliveryRule & InvoiceRule pada C_DocType Order ybs.
             //    (DeliveryRule harus 'Availability'/'Force', InvoiceRule 'Immediate'/'After Delivery')
             const completedOrder = await completeDoc('c_order', orderId);
+            assertOrderCompleted(completedOrder, orderId);
 
             // 3. Pastikan Shipment ter-generate, lalu Complete kalau masih draft
             let shipment = await fetchShipmentForOrder(orderId);
@@ -69,6 +89,7 @@ export function usePOSARSubmit() {
             }
             if (docStatusOf(shipment) === 'DR' || docStatusOf(shipment) === 'IP') {
                 shipment = await completeDoc('m_inout', shipment.id ?? shipment.M_InOut_ID);
+                assertDocCompleted(shipment, 'Shipment');
             }
 
             // 4. Pastikan Invoice ter-generate, lalu Complete kalau masih draft
@@ -81,6 +102,7 @@ export function usePOSARSubmit() {
             }
             if (docStatusOf(invoice) === 'DR' || docStatusOf(invoice) === 'IP') {
                 invoice = await completeDoc('c_invoice', invoice.id ?? invoice.C_Invoice_ID);
+                assertDocCompleted(invoice, 'Invoice');
             }
 
             setLastARStatus('ok');

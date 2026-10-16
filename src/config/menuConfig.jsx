@@ -11,7 +11,8 @@ import {
     UserIcon, 
     PartnerIcon, 
     BoxIcon, 
-    CashierIcon, 
+    CashierIcon,
+    TransferIcon, 
 } from '@/shared/components/icon';
 
 import { ShoppingBagIcon } from '@/shared/components/icon/ShoppingBagIcon';
@@ -69,7 +70,7 @@ export const menuSections = [
         items: [
             { key: 'paymentReceipt',   windowKey: 'paymentReceipt',  path: '/payment-receipt',  label: 'Payment and Receipt',  icon: <MdOutlinePayments size={24} /> },
             { key: 'bankStatement',   windowKey: 'bankStatement',  path: '/bank-statement',  label: 'Bank/Cash Statement',  icon: <BankIcon /> },
-            { key: 'bankTransfer',       windowKey: 'bankTransfer', path: '/bank-transfer',         label: 'Bank Transfer',  icon: <UserTake /> },
+            { key: 'bankTransfer',       windowKey: 'bankTransfer', path: '/bank-transfer',         label: 'Bank Transfer',  icon: <TransferIcon /> },
             ]
     },
     {

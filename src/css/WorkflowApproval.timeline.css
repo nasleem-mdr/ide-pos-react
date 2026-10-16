@@ -44,4 +44,4 @@
 
 /* Perbaikan typo radius di CSS lama */
 .wf-detail__tablewrap { border-radius: 12px; }  /* sebelumnya 1px */
-.wf-modal { border-radius: 18px; }              /* sebelumnya 5px, tidak cocok dengan .wf-modal__accent (18px) */
+.wf-modal { border-radius: 5px; }              /* sebelumnya 5px, tidak cocok dengan .wf-modal__accent (18px) */

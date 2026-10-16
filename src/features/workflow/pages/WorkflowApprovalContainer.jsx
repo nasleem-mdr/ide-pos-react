@@ -74,7 +74,7 @@ export default function WorkflowApprovalContainer() {
       <header className="header-content">
         <span
           style={{
-            color: '#fff',
+            color: '#000',
             fontWeight: 700,
             fontSize: '15px',
             flex: 1,
@@ -96,7 +96,7 @@ export default function WorkflowApprovalContainer() {
           disabled={loading}
           style={{
             background: 'rgba(255,255,255,0.18)',
-            border: '1px solid rgba(255,255,255,0.3)',
+            border: '1px solid rgba(7, 207, 74, 0.85)',
             borderRadius: '20px',
             padding: '3px 10px',
             fontSize: '11px',
@@ -106,6 +106,7 @@ export default function WorkflowApprovalContainer() {
             display: 'inline-flex',
             alignItems: 'center',
             gap: '4px',
+            color: '#000',
           }}
         >
           ⟳ Refresh
