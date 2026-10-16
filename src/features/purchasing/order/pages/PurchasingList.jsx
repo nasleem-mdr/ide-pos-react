@@ -9,7 +9,6 @@ import { useOrgInfo } from "@/shared/hooks/useOrgInfo";
 import { idempiereApi } from "@/api/idempiereApi";
 import { renderListPDF } from "@/utils/pdf/renderListPDF";
 import { generateOrderPDF } from "@/features/purchasing/order/utils/generateOrderPDF";
-import PurchasingNotificationBadge from "@/features/purchasing/order/components/PurchasingNotificationBadge";
 import {
     STATUS_FILTERS, 
     StatusBadge, 
@@ -399,7 +398,7 @@ const PurchasingList = () => {
                 onFilterChange={handleFilterChange}
                 extraAction={
                     <div style={{ display: 'flex', gap: '8px' }}>
-                        <PurchasingNotificationBadge />
+                        
                         <DocActionButton
                             tableName="C_Order"
                             items={[...selected.values()]}
