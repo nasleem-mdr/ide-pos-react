@@ -4,7 +4,6 @@ import {
   RoleIcon, 
   LogoIconW, 
   LogoutIcon, 
-  NotificationIcon, 
 } from '@/shared/components';
 
 import { useUserAvatar } from '@/shared/hooks/useUserAvatar';
@@ -115,11 +114,7 @@ export default function Header({ session, onLogout, onSessionUpdate }) {
               </button>
             </div>
           )}
-        </div>
-
-        
-
-        
+        </div>   
       </div>
 
       {/* Modal Ganti Role */}

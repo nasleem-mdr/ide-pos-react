@@ -17,14 +17,14 @@ import { getAvailableActions } from "@/shared/docAction/docActionConfig";
 
 import { useOrgInfo } from "@/shared/hooks/useOrgInfo";
 import { idempiereApi } from "@/api/idempiereApi";
-import{ generateGoodsReceiptPDF } from "@/features/material/receipt/utils/generateGoodsReceiptPDF"
+import { generateGoodsReceiptPDF } from "@/features/material/receipt/utils/generateGoodsReceiptPDF";
 import "@/App.css";
 
 const GoodsReceiptList = () => {
     const todayStr = new Date().toISOString().split("T")[0];
     const { orgInfo } = useOrgInfo();
     const [goodsreceipts, setGoodsReceipts]      = useState([]);
-    const [loading, setLoading]           = useState(false);
+    const [loading, setLoading]             = useState(false);
     const [search, setSearch]             = useState("");
     const [offset, setOffset]             = useState(0);
     const [totalRecords, setTotalRecords] = useState(0);
@@ -34,8 +34,19 @@ const GoodsReceiptList = () => {
     const [startDate, setStartDate]       = useState(todayStr);
     const [endDate, setEndDate]           = useState(todayStr);
     const [showAllOption, setShowAllOption] = useState('N');
+
+    // State untuk mendeteksi apakah layar perangkat adalah mobile (< 768px)
+    const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+    useEffect(() => {
+        const handleResize = () => setIsMobile(window.innerWidth < 768);
+        window.addEventListener("resize", handleResize);
+        return () => window.removeEventListener("resize", handleResize);
+    }, []);
+
     const pageSize                        = 10;
     const navigate                        = useNavigate();
+
     // --- Pilihan baris untuk aksi massal Close/Void ---
     const [selected, setSelected] = useState(() => new Map());
     const toDocItem = (g) => ({ id: g._goodsreceiptId, documentNo: g.DocumentNo, status: g._status });
@@ -52,24 +63,21 @@ const GoodsReceiptList = () => {
         fetchChargeAmts();
     };
 
-    // Buat fungsi filter clause yang konsisten (meniru PurchasingList)
+    // Buat fungsi filter clause yang konsisten
     const buildFilterClause = useCallback((loginUserId) => {
         const conditions = [
             `Created ge ${startDate}T00:00:00Z`,
             `Created le ${endDate}T23:59:59Z`
         ];
 
-        // Hanya tambahkan CreatedBy jika showAllOption BUKAN 'Y'
         if (showAllOption !== 'Y' && loginUserId) {
             conditions.unshift(`CreatedBy eq ${loginUserId}`);
         }
 
-        // Filter Search (berdasarkan DocumentNo)
         if (search) {
             conditions.push(`contains(tolower(DocumentNo),'${search.toLowerCase()}')`);
         }
 
-        // Filter Status menggunakan utilitas buildStatusCondition
         if (statusFilter && statusFilter !== "ALL") {
             conditions.push(`DocStatus eq '${statusFilter}'`);
         }
@@ -86,7 +94,6 @@ const GoodsReceiptList = () => {
         setLoading(true);
         try {
             const filterClause = buildFilterClause(loginUserId);
-            
             const res = await idempiereApi(
                 `/models/m_inout` +
                 `?$filter=${filterClause}` +
@@ -104,25 +111,6 @@ const GoodsReceiptList = () => {
             setLoading(false);
         }
     }, [offset, buildFilterClause, showAllOption]);
-
-    // const svgToPngDataUrl = (svgString, width, height) => {
-    //     return new Promise((resolve, reject) => {
-    //         const svgBlob = new Blob([svgString], { type: "image/svg+xml;charset=utf-8" });
-    //         const url = URL.createObjectURL(svgBlob);
-    //         const img = new Image();
-    //         img.onload = () => {
-    //             const canvas = document.createElement("canvas");
-    //             canvas.width = width * 2;  
-    //             canvas.height = height * 2;
-    //             const ctx = canvas.getContext("2d");
-    //             ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-    //             URL.revokeObjectURL(url);
-    //             resolve(canvas.toDataURL("image/png"));
-    //         };
-    //         img.onerror = reject;
-    //         img.src = url;
-    //     });
-    // };
 
     const fetchChargeAmts = useCallback(async () => {
         const loginUserId = localStorage.getItem("AD_User_ID");
@@ -181,7 +169,6 @@ const GoodsReceiptList = () => {
         const goodsreceiptId = goodsreceipt._goodsreceiptId ?? goodsreceipt.id;
         setDownloadingId(goodsreceiptId);
         try {
-            const token = localStorage.getItem("token");
             await generateGoodsReceiptPDF(goodsreceiptId, goodsreceipt.DocumentNo, orgInfo);
         } catch (err) {
             console.error("Gagal generate PDF:", err.message);
@@ -220,35 +207,40 @@ const GoodsReceiptList = () => {
         const isDownloading = downloadingId === item._goodsreceiptId;
         const isDownloadDisabled = item._status !== "CO" || isDownloading;
     
+        const btnStyle = isMobile ? { ...styles.editBtn, padding: "6px 8px", fontSize: "14px" } : styles.editBtn;
+
         return (
-            <div style={{ display: "flex", gap: "6px" }}>
+            <div style={styles.actionContainer}>
                 <input
                     type="checkbox"
                     checked={selected.has(item._goodsreceiptId)}
                     disabled={getAvailableActions("M_InOut", item._status).length === 0}
                     onChange={() => toggleSelect(item)}
                     title="Pilih untuk aksi massal Close/Void"
-                    style={{ width: "16px", height: "16px" }}
+                    style={{ width: "16px", height: "16px", cursor: "pointer" }}
                 />
+                
+                {/* Tombol Edit / Revisi */}
                 <button
                     onClick={() => !isEditDisabled ? handleEdit(item) : null}
                     disabled={isEditDisabled}
                     style={{
-                        ...styles.editBtn,
+                        ...btnStyle,
                         backgroundColor: !isEditDisabled ? (item._status === "NA" ? "#c62828" : "#f57c00") : "#ccc",
                         cursor: !isEditDisabled ? "pointer" : "not-allowed",
                         opacity: !isEditDisabled ? 1 : 0.6,
                     }}
                     title={isEditDisabled ? `Status tidak dapat diubah` : editTitle}
                 >
-                    {item._status === "NA" ? "🔁 Revisi" : "✏️ Edit"}
+                    {item._status === "NA" ? "🔁" : "✏️"} {!isMobile && (item._status === "NA" ? "Revisi" : "Edit")}
                 </button>
     
+                {/* Tombol Download PDF */}
                 <button
                     onClick={() => !isDownloadDisabled ? handleDownload(item) : null}
                     disabled={isDownloadDisabled}
                     style={{
-                        ...styles.editBtn,
+                        ...btnStyle,
                         backgroundColor: isDownloadDisabled ? "#ccc" : "#546e7a",
                         cursor: isDownloadDisabled ? "not-allowed" : "pointer",
                         opacity: isDownloadDisabled ? 0.6 : 1,
@@ -259,20 +251,24 @@ const GoodsReceiptList = () => {
                             : "Download Dokumen"
                     }
                 >
-                    {isDownloading ? "⏳ ..." : "⬇️ Download"}
+                    {isDownloading ? "⏳" : "⬇️"} {!isMobile && "Download"}
                 </button>
+
+                {/* Tombol Workflow Progress */}
                 <WorkflowProgressButton
                     tableName="M_InOut"
                     recordId={item._goodsreceiptId}
                     docStatus={item._status}
                     targetStatus="CO"
-                    buttonStyle={styles.editBtn}
+                    buttonStyle={btnStyle}
                 />
+
+                {/* Doc Action Button */}
                 <DocActionButton
                     tableName="M_InOut"
                     items={[toDocItem(item)]}
                     onDone={handleDocActionDone}
-                    style={{ ...styles.editBtn, backgroundColor: "#6d4c41" }}
+                    style={{ ...btnStyle, backgroundColor: "#6d4c41" }}
                 />
             </div>
         );
@@ -289,7 +285,7 @@ const GoodsReceiptList = () => {
     };
 
     return (
-        <div className="card-container">
+        <div style={styles.cardContainer}>
             <PageHeader
                 filters={STATUS_FILTERS}
                 activeFilter={statusFilter}
@@ -297,20 +293,20 @@ const GoodsReceiptList = () => {
                 title="Goods Receipt"
                 onSearch={(val) => { setSearch(val); setOffset(0); }}
                 extraAction={
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                    <DocActionButton
-                        tableName="M_InOut"
-                        items={[...selected.values()]}
-                        label={`⛔ Close / Void (${selected.size})`}
-                        onDone={handleDocActionDone}
-                        style={{ ...styles.newBtn, backgroundColor: "#6d4c41" }}
-                    />
-                    <button
-                        onClick={() => navigate("/goods-receipt")}
-                        style={styles.newBtn}
-                    >
-                        + Transaksi Baru
-                    </button>
+                    <div style={styles.headerActions}>
+                        <DocActionButton
+                            tableName="M_InOut"
+                            items={[...selected.values()]}
+                            label={isMobile ? `⛔ (${selected.size})` : `⛔ Close / Void (${selected.size})`}
+                            onDone={handleDocActionDone}
+                            style={{ ...styles.newBtn, backgroundColor: "#6d4c41" }}
+                        />
+                        <button
+                            onClick={() => navigate("/goods-receipt")}
+                            style={styles.newBtn}
+                        >
+                            + Baru
+                        </button>
                     </div>
                 }
             />
@@ -338,28 +334,95 @@ const GoodsReceiptList = () => {
                 </div>
             </div>
 
-            <DataTable
-                columns={columns}
-                data={tableData}
-                loading={loading}
-                offset={offset}
-                pageSize={pageSize}
-                totalRecords={totalRecords}
-                onPageChange={(newOffset) => setOffset(newOffset)}
-                renderActions={actionRenderer}
-                summaryRow={{ columnKey: "TotalLines", value: chargeAmtFormatted, label: "Total Semua" }}
-            />
+            <div style={styles.tableResponsiveContainer}>
+                <DataTable
+                    columns={columns}
+                    data={tableData}
+                    loading={loading}
+                    offset={offset}
+                    pageSize={pageSize}
+                    totalRecords={totalRecords}
+                    onPageChange={(newOffset) => setOffset(newOffset)}
+                    renderActions={actionRenderer}
+                    summaryRow={{ columnKey: "TotalLines", value: chargeAmtFormatted, label: "Total Semua" }}
+                />
+            </div>
         </div>
     );
 };
 
 const styles = {
-    newBtn:  { backgroundColor: "#1976d2", color: "#fff", border: "none", padding: "10px 18px", borderRadius: "6px", cursor: "pointer", fontWeight: "bold" },
-    editBtn: { color: "#fff", border: "none", padding: "6px 14px", borderRadius: "6px", fontWeight: "bold", fontSize: "12px", transition: "all 0.2s ease" },
-    dateFilterRow: { display: "flex", gap: "16px", flexWrap: "wrap", margin: "12px 0 16px" },
-    dateField:     { display: "flex", flexDirection: "column", gap: "4px" },
-    dateLabel:     { fontSize: "12px", fontWeight: "600", color: "#555" },
-    dateInput:      { padding: "8px 10px", borderRadius: "6px", border: "1px solid #ccc", fontSize: "13px" },
+    cardContainer: {
+        padding: "12px",
+        maxWidth: "100%",
+        boxSizing: "box-sizing",
+        overflowX: "hidden",
+        backgroundColor: "#fff",
+        borderRadius: "5px",
+    },
+    newBtn: { 
+        backgroundColor: "#1976d2", 
+        color: "#fff", 
+        border: "none", 
+        padding: "8px 12px", 
+        borderRadius: "6px", 
+        cursor: "pointer", 
+        fontWeight: "bold",
+        fontSize: "13px",
+        whiteSpace: "nowrap"
+    },
+    editBtn: { 
+        color: "#fff", 
+        border: "none", 
+        padding: "6px 10px", 
+        borderRadius: "6px", 
+        fontWeight: "bold", 
+        fontSize: "11px", 
+        transition: "all 0.2s ease",
+        whiteSpace: "nowrap"
+    },
+    actionContainer: {
+        display: "flex", 
+        gap: "4px", 
+        alignItems: "center", 
+        flexWrap: "nowrap",
+    },
+    dateFilterRow: { 
+        display: "flex", 
+        gap: "12px", 
+        flexWrap: "wrap", 
+        margin: "12px 0 16px",
+        alignItems: "flex-end"
+    },
+    dateField: { 
+        display: "flex", 
+        flexDirection: "column", 
+        gap: "4px",
+        flex: "1 1 140px"
+    },
+    dateLabel: { 
+        fontSize: "12px", 
+        fontWeight: "600", 
+        color: "#555" 
+    },
+    dateInput: { 
+        padding: "8px 10px", 
+        borderRadius: "6px", 
+        border: "1px solid #ccc", 
+        fontSize: "13px",
+        width: "100%",
+        boxSizing: "box-sizing"
+    },
+    headerActions: {
+        display: "flex", 
+        gap: "6px", 
+        flexWrap: "wrap",
+    },
+    tableResponsiveContainer: {
+        width: "100%",
+        overflowX: "auto",
+        WebkitOverflowScrolling: "touch",
+    },
 };
 
 export default GoodsReceiptList;

@@ -10,11 +10,11 @@ import {
   FileText,
   AlertCircle,
 } from 'lucide-react';
-import { useFinancialReport } from '@/features/financial/hooks/useFinancialReport';
+import { useFinancialReport } from '@/features/reporting/financial/hooks/useFinancialReport';
 import { useOrgInfo } from '@/shared/hooks/useOrgInfo';
 import OrgLetterhead from '@/shared/components/pdf/OrgLetterhead';
 import { buildRowBorderStyle } from '@/utils/reportLineStroke';
-import FinancialReportModal from '@/features/financial/components/FinancialReportModal';
+import FinancialReportModal from '@/features/reporting/financial/components/FinancialReportModal';
 import '@/css/FinancialReport.css';
 
 function formatRupiah(amount) {

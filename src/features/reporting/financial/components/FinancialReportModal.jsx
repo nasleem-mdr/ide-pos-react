@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X, FileText, Info } from 'lucide-react';
-import { useReportLineSets } from '@/features/financial/hooks/useReportLineSets';
+import { useReportLineSets } from '@/features/reporting/financial/hooks/useReportLineSets';
 import '@/css/FinancialReport.css';
 
 export default function FinancialReportModal({ open, onClose, onApply, token }) {

@@ -9,7 +9,6 @@ import { useOrgInfo } from "@/shared/hooks/useOrgInfo";
 import { idempiereApi } from "@/api/idempiereApi";
 import { renderListPDF } from "@/utils/pdf/renderListPDF";
 import { generateOrderPDF } from "@/features/purchasing/order/utils/generateOrderPDF";
-import PurchasingNotificationBadge from "@/features/purchasing/order/components/PurchasingNotificationBadge";
 import {
     STATUS_FILTERS, 
     StatusBadge, 
@@ -72,41 +71,31 @@ const PurchasingList = () => {
         return map[status] || status;
     };
 
-    const getStatusColor = (status) => {
-        const map = { DR: "#f57c00", CO: "#2e7d32", CL: "#37474f", VO: "#c62828", IP: "#1565c0", NA: "#c62828" };
-        return map[status] || "#555";
-    };
     const [showAllOption, setShowAllOption] = useState('N');
 
     const buildFilterClause = useCallback((loginUserId) => {
-        // Array untuk menampung semua kondisi filter
         const conditions = [
             `IsSOTrx eq false`,
             `Created ge ${startDate}T00:00:00Z`,
             `Created le ${endDate}T23:59:59Z`
         ];
 
-        // Kondisi IF: Hanya tambahkan CreatedBy jika opsi tampilkan semua BUKAN 'Y'
         if (showAllOption !== 'Y' && loginUserId) {
             conditions.unshift(`CreatedBy eq ${loginUserId}`);
         }
 
-        // Filter Search
         if (search) {
             conditions.push(`contains(tolower(DocumentNo),'${search.toLowerCase()}')`);
         }
 
-        // Filter Status
         if (statusFilter && statusFilter !== "ALL") {
             conditions.push(`DocStatus eq '${statusFilter}'`);
         }
         const statusCond = buildStatusCondition(statusFilter);
         if (statusCond) conditions.push(statusCond);
 
-        // Gabungkan semua kondisi dengan kata ' and '
         return conditions.join(' and ');
     }, [search, startDate, endDate, statusFilter, showAllOption]);
-
 
     const fetchOrders = useCallback(async () => {
         const loginUserId = localStorage.getItem("AD_User_ID");
@@ -190,7 +179,6 @@ const PurchasingList = () => {
 
     const tableData = orders.map((order) => {
         const orderId = order.id ?? order.C_Order_ID;
-        //const status  = order.DocStatus?.id ?? order.DocStatus ?? "DR";
         const status = normalizeStatus(order.DocStatus);
 
         return {
@@ -219,14 +207,14 @@ const PurchasingList = () => {
         const isDownloadDisabled = item._status !== "CO" || isDownloading;
 
         return (
-            <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+            <div style={styles.actionContainer}>
                 <input
                     type="checkbox"
                     checked={selected.has(item._orderId)}
                     disabled={getAvailableActions("C_Order", item._status).length === 0}
                     onChange={() => toggleSelect(item)}
                     title="Pilih untuk aksi massal Close/Void"
-                    style={{ width: "16px", height: "16px" }}
+                    style={{ width: "18px", height: "18px", cursor: "pointer" }}
                 />
                 <button
                     onClick={() => !isEditDisabled ? handleEdit(item) : null}
@@ -235,7 +223,7 @@ const PurchasingList = () => {
                         ...styles.editBtn,
                         backgroundColor: !isEditDisabled ? (item._status === "NA" ? "#c62828" : "#f57c00") : "#ccc",
                         cursor:          !isEditDisabled ? "pointer"  : "not-allowed",
-                        opacity:         !isEditDisabled ? 1          : 0.6,
+                        opacity:         !isEditDisabled ? 1         : 0.6,
                     }}
                     title={isEditDisabled ? `Status ${getStatusLabel(item._status)} tidak dapat diubah` : editTitle}
                 >
@@ -293,33 +281,26 @@ const PurchasingList = () => {
    
     const fetchAllOrdersForPrint = useCallback(async () => {
         const loginUserId = localStorage.getItem("AD_User_ID");
-        
-        // Validasi login user hanya jika TIDAK memilih opsi 'Y'
         if (showAllOption !== 'Y' && !loginUserId) return [];
     
-        // Array kondisi filter dasar
         const conditions = [
             `IsSOTrx eq false`,
             `Created ge ${startDate}T00:00:00Z`,
             `Created le ${endDate}T23:59:59Z`
         ];
     
-        // Tambahkan CreatedBy HANYA jika opsi BUKAN 'Y'
         if (showAllOption !== 'Y' && loginUserId) {
             conditions.unshift(`CreatedBy eq ${loginUserId}`);
         }
     
-        // Filter Search
         if (search) {
             conditions.push(`contains(tolower(DocumentNo),'${search.toLowerCase()}')`);
         }
     
-        // Filter Status (jika ada)
         if (statusFilter && statusFilter !== "ALL") {
             conditions.push(`DocStatus eq '${statusFilter}'`);
         }
     
-        // Gabungkan semua kondisi
         const filterClause = conditions.join(' and ');
     
         const res = await idempiereApi(
@@ -331,8 +312,6 @@ const PurchasingList = () => {
         );
     
         return Array.isArray(res.records) ? res.records : [];
-        
-    // Pastikan showAllOption DAN statusFilter dimasukkan ke dependency array!
     }, [search, startDate, endDate, statusFilter, showAllOption]);
 
     const [printingList, setPrintingList] = useState(false);
@@ -348,49 +327,48 @@ const PurchasingList = () => {
     };
    
     const handlePrintList = async () => {
-            setPrintingList(true);
-            try {
-                const allOrders = await fetchAllOrdersForPrint();
-    
-                if (allOrders.length === 0) {
-                    alert('Tidak ada data untuk dicetak pada periode ini.');
-                    return;
-                }
-    
-                const totalAmount = allOrders.reduce((s, odr) => s + parseFloat(odr.GrandTotal || 0), 0);
-                await renderListPDF({
-                    title: 'DAFTAR PURCHASE ORDER',
-                    orgInfo,   
-                    periodLabel: `PERIODE : ${formatDateService(startDate)}  ${formatDateService(endDate)}`,
-                    columns: [
-                        { key: 'no',         label: 'No',          width: 30,     align: 'center' },
-                        { key: 'documentNo', label: 'Document No', width: 70 },
-                        { key: 'dateOrder',  label: 'Date',        width: 60 },
-                        { key: 'createdBy',  label: 'Sales Rep',   width: 80 },
-                        { key: 'partner',    label: 'Customer',    width: 200 },
-                        { key: 'amount',     label: 'Amount',      width: 85, align: 'right' },
-                    ],
-                    rows: allOrders.map((odr, idx) => ({
-                        no:         idx + 1,
-                        documentNo: odr.DocumentNo || `#${odr.id ?? odr.C_Order_ID}`,
-                        dateOrder:  odr.DateOrdered || `#${odr.id ?? odr.DateOrdered}`,
-                        createdBy:  odr.CreatedBy?.identifier || '-',
-                        partner:    odr.C_BPartner_ID?.identifier || '-',
-                        amount:     numberFormatter.format(odr.GrandTotal ?? 0),
-                    })),
-                    totalLabel: 'Total Semua',
-                    totalValue: numberFormatter.format(totalAmount),
-                    filenamePrefix: `DAFTAR-PO-${startDate}_${endDate}`,
-                });
-            } catch (err) {
-                console.error('Gagal generate PDF daftar:', err.message);
-                alert('Gagal membuat PDF daftar.');
-            } finally {
-                setPrintingList(false);
+        setPrintingList(true);
+        try {
+            const allOrders = await fetchAllOrdersForPrint();
+            if (allOrders.length === 0) {
+                alert('Tidak ada data untuk dicetak pada periode ini.');
+                return;
             }
-        };
+            const totalAmount = allOrders.reduce((s, odr) => s + parseFloat(odr.GrandTotal || 0), 0);
+            await renderListPDF({
+                title: 'DAFTAR PURCHASE ORDER',
+                orgInfo,   
+                periodLabel: `PERIODE : ${formatDateService(startDate)}  ${formatDateService(endDate)}`,
+                columns: [
+                    { key: 'no',        label: 'No',          width: 30,    align: 'center' },
+                    { key: 'documentNo', label: 'Document No', width: 70 },
+                    { key: 'dateOrder',  label: 'Date',        width: 60 },
+                    { key: 'createdBy',  label: 'Sales Rep',   width: 80 },
+                    { key: 'partner',    label: 'Customer',    width: 200 },
+                    { key: 'amount',     label: 'Amount',      width: 85, align: 'right' },
+                ],
+                rows: allOrders.map((odr, idx) => ({
+                    no:         idx + 1,
+                    documentNo: odr.DocumentNo || `#${odr.id ?? odr.C_Order_ID}`,
+                    dateOrder:  odr.DateOrdered || `#${odr.id ?? odr.DateOrdered}`,
+                    createdBy:  odr.CreatedBy?.identifier || '-',
+                    partner:    odr.C_BPartner_ID?.identifier || '-',
+                    amount:     numberFormatter.format(odr.GrandTotal ?? 0),
+                })),
+                totalLabel: 'Total Semua',
+                totalValue: numberFormatter.format(totalAmount),
+                filenamePrefix: `DAFTAR-PO-${startDate}_${endDate}`,
+            });
+        } catch (err) {
+            console.error('Gagal generate PDF daftar:', err.message);
+            alert('Gagal membuat PDF daftar.');
+        } finally {
+            setPrintingList(false);
+        }
+    };
+
     return (
-        <div className="card-container">
+        <div style={styles.cardContainer}>
             <PageHeader
                 title="Purchasing"
                 onSearch={(val) => { setSearch(val); setOffset(0); }}
@@ -398,8 +376,7 @@ const PurchasingList = () => {
                 activeFilter={statusFilter}
                 onFilterChange={handleFilterChange}
                 extraAction={
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                        <PurchasingNotificationBadge />
+                    <div style={styles.headerActions}>
                         <DocActionButton
                             tableName="C_Order"
                             items={[...selected.values()]}
@@ -408,7 +385,7 @@ const PurchasingList = () => {
                             style={{ ...styles.newBtn, backgroundColor: "#6d4c41" }}
                         />
                         <button onClick={handlePrintList} disabled={printingList} style={styles.newBtn}>
-                            {printingList ? '⏳ ...' : '🖨️ Print PDF'}
+                            {printingList ? '⏳ ...' : '🖨️ Print'}
                         </button>
                         <button onClick={() => navigate("/purchasing")} style={styles.newBtn}>
                             + New
@@ -419,64 +396,146 @@ const PurchasingList = () => {
 
             <div style={styles.dateFilterRow}>
                 <div style={styles.dateField}>
-                <label style={styles.dateLabel}>Dari Tanggal</label>
-                <input
-                    type="date"
-                    value={startDate}
-                    max={endDate}
-                    onChange={(e) => handleStartDateChange(e.target.value)}
-                    style={styles.dateInput}
-                />
+                    <label style={styles.dateLabel}>Dari Tanggal</label>
+                    <input
+                        type="date"
+                        value={startDate}
+                        max={endDate}
+                        onChange={(e) => handleStartDateChange(e.target.value)}
+                        style={styles.dateInput}
+                    />
                 </div>
 
                 <div style={styles.dateField}>
-                <label style={styles.dateLabel}>Sampai Tanggal</label>
-                <input
-                    type="date"
-                    value={endDate}
-                    min={startDate}
-                    onChange={(e) => handleEndDateChange(e.target.value)}
-                    style={styles.dateInput}
-                />
+                    <label style={styles.dateLabel}>Sampai Tanggal</label>
+                    <input
+                        type="date"
+                        value={endDate}
+                        min={startDate}
+                        onChange={(e) => handleEndDateChange(e.target.value)}
+                        style={styles.dateInput}
+                    />
                 </div>
 
-                {/* OPSI TAMBAHAN SEBELAH TANGGAL */}
-                <div style={{ ...styles.dateField, justifyContent: 'center' }}>
-                <label style={{ ...styles.dateLabel, display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', marginTop: '24px' }}>
-                    <input
-                    type="checkbox"
-                    checked={showAllOption === 'Y'}
-                    onChange={(e) => setShowAllOption(e.target.checked ? 'Y' : 'N')}
-                    style={{ width: '16px', height: '16px', cursor: 'pointer' }}
-                    />
-                    Tampilkan Semua User
-                </label>
+                <div style={styles.dateFieldCheckbox}>
+                    <label style={styles.checkboxLabel}>
+                        <input
+                            type="checkbox"
+                            checked={showAllOption === 'Y'}
+                            onChange={(e) => setShowAllOption(e.target.checked ? 'Y' : 'N')}
+                            style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                        />
+                        Tampilkan Semua User
+                    </label>
                 </div>
             </div>
 
-            <DataTable
-                columns={columns}
-                data={tableData}
-                loading={loading}
-                offset={offset}
-                pageSize={pageSize}
-                totalRecords={totalRecords}
-                onPageChange={(newOffset) => setOffset(newOffset)}
-                renderActions={actionRenderer}
-                summaryRow={{ columnKey: "GrandTotal", value: totalAmountFormatted, label: "Total Semua" }}
-            />
+            {/* Container tabel responsif agar tidak terpotong di layar kecil */}
+            <div style={styles.tableResponsiveContainer}>
+                <DataTable
+                    columns={columns}
+                    data={tableData}
+                    loading={loading}
+                    offset={offset}
+                    pageSize={pageSize}
+                    totalRecords={totalRecords}
+                    onPageChange={(newOffset) => setOffset(newOffset)}
+                    renderActions={actionRenderer}
+                    summaryRow={{ columnKey: "GrandTotal", value: totalAmountFormatted, label: "Total Semua" }}
+                />
+            </div>
         </div>
     );
 };
 
 const styles = {
-    newBtn:  { backgroundColor: "#1976d2", color: "#fff", border: "none", padding: "10px 18px", borderRadius: "6px", cursor: "pointer", fontWeight: "bold" },
-    badge:   { color: "#fff", padding: "3px 10px", borderRadius: "12px", fontSize: "11px", fontWeight: "bold" },
-    editBtn: { color: "#fff", border: "none", padding: "6px 14px", borderRadius: "6px", fontWeight: "bold", fontSize: "12px", transition: "all 0.2s ease" },
-    dateFilterRow: { display: "flex", gap: "16px", flexWrap: "wrap", margin: "12px 0 16px" },
-    dateField:     { display: "flex", flexDirection: "column", gap: "4px" },
-    dateLabel:     { fontSize: "12px", fontWeight: "600", color: "#555" },
-    dateInput:      { padding: "8px 10px", borderRadius: "6px", border: "1px solid #ccc", fontSize: "13px" },
+    cardContainer: {
+        padding: "12px",
+        maxWidth: "100%",
+        boxSizing: "border-box",
+        overflowX: "hidden",
+        backgroundColor: "#fff",
+        borderRadius: "5px",
+    },
+    headerActions: {
+        display: "flex", 
+        gap: "6px", 
+        flexWrap: "wrap",
+    },
+    newBtn: { 
+        backgroundColor: "#1976d2", 
+        color: "#fff", 
+        border: "none", 
+        padding: "8px 12px", 
+        borderRadius: "6px", 
+        cursor: "pointer", 
+        fontWeight: "bold",
+        fontSize: "13px",
+        whiteSpace: "nowrap"
+    },
+    editBtn: { 
+        color: "#fff", 
+        border: "none", 
+        padding: "6px 10px", 
+        borderRadius: "6px", 
+        fontWeight: "bold", 
+        fontSize: "11px", 
+        transition: "all 0.2s ease",
+        whiteSpace: "nowrap"
+    },
+    actionContainer: {
+        display: "flex", 
+        gap: "6px", 
+        alignItems: "center", 
+        flexWrap: "wrap",
+        minWidth: "250px"
+    },
+    dateFilterRow: { 
+        display: "flex", 
+        gap: "12px", 
+        flexWrap: "wrap", 
+        margin: "12px 0 16px",
+        alignItems: "flex-end"
+    },
+    dateField: { 
+        display: "flex", 
+        flexDirection: "column", 
+        gap: "4px",
+        flex: "1 1 140px"
+    },
+    dateFieldCheckbox: {
+        display: "flex", 
+        alignItems: "center",
+        flex: "1 1 180px",
+        height: "36px"
+    },
+    dateLabel: { 
+        fontSize: "12px", 
+        fontWeight: "600", 
+        color: "#555" 
+    },
+    checkboxLabel: {
+        fontSize: "12px", 
+        fontWeight: "600", 
+        color: "#555",
+        display: "flex", 
+        alignItems: "center", 
+        gap: "8px", 
+        cursor: "pointer"
+    },
+    dateInput: { 
+        padding: "8px 10px", 
+        borderRadius: "6px", 
+        border: "1px solid #ccc", 
+        fontSize: "13px",
+        width: "100%",
+        boxSizing: "box-sizing"
+    },
+    tableResponsiveContainer: {
+        width: "100%",
+        overflowX: "auto",
+        WebkitOverflowScrolling: "touch",
+    },
 };
 
 export default PurchasingList;

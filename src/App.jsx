@@ -47,11 +47,7 @@ import BankStatementContainer  from '@/features/banking/statement/pages/BankStat
 import BankStatementList  from '@/features/banking/statement/pages/BankStatementList';
 import BankTransferList  from '@/features/banking/transfer/pages/BankTransferList';
 import PaymentReceiptContainer  from '@/features/banking/payment/pages/PaymentReceiptContainer';
-import ShipmentCustomerReport from "@/features/sales/shipment/pages/ShipmentCustomerReport";
-//financial Report
-import FinancialReportPage from '@/features/financial/pages/FinancialReportPage';
-import FinancialComparisonPage from '@/features/financial/pages/FinancialComparisonPage';
-import MonthlyTrendReport from '@/features/financial/pages/MonthlyTrendReport';
+
 import DashboardMenu from '@/features/menu/pages/DashboardMenu';
 
 import ProtectedRoute from '@/shared/components/ProtectedRoute';
@@ -61,10 +57,16 @@ import { Header, Sidebar } from "@/shared/components/setup";
 
 import '@/css/AppLayout.css'; 
 import InventoryStockReport from "@/features/material/inventory/pages/InventoryStockReport";
-import GeneralLedgerReport from "@/features/financial/pages/GeneralLedgerReport";
 import WorkflowApprovalContainer from "@/features/workflow/pages/WorkflowApprovalContainer";
-import ProcurementTraceReport from "@/features/procurement/pages/ProcurementTraceReport";
-import ProductAnalysisContainer from "@/features/product-analysis/pages/ProductAnalysisContainer";
+import ShipmentCustomerReport from "@/features/sales/shipment/pages/ShipmentCustomerReport";
+
+//Reporting multi features
+import FinancialReportPage from '@/features/reporting/financial/pages/FinancialReportPage';
+import FinancialComparisonPage from '@/features/reporting/financial/pages/FinancialComparisonPage';
+import MonthlyTrendReport from '@/features/reporting/financial/pages/MonthlyTrendReport';
+import GeneralLedgerReport from "@/features/reporting/financial/pages/GeneralLedgerReport";
+import ProcurementTraceReport from "@/features/reporting/procurement/pages/ProcurementTraceReport";
+import ProductAnalysisContainer from "@/features/reporting/product-analysis/pages/ProductAnalysisContainer";
 
 export default function App() {
   return (
