@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { useFinancialReport } from '@/features/financial/hooks/useFinancialReport';
+import { useFinancialReport } from '@/features/reporting/financial/hooks/useFinancialReport';
 
 /**
  * Komparasi dua periode untuk satu PA_ReportLineSet.

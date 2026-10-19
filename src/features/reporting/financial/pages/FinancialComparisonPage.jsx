@@ -9,8 +9,8 @@ import {
   FileText,
   AlertCircle,
 } from 'lucide-react';
-import { useFinancialComparison } from '@/features/financial/hooks/useFinancialComparison';
-import FinancialComparisonModal from '@/features/financial/components/FinancialComparisonModal';
+import { useFinancialComparison } from '@/features/reporting/financial/hooks/useFinancialComparison';
+import FinancialComparisonModal from '@/features/reporting/financial/components/FinancialComparisonModal';
 import { useOrgInfo } from '@/shared/hooks/useOrgInfo';
 import OrgLetterhead from '@/shared/components/pdf/OrgLetterhead';
 import { buildRowBorderStyle } from '@/utils/reportLineStroke';

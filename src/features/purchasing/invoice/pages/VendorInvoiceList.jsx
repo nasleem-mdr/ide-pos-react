@@ -18,6 +18,7 @@ import { renderDocumentPDF } from "@/utils/pdf/renderDocumentPDF";
 
 import DocActionButton from "@/shared/components/DocActionButton";
 import { getAvailableActions } from "@/shared/docAction/docActionConfig";
+import { listPageStyles as styles } from "@/utils/listPageStyles";
 import "@/App.css";
 
 /** ─────────────────────────────────────────────────────────────────────────────
@@ -393,7 +394,7 @@ const VendorInvoiceList = () => {
         setOffset(0);
     };
     return (
-        <div className="card-container">
+        <div style={styles.cardContainer}>
 
             <PageHeader
                 title="Purchasing Invoice"
@@ -402,21 +403,21 @@ const VendorInvoiceList = () => {
                 activeFilter={statusFilter}
                 onFilterChange={handleFilterChange}
                 extraAction={
-                <div style={{ display: 'flex', gap: '8px' }}>
-                    <DocActionButton
-                        tableName="C_Invoice"
-                        items={[...selected.values()]}
-                        label={`⛔ Close / Void (${selected.size})`}
-                        onDone={handleDocActionDone}
-                        style={{ ...styles.newBtn, backgroundColor: "#6d4c41" }}
-                    />
-                    <button
-                        onClick={() => navigate("/vendor-invoice")}
-                        style={styles.newBtn}
-                    >
-                        + New Transactions 
-                    </button>
-                </div>
+                    <div style={styles.headerActions}>
+                        <DocActionButton
+                            tableName="C_Invoice"
+                            items={[...selected.values()]}
+                            label={`⛔ Close / Void (${selected.size})`}
+                            onDone={handleDocActionDone}
+                            style={{ ...styles.newBtn, backgroundColor: "#6d4c41" }}
+                        />
+                        <button
+                            onClick={() => navigate("/vendor-invoice")}
+                            style={styles.newBtn}
+                        >
+                            + New Transactions 
+                        </button>
+                    </div>
                 }
             />
 
@@ -456,16 +457,6 @@ const VendorInvoiceList = () => {
             />
         </div>
     );
-};
-
-const styles = {
-    newBtn:  { backgroundColor: "#1976d2", color: "#fff", border: "none", padding: "10px 18px", borderRadius: "6px", cursor: "pointer", fontWeight: "bold" },
-    badge:   { color: "#fff", padding: "3px 10px", borderRadius: "12px", fontSize: "11px", fontWeight: "bold" },
-    editBtn: { color: "#fff", border: "none", padding: "6px 14px", borderRadius: "6px", fontWeight: "bold", fontSize: "12px", transition: "all 0.2s ease" },
-    dateFilterRow: { display: "flex", gap: "16px", flexWrap: "wrap", margin: "12px 0 16px" },
-    dateField:     { display: "flex", flexDirection: "column", gap: "4px" },
-    dateLabel:     { fontSize: "12px", fontWeight: "600", color: "#555" },
-    dateInput:      { padding: "8px 10px", borderRadius: "6px", border: "1px solid #ccc", fontSize: "13px" },
 };
 
 export default VendorInvoiceList;

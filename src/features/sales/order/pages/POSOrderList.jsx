@@ -6,6 +6,7 @@ import { renderListPDF } from "@/utils/pdf/renderListPDF";
 import { useOrgInfo } from '@/shared/hooks/useOrgInfo';
 import ReceiptModal from "@/features/sales/order/components/ReceiptModal";
 import { fetchReceiptData } from "@/features/sales/order/utils/fetchReceiptData";
+import { listPageStyles as styles } from "@/utils/listPageStyles";
 import "@/App.css";
 
 const POSOrderList = () => {
@@ -309,12 +310,12 @@ const POSOrderList = () => {
 
    
     return (
-        <div className="card-container">
+        <div style={styles.cardContainer}>
             <PageHeader
-                title="📋 Sales Order"
+                title="📋 Sales Order - POS"
                 onSearch={(val) => { setSearch(val); setOffset(0); }}
                 extraAction={
-                    <div style={{ display: 'flex', gap: '8px' }}>
+                    <div style={styles.headerActions}>
                         <button onClick={handlePrintList} disabled={printingList} style={styles.newBtn}>
                             {printingList ? '⏳ ...' : '🖨️ Print PDF'}
                         </button>
@@ -366,14 +367,5 @@ const POSOrderList = () => {
     );
 };
 
-const styles = {
-    newBtn:        { backgroundColor: "#1976d2", color: "#fff", border: "none", padding: "10px 18px", borderRadius: "6px", cursor: "pointer", fontWeight: "bold" },
-    badge:         { color: "#fff", padding: "3px 10px", borderRadius: "12px", fontSize: "11px", fontWeight: "bold" },
-    editBtn:       { color: "#fff", border: "none", padding: "6px 14px", borderRadius: "6px", fontWeight: "bold", fontSize: "12px", transition: "all 0.2s ease" },
-    dateFilterRow: { display: "flex", gap: "16px", flexWrap: "wrap", margin: "12px 0 16px" },
-    dateField:     { display: "flex", flexDirection: "column", gap: "4px" },
-    dateLabel:     { fontSize: "12px", fontWeight: "600", color: "#555" },
-    dateInput:     { padding: "8px 10px", borderRadius: "6px", border: "1px solid #ccc", fontSize: "13px" },
-};
 
 export default POSOrderList;

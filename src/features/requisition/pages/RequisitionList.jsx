@@ -10,15 +10,14 @@ import {
     STATUS_FILTERS, 
 } from "@/utils/docStatus";
 
-
 import { renderListPDF } from "@/utils/pdf/renderListPDF";
 import { generateRequisitionPDF } from '@/features/requisition/utils/generateRequisitionPDF';
 import { idempiereApi } from "@/api/idempiereApi";
 import { useOrgInfo } from "@/shared/hooks/useOrgInfo";
 import "@/App.css";
 import DocActionButton from "@/shared/components/DocActionButton";
+import { listPageStyles as styles } from "@/utils/listPageStyles";
 import { getAvailableActions } from "@/shared/docAction/docActionConfig";
-
 
 const RequisitionList = () => {
     const todayStr = new Date().toISOString().split("T")[0];
@@ -34,8 +33,18 @@ const RequisitionList = () => {
     const [startDate, setStartDate]         = useState(todayStr);
     const [endDate, setEndDate]             = useState(todayStr);
     const [printingList, setPrintingList]   = useState(false);
-    const pageSize                          = 10;
-    const navigate                          = useNavigate();
+    
+    // State untuk mendeteksi apakah layar mobile (lebar < 768px)
+    const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+    useEffect(() => {
+        const handleResize = () => setIsMobile(window.innerWidth < 768);
+        window.addEventListener("resize", handleResize);
+        return () => window.removeEventListener("resize", handleResize);
+    }, []);
+
+    const pageSize = 10;
+    const navigate = useNavigate();
     
     // --- Pilihan baris untuk aksi massal Close/Void ---
     const [selected, setSelected] = useState(() => new Map());
@@ -52,6 +61,7 @@ const RequisitionList = () => {
         fetchRequisitions();
         fetchTotalLines();
     };
+
     const getStatusLabel = (status) => {
         const map = { DR: "Draft", IP: "In Progress", CO: "Completed", VO: "Voided", RE: "Reversed", NA: "Ditolak" };
         return map[status] || status;
@@ -62,9 +72,6 @@ const RequisitionList = () => {
         return map[status] || "#555";
     };
 
-    // Filter dasar (tanggal + owner + search) — dipakai bareng oleh
-    // fetchRequisitions & fetchTotalLines supaya konsisten. statusFilter
-    // ditambahkan terpisah karena 'ALL' berarti TIDAK ada klausa DocStatus.
     const buildFilterClause = useCallback((loginUserId) => {
         let filterClause =
             ` CreatedBy eq ${loginUserId}` +
@@ -87,7 +94,6 @@ const RequisitionList = () => {
         setLoading(true);
         try {
             const filterClause = buildFilterClause(loginUserId);
-
             const res = await idempiereApi(
                 `/models/m_requisition` +
                 `?$filter=${filterClause}` +
@@ -106,16 +112,13 @@ const RequisitionList = () => {
         }
     }, [offset, buildFilterClause]);
 
-    // Fetch total TotalLines seluruh halaman — hanya dipicu saat filter berubah (bukan saat ganti halaman)
     const fetchTotalLines = useCallback(async () => {
         const loginUserId = localStorage.getItem("AD_User_ID");
         if (!loginUserId) return;
 
-        setTotalLinesAll(null); // reset saat filter berubah
+        setTotalLinesAll(null); 
         try {
             const filterClause = buildFilterClause(loginUserId);
-
-            // Ambil hanya kolom TotalLines tanpa pagination untuk dijumlahkan
             const res = await idempiereApi(
                 `/models/m_requisition` +
                 `?$filter=${filterClause}` +
@@ -140,11 +143,6 @@ const RequisitionList = () => {
     }, [fetchTotalLines]);
 
     const handleEdit = (requisition) => {
-        // Gunakan _raw (data asli sebelum di-overwrite tableData) agar field
-        // seperti M_Warehouse_ID tetap berupa object {id, identifier}, bukan string.
-        // Di-bersihkan via JSON round-trip karena history.pushState (dipakai navigate)
-        // memerlukan structured-clone-safe object — record API kadang menyertakan
-        // referensi/getter yang tidak bisa di-clone langsung.
         const raw = requisition._raw ?? requisition;
         let cleanRequisition;
         try {
@@ -155,17 +153,15 @@ const RequisitionList = () => {
         navigate("/requisition", { state: { editRequisition: cleanRequisition } });
     };
 
-    // Format total seluruh halaman dari state (null = sedang loading)
     const totalLinesFormatted = totalLinesAll === null
         ? "Menghitung..."
         : ` ${totalLinesAll.toLocaleString("id-ID")}`;
 
     const columns = [
-        { key: "DocumentNo",     label: "No. Dokumen" },
-        { key: "DateDoc",        label: "Tanggal" },
+        { key: "DocumentNo",    label: "No. Dokumen" },
+        { key: "DateDoc",       label: "Tanggal" },
         { key: "M_Warehouse_ID", label: "Gudang" },
-        //{ key: "TotalLines",    label: "Total Lines", align: "right" },
-        { key: "DocStatus",      label: "Status", align: "center" },
+        { key: "DocStatus",     label: "Status", align: "center" },
     ];
 
     const handleDownload = async (requisition) => {
@@ -187,9 +183,9 @@ const RequisitionList = () => {
 
         return {
             ...requisition,
-            _raw:           requisition,
+            _raw:              requisition,
             _requisitionId: requisitionId,
-            _status:        status,
+            _status:           status,
             DocumentNo:     requisition.DocumentNo || `#${requisitionId}`,
             DateDoc: requisition.DateDoc
                 ? new Date(requisition.DateDoc).toLocaleDateString("id-ID")
@@ -216,7 +212,7 @@ const RequisitionList = () => {
         const d = new Date(dateStr);
         if (isNaN(d)) return "-";
         const day = d.getDate();
-        const month = d.getMonth() + 1; // getMonth() 0-based
+        const month = d.getMonth() + 1; 
         const year = d.getFullYear();
         return `${day}/${month}/${year}`;
     };
@@ -249,20 +245,17 @@ const RequisitionList = () => {
         setPrintingList(true);
         try {
             const allRequisitions = await fetchAllRequisitionsForPrint();
-
             if (allRequisitions.length === 0) {
                 alert('Tidak ada data untuk dicetak pada periode ini.');
                 return;
             }
-
             const totalAmount = allRequisitions.reduce((s, odr) => s + parseFloat(odr.TotalLines || 0), 0);
-
             await renderListPDF({
                 title: 'DAFTAR REQUISITION',
                 orgInfo,
                 periodLabel: `PERIODE : ${formatDateService(startDate)}  ${formatDateService(endDate)}`,
                 columns: [
-                    { key: 'no',         label: 'No',            width: 30,  align: 'center' },
+                    { key: 'no',        label: 'No',            width: 30,  align: 'center' },
                     { key: 'documentNo', label: 'Document No',   width: 'auto' },
                     { key: 'dateDoc',    label: 'Date Doc',      width: 'auto' },
                     { key: 'dateReq',    label: 'Date Required', width: 'auto' },
@@ -297,37 +290,43 @@ const RequisitionList = () => {
             ? "Revisi & ajukan ulang untuk approval"
             : "Edit Dokumen";
         const isDownloading = downloadingId === item._requisitionId;
-        const isDownloadDisabled = item._status !== "CO" || isDownloading; // hanya aktif saat Completed
+        const isDownloadDisabled = item._status !== "CO" || isDownloading;
+
+        // Styling dinamis ukuran tombol untuk mobile (mengecil/hanya icon)
+        const btnStyle = isMobile ? { ...styles.editBtn, padding: "6px 8px", fontSize: "14px" } : styles.editBtn;
 
         return (
-            <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+            <div style={styles.actionContainer}>
                 <input
                     type="checkbox"
                     checked={selected.has(item._requisitionId)}
                     disabled={getAvailableActions("M_Requisition", item._status).length === 0}
                     onChange={() => toggleSelect(item)}
                     title="Pilih untuk aksi massal Close/Void"
-                    style={{ width: "16px", height: "16px" }}
+                    style={{ width: "16px", height: "16px", cursor: "pointer" }}
                 />
+                
+                {/* Tombol Edit / Revisi */}
                 <button
                     onClick={() => !isEditDisabled ? handleEdit(item) : null}
                     disabled={isEditDisabled}
                     style={{
-                        ...styles.editBtn,
+                        ...btnStyle,
                         backgroundColor: !isEditDisabled ? (item._status === "NA" ? "#c62828" : "#f57c00") : "#ccc",
                         cursor:          !isEditDisabled ? "pointer"  : "not-allowed",
-                        opacity:         !isEditDisabled ? 1          : 0.6,
+                        opacity:         !isEditDisabled ? 1         : 0.6,
                     }}
                     title={isEditDisabled ? `Status ${getStatusLabel(item._status)} tidak dapat diubah` : editTitle}
                 >
-                    {item._status === "NA" ? "🔁 Revisi" : "✏️ Edit"}
+                    {item._status === "NA" ? "🔁" : "✏️"} {!isMobile && (item._status === "NA" ? "Revisi" : "Edit")}
                 </button>
 
+                {/* Tombol Download PDF */}
                 <button
                     onClick={() => !isDownloadDisabled ? handleDownload(item) : null}
                     disabled={isDownloadDisabled}
                     style={{
-                        ...styles.editBtn,
+                        ...btnStyle,
                         backgroundColor: isDownloadDisabled ? "#ccc" : "#546e7a",
                         cursor:          isDownloadDisabled ? "not-allowed" : "pointer",
                         opacity:         isDownloadDisabled ? 0.6 : 1,
@@ -338,21 +337,24 @@ const RequisitionList = () => {
                             : "Download Dokumen"
                     }
                 >
-                    {isDownloading ? "⏳ ..." : "⬇️ Download"}
+                    {isDownloading ? "⏳" : "⬇️"} {!isMobile && "Download"}
                 </button>
 
+                {/* Tombol Workflow Progress */}
                 <WorkflowProgressButton
                     tableName="M_Requisition"
                     recordId={item._requisitionId}
                     docStatus={item._status}
                     targetStatus="CO"
-                    buttonStyle={styles.editBtn}
+                    buttonStyle={btnStyle}
                 />
+
+                {/* Doc Action Button (Close/Void individual) */}
                 <DocActionButton
                     tableName="M_Requisition"
                     items={[toDocItem(item)]}
                     onDone={handleDocActionDone}
-                    style={{ ...styles.editBtn, backgroundColor: "#6d4c41" }}
+                    style={{ ...btnStyle, backgroundColor: "#6d4c41" }}
                 />
             </div>
         );
@@ -374,8 +376,7 @@ const RequisitionList = () => {
     };
 
     return (
-        <div className="card-container">
-
+        <div style={styles.cardContainer}>
             <PageHeader
                 title="Requisition"
                 onSearch={(val) => { setSearch(val); setOffset(0); }}
@@ -383,16 +384,16 @@ const RequisitionList = () => {
                 activeFilter={statusFilter}
                 onFilterChange={handleFilterChange}
                 extraAction={
-                    <div style={{ display: 'flex', gap: '8px' }}>
+                    <div style={styles.headerActions}>
                         <DocActionButton
-                            tableName="C_Order"
+                            tableName="M_Requisition"
                             items={[...selected.values()]}
-                            label={`⛔ Close / Void (${selected.size})`}
+                            label={isMobile ? `⛔ (${selected.size})` : `⛔ Close / Void (${selected.size})`}
                             onDone={handleDocActionDone}
                             style={{ ...styles.newBtn, backgroundColor: "#6d4c41" }}
                         />
                         <button onClick={handlePrintList} disabled={printingList} style={styles.newBtn}>
-                            {printingList ? '⏳ ...' : '🖨️ Print PDF'}
+                            {printingList ? '⏳' : '🖨️'} {!isMobile && 'Print'}
                         </button>
                         <button onClick={() => navigate("/requisition")} style={styles.newBtn}>
                             + New
@@ -424,29 +425,21 @@ const RequisitionList = () => {
                 </div>
             </div>
 
-            <DataTable
-                columns={columns}
-                data={tableData}
-                loading={loading}
-                offset={offset}
-                pageSize={pageSize}
-                totalRecords={totalRecords}
-                onPageChange={(newOffset) => setOffset(newOffset)}
-                renderActions={actionRenderer}
-                summaryRow={{ columnKey: "TotalLines", value: totalLinesFormatted, label: "Total Semua" }}
-            />
+            <div style={styles.tableResponsiveContainer}>
+                <DataTable
+                    columns={columns}
+                    data={tableData}
+                    loading={loading}
+                    offset={offset}
+                    pageSize={pageSize}
+                    totalRecords={totalRecords}
+                    onPageChange={(newOffset) => setOffset(newOffset)}
+                    renderActions={actionRenderer}
+                    summaryRow={{ columnKey: "TotalLines", value: totalLinesFormatted, label: "Total Semua" }}
+                />
+            </div>
         </div>
     );
-};
-
-const styles = {
-    newBtn:  { backgroundColor: "#1976d2", color: "#fff", border: "none", padding: "10px 18px", borderRadius: "6px", cursor: "pointer", fontWeight: "bold" },
-    badge:   { color: "#fff", padding: "3px 10px", borderRadius: "12px", fontSize: "11px", fontWeight: "bold" },
-    editBtn: { color: "#fff", border: "none", padding: "6px 14px", borderRadius: "6px", fontWeight: "bold", fontSize: "12px", transition: "all 0.2s ease" },
-    dateFilterRow: { display: "flex", gap: "16px", flexWrap: "wrap", margin: "12px 0 16px" },
-    dateField:     { display: "flex", flexDirection: "column", gap: "4px" },
-    dateLabel:     { fontSize: "12px", fontWeight: "600", color: "#555" },
-    dateInput:     { padding: "8px 10px", borderRadius: "6px", border: "1px solid #ccc", fontSize: "13px" },
 };
 
 export default RequisitionList;

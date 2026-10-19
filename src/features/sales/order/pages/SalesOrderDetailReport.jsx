@@ -4,6 +4,7 @@ import { idempiereApi } from "@/api/idempiereApi";
 import { renderPivotListPDF } from "@/utils/pdf/renderPivotListPDF"; // duplikasi khusus laporan grouped/pivot — renderListPDF asli tidak diubah karena dipakai di banyak laporan lain
 import { useOrgInfo } from "@/shared/hooks/useOrgInfo";
 import * as XLSX from "xlsx"; // npm install xlsx (kalau belum ada di project)
+import { listPageStyles as base } from "@/utils/listPageStyles";
 import "@/App.css";
 
 /**
@@ -344,11 +345,11 @@ const SalesOrderDetailReport = () => {
     };
 
     return (
-        <div className="card-container">
+        <div style={base.cardContainer}>
             <PageHeader
                 title="📊 Laporan Detail Sales Order"
                 extraAction={
-                    <div style={{ display: "flex", gap: "8px" }}>
+                    <div style={base.headerActions}>
                         <button onClick={handleExportExcel} disabled={exportingExcel} style={styles.excelBtn}>
                             {exportingExcel ? "⏳ ..." : "📥 Download Excel"}
                         </button>
@@ -435,14 +436,14 @@ const SalesOrderDetailReport = () => {
                 grup punya baris header ringkasan (Qty & Total) sendiri.
                 Menggantikan SECTION 1 (flat list) + SECTION 2 (Ringkasan per
                 Produk terpisah) yang lama — sekarang jadi satu tabel saja. ─── */}
-            <div className="detail-section">
-                <h3>Detail Transaksi per Produk</h3>
+            <div style={styles.detailSection}>
+            <h3 style={styles.detailTitle}>Detail Transaksi per Produk</h3>
                 {loading ? (
                     <p>Memuat data...</p>
                 ) : groupedByProduct.length === 0 ? (
                     <p style={{ color: "#777" }}>Tidak ada data untuk filter ini.</p>
                 ) : (
-                    <div style={{ overflowX: "auto" }}>
+                    <div style={base.tableResponsiveContainer}>
                         <table className="modern-table">
                             <thead>
                                 <tr>
@@ -498,23 +499,34 @@ const SalesOrderDetailReport = () => {
 };
 
 const styles = {
-    printBtn: { backgroundColor: "#546e7a", color: "#fff", border: "none", padding: "10px 18px", borderRadius: "6px", cursor: "pointer", fontWeight: "bold" },
-    excelBtn: { backgroundColor: "#1e7e34", color: "#fff", border: "none", padding: "10px 18px", borderRadius: "6px", cursor: "pointer", fontWeight: "bold" },
-    filterRow: { display: "flex", gap: "16px", flexWrap: "wrap", margin: "12px 0 20px", alignItems: "flex-end" },
-    dateField: { display: "flex", flexDirection: "column", gap: "4px" },
-    fieldLabel: { fontSize: "12px", fontWeight: "600", color: "#555" },
-    dateInput: { padding: "8px 10px", borderRadius: "6px", border: "1px solid #ccc", fontSize: "13px" },
+    // tombol: varian dari newBtn
+    printBtn:   { ...base.newBtn, backgroundColor: "#546e7a", padding: "10px 18px" },
+    excelBtn:   { ...base.newBtn, backgroundColor: "#1e7e34", padding: "10px 18px" },
+    refreshBtn: { ...base.newBtn, backgroundColor: "#1565c0", padding: "8px 16px" },
+
+    // filter: pakai dasar yang sama, override seperlunya
+    filterRow:  { ...base.dateFilterRow, gap: "16px", margin: "12px 0 20px" },
+    field:      { ...base.dateField, width: "auto", minWidth: "160px" },
+    fieldLabel: base.dateLabel,
+    dateInput:  base.dateInput,
+
+    // khusus laporan, tetap lokal
     productDropdownBtn: { padding: "8px 14px", borderRadius: "6px", border: "1px solid #ccc", background: "#fff", cursor: "pointer", fontSize: "13px", minWidth: "160px", textAlign: "left" },
     productDropdownPanel: { position: "absolute", top: "100%", left: 0, marginTop: "4px", background: "#fff", border: "1px solid #ddd", borderRadius: "6px", width: "260px", boxShadow: "0 4px 12px rgba(0,0,0,0.15)", zIndex: 20, padding: "8px" },
     productSearchInput: { width: "100%", padding: "6px 8px", borderRadius: "4px", border: "1px solid #ccc", marginBottom: "8px", boxSizing: "border-box" },
     productOptionList: { maxHeight: "220px", overflowY: "auto" },
     productOptionRow: { display: "flex", alignItems: "center", gap: "8px", padding: "6px 4px", cursor: "pointer", fontSize: "13px" },
     clearFilterBtn: { marginTop: "8px", width: "100%", padding: "6px", background: "#f5f5f5", border: "1px solid #ddd", borderRadius: "4px", cursor: "pointer", fontSize: "12px" },
-    // Baris header ringkasan per grup produk (ala pivot table)
-    groupHeaderRow: { backgroundColor: "#f0f4ff", borderTop: "2px solid #c5cae9", borderBottom: "1px solid #c5cae9" },
+    errorBox: { background: "#ffebee", border: "1px solid #ef9a9a", color: "#b71c1c", borderRadius: "8px", padding: "10px 14px", fontSize: "13px", marginBottom: "12px", whiteSpace: "pre-line" },
+
+    // header grup (pivot) — oranye
+    groupHeaderRow: { backgroundColor: "#fff3e0", borderTop: "2px solid #ffcc80", borderBottom: "1px solid #ffcc80" },
     groupHeaderContent: { display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px", padding: "8px 4px" },
-    groupHeaderName: { fontWeight: "700", color: "#1a237e", fontSize: "13.5px" },
-    groupHeaderStats: { fontSize: "12.5px", color: "#3949ab" },
+    groupHeaderName: { fontWeight: "700", color: "#e65100", fontSize: "13.5px" },
+    groupHeaderStats: { fontSize: "12.5px", color: "#ef6c00" },
+
+    detailSection: { marginTop: "4px", padding: "20px", borderRadius: "6px", backgroundColor: "#f5f6f8", border: "1px solid #ddd" },
+    detailTitle: { margin: "0 0 12px", fontSize: "15px", fontWeight: "700", color: "#1a2233" },
 };
 
 export default SalesOrderDetailReport;

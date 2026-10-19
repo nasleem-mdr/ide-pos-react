@@ -1,5 +1,4 @@
 // src/components/header/NotificationBell.jsx
-// Satu lonceng di header: total = Workflow + Purchasing, klik → dropdown terpisah.
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useWorkflowPendingCount } from '@/shared/hooks/useWorkflowPendingCount'; 
@@ -10,17 +9,17 @@ function Row({ title, subtitle, count, onClick }) {
     <button
       type="button"
       onClick={onClick}
-      className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-gray-50"
+      className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-[#0a042c] transition-colors"
     >
       <span className="min-w-0">
-        <span className="block text-sm font-medium text-gray-900">{title}</span>
+        <span className="block text-sm font-medium text-white">{title}</span>
         {subtitle && (
-          <span className="block truncate text-xs text-gray-500">{subtitle}</span>
+          <span className="block truncate text-xs text-gray-300">{subtitle}</span>
         )}
       </span>
       <span
         className={`min-w-[24px] shrink-0 rounded-full px-2 text-center text-xs font-semibold leading-5 ${
-          count > 0 ? 'bg-red-600 text-white' : 'bg-gray-100 text-gray-500'
+          count > 0 ? 'bg-red-600 text-white' : 'bg-[#1a202c] text-gray-400'
         }`}
       >
         {count > 99 ? '99+' : count}
@@ -31,8 +30,8 @@ function Row({ title, subtitle, count, onClick }) {
 
 export default function NotificationBell({
   roleId,
-  workflowPath = '/workflow',   // TODO: route halaman approval workflow
-  purchasingPath = '/purchasing', // TODO: route halaman Purchasing
+  workflowPath = '/workflow',   
+  purchasingPath = '/purchasing', 
 }) {
   const navigate = useNavigate();
   const rootRef = useRef(null);
@@ -48,24 +47,25 @@ export default function NotificationBell({
 
   const total = wfCount + (purchasingEnabled ? purchCount : 0);
 
-  // Tutup dropdown saat klik di luar atau tekan Escape
+  // Tutup dropdown saat tekan Escape
   useEffect(() => {
     if (!open) return undefined;
-    const onDown = (e) => {
-      if (rootRef.current && !rootRef.current.contains(e.target)) setOpen(false);
-    };
     const onKey = (e) => e.key === 'Escape' && setOpen(false);
-    document.addEventListener('mousedown', onDown);
     document.addEventListener('keydown', onKey);
     return () => {
-      document.removeEventListener('mousedown', onDown);
       document.removeEventListener('keydown', onKey);
     };
   }, [open]);
 
-  const toggle = () => {
-    setOpen((o) => !o);
-    if (purchasingEnabled) requestPermission(); // izin notifikasi browser (butuh gesture user)
+  // Handler saat mouse masuk ke area komponen (parent div)
+  const handleMouseEnter = () => {
+    setOpen(true);
+    if (purchasingEnabled) requestPermission(); // Minta izin notifikasi browser jika aktif
+  };
+
+  // Handler saat mouse keluar dari area komponen
+  const handleMouseLeave = () => {
+    setOpen(false);
   };
 
   const go = (path) => {
@@ -78,14 +78,19 @@ export default function NotificationBell({
     (pending.length > 3 ? ` +${pending.length - 3}` : '');
 
   return (
-    <div ref={rootRef} className="relative">
+    <div 
+      ref={rootRef} 
+      className="relative"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
       <button
         type="button"
-        onClick={toggle}
+        onClick={() => go(workflowPath)} // Opsional: Klik langsung ke workflow utama jika diinginkan
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label={`Notifikasi (${total})`}
-        className="relative inline-flex items-center p-2 text-white"
+        className="relative inline-flex items-center p-2 text-white hover:text-gray-200 transition-colors cursor-pointer"
       >
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-white">
           <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
@@ -101,7 +106,7 @@ export default function NotificationBell({
       {open && (
         <div
           role="menu"
-          className="absolute right-0 z-50 mt-2 w-72 divide-y divide-gray-100 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg"
+          className="absolute right-0 z-50 mt-1 w-72 divide-y divide-[#21262d] overflow-hidden rounded-lg border border-[#21262d] bg-[#222935] shadow-xl text-white"
         >
           <Row
             title="Approval Workflow"

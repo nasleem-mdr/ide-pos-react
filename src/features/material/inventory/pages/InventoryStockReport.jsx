@@ -4,6 +4,7 @@
 // Print PDF & Excel: hooks/useInventoryStockExport.js
 import React, { useState, useEffect, useRef } from "react";
 import { PageHeader } from "@/shared/components";
+
 import "@/App.css";
 import useInventoryStockReport, { getWarehouseId } from "../hooks/useInventoryStockReport";
 import useInventoryStockExport from "../hooks/useInventoryStockExport";
@@ -54,11 +55,11 @@ const InventoryStockReport = () => {
     };
 
     return (
-        <div className="card-container">
+        <div style={styles.cardContainer}>
             <PageHeader
                 title="📦 Laporan Inventory (Ketersediaan Stok)"
                 extraAction={
-                    <div style={{ display: "flex", gap: "8px" }}>
+                    <div style={styles.headerActions}>
                         <button onClick={handleExcel} disabled={exportingExcel} style={styles.excelBtn}>
                             {exportingExcel ? "⏳ ..." : "📥 Download Excel"}
                         </button>

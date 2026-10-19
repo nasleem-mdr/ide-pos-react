@@ -376,7 +376,7 @@ const InternalUseList = () => {
     };
 
     return (
-        <div className="card-container">
+        <div style={styles.cardContainer}>
             <PageHeader
                 title="Internal Use"
                 onSearch={(val) => { setSearch(val); setOffset(0); }}
@@ -384,7 +384,7 @@ const InternalUseList = () => {
                 activeFilter={statusFilter}
                 onFilterChange={handleFilterChange}
                 extraAction={
-                    <div style={{ display: 'flex', gap: '8px' }}>
+                    <div style={styles.headerActions}>
                         <button onClick={handlePrintList} disabled={printingList} style={styles.newBtn}>
                             {printingList ? '⏳ ...' : '🖨️ Print PDF'}
                         </button>
@@ -446,13 +446,78 @@ const InternalUseList = () => {
 };
 
 const styles = {
-    newBtn:  { backgroundColor: "#1976d2", color: "#fff", border: "none", padding: "10px 18px", borderRadius: "6px", cursor: "pointer", fontWeight: "bold" },
-    badge:   { color: "#fff", padding: "3px 10px", borderRadius: "12px", fontSize: "11px", fontWeight: "bold" },
-    editBtn: { color: "#fff", border: "none", padding: "6px 14px", borderRadius: "6px", fontWeight: "bold", fontSize: "12px", transition: "all 0.2s ease" },
-    dateFilterRow: { display: "flex", gap: "16px", flexWrap: "wrap", margin: "12px 0 16px" },
-    dateField:     { display: "flex", flexDirection: "column", gap: "4px" },
-    dateLabel:     { fontSize: "12px", fontWeight: "600", color: "#555" },
-    dateInput:      { padding: "8px 10px", borderRadius: "6px", border: "1px solid #ccc", fontSize: "13px" },
+    cardContainer: {
+        padding: "12px",
+        maxWidth: "100%",
+        boxSizing: "box-sizing",
+        overflowX: "hidden",
+        backgroundColor: "#fff",
+        borderRadius: "5px",
+    },
+    newBtn: { 
+        backgroundColor: "#1976d2", 
+        color: "#fff", 
+        border: "none", 
+        padding: "8px 12px", 
+        borderRadius: "6px", 
+        cursor: "pointer", 
+        fontWeight: "bold",
+        fontSize: "13px",
+        whiteSpace: "nowrap"
+    },
+    editBtn: { 
+        color: "#fff", 
+        border: "none", 
+        padding: "6px 10px", 
+        borderRadius: "6px", 
+        fontWeight: "bold", 
+        fontSize: "11px", 
+        transition: "all 0.2s ease",
+        whiteSpace: "nowrap"
+    },
+    actionContainer: {
+        display: "flex", 
+        gap: "4px", 
+        alignItems: "center", 
+        flexWrap: "nowrap",
+    },
+    dateFilterRow: { 
+        display: "flex", 
+        gap: "12px", 
+        flexWrap: "wrap", 
+        margin: "12px 0 16px",
+        alignItems: "flex-end"
+    },
+    dateField: { 
+        display: "flex", 
+        flexDirection: "column", 
+        gap: "4px",
+        flex: "0 0 auto",   // tidak melebar, ukuran mengikuti input
+        width: "160px",
+    },
+    dateLabel: { 
+        fontSize: "12px", 
+        fontWeight: "600", 
+        color: "#555" 
+    },
+    dateInput: { 
+        padding: "8px 10px", 
+        borderRadius: "6px", 
+        border: "1px solid #ccc", 
+        fontSize: "13px",
+        width: "100%",
+        boxSizing: "border-box",   // sebelumnya "box-sizing" (salah)
+    },
+    headerActions: {
+        display: "flex", 
+        gap: "6px", 
+        flexWrap: "wrap",
+    },
+    tableResponsiveContainer: {
+        width: "100%",
+        overflowX: "auto",
+        WebkitOverflowScrolling: "touch",
+    },
 };
 
 export default InternalUseList;

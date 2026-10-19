@@ -19,6 +19,7 @@ import {
     buildStatusCondition, 
     isDownloadable,
 } from "@/utils/docStatus";
+import { listPageStyles as styles } from "@/utils/listPageStyles";
 import "@/App.css";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -260,8 +261,7 @@ const ShipmentCustomerReport = () => {
     const handleEndDateChange   = (val) => { setEndDate(val);   setOffset(0); };
 
     return (
-        <div className="card-container">
-
+        <div style={styles.cardContainer}>
             <PageHeader
                 title="Shipment (Customer) Report"
                 onSearch={(val) => { setSearch(val); setOffset(0); }}
@@ -269,7 +269,7 @@ const ShipmentCustomerReport = () => {
                 activeFilter={statusFilter}
                 onFilterChange={(val) => { setStatusFilter(val); setOffset(0); }}
                 extraAction={
-                    <div style={{ display: "flex", gap: "8px" }}>
+                    <div style={styles.headerActions}>
                         <button onClick={handlePrintList} disabled={printingList} style={styles.printBtn}>
                             {printingList ? "⏳ ..." : "🖨️ Print PDF"}
                         </button>
@@ -313,16 +313,6 @@ const ShipmentCustomerReport = () => {
             />
         </div>
     );
-};
-
-const styles = {
-    printBtn:  { backgroundColor: "#1976d2", color: "#fff", border: "none", padding: "10px 18px", borderRadius: "6px", cursor: "pointer", fontWeight: "bold" },
-    badge:     { color: "#fff", padding: "3px 10px", borderRadius: "12px", fontSize: "11px", fontWeight: "bold" },
-    actionBtn: { color: "#fff", border: "none", padding: "6px 14px", borderRadius: "6px", fontWeight: "bold", fontSize: "12px", transition: "all 0.2s ease" },
-    dateFilterRow: { display: "flex", gap: "16px", flexWrap: "wrap", margin: "12px 0 16px" },
-    dateField:     { display: "flex", flexDirection: "column", gap: "4px" },
-    dateLabel:     { fontSize: "12px", fontWeight: "600", color: "#555" },
-    dateInput:     { padding: "8px 10px", borderRadius: "6px", border: "1px solid #ccc", fontSize: "13px" },
 };
 
 export default ShipmentCustomerReport;
