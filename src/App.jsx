@@ -23,6 +23,8 @@ import InternalUseList from "@/features/material/internaluse/pages/InternalUseLi
 import ProductList from "@/features/master/product/pages/ProductList";
 import ProductDetail from "@/features/master/product/pages/ProductDetail";
 import ProductImport from "@/features/master/product/pages/ProductImport";
+import ShipmentContainer from "@/features/material/shipment/pages/ShipmentContainer"
+import ShipmentList from "@/features/material/shipment/pages/ShipmentList"
 
 // Sales Management
 import POSContainer from "@/features/sales/order/pages/POSContainer"; 
@@ -58,7 +60,7 @@ import { Header, Sidebar } from "@/shared/components/setup";
 import '@/css/AppLayout.css'; 
 import InventoryStockReport from "@/features/material/inventory/pages/InventoryStockReport";
 import WorkflowApprovalContainer from "@/features/workflow/pages/WorkflowApprovalContainer";
-import ShipmentCustomerReport from "@/features/sales/shipment/pages/ShipmentCustomerReport";
+//import ShipmentCustomerReport from "@/features/sales/shipment/pages/ShipmentCustomerReport";
 
 //Reporting multi features
 import FinancialReportPage from '@/features/reporting/financial/pages/FinancialReportPage';
@@ -214,7 +216,16 @@ function AppContent() {
                           <InternalUseContainer />
                         </ProtectedRoute>
                       } />
-
+                      <Route path="/shipment-customer" element={
+                        <ProtectedRoute windowKey="shipmentCustomer">
+                          <ShipmentContainer />
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/shimpent-list" element={
+                        <ProtectedRoute windowKey="shipmentList">
+                          <ShipmentList />
+                        </ProtectedRoute>
+                      } />
                       {/* ===== List atau report ===== */}
                       <Route path="/requisition-list" element={
                         <ProtectedRoute windowKey="requisitionList">
@@ -229,7 +240,7 @@ function AppContent() {
 
                       <Route path="/shipment-customer-report" element={
                         <ProtectedRoute windowKey="shipmentCustomerReport">
-                          <ShipmentCustomerReport />
+                          <ShipmentList />
                         </ProtectedRoute>
                       } />
                       <Route path="/role-management" element={

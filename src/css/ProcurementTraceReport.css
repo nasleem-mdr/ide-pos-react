@@ -1,5 +1,6 @@
 .ptr-page { --ink:#1f2933; --mute:#6b7785; --line:#d9dee4; --done:#2f7d4f; --done-bg:#eaf5ee; --part:#9a6200; --part-bg:#fcf3df; --bad:#b3372a; --bad-bg:#fbebe8; --draft:#4a5d8f; --draft-bg:#eceff8; color:var(--ink); padding:16px; }
 .ptr-page h1 { font-size:1.35rem; margin:0 0 4px; }
+.ptr-container { background-color: #fff; padding: 20px; border: 1px solid #ddd; border-radius: 6px;}
 .ptr-muted { color:var(--mute); font-size:.85rem; }
 .ptr-error { color:var(--bad); }
 .ptr-filters { display:flex; flex-wrap:wrap; gap:10px 12px; align-items:flex-end; margin:14px 0; }
@@ -16,7 +17,7 @@
 .ptr-card span { font-size:.75rem; color:var(--mute); }
 .ptr-card.active { border-color:var(--ink); box-shadow:inset 0 -3px 0 var(--ink); }
 .ptr-card.c-anomali strong { color:var(--bad); } .ptr-card.c-terlambat strong { color:var(--part); } .ptr-card.c-selesai strong { color:var(--done); }
-.ptr-scroll { overflow-x:auto; }
+.ptr-scroll { overflow-x:auto; background: beige; border: 1px solid #ddd; border-radius: 6px;}
 .ptr-table { width:100%; border-collapse:collapse; min-width:1100px; font-size:.82rem; }
 .ptr-table th { position:sticky; top:0; background:#f4f6f8; text-align:left; padding:8px; border-bottom:2px solid var(--line); z-index:1; }
 .ptr-table td { vertical-align:top; padding:8px; border-bottom:1px solid var(--line); }

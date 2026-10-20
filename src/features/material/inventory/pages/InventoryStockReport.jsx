@@ -8,6 +8,8 @@ import { PageHeader } from "@/shared/components";
 import "@/App.css";
 import useInventoryStockReport, { getWarehouseId } from "../hooks/useInventoryStockReport";
 import useInventoryStockExport from "../hooks/useInventoryStockExport";
+import { listPageStyles as base } from "@/utils/listPageStyles";
+import { PiX } from "react-icons/pi";
 
 const InventoryStockReport = () => {
     const {
@@ -56,6 +58,7 @@ const InventoryStockReport = () => {
 
     return (
         <div style={styles.cardContainer}>
+            <div style={styles.innerContainer}>
             <PageHeader
                 title="📦 Laporan Inventory (Ketersediaan Stok)"
                 extraAction={
@@ -215,18 +218,39 @@ const InventoryStockReport = () => {
                     dialokasikan/dipesan (SO) &nbsp;•&nbsp; Available = On Hand − Reserved
                 </p>
             </div>
+            </div>
         </div>
     );
 };
-
 const styles = {
-    printBtn: { backgroundColor: "#546e7a", color: "#fff", border: "none", padding: "10px 18px", borderRadius: "6px", cursor: "pointer", fontWeight: "bold" },
-    excelBtn: { backgroundColor: "#1e7e34", color: "#fff", border: "none", padding: "10px 18px", borderRadius: "6px", cursor: "pointer", fontWeight: "bold" },
-    refreshBtn: { backgroundColor: "#1565c0", color: "#fff", border: "none", padding: "8px 16px", borderRadius: "6px", cursor: "pointer", fontWeight: "bold", fontSize: "13px" },
-    filterRow: { display: "flex", gap: "16px", flexWrap: "wrap", margin: "12px 0 20px", alignItems: "flex-end" },
-    field: { display: "flex", flexDirection: "column", gap: "4px" },
-    fieldLabel: { fontSize: "12px", fontWeight: "600", color: "#555" },
-    textInput: { padding: "8px 10px", borderRadius: "6px", border: "1px solid #ccc", fontSize: "13px", minWidth: "200px" },
+    // tombol: varian dari newBtn
+    printBtn:   { ...base.newBtn, backgroundColor: "#546e7a", padding: "10px 18px" },
+    excelBtn:   { ...base.newBtn, backgroundColor: "#1e7e34", padding: "10px 18px" },
+    refreshBtn: { ...base.newBtn, backgroundColor: "#1565c0", padding: "8px 16px" },
+
+    // filter: pakai dasar yang sama, override seperlunya
+    filterRow:  { ...base.dateFilterRow, gap: "16px", margin: "12px 0 20px" },
+    field:      { ...base.dateField, width: "auto", minWidth: "160px" },
+    fieldLabel: base.dateLabel,
+    dateInput:  base.dateInput,
+    innerContainer: { backgroundColor: "#fff", padding: "16px", border: "1px solid #ddd", borderRadius: "6px" },
+    // khusus laporan, tetap lokal
+    productDropdownBtn: { padding: "8px 14px", borderRadius: "6px", border: "1px solid #ccc", background: "#fff", cursor: "pointer", fontSize: "13px", minWidth: "160px", textAlign: "left" },
+    productDropdownPanel: { position: "absolute", top: "100%", left: 0, marginTop: "4px", background: "#fff", border: "1px solid #ddd", borderRadius: "6px", width: "260px", boxShadow: "0 4px 12px rgba(0,0,0,0.15)", zIndex: 20, padding: "8px" },
+    productSearchInput: { width: "100%", padding: "6px 8px", borderRadius: "4px", border: "1px solid #ccc", marginBottom: "8px", boxSizing: "border-box" },
+    productOptionList: { maxHeight: "220px", overflowY: "auto" },
+    productOptionRow: { display: "flex", alignItems: "center", gap: "8px", padding: "6px 4px", cursor: "pointer", fontSize: "13px" },
+    clearFilterBtn: { marginTop: "8px", width: "100%", padding: "6px", background: "#f5f5f5", border: "1px solid #ddd", borderRadius: "4px", cursor: "pointer", fontSize: "12px" },
+    errorBox: { background: "#ffebee", border: "1px solid #ef9a9a", color: "#b71c1c", borderRadius: "8px", padding: "10px 14px", fontSize: "13px", marginBottom: "12px", whiteSpace: "pre-line" },
+
+    // header grup (pivot) — oranye
+    groupHeaderRow: { backgroundColor: "#fff3e0", borderTop: "2px solid #ffcc80", borderBottom: "1px solid #ffcc80" },
+    groupHeaderContent: { display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px", padding: "8px 4px" },
+    groupHeaderName: { fontWeight: "700", color: "#e65100", fontSize: "13.5px" },
+    groupHeaderStats: { fontSize: "12.5px", color: "#ef6c00" },
+
+    detailSection: { marginTop: "4px", padding: "20px", borderRadius: "6px", backgroundColor: "#f5f6f8", border: "1px solid #ddd" },
+    detailTitle: { margin: "0 0 12px", fontSize: "15px", fontWeight: "700", color: "#1a2233" },
     warehouseDropdownBtn: { padding: "8px 14px", borderRadius: "6px", border: "1px solid #ccc", background: "#fff", cursor: "pointer", fontSize: "13px", minWidth: "160px", textAlign: "left" },
     warehouseDropdownPanel: { position: "absolute", top: "100%", left: 0, marginTop: "4px", background: "#fff", border: "1px solid #ddd", borderRadius: "6px", width: "260px", boxShadow: "0 4px 12px rgba(0,0,0,0.15)", zIndex: 20, padding: "8px" },
     warehouseSearchInput: { width: "100%", padding: "6px 8px", borderRadius: "4px", border: "1px solid #ccc", marginBottom: "8px", boxSizing: "border-box" },

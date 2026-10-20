@@ -32,6 +32,7 @@ export const WINDOW_ACCESS_MAP = {
   userManagement:       108,
   roleManagement:       111,
   bankTransfer:         null,
+  shipmentCustomer:     null,
   // ===== List / Report =====
   salesOrderDetailReport:  143,
   requisitionList:         null, 
@@ -54,6 +55,7 @@ export const WINDOW_ACCESS_MAP = {
   productAnalysis:         null,
   trendReport:             null,
   statementList:           null,
+  shipmentList:           null,
 };
 
 // Helper: ambil AD_Window_ID dari key, atau null kalau tidak terdaftar/tidak dibatasi.

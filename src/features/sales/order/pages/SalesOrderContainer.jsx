@@ -24,6 +24,22 @@ import '@/css/Header.css';
 const SO_WINDOW_KEY = 'salesOrder';
 const CartItemSO = (props) => <CartItemPOS {...props} windowKey={SO_WINDOW_KEY} />;
 
+// ─── Pengaman: SO yang sudah dibuat di iDempiere tapi belum tuntas ─────────
+// Disimpan di localStorage supaya tidak hilang saat refresh / login ulang (401).
+const AWAITING_KEY = 'so_awaiting_orders';
+const loadAwaiting = () => { try { return JSON.parse(localStorage.getItem(AWAITING_KEY) || '[]'); } catch { return []; } };
+const saveAwaiting = (list) => { try { localStorage.setItem(AWAITING_KEY, JSON.stringify(list)); } catch { /* abaikan */ } };
+const AWAITING_LABEL = {
+    approval: 'menunggu approval (workflow) — jangan submit ulang',
+    shipment: 'sudah Complete, Shipment belum terbuat',
+    unknown:  'status belum pasti — cek dulu sebelum submit ulang',
+};
+const refCode = (v) => (v && typeof v === 'object' ? v.id : v);
+const isAuthError = (e) => /\b401\b/.test(e?.message || '');
+const describeError = (err, prefix) => isAuthError(err)
+    ? `${prefix}\n\nSesi login habis (HTTP 401). Login ulang, lalu tekan "Cek status" pada banner SO. Jangan submit ulang sebelum status SO dicek.`
+    : `${prefix}\n${err?.message || err}`;
+
 const SalesOrderContainer = () => {
     // ─── State dasar ────────────────────────────────────────────────────────
     const [cart, setCart]       = useState([]);
@@ -51,6 +67,11 @@ const SalesOrderContainer = () => {
 
     const [editOrderId, setEditOrderId] = useState(null);
     const [isEditMode, setIsEditMode]   = useState(false);
+
+    // ─── Pengaman anti double-submit / anti SO ganda ─────────────────────────
+    const submitLockRef = useRef(false);                 // sinkron — klik ke-2 langsung ditolak
+    const [isProcessing, setIsProcessing] = useState(false);
+    const [awaitingList, setAwaitingList] = useState(loadAwaiting);
     const location = useLocation();
     const navigate = useNavigate();
     const [isCartOpen, setIsCartOpen] = useState(false);
@@ -720,8 +741,106 @@ const SalesOrderContainer = () => {
         fetchProducts('', getActivePriceListId(), 'replace', 0);
     };
 
+    // ─── Helper status order & daftar "SO belum tuntas" ──────────────────────
+    const getOrderStatus = async (orderId) => {
+        const o = await idempiereApi(`/models/c_order/${orderId}?$select=DocStatus,DocumentNo`);
+        return { docStatus: refCode(o.DocStatus), documentNo: o.DocumentNo };
+    };
+
+    const upsertAwaiting = (orderId, patch) => {
+        setAwaitingList(prev => {
+            const next = prev.some(i => i.orderId === orderId)
+                ? prev.map(i => i.orderId === orderId ? { ...i, ...patch } : i)
+                : [...prev, { orderId, documentNo: null, kind: 'unknown', ...patch }];
+            saveAwaiting(next);
+            return next;
+        });
+    };
+
+    const removeAwaiting = (orderId) => {
+        setAwaitingList(prev => {
+            const next = prev.filter(i => i.orderId !== orderId);
+            saveAwaiting(next);
+            return next;
+        });
+    };
+
+    // Lock sinkron: hanya 1 proses submit/resume yang boleh jalan pada satu waktu.
+    const withLock = async (fn) => {
+        if (submitLockRef.current) return;
+        submitLockRef.current = true;
+        setIsProcessing(true);
+        try { await fn(); }
+        finally { submitLockRef.current = false; setIsProcessing(false); }
+    };
+
+    // ─── Tentukan langkah berikut berdasarkan DocStatus ASLI di server ───────
+    // (bukan dari pesan "timeout" waiter — timeout tidak berarti Complete gagal)
+    const settleOrder = async (orderId, st, { completeErr = null, fromResume = false } = {}) => {
+        const docNo = st.documentNo || `#${orderId}`;
+        const done  = () => { if (!fromResume) resetAfterSuccess(); };
+
+        switch (st.docStatus) {
+            case 'CO': {
+                upsertAwaiting(orderId, { documentNo: st.documentNo, kind: 'shipment' });
+                try {
+                    const shipment = await createShipmentFromOrder(orderId, { locatorId: defaultLocatorId });
+                    removeAwaiting(orderId);
+                    setSuccessModal({
+                        orderDocNo:    st.documentNo,
+                        shipmentId:    shipment.shipmentId,
+                        shipmentDocNo: shipment.documentNo,
+                    });
+                } catch (err) {
+                    console.error("Shipment gagal:", err.message);
+                    triggerAlert(
+                        describeError(err, `Sales Order ${docNo} sudah Complete, tapi Shipment GAGAL dibuat:`) +
+                        `\n\nSO tidak akan dibuat ulang. Tekan "Cek status & lanjutkan" pada banner untuk mengulang Shipment saja.`,
+                        "Order Complete, Shipment Gagal"
+                    );
+                }
+                done();
+                return;
+            }
+            case 'IP':
+                upsertAwaiting(orderId, { documentNo: st.documentNo, kind: 'approval' });
+                triggerAlert(
+                    `Sales Order ${docNo} sedang menunggu approval (workflow), jadi belum bisa Complete.\n\n` +
+                    `JANGAN submit ulang. Setelah disetujui, tekan "Cek status & lanjutkan" pada banner di atas — ` +
+                    `Shipment akan dibuat dari SO yang sama.`,
+                    "Menunggu Approval"
+                );
+                done();
+                return;
+            case 'DR':
+            case 'IN':
+                removeAwaiting(orderId);
+                if (fromResume) {
+                    triggerAlert(`SO ${docNo} berstatus Draft. Buka dari daftar Sales Order untuk dilanjutkan.`, "Status Order");
+                    return;
+                }
+                // Tetap di Draft → pertahankan cart & kunci ke order ini (mode edit),
+                // sehingga klik berikutnya meng-update SO yang sama, bukan membuat SO baru.
+                setIsEditMode(true);
+                setEditOrderId(orderId);
+                triggerAlert(
+                    `SO ${docNo} tersimpan sebagai Draft tetapi belum berhasil Complete` +
+                    `${completeErr ? `:\n${completeErr.message}` : '.'}\n\n` +
+                    `Perbaiki penyebabnya lalu klik COMPLETE + KIRIM lagi — sistem memakai SO yang sama.`,
+                    "Complete Belum Berhasil"
+                );
+                return;
+            default: {
+                removeAwaiting(orderId);
+                const label = { NA: 'ditolak (Not Approved)', VO: 'di-Void', RE: 'di-Reverse', CL: 'di-Close' }[st.docStatus] || `berstatus ${st.docStatus}`;
+                triggerAlert(`SO ${docNo} ${label}. Tidak ada proses lanjutan yang dijalankan.`, "Status Order");
+                done();
+            }
+        }
+    };
+
     // ─── DRAFT: buat/update Order saja, tidak Complete, tidak shipment ───────
-    const handleSubmitDraft = async () => {
+    const handleSubmitDraft = () => withLock(async () => {
         if (!validateBeforeSubmit()) return;
         const result = await submitOrder(cart, {
             customerId: selectedBPartner.id,
@@ -732,44 +851,58 @@ const SalesOrderContainer = () => {
         if (!result) return;
         triggerAlert(`Sales Order tersimpan sebagai Draft (ID ${result.orderId}).`, "Berhasil");
         resetAfterSuccess();
-    };
+    });
 
     // ─── COMPLETE: Order → Complete → Shipment otomatis dibuat & Complete ───
-    const handleSubmitComplete = async () => {
+    const handleSubmitComplete = () => withLock(async () => {
         if (!validateBeforeSubmit()) return;
         if (!defaultLocatorId) {
             triggerAlert("Locator default untuk gudang ini belum ditemukan — Shipment tidak bisa dibuat otomatis. Cek setup Locator di Warehouse ini.", "Konfigurasi Tidak Lengkap");
             return;
         }
-    
-        const result = await submitOrder(cart, {
-            customerId: selectedBPartner.id,
-            warehouseId: warehouseInfo.id,
-            priceListId: selectedPriceList?.id,
-            isEditMode, editOrderId,
-        });
-        if (!result) return;
-    
+
         try {
-            const orderStatus = await completeOrder(result.orderId);
-            const shipment = await createShipmentFromOrder(result.orderId, { locatorId: defaultLocatorId });
-    
-            setSuccessModal({
-                orderDocNo:    orderStatus.documentNo,
-                shipmentId:    shipment.shipmentId,
-                shipmentDocNo: shipment.documentNo,
+            // Order sudah ada (mode edit / retry setelah gagal)? Cek status dulu —
+            // kalau sudah CO/IP/final, JANGAN di-submit ulang, langsung ke langkah yang sesuai.
+            if (isEditMode && editOrderId) {
+                const st = await getOrderStatus(editOrderId);
+                if (st.docStatus !== 'DR' && st.docStatus !== 'IN') {
+                    await settleOrder(editOrderId, st);
+                    return;
+                }
+            }
+
+            const result = await submitOrder(cart, {
+                customerId: selectedBPartner.id,
+                warehouseId: warehouseInfo.id,
+                priceListId: selectedPriceList?.id,
+                isEditMode, editOrderId,
             });
-            resetAfterSuccess();
+            if (!result) return;
+
+            const orderId = result.orderId;
+            upsertAwaiting(orderId, { kind: 'unknown' });   // tercatat sejak SO terbentuk
+
+            let completeErr = null;
+            try { await completeOrder(orderId); } catch (e) { completeErr = e; }
+
+            const st = await getOrderStatus(orderId);       // sumber kebenaran = DocStatus server
+            await settleOrder(orderId, st, { completeErr });
         } catch (err) {
             console.error("Gagal proses Complete/Shipment:", err.message);
-            triggerAlert(
-                `Sales Order sudah berhasil Complete, tapi Shipment GAGAL dibuat:\n${err.message}\n\n` +
-                `Order tidak hilang — buat Shipment manual dari window Shipment (Customer), pilih Order ini.`,
-                "Order Complete, Shipment Gagal"
-            );
-            resetAfterSuccess();
+            triggerAlert(describeError(err, "Proses Complete/Shipment terhenti:"), "Proses Terhenti");
         }
-    };
+    });
+
+    // ─── Banner: cek status & lanjutkan SO yang belum tuntas ─────────────────
+    const resumeAwaiting = (item) => withLock(async () => {
+        try {
+            const st = await getOrderStatus(item.orderId);
+            await settleOrder(item.orderId, st, { fromResume: true });
+        } catch (err) {
+            triggerAlert(describeError(err, `Gagal mengecek SO ${item.documentNo || '#' + item.orderId}:`), "Gagal Cek Status");
+        }
+    });
 
     if (loading && !warehouseInfo) return <p style={{ padding: '20px' }}>Loading Sales Order...</p>;
 
@@ -897,6 +1030,25 @@ const SalesOrderContainer = () => {
             {/* Main Layout */}
             <div style={{ display: 'flex', flexDirection: isDesktop ? 'row' : 'column', gap: '0px', flex: '1', overflow: 'hidden' }}>
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0px', overflow: 'hidden', paddingRight: isDesktop ? '16px' : '0' }}>
+                    {awaitingList.length > 0 && (
+                        <div style={{ backgroundColor: "#e8f0fe", border: "1px solid #1a237e", borderRadius: "6px", padding: "8px 14px", marginBottom: "10px", fontSize: "13px", display: "flex", flexDirection: "column", gap: "6px" }}>
+                            {awaitingList.map(item => (
+                                <div key={item.orderId} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                                    <span>⏳ <strong>{item.documentNo || `SO #${item.orderId}`}</strong> — {AWAITING_LABEL[item.kind] || AWAITING_LABEL.unknown}</span>
+                                    <span style={{ display: "flex", gap: "6px" }}>
+                                        <button disabled={isProcessing} onClick={() => resumeAwaiting(item)}
+                                            style={{ background: "#1a237e", border: "none", color: "#fff", borderRadius: "4px", padding: "3px 10px", cursor: isProcessing ? "not-allowed" : "pointer", fontSize: "12px", opacity: isProcessing ? 0.6 : 1 }}>
+                                            Cek status &amp; lanjutkan
+                                        </button>
+                                        <button disabled={isProcessing} onClick={() => removeAwaiting(item.orderId)}
+                                            style={{ background: "none", border: "1px solid #1a237e", color: "#1a237e", borderRadius: "4px", padding: "3px 10px", cursor: "pointer", fontSize: "12px" }}>
+                                            Sembunyikan
+                                        </button>
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                     {isEditMode && (
                         <div style={{ backgroundColor: "#fff3e0", border: "1px solid #f57c00", borderRadius: "6px", padding: "8px 14px", marginBottom: "10px", fontSize: "13px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                             <span>✏️ <strong>Mode Edit</strong> — Draft Order ID: {editOrderId}</span>
@@ -944,7 +1096,7 @@ const SalesOrderContainer = () => {
                         submitCompleteLabel="✅ COMPLETE + KIRIM"
                         onSubmitDraft={canSubmitSalesOrder ? handleSubmitDraft : undefined}
                         onSubmitComplete={canSubmitSalesOrder ? handleSubmitComplete : undefined}
-                        isSubmitting={isSubmittingOrder || isSubmittingShipment}
+                        isSubmitting={isSubmittingOrder || isSubmittingShipment || isProcessing}
                         CartItemComponent={CartItemPOS}
                     />
                 ) : (
@@ -972,7 +1124,7 @@ const SalesOrderContainer = () => {
                             submitCompleteLabel="✅ COMPLETE + KIRIM"
                             onSubmitDraft={canSubmitSalesOrder ? handleSubmitDraft : undefined}
                             onSubmitComplete={canSubmitSalesOrder ? handleSubmitComplete : undefined}
-                            isSubmitting={isSubmittingOrder || isSubmittingShipment}
+                            isSubmitting={isSubmittingOrder || isSubmittingShipment || isProcessing}
                             CartItemComponent={CartItemPOS}
                         />
                     </>
