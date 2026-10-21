@@ -37,6 +37,8 @@ const FIELD_LABELS = {
         value: "Search Key",
         name: "Name",
         c_bp_group_id: "BP Group",
+        m_pricelist_id: "Sales Price List",
+        po_pricelist_id: "Purchase Price List",
     },
     c_bpartner_location: {
         name: "Nama Alamat",
