@@ -13,6 +13,11 @@ import useProductDetailSubmit, {
     BOM_HEADER_TABLE,
     BOM_LINE_TABLE,
 } from '@/features/master/product/hooks/useProductDetailSubmit';
+import useUOMConversionSubmit, {
+    UOM_CONVERSION_TABLE,
+    calcMultiplyRate,
+    readDivideRate,
+} from '@/features/master/product/hooks/useUOMConversionSubmit';
 import SuccessModal from '@/features/master/product/components/SuccessModal';
 import ConfirmModal from '@/features/master/product/components/ConfirmModal';
 import '@/css/ProductDetail.css';
@@ -160,7 +165,10 @@ function ProductDetail() {
     const [isLoading, setIsLoading] = useState(!isNew);
     const [isEditing, setIsEditing] = useState(isNew);
 
-    const { isSaving, saveProductWithLines } = useProductDetailSubmit(idempiereApi);
+    const { isSaving: isSavingProduct, saveProductWithLines } = useProductDetailSubmit(idempiereApi);
+    const { isSaving: isSavingUom, saveUOMConversions } = useUOMConversionSubmit(idempiereApi);
+    // Tombol Simpan/Batal ikut disable selama tahap UOM Conversion berjalan.
+    const isSaving = isSavingProduct || isSavingUom;
 
     // State untuk tombol Verify BOM Structure — dideklarasikan di sini (bukan
     // dekat handleVerifyBom di bawah) supaya tidak jatuh setelah early return
@@ -205,6 +213,15 @@ function ProductDetail() {
     const [deletedPriceLineIds, setDeletedPriceLineIds] = useState([]);
     const [isLoadingPriceLines, setIsLoadingPriceLines] = useState(false);
     const [priceListVersions, setPriceListVersions] = useState([]);
+
+    // ─── UOM Conversion (C_UOM_Conversion) ──────────────────────────────────
+    // Konversi khusus produk ini: UOM dasar (M_Product.C_UOM_ID) -> UOM tujuan.
+    // Seperti Vendor Pricing: murni state lokal sampai tombol Simpan diklik.
+    // `DivideRate` di state = "isi per 1 UOM tujuan, dalam UOM dasar"
+    // (mis. 1 Rim = 500 Lembar -> 500). MultiplyRate dihitung di hook.
+    const [uomLines, setUomLines] = useState([]);
+    const [deletedUomLineIds, setDeletedUomLineIds] = useState([]);
+    const [isLoadingUomLines, setIsLoadingUomLines] = useState(false);
 
     // ─── Bill of Materials (PP_Product_BOM + PP_Product_BOMLine) ────────────
     // Sama seperti Vendor Pricing: murni state lokal sampai tombol Simpan.
@@ -303,6 +320,23 @@ function ProductDetail() {
             setPriceLines([]);
         } finally {
             setIsLoadingPriceLines(false);
+        }
+    }, [id, isNew]);
+
+    // ─── FETCH: UOM Conversion lines ────────────────────────────────────────
+    const fetchUomLines = useCallback(async () => {
+        if (isNew) return;
+        setIsLoadingUomLines(true);
+        try {
+            const data = await idempiereApi(
+                `/models/${UOM_CONVERSION_TABLE}?$filter=M_Product_ID eq ${id} and IsActive eq true`
+            );
+            setUomLines((data.records || []).map((rec) => ({ ...rec, DivideRate: readDivideRate(rec) })));
+        } catch (err) {
+            console.error(`Gagal mengambil UOM Conversion (${UOM_CONVERSION_TABLE}):`, err);
+            setUomLines([]);
+        } finally {
+            setIsLoadingUomLines(false);
         }
     }, [id, isNew]);
 
@@ -422,12 +456,13 @@ function ProductDetail() {
         fetchVendorLines();
         fetchPriceLines();
         fetchBom();
+        fetchUomLines();
         fetchPriceListVersions();
         fetchVendorOptions();
         fetchProductCategories();
         fetchUoms();
         fetchProductImages();
-    }, [fetchProduct, fetchVendorLines, fetchPriceLines, fetchBom, fetchPriceListVersions, fetchVendorOptions, fetchProductCategories, fetchUoms, fetchProductImages]);
+    }, [fetchProduct, fetchVendorLines, fetchPriceLines, fetchBom, fetchUomLines, fetchPriceListVersions, fetchVendorOptions, fetchProductCategories, fetchUoms, fetchProductImages]);
 
     // ─── Cari produk komponen BOM (debounce) ────────────────────────────────
     // contains() di REST API ini case-sensitive → dibungkus toupper() di
@@ -473,6 +508,19 @@ function ProductDetail() {
             if (bomLines.some((l) => !(parseFloat(l.QtyBOM) > 0))) {
                 missing.push("Qty BOM setiap komponen harus lebih dari 0");
             }
+        }
+        // UOM Conversion
+        if (uomLines.some((l) => !(parseFloat(l.DivideRate) > 0))) {
+            missing.push("Nilai UOM Conversion setiap baris harus lebih dari 0");
+        }
+        if (uomLines.some((l) => String(getId(l.C_UOM_To_ID)) === String(form.C_UOM_ID))) {
+            missing.push("UOM Conversion tidak boleh sama dengan UOM dasar produk");
+        }
+        // iDempiere mewajibkan UOM "dari" konversi produk = UOM dasar produk,
+        // jadi UOM dasar tidak boleh diganti selagi konversi lama masih ada.
+        if (!isNew && product && String(form.C_UOM_ID) !== String(getId(product.C_UOM_ID)) &&
+            uomLines.some((l) => toNumericId(getId(l)) !== null)) {
+            missing.push("UOM dasar diubah padahal sudah ada UOM Conversion — hapus konversi lama dulu, atau kembalikan UOM dasar");
         }
         return missing;
     };
@@ -566,6 +614,13 @@ function ProductDetail() {
             }
             : null;
 
+        const uomLinesPayload = uomLines.map((l) => ({
+            id: toNumericId(getId(l)),
+            C_UOM_To_ID: getId(l.C_UOM_To_ID),
+            DivideRate: l.DivideRate,
+            _dirty: l._dirty === true,
+        }));
+
         try {
             const newProductId = await saveProductWithLines({
                 isNew,
@@ -582,14 +637,37 @@ function ProductDetail() {
             setDeletedPriceLineIds([]);
             setDeletedBomLineIds([]);
 
+            // UOM Conversion disimpan SETELAH produk (butuh M_Product_ID). Kalau
+            // tahap ini gagal, produk sudah tersimpan — jangan dilempar ke catch
+            // di bawah, supaya untuk produk baru tidak tertinggal di halaman
+            // "new" (Simpan ulang = produk dobel). Cukup beri peringatan.
+            let uomWarning = null;
+            try {
+                await saveUOMConversions({
+                    productId: newProductId,
+                    baseUomId: form.C_UOM_ID,
+                    lines: uomLinesPayload,
+                    deletedIds: deletedUomLineIds,
+                });
+                setDeletedUomLineIds([]);
+            } catch (uomErr) {
+                console.error("Gagal menyimpan UOM Conversion:", uomErr);
+                uomWarning =
+                    `Produk berhasil disimpan, tetapi UOM Conversion gagal diproses.\n\n${parseIdempiereError(uomErr)}` +
+                    (uomErr.step ? `\n\n(Gagal pada tahap: ${uomErr.step})` : "") +
+                    `\n\nBuka Edit Produk untuk memeriksa & menyimpan ulang UOM Conversion-nya.`;
+            }
+
             if (isNew) {
                 showSuccess("Produk baru berhasil dibuat beserta Vendor Pricing, Sales Price" + (form.IsBOM ? " & BOM-nya." : " -nya."));
                 navigate(`/product-detail/edit/${newProductId}`, { replace: true });
             } else {
-                await Promise.all([fetchProduct(), fetchVendorLines(), fetchPriceLines(), fetchBom()]);
+                await Promise.all([fetchProduct(), fetchVendorLines(), fetchPriceLines(), fetchBom(), fetchUomLines()]);
                 setIsEditing(false);
                 showSuccess("Data produk beserta Vendor Pricing, Sales Price" + (form.IsBOM ? " & BOM" : "") + " berhasil disimpan.");
             }
+
+            if (uomWarning) alert(uomWarning);
         } catch (err) {
             console.error("Gagal menyimpan produk:", err);
             let message = parseIdempiereError(err);
@@ -626,10 +704,12 @@ function ProductDetail() {
         setDeletedPriceLineIds([]);
         setDeletedBomLineIds([]);
         setBomSearch("");
+        setDeletedUomLineIds([]);
         fetchProduct();
         fetchVendorLines();
         fetchPriceLines();
         fetchBom();
+        fetchUomLines();
     };
 
     // ─── Verify BOM Structure (AD_Process org.compiere.process.BOMVerify) ───
@@ -829,6 +909,45 @@ function ProductDetail() {
         });
     };
 
+    // ─── UOM Conversion ─────────────────────────────────────────────────────
+    const handleUomLineChange = (line, field, value) => {
+        setUomLines((prev) =>
+            prev.map((l) => {
+                if (lineKey(l) !== lineKey(line)) return l;
+                const updated = { ...l, [field]: value };
+                if (getId(l)) updated._dirty = true;
+                return updated;
+            })
+        );
+    };
+
+    const handleAddUomLine = (uom) => {
+        setUomLines((prev) => [
+            ...prev,
+            {
+                _localId: `new-uom-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+                id: null,
+                C_UOM_To_ID: { id: getId(uom), identifier: uom.Name },
+                DivideRate: "",
+            },
+        ]);
+    };
+
+    const handleDeleteUomLine = (line) => {
+        openConfirm({
+            title: "Hapus UOM Conversion",
+            message: `Yakin ingin menghapus konversi ke UOM "${getLabel(line.C_UOM_To_ID)}"? Perubahan baru permanen setelah disimpan.`,
+            confirmLabel: "Hapus",
+            onConfirm: () => {
+                const existingId = getId(line);
+                if (existingId) {
+                    setDeletedUomLineIds((prev) => [...prev, existingId]);
+                }
+                setUomLines((prev) => prev.filter((l) => lineKey(l) !== lineKey(line)));
+            },
+        });
+    };
+
     // ─── Gambar Produk: upload langsung saat file dipilih ───────────────────
     const MAX_IMAGE_SIZE_MB = 5;
     const handleImageFileChange = async (e) => {
@@ -877,6 +996,17 @@ function ProductDetail() {
             },
         });
     };
+
+    // Label UOM dasar (ikut berubah saat user mengganti UOM di form) & opsi UOM
+    // tujuan yang masih bisa ditambah: bukan UOM dasar, belum dipakai baris lain.
+    const baseUomLabel =
+        uoms.find((u) => String(getId(u)) === String(form.C_UOM_ID))?.Name ||
+        (product ? getLabel(product.C_UOM_ID) : "UOM dasar");
+    const availableUomTargets = uoms.filter(
+        (u) =>
+            String(getId(u)) !== String(form.C_UOM_ID) &&
+            !uomLines.some((l) => String(getId(l.C_UOM_To_ID)) === String(getId(u)))
+    );
 
     // Hasil pencarian komponen: bukan produk ini sendiri & belum ada di BOM.
     const filteredBomResults = bomSearchResults.filter(
@@ -1288,6 +1418,86 @@ function ProductDetail() {
                         )}
                     </div>
                 )}
+
+                {/* SECTION 3B: UOM CONVERSION (C_UOM_Conversion) */}
+                {/* "1 <UOM konversi> = X <UOM dasar>". MultiplyRate dihitung otomatis
+                    (1 / X) dan hanya ditampilkan; murni state lokal sampai Simpan. */}
+                <div className="detail-section" style={{ gridColumn: '1 / -1' }}>
+                    <h3>UOM Conversion</h3>
+
+                    {isLoadingUomLines ? (
+                        <p className="muted-note">Memuat...</p>
+                    ) : uomLines.length === 0 ? (
+                        <p className="empty-note">Belum ada UOM Conversion.</p>
+                    ) : (
+                        <table className="modern-table">
+                            <thead>
+                                <tr>
+                                    <th>UOM Konversi</th>
+                                    <th style={{ textAlign: 'right' }}>Isi per 1 UOM Konversi (dalam {baseUomLabel})</th>
+                                    <th style={{ textAlign: 'right' }}>Multiply Rate</th>
+                                    {isEditing && <th style={{ width: '60px' }}></th>}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {uomLines.map((line) => {
+                                    const key = lineKey(line);
+                                    const toLabel = getLabel(line.C_UOM_To_ID);
+                                    return (
+                                        <tr key={key}>
+                                            <td>{toLabel}</td>
+                                            {isEditing ? (
+                                                <>
+                                                    <td style={{ textAlign: 'right' }}>
+                                                        <span className="muted-note">1 {toLabel} = </span>
+                                                        <input
+                                                            type="number" step="0.0001" min="0" style={{ textAlign: 'right', width: '110px' }}
+                                                            value={line.DivideRate ?? ""}
+                                                            onChange={(e) => handleUomLineChange(line, "DivideRate", e.target.value)}
+                                                        />
+                                                        <span className="muted-note"> {baseUomLabel}</span>
+                                                    </td>
+                                                    <td style={{ textAlign: 'right' }}>{calcMultiplyRate(line.DivideRate) ?? "-"}</td>
+                                                    <td className="row-actions">
+                                                        <button className="icon-btn icon-btn-delete" title="Hapus baris" onClick={() => handleDeleteUomLine(line)}>🗑️</button>
+                                                    </td>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <td style={{ textAlign: 'right' }}>1 {toLabel} = {line.DivideRate || "-"} {baseUomLabel}</td>
+                                                    <td style={{ textAlign: 'right' }}>{calcMultiplyRate(line.DivideRate) ?? "-"}</td>
+                                                </>
+                                            )}
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    )}
+
+                    {isEditing && (
+                        <div className="inline-add-box inline-add-box-select">
+                            <select
+                                className="add-price-select"
+                                defaultValue=""
+                                disabled={!form.C_UOM_ID}
+                                title={!form.C_UOM_ID ? "Pilih UOM dasar produk terlebih dahulu" : undefined}
+                                onChange={(e) => {
+                                    if (e.target.value) {
+                                        const uom = uoms.find((u) => String(getId(u)) === e.target.value);
+                                        if (uom) handleAddUomLine(uom);
+                                        e.target.value = "";
+                                    }
+                                }}
+                            >
+                                <option value="">+ Tambah UOM Konversi...</option>
+                                {availableUomTargets.map((u, idx) => (
+                                    <option key={getId(u) ?? `uomto-${idx}`} value={getId(u)}>{u.Name}</option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
+                </div>
 
                 {/* SECTION 4: VENDOR PRICING (M_BPartnerProduct) */}
                 <div className="detail-section" style={{ gridColumn: '1 / -1' }}>
