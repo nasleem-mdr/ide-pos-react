@@ -72,6 +72,13 @@ const FIELD_LABELS = {
         componenttype: "Component Type",
         line: "Line",
     },
+    c_uom_conversion: {
+        m_product_id: "Product",
+        c_uom_id: "UOM Dasar",
+        c_uom_to_id: "UOM Konversi",
+        multiplyrate: "Multiply Rate",
+        dividerate: "Divide Rate",
+    },
 };
 
 /**
