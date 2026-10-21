@@ -77,7 +77,11 @@ function BusinessPartnerDetail() {
         Value: "", Name: "", TaxID: "", Description: "",
         IsVendor: false, IsCustomer: false, IsEmployee: false,
         C_BP_Group_ID: "",
+        M_PriceList_ID: "", PO_PriceList_ID: "",
     });
+
+    const [salesPriceLists, setSalesPriceLists] = useState([]);
+    const [purchasePriceLists, setPurchasePriceLists] = useState([]);
 
     const [locationLines, setLocationLines] = useState([]);
     const [deletedLocationLineIds, setDeletedLocationLineIds] = useState([]);
@@ -123,7 +127,7 @@ function BusinessPartnerDetail() {
         setIsLoading(true);
         try {
             const data = await idempiereApi(
-                `/models/c_bpartner/${id}?$select=Value,Name,TaxID,Description,IsVendor,IsCustomer,IsEmployee,C_BP_Group_ID`
+                `/models/c_bpartner/${id}?$select=Value,Name,TaxID,Description,IsVendor,IsCustomer,IsEmployee,C_BP_Group_ID,M_PriceList_ID,PO_PriceList_ID`
             );
             setBpartner(data);
             setForm({
@@ -135,6 +139,8 @@ function BusinessPartnerDetail() {
                 IsCustomer: data.IsCustomer === true || data.IsCustomer === "Y",
                 IsEmployee: data.IsEmployee === true || data.IsEmployee === "Y",
                 C_BP_Group_ID: getId(data.C_BP_Group_ID) ?? "",
+                M_PriceList_ID: getId(data.M_PriceList_ID) ?? "",
+                PO_PriceList_ID: getId(data.PO_PriceList_ID) ?? "",
             });
         } catch (err) {
             console.error("Gagal mengambil data Business Partner:", err);
@@ -158,7 +164,23 @@ function BusinessPartnerDetail() {
             setIsLoadingLocationLines(false);
         }
     }, [id, isNew]);
-
+    // ─── FETCH: opsi Price List ───────────────────────────────────────────────
+    const fetchPriceLists = useCallback(async () => {
+        const q = (isSO) =>
+            `/models/m_pricelist?$filter=${encodeURIComponent(
+                `IsActive eq true and IsSOPriceList eq ${isSO}`
+            )}&$select=Name&$orderby=Name`;
+        try {
+            const [so, po] = await Promise.all([idempiereApi(q(true)), idempiereApi(q(false))]);
+            setSalesPriceLists(so.records || []);
+            setPurchasePriceLists(po.records || []);
+        } catch (err) {
+            console.error("Gagal mengambil Price List:", err);
+            setSalesPriceLists([]);
+            setPurchasePriceLists([]);
+        }
+    }, []);
+    
     // ─── FETCH: opsi BP Group ───────────────────────────────────────────────
     const fetchBpGroups = useCallback(async () => {
         try {
@@ -188,16 +210,23 @@ function BusinessPartnerDetail() {
             setCountries([]);
         }
     }, []);
+    
     useEffect(() => {
         fetchBpartner();
         fetchLocationLines();
         fetchBpGroups();
+        fetchPriceLists();
         fetchCountries();
-    }, [fetchBpartner, fetchLocationLines, fetchBpGroups, fetchCountries]);
+    }, [fetchBpartner, fetchLocationLines, fetchBpGroups, fetchPriceLists, fetchCountries]);
 
     if (isLoading) return <div className="card-container detail-status">Loading detail...</div>;
     if (!isNew && !bpartner) return <div className="card-container detail-status detail-status-empty">Business Partner tidak ditemukan.</div>;
-
+    
+    // ─── Visibilitas Price List berdasarkan flag Customer / Vendor ──────────
+    const isYes = (v) => v === true || v === "Y";
+    const showSalesPL = isEditing ? form.IsCustomer : isYes(bpartner?.IsCustomer);
+    const showPurchasePL = isEditing ? form.IsVendor : isYes(bpartner?.IsVendor);
+    
     // ─── Validasi field wajib C_BPartner ────────────────────────────────────
     const validateBpartnerForm = () => {
         const missing = [];
@@ -239,6 +268,10 @@ function BusinessPartnerDetail() {
             IsCustomer: form.IsCustomer,
             IsEmployee: form.IsEmployee,
             C_BP_Group_ID: { id: parseInt(form.C_BP_Group_ID, 10) },
+            M_PriceList_ID: form.IsCustomer && form.M_PriceList_ID
+                ? { id: parseInt(form.M_PriceList_ID, 10) } : null,
+            PO_PriceList_ID: form.IsVendor && form.PO_PriceList_ID
+                ? { id: parseInt(form.PO_PriceList_ID, 10) } : null,
         };
 
         const locationLinesPayload = locationLines.map((l) => ({
@@ -436,6 +469,41 @@ function BusinessPartnerDetail() {
                         {isEditing ? (
                             <input type="checkbox" checked={form.IsEmployee} onChange={(e) => setForm({ ...form, IsEmployee: e.target.checked })} />
                         ) : <p>{bpartner.IsEmployee ? 'Yes' : 'No'}</p>}
+                        {/* di atas return, setelah early return */}
+                       
+                        {showSalesPL && (
+                            <>
+                                <label>Sales Price List</label>
+                                {isEditing ? (
+                                    <select
+                                        value={form.M_PriceList_ID}
+                                        onChange={(e) => setForm({ ...form, M_PriceList_ID: e.target.value })}
+                                    >
+                                        <option value="">-- Pilih Sales Price List --</option>
+                                        {salesPriceLists.map((p) => (
+                                            <option key={getId(p)} value={getId(p)}>{p.Name}</option>
+                                        ))}
+                                    </select>
+                                ) : <p>{getLabel(bpartner.M_PriceList_ID)}</p>}
+                            </>
+                        )}
+                        
+                        {showPurchasePL && (
+                            <>
+                                <label>Purchase Price List</label>
+                                {isEditing ? (
+                                    <select
+                                        value={form.PO_PriceList_ID}
+                                        onChange={(e) => setForm({ ...form, PO_PriceList_ID: e.target.value })}
+                                    >
+                                        <option value="">-- Pilih Purchase Price List --</option>
+                                        {purchasePriceLists.map((p) => (
+                                            <option key={getId(p)} value={getId(p)}>{p.Name}</option>
+                                        ))}
+                                    </select>
+                                ) : <p>{getLabel(bpartner.PO_PriceList_ID)}</p>}
+                            </>
+                        )}
                     </div>
                 </div>
 
