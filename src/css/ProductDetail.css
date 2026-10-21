@@ -184,7 +184,18 @@
        border-radius: var(--pd-radius);
        padding: 20px 22px;
    }
-   
+
+   .classification-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr); /* Membuat 2 kolom dengan lebar sama */
+        gap: 16px; /* Jarak antar kolom */
+    }
+
+    .classification-section {
+        display: flex;
+        flex-direction: column; /* Label di atas, select/p di bawah */
+    }
+    
    .detail-section h3 {
        margin: 0 0 16px;
        padding-left: 11px;

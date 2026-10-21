@@ -1124,34 +1124,40 @@ function ProductDetail() {
 
                 {/* SECTION 2: STATUS & GRUP */}
                 <div className="detail-section">
-                    <h3>Classification</h3>
-                    <div className="info-group">
-                        <label>Product Category *</label>
-                        {isEditing ? (
-                            <select
-                                value={form.M_Product_Category_ID}
-                                onChange={(e) => setForm({ ...form, M_Product_Category_ID: e.target.value })}
-                            >
-                                <option value="">-- Pilih Product Category --</option>
-                                {productCategories.map((c, idx) => (
-                                    <option key={getId(c) ?? `cat-${idx}`} value={getId(c)}>{c.Name || getId(c)}</option>
-                                ))}
-                            </select>
-                        ) : <p>{getLabel(product.M_Product_Category_ID)}</p>}
-
-                        <label>UOM *</label>
-                        {isEditing ? (
-                            <select
-                                value={form.C_UOM_ID}
-                                onChange={(e) => setForm({ ...form, C_UOM_ID: e.target.value })}
-                            >
-                                <option value="">-- Pilih UOM --</option>
-                                {uoms.map((u, idx) => (
-                                    <option key={getId(u) ?? `uom-${idx}`} value={getId(u)}>{u.Name}</option>
-                                ))}
-                            </select>
-                        ) : <p>{getLabel(product.C_UOM_ID)}</p>}
-
+                    
+                        <h3>Classification</h3>
+                        
+                        <div className="info-group">
+                            <div className="classification-grid">
+                                <div className="classification-section">
+                                    <label>Product Category *</label>
+                                    {isEditing ? (
+                                        <select
+                                            value={form.M_Product_Category_ID}
+                                            onChange={(e) => setForm({ ...form, M_Product_Category_ID: e.target.value })}
+                                        >
+                                            <option value="">-- Pilih Product Category --</option>
+                                            {productCategories.map((c, idx) => (
+                                                <option key={getId(c) ?? `cat-${idx}`} value={getId(c)}>{c.Name || getId(c)}</option>
+                                            ))}
+                                        </select>
+                                    ) : <p>{getLabel(product.M_Product_Category_ID)}</p>}
+                                </div>
+                                <div className="classification-section">
+                                    <label>UOM *</label>
+                                    {isEditing ? (
+                                        <select
+                                            value={form.C_UOM_ID}
+                                            onChange={(e) => setForm({ ...form, C_UOM_ID: e.target.value })}
+                                        >
+                                            <option value="">-- Pilih UOM --</option>
+                                            {uoms.map((u, idx) => (
+                                                <option key={getId(u) ?? `uom-${idx}`} value={getId(u)}>{u.Name}</option>
+                                            ))}
+                                        </select>
+                                    ) : <p>{getLabel(product.C_UOM_ID)}</p>}
+                                </div>
+                            </div>
                         {/* Container Grid Khusus Checkbox / Status Flags */}
                         <div className="checkbox-grid">
                             <div className="checkbox-item">
