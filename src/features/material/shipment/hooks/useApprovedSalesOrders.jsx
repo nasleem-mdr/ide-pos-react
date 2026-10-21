@@ -28,7 +28,7 @@ export function useApprovedSalesOrders() {
   const [selectedLines, setSelectedLines] = useState([]);
   const [loadingLines, setLoadingLines] = useState(false);
 
-  // ── Step 1: daftar Sales Order Completed ────────────────────────────────
+  // ── Step 1: daftar Sales Order Completed yang BELUM punya Shipment ──────
   const fetchApprovedOrders = useCallback(async ({ warehouseId, search = '' } = {}) => {
     setLoadingList(true);
     try {
@@ -38,22 +38,51 @@ export function useApprovedSalesOrders() {
         conditions.push(`contains(tolower(DocumentNo),'${search.trim().toLowerCase().replace(/'/g, "''")}')`);
       }
 
+      // Ambil kandidat lebih banyak dari 50, karena sebagian akan terbuang
+      // setelah dicek ke Shipment
       const res = await idempiereApi(
         `/models/c_order` +
         `?$filter=${conditions.join(' and ')}` +
         `&$select=C_Order_ID,DocumentNo,DateOrdered,DocStatus,C_BPartner_ID,C_BPartner_Location_ID` +
         `&$orderby=DocumentNo desc` +
-        `&$top=50`
+        `&$top=200`
       );
-
       const records = Array.isArray(res.records) ? res.records : [];
-      setOrders(records.map(r => ({
+      const candidateIds = records.map(r => r.id ?? fkId(r.C_Order_ID)).filter(Boolean);
+
+      // Cari SO yang sudah punya Shipment (DR/IP/CO/CL). Shipment yang
+      // sudah Reversed (RE) atau Voided (VO) dianggap tidak ada.
+      const shippedIds = new Set();
+      const CHUNK = 50;
+      const chunks = [];
+      for (let i = 0; i < candidateIds.length; i += CHUNK) {
+        chunks.push(candidateIds.slice(i, i + CHUNK));
+      }
+      await Promise.all(chunks.map(async (ids) => {
+        const orFilter = ids.map(id => `C_Order_ID eq ${id}`).join(' or ');
+        const ioRes = await idempiereApi(
+          `/models/m_inout` +
+          `?$filter=IsSOTrx eq true and DocStatus neq 'RE' and DocStatus neq 'VO' and (${orFilter})` +
+          `&$select=C_Order_ID`
+        );
+        (Array.isArray(ioRes.records) ? ioRes.records : []).forEach(h => {
+          const oid = fkId(h.C_Order_ID);
+          if (oid) shippedIds.add(Number(oid));
+        });
+      }));
+
+      const unshipped = records.filter(r => {
+        const id = r.id ?? fkId(r.C_Order_ID);
+        return !shippedIds.has(Number(id));
+      });
+
+      setOrders(unshipped.slice(0, 50).map(r => ({
         C_Order_ID:             r.id ?? fkId(r.C_Order_ID),
         DocumentNo:             r.DocumentNo,
         DateOrdered:            r.DateOrdered,
         DocStatus:              r.DocStatus?.id ?? r.DocStatus,
         C_BPartner_ID:          fkId(r.C_BPartner_ID),
-        C_BPartner_Location_ID: fkId(r.C_BPartner_Location_ID), // alamat kirim (ship-to) dari SO
+        C_BPartner_Location_ID: fkId(r.C_BPartner_Location_ID),
         CustomerName:           r.C_BPartner_ID?.identifier || null,
       })));
     } catch (err) {
