@@ -175,10 +175,10 @@ const fetchReservedQtyByLine = useCallback(async (orderLineIds) => {
         const qtyReservedBase  = reservedMap.get(lineId) || 0;
 
         const rate = qtyEntered > 0 ? (qtyOrderedBase / qtyEntered) : 1;
+        const toEntered = (base) => (rate > 0 ? base / rate : base);
 
-        // Sisa = Ordered - Delivered - Reserved(oleh Receipt lain yg masih terbuka)
         const qtyRemainingBase = Math.max(qtyOrderedBase - qtyDeliveredBase - qtyReservedBase, 0);
-        const qtyRemainingEntered = rate > 0 ? qtyRemainingBase / rate : qtyRemainingBase;
+        const qtyRemainingEntered = toEntered(qtyRemainingBase);
 
         return {
           C_OrderLine_ID: lineId,
@@ -191,6 +191,9 @@ const fetchReservedQtyByLine = useCallback(async (orderLineIds) => {
           QtyDelivered:      qtyDeliveredBase,
           QtyReserved:       qtyReservedBase,      // ← baru: sedang "dipegang" Receipt lain yg masih open
           QtyRemaining:      qtyRemainingBase,
+          QtyOrderedEntered:   qtyEntered,
+          QtyDeliveredEntered: toEntered(qtyDeliveredBase),
+          QtyReservedEntered:  toEntered(qtyReservedBase),
           QtyRemainingEntered: qtyRemainingEntered,
           Description:    l.Description || '',
         };
@@ -213,8 +216,8 @@ const fetchReservedQtyByLine = useCallback(async (orderLineIds) => {
     return (lines || []).map(l => ({
       name: l.ProductName.length > 14 ? l.ProductName.slice(0, 14) + '…' : l.ProductName,
       fullName: l.ProductName,
-      delivered: l.ConversionRate > 0 ? l.QtyDelivered / l.ConversionRate : l.QtyDelivered,
-      reserved: l.ConversionRate > 0 ? l.QtyReserved / l.ConversionRate : l.QtyReserved,
+      delivered: l.QtyDeliveredEntered,
+      reserved:  l.QtyReservedEntered,
       remaining: l.QtyRemainingEntered,
       uom: l.UomName,
     }));
@@ -232,6 +235,7 @@ const fetchReservedQtyByLine = useCallback(async (orderLineIds) => {
       uomOptions:   [{ C_UOM_ID: l.C_UOM_ID, Name: l.UomName, multiplyRate: l.ConversionRate }],
       sourceOrderLineId: l.C_OrderLine_ID,
       sourceOrderId: orderId,
+      sourceMaxQtyBase: l.QtyRemaining,   // sisa PO (satuan dasar) saat di-import
     }));
   }, []);
 

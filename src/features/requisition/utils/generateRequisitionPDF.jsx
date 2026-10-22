@@ -40,7 +40,7 @@ export async function generateRequisitionPDF(requisitionId, documentNo, orgInfo)
   const linesRes = await idempiereApi(
     `/models/m_requisitionline` +
     `?$filter=M_Requisition_ID eq ${requisitionId}` +
-    `&$select=Line,M_Product_ID,Qty,C_UOM_ID,Description` +
+    `&$select=Line,M_Product_ID,Qty,QtyEntered,C_UOM_ID,Description` +
     `&$orderby=Line`
   );
   const lines = linesRes.records || [];
@@ -89,7 +89,7 @@ export async function generateRequisitionPDF(requisitionId, documentNo, orgInfo)
       body: lines.map((l, idx) => [
         idx + 1,
         cleanIdentifier(l.M_Product_ID?.identifier) || "-",
-        l.Qty,
+        l.QtyEntered,
         l.C_UOM_ID?.identifier || "-",
         l.Description || "",
       ]),

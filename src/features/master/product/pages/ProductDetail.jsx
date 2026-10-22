@@ -122,7 +122,7 @@ async function callProcessByValue(value, payload) {
 const KNOWN_FK_FIELDS = new Set([
     "C_BPartner_ID", "M_Product_ID", "M_PriceList_Version_ID",
     "M_Product_Category_ID", "C_UOM_ID", "C_TaxCategory_ID",
-    "PP_Product_BOM_ID",
+    "PP_Product_BOM_ID", "C_Charge_ID",
 ]);
 const getId = (obj) => {
     if (obj === null || obj === undefined) return undefined;
@@ -200,6 +200,7 @@ function ProductDetail() {
         IsStocked: true, IsBOM: false, IsPhantom: false, IsBOMPriceOverride: false,
         MarkupPercent: 0, RoundingType: 0,
         M_Product_Category_ID: "", C_UOM_ID: "",
+        C_Charge_ID: "", // custom field: default charge untuk Internal Use
     });
 
     // ─── Vendor Pricing (M_BPartnerProduct) ─────────────────────────────────
@@ -236,6 +237,8 @@ function ProductDetail() {
     // ─── Opsi untuk field mandatory M_Product (Product Category & UOM) ─────
     const [productCategories, setProductCategories] = useState([]);
     const [uoms, setUoms] = useState([]);
+    // Opsi Charge untuk field custom M_Product.C_Charge_ID (default charge Internal Use)
+    const [charges, setCharges] = useState([]);
 
     // ─── Gambar Produk (AD_Attachment) ──────────────────────────────────────
     const [productImages, setProductImages] = useState([]);
@@ -277,6 +280,7 @@ function ProductDetail() {
                 RoundingType: getId(data.RoundingType) ?? 0,
                 M_Product_Category_ID: getId(data.M_Product_Category_ID) ?? "",
                 C_UOM_ID: getId(data.C_UOM_ID) ?? "",
+                C_Charge_ID: getId(data.C_Charge_ID) ?? "",
             });
         } catch (err) {
             console.error("Gagal mengambil data produk:", err);
@@ -434,6 +438,17 @@ function ProductDetail() {
         }
     }, [isNew]);
 
+    // ─── FETCH: opsi Charge (default charge Internal Use, opsional) ─────────
+    const fetchCharges = useCallback(async () => {
+        try {
+            const data = await idempiereApi(`/models/c_charge?$filter=IsActive eq true&$select=Name&$orderby=Name`);
+            setCharges(data.records || []);
+        } catch (err) {
+            console.error("Gagal mengambil Charge:", err);
+            setCharges([]);
+        }
+    }, []);
+
     // ─── FETCH: gambar produk (attachment) ──────────────────────────────────
     const fetchProductImages = useCallback(async () => {
         if (isNew) return;
@@ -461,8 +476,9 @@ function ProductDetail() {
         fetchVendorOptions();
         fetchProductCategories();
         fetchUoms();
+        fetchCharges();
         fetchProductImages();
-    }, [fetchProduct, fetchVendorLines, fetchPriceLines, fetchBom, fetchUomLines, fetchPriceListVersions, fetchVendorOptions, fetchProductCategories, fetchUoms, fetchProductImages]);
+    }, [fetchProduct, fetchVendorLines, fetchPriceLines, fetchBom, fetchUomLines, fetchPriceListVersions, fetchVendorOptions, fetchProductCategories, fetchUoms, fetchCharges, fetchProductImages]);
 
     // ─── Cari produk komponen BOM (debounce) ────────────────────────────────
     // contains() di REST API ini case-sensitive → dibungkus toupper() di
@@ -549,6 +565,11 @@ function ProductDetail() {
             RoundingType: parseInt(form.RoundingType, 10) || 0,
             M_Product_Category_ID: { id: parseInt(form.M_Product_Category_ID, 10) },
             C_UOM_ID: { id: parseInt(form.C_UOM_ID, 10) },
+            // C_Charge_ID opsional: kalau dikosongkan saat edit, kirim null
+            // supaya nilai lama di server ikut terhapus.
+            ...(form.C_Charge_ID
+                ? { C_Charge_ID: { id: parseInt(form.C_Charge_ID, 10) } }
+                : (!isNew ? { C_Charge_ID: null } : {})),
         };
 
         // `typeof ... === "number"` jaga-jaga: kalau getId() salah ambil FK
@@ -1157,6 +1178,47 @@ function ProductDetail() {
                                         </select>
                                     ) : <p>{getLabel(product.C_UOM_ID)}</p>}
                                 </div>
+                                <div className="classification-section">
+                                    <label>Charge (Internal Use)</label>
+                                    {isEditing ? (
+                                        <select
+                                            value={form.C_Charge_ID}
+                                            onChange={(e) => setForm({ ...form, C_Charge_ID: e.target.value })}
+                                        >
+                                            <option value="">-- Tanpa Default Charge --</option>
+                                            {charges.map((c, idx) => (
+                                                <option key={getId(c) ?? `chg-${idx}`} value={getId(c)}>{c.Name || getId(c)}</option>
+                                            ))}
+                                        </select>
+                                    ) : <p>{product ? getLabel(product.C_Charge_ID) : "-"}</p>}
+                                </div>
+                                <div className="classification-section">
+                                    <label>Markup % (AutoPrice)</label>
+                                    {isEditing ? (
+                                        <input
+                                            type="number" step="0.01"
+                                            value={form.MarkupPercent}
+                                            onChange={(e) => setForm({ ...form, MarkupPercent: e.target.value })}
+                                        />
+                                    ) : <p>{product.MarkupPercent ?? 0}%</p>}
+
+                                    <label>Rounding Type (AutoPrice)</label>
+                                    {isEditing ? (
+                                        <select
+                                            value={form.RoundingType}
+                                            onChange={(e) => setForm({ ...form, RoundingType: e.target.value })}
+                                        >
+                                            {ROUNDING_TYPE_OPTIONS.map((opt) => (
+                                                <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                            ))}
+                                        </select>
+                                    ) : (
+                                        <p>
+                                            {ROUNDING_TYPE_OPTIONS.find((o) => o.value === getId(product.RoundingType))?.label
+                                                || getLabel(product.RoundingType)}
+                                        </p>
+                                    )}
+                                </div>
                             </div>
                         {/* Container Grid Khusus Checkbox / Status Flags */}
                         <div className="checkbox-grid">
@@ -1234,31 +1296,6 @@ function ProductDetail() {
                             )}
                         </div>
 
-                        <label>Markup % (AutoPrice)</label>
-                        {isEditing ? (
-                            <input
-                                type="number" step="0.01"
-                                value={form.MarkupPercent}
-                                onChange={(e) => setForm({ ...form, MarkupPercent: e.target.value })}
-                            />
-                        ) : <p>{product.MarkupPercent ?? 0}%</p>}
-
-                        <label>Rounding Type (AutoPrice)</label>
-                        {isEditing ? (
-                            <select
-                                value={form.RoundingType}
-                                onChange={(e) => setForm({ ...form, RoundingType: e.target.value })}
-                            >
-                                {ROUNDING_TYPE_OPTIONS.map((opt) => (
-                                    <option key={opt.value} value={opt.value}>{opt.label}</option>
-                                ))}
-                            </select>
-                        ) : (
-                            <p>
-                                {ROUNDING_TYPE_OPTIONS.find((o) => o.value === getId(product.RoundingType))?.label
-                                    || getLabel(product.RoundingType)}
-                            </p>
-                        )}
                     </div>
                 </div>
 

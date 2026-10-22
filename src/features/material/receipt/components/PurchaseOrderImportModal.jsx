@@ -37,7 +37,7 @@ const PurchaseOrderImportModal = ({ isOpen, warehouseId, onClose, onImport }) =>
     selectedLines, loadingLines, fetchOrderLines,
     buildChartData, linesToCartItems,
   } = useApprovedPurchaseOrders();
-
+  const fmtQty = (n) => Number(Number(n).toFixed(2)).toString();
   const [search, setSearch]           = useState('');
   const [activeOrder, setActiveOrder] = useState(null);
   const [fullyReceivedCount, setFullyReceivedCount] = useState(0);
@@ -230,14 +230,14 @@ const PurchaseOrderImportModal = ({ isOpen, warehouseId, onClose, onImport }) =>
                        <span style={{ color: '#333' }}>{l.ProductName}</span>
                        {l.QtyReserved > 0 && (
                          <div style={{ fontSize: '10.5px', color: '#b45309', marginTop: '2px' }}>
-                           🔒 {(l.ConversionRate > 0 ? l.QtyReserved / l.ConversionRate : l.QtyReserved).toFixed(2)} {l.UomName} sedang di Receipt lain (belum Complete)
+                           🔒 {fmtQty(l.QtyReservedEntered)} {l.UomName} sedang di Receipt lain (belum Complete)
                          </div>
                        )}
                      </div>
-                      <span style={{ fontWeight: 700, color: COLOR.textDk, whiteSpace: 'nowrap' }}>
-                        {l.QtyRemaining} {l.UomName}
-                        <span style={{ fontWeight: 400, color: COLOR.textLt }}> / {l.QtyOrdered} order</span>
-                      </span>
+                     <span style={{ fontWeight: 700, color: COLOR.textDk, whiteSpace: 'nowrap' }}>
+                      {fmtQty(l.QtyRemainingEntered)} {l.UomName}
+                      <span style={{ fontWeight: 400, color: COLOR.textLt }}> / {fmtQty(l.QtyOrderedEntered)} order</span>
+                    </span>
                     </div>
                   ))}
                 </>

@@ -49,6 +49,7 @@ function flow(ready, docs, pct) {
 
 export function buildTraceRows(data, { slaDays = 3, includeVoid = false, today = new Date() } = {}) {
   const keep = (r) => includeVoid || !isVoid(r);
+  const productName = new Map((data.products || []).map((p) => [p.M_Product_ID ?? p.id, p.Name]));
   const reqMap = new Map(data.reqs.filter(keep).map((r) => [r.M_Requisition_ID, r]));
   const poMap = new Map(data.pos.filter(keep).map((r) => [r.C_Order_ID, r]));
   const ioMap = new Map(data.ios.filter(keep).map((r) => [r.M_InOut_ID, r]));
@@ -142,9 +143,29 @@ export function buildTraceRows(data, { slaDays = 3, includeVoid = false, today =
       flags.push({ level: "warn", text: `Req ${r.no}: ${r.total - r.covered} dari ${r.total} line belum menjadi PO` }));
     if (!reqs.length) flags.push({ level: "info", text: "PO tanpa requisition" });
     if (doneInv.length && delivered <= 0) flags.push({ level: "error", text: "Invoice sudah ada, barang belum diterima" });
-    if (delivered > ordered + 1e-4) flags.push({ level: "error", text: "Qty diterima melebihi qty PO" });
-    if (invoiced > ordered + 1e-4) flags.push({ level: "error", text: "Qty invoice melebihi qty PO" });
-
+    //if (delivered > ordered + 1e-4) flags.push({ level: "error", text: "Qty diterima melebihi qty PO" });
+    //if (invoiced > ordered + 1e-4) flags.push({ level: "error", text: "Qty invoice melebihi qty PO" });
+    if (delivered > ordered + 1e-4) flags.push({ level: "error", text: `Qty diterima (${fmtQ(delivered)}) melebihi qty PO (${fmtQ(ordered)})` });
+    if (invoiced > ordered + 1e-4)  flags.push({ level: "error", text: `Qty invoice (${fmtQ(invoiced)}) melebihi qty PO (${fmtQ(ordered)})` });
+    // Bandingkan tiap line PO dengan line Requisition asalnya (satuan dasar).
+    // Qty PO / diterima / ditagih tidak boleh melebihi qty Requisition.
+    lines.forEach((l) => {
+      const rl = reqLineById.get(olToRl.get(l.C_OrderLine_ID));
+      const rq = rl && reqMap.get(rl.M_Requisition_ID);
+      if (!rl || !rq) return;
+      const reqQty = num(rl.Qty);
+      const over = [];
+      if (num(l.QtyOrdered)   > reqQty + 1e-4) over.push(`qty PO ${fmtQ(l.QtyOrdered)}`);
+      if (num(l.QtyDelivered) > reqQty + 1e-4) over.push(`qty diterima ${fmtQ(l.QtyDelivered)}`);
+      if (num(l.QtyInvoiced)  > reqQty + 1e-4) over.push(`qty invoice ${fmtQ(l.QtyInvoiced)}`);
+      if (over.length) {
+        flags.push({
+          level: "error",
+          text: `Requisition ${rq.DocumentNo} · ${productName.get(rl.M_Product_ID) || `Produk #${rl.M_Product_ID}`}: ` +
+            `${over.join(", ")} melebihi qty Requisition ${fmtQ(reqQty)}`,
+        });
+      }
+    });
     mk({
       key: `PO${id}`, dateRef: po.DateOrdered, vendor: po.C_BPartner_ID_Name || "",
       reqs, po: toDoc("PO", po), grs: ioRecs.map((r) => toDoc("GR", r)),

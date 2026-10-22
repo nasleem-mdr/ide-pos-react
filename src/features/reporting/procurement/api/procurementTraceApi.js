@@ -42,6 +42,7 @@ const PK = {
   c_invoice: "C_Invoice_ID", c_invoiceline: "C_InvoiceLine_ID",
   c_payment: "C_Payment_ID", c_paymentallocate: "C_PaymentAllocate_ID",
   c_allocationline: "C_AllocationLine_ID",
+  m_product: "M_Product_ID",
 };
 
 /** FK {id, identifier} -> Key = id, Key_Name = identifier. PK di-alias dari `id`. */
@@ -198,8 +199,12 @@ export async function fetchProcurementData({ dateFrom, dateTo }, onProgress = ()
   const needP = [...new Set(ids(payLinks, "C_Payment_ID"))].filter((id) => !haveP.has(id));
   const payMore = await fetchByIds("c_payment", "C_Payment_ID", needP, { select: SEL.pay, orderby: "C_Payment_ID" });
   const pays = payDirect.concat(payMore);
-
-  return { reqs, reqLines, pos, poLines, ios, ioLines, invs, invLines, pays, payLinks };
+  onProgress("Mengambil nama produk…");
+  const products = await fetchByIds("m_product", "M_Product_ID", ids(reqLines, "M_Product_ID"), {
+    select: "Name", orderby: "M_Product_ID",
+  });
+  
+  return { reqs, reqLines, pos, poLines, ios, ioLines, invs, invLines, pays, payLinks, products };
 }
 
 /* ---------- Detail dokumen (untuk modal) ---------- */

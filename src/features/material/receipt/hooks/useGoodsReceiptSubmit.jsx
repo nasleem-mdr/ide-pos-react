@@ -26,6 +26,38 @@ import { todayLocalISO } from '@/utils/dateOnly';
 //                   draft di sini murni "simpan dulu" — belum ada efek apa
 //                   pun ke C_OrderLine terkait sampai nanti di-Complete.
 // ─────────────────────────────────────────────────────────────────────────────
+const fmtQ = (n) => Number(Number(n).toFixed(2)).toLocaleString('id-ID');
+
+const overReceiptMessage = ({ name, lineNo, uomName, ordered, delivered, attempted }) =>
+  `Qty penerimaan melebihi sisa Purchase Order.\n\n` +
+  `Produk: ${name}${lineNo ? ` (line PO ${lineNo})` : ''}\n` +
+  `• Qty di PO: ${fmtQ(ordered)} ${uomName}\n` +
+  `• Sudah diterima sebelumnya: ${fmtQ(delivered)} ${uomName}\n` +
+  `• Maksimal diterima sekarang: ${fmtQ(ordered - delivered)} ${uomName}\n` +
+  `• Qty yang Anda input: ${fmtQ(attempted)} ${uomName}\n\n` +
+  `Yang perlu dilakukan: kurangi Qty produk ini menjadi maksimal ${fmtQ(ordered - delivered)} ${uomName}, lalu submit ulang. ` +
+  `Kalau barang yang datang memang lebih banyak dari PO, minta bagian Purchasing merevisi PO terlebih dahulu.`;
+
+// Terjemahkan error "Failed to update match po" dari server (angkanya satuan dasar).
+function explainOverReceiptError(message, cart) {
+  const m = String(message).match(
+    /MatchedDeliveredQty=([\d.]+),\s*OrderedQty=([\d.]+).*?MOrderLine\[(\d+),\s*Line=(\d+),\s*Ordered=([\d.]+),\s*Delivered=([\d.]+)/s
+  );
+  if (!m) return null;
+  const [, matched, , lineId, lineNo, ordered, delivered] = m;
+  const item = cart.find((i) => String(i.sourceOrderLineId) === lineId);
+  const rate = item?.selectedUom?.multiplyRate || 1;
+  const toEntered = (base) => parseFloat(base) / rate;
+  return overReceiptMessage({
+    name: item?.Name || `line PO #${lineId}`,
+    lineNo,
+    uomName: item?.selectedUom?.Name || item?.C_UOM_Name || '',
+    ordered: toEntered(ordered),
+    delivered: toEntered(delivered),
+    attempted: toEntered(parseFloat(matched) - parseFloat(delivered)),
+  });
+}
+
 export function useGoodsReceiptSubmit({ docTypeId, description, onError }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -57,7 +89,25 @@ export function useGoodsReceiptSubmit({ docTypeId, description, onError }) {
       onError?.('Data sesi tidak lengkap.\nSilakan login kembali.', 'Error');
       return null;
     }
-
+    for (const item of cart) {
+      if (item.sourceMaxQtyBase == null) continue;
+      const rate = item.selectedUom?.multiplyRate || 1;
+      const qtyBase = parseFloat(item.Qty) * rate;
+      if (qtyBase > item.sourceMaxQtyBase + 1e-4) {
+        onError?.(
+          overReceiptMessage({
+            name: item.Name,
+            uomName: item.selectedUom?.Name || item.C_UOM_Name || '',
+            ordered: item.sourceMaxQtyBase / rate,
+            delivered: 0,
+            attempted: parseFloat(item.Qty),
+          }),
+          'Qty Melebihi PO'
+        );
+        return null;
+      }
+    }
+    
     setIsSubmitting(true);
     try {
       const effectiveDate = movementDate || todayLocalISO();
@@ -145,8 +195,19 @@ export function useGoodsReceiptSubmit({ docTypeId, description, onError }) {
         items:       [...cart],
       };
     } catch (err) {
+      const friendly = explainOverReceiptError(err.message, cart);
+      if (friendly) {
+        onError?.(
+          friendly + (inOutId ? `\n\nCatatan: draft penerimaan (ID ${inOutId}) sudah tersimpan dengan qty yang salah. Hapus di iDempiere sebelum submit ulang.` : ''),
+          'Qty Melebihi PO'
+        );
+        return null;
+      }
       const action = submitMode === 'complete' ? 'membuat' : 'menyimpan draft';
       onError?.(`Gagal ${action} Penerimaan Barang:\n\n` + err.message, 'Error');
+      if (inOutId && submitMode === 'complete') {
+        try { await idempiereApi(`/models/m_inout/${inOutId}`, { method: 'DELETE' }); inOutId = null; } catch {}
+      }
       return null;
     } finally {
       setIsSubmitting(false);

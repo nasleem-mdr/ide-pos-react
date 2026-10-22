@@ -118,10 +118,18 @@ export function usePurchaseOrderSubmit({ docTypeId, defaultDescription, onError 
   }, [fetchUomOptions]);
 
   const resolveQtyOrdered = useCallback(async (item, qtyEntered) => {
-    const hasPrecomputedBaseQty = item.sourceRequisitionLineId && item.BaseQty != null && !isNaN(parseFloat(item.BaseQty));
-    if (hasPrecomputedBaseQty) {
-      return parseFloat(item.BaseQty);
+    // Item dari FPB / dari PO yang di-load untuk edit: turunkan dari RASIO
+    // yang selalu di-update (qty & UOM), bukan dari snapshot BaseQty.
+    const ratio = parseFloat(item.UnitsPerBaseUom);
+    if (item.sourceRequisitionLineId && ratio > 0) {
+      return Math.round(qtyEntered * ratio * 1e6) / 1e6;
     }
+  
+    // Fallback lama: snapshot BaseQty (hanya kalau rasio tidak tersedia)
+    const hasPrecomputedBaseQty =
+      item.sourceRequisitionLineId && item.BaseQty != null && !isNaN(parseFloat(item.BaseQty));
+    if (hasPrecomputedBaseQty) return parseFloat(item.BaseQty);
+  
     const selectedUom = await resolveSelectedUom(item);
     return toBaseQty(qtyEntered, selectedUom);
   }, [resolveSelectedUom, toBaseQty]);

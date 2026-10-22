@@ -27,7 +27,7 @@ export async function generateOrderPDF(orderId, documentNo, orgInfo) {
   const linesRes = await idempiereApi(
     `/models/c_orderline` +
       `?$filter=C_Order_ID eq ${orderId}` +
-      `&$select=Line,M_Product_ID,QtyOrdered,C_UOM_ID,PriceActual,LineNetAmt,Description` +
+      `&$select=Line,M_Product_ID,QtyOrdered,QtyEntered, C_UOM_ID,PriceEntered, PriceActual,LineNetAmt,Description` +
       `&$orderby=Line`
   );
   const lines = linesRes.records || [];
@@ -76,10 +76,10 @@ export async function generateOrderPDF(orderId, documentNo, orgInfo) {
       head: [["No", "Nama Barang", "Qty", "UOM", "Harga", "Line Amount"]],
       body: lines.map((l, idx) => [
         idx + 1,
-        l.Description || cleanIdentifier(l.M_Product_ID?.identifier) || "-",
-        numberFormatter.format(l.QtyOrdered ?? 0),
+        cleanIdentifier(l.M_Product_ID?.identifier) || "-",
+        numberFormatter.format(l.QtyEntered ?? 0),
         l.C_UOM_ID?.identifier || "-",
-        numberFormatter.format(l.PriceActual ?? 0),
+        numberFormatter.format(l.PriceEntered ?? 0),
         numberFormatter.format(l.LineNetAmt ?? 0),
       ]),
       // Penambahan foot pada Order PDF
