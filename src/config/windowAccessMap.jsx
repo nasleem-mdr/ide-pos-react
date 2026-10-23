@@ -56,6 +56,7 @@ export const WINDOW_ACCESS_MAP = {
   trendReport:             null,
   statementList:           null,
   shipmentList:           null,
+  salesImport:            null,
 };
 
 // Helper: ambil AD_Window_ID dari key, atau null kalau tidak terdaftar/tidak dibatasi.

@@ -4,7 +4,7 @@ import { idempiereApi } from "@/api/idempiereApi";
 import { renderListPDF } from "@/utils/pdf/renderListPDF";
 import { generateInvoicePDF } from '@/features/sales/invoice/utils/generateInvoicePDF';
 import { useOrgInfo } from "@/shared/hooks/useOrgInfo";
-
+import { listPageStyles as styles } from "@/utils/listPageStyles";
 import { 
     PageHeader, 
     DataTable, 
@@ -25,6 +25,25 @@ import "@/App.css";
 // GET /api/v1/models/ad_table?$select=AD_Table_ID&$filter=TableName eq 'C_Order'
 // ─────────────────────────────────────────────────────────────────────────────
 const C_INVOICE_AD_TABLE_ID = 423; 
+// Ukuran tombol seragam, ubah di sini kalau perlu menyesuaikan
+const ROW_BTN_W = 96;          // tombol aksi per baris (desktop)
+const ROW_BTN_W_MOBILE = 38;   // mobile: hanya ikon
+const HEADER_BTN_W = 132;      // tombol di header (desktop)
+
+const uniformBtn = (width, height = 30) => ({
+    boxSizing: "border-box",
+    width,
+    minWidth: width,
+    height,
+    padding: "0 8px",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+    flexShrink: 0,
+    whiteSpace: "nowrap",
+    lineHeight: 1,
+});
 
 const SalesInvoiceList = () => {
     const todayStr = new Date().toISOString().split("T")[0];
@@ -41,7 +60,7 @@ const SalesInvoiceList = () => {
     const [endDate, setEndDate]           = useState(todayStr);
     const pageSize                        = 10;
     const navigate                        = useNavigate();
-
+    const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
     const getStatusLabel = (status) => {
         const map = { DR: "Draft", IP: "In Progress", CO: "Completed", CL: "Closed", VO: "Voided", RE: "Reversed", NA: "Ditolak" };
         return map[status] || status;
@@ -316,13 +335,19 @@ const SalesInvoiceList = () => {
         const isDownloading = downloadingId === item._invoiceId;
         const isDownloadDisabled = item._status !== "CO" || isDownloading; // ⬅️ hanya aktif saat Completed
 
+        const btnStyle = {
+            ...styles.editBtn,
+            ...uniformBtn(isMobile ? ROW_BTN_W_MOBILE : ROW_BTN_W),
+            ...(isMobile && { fontSize: "14px" }),
+        };
+
         return (
-            <div style={{ display: "flex", gap: "6px" }}>
+            <div style={{ ...styles.actionContainer, alignItems: "center" }}>
                 <button
                     onClick={() => !isEditDisabled ? handleEdit(item) : null}
                     disabled={isEditDisabled}
                     style={{
-                        ...styles.editBtn,
+                        ...btnStyle,
                         backgroundColor: !isEditDisabled ? (item._status === "NA" ? "#c62828" : "#f57c00") : "#ccc",
                         cursor:          !isEditDisabled ? "pointer"  : "not-allowed",
                         opacity:         !isEditDisabled ? 1          : 0.6,
@@ -336,7 +361,7 @@ const SalesInvoiceList = () => {
                     onClick={() => !isDownloadDisabled ? handleDownload(item) : null}
                     disabled={isDownloadDisabled}
                     style={{
-                        ...styles.editBtn,
+                        ...btnStyle,
                         backgroundColor: isDownloadDisabled ? "#ccc" : "#546e7a",
                         cursor:          isDownloadDisabled ? "not-allowed" : "pointer",
                         opacity:         isDownloadDisabled ? 0.6 : 1,
@@ -354,7 +379,7 @@ const SalesInvoiceList = () => {
                      recordId={item._invoiceId}
                      docStatus={item._status}
                      targetStatus="CO"
-                     buttonStyle={styles.editBtn}
+                     buttonStyle={btnStyle}
                 />
             </div>
         );
@@ -375,9 +400,12 @@ const SalesInvoiceList = () => {
         setOffset(0);
     };
 
-    return (
-        <div className="card-container">
+    const headerBtn = isMobile
+    ? { ...styles.newBtn, ...uniformBtn("auto", 32), minWidth: 44, padding: "0 10px" }
+    : { ...styles.newBtn, ...uniformBtn(HEADER_BTN_W, 32) };
 
+    return (
+        <div style={styles.cardContainer}>
             <PageHeader
                 title="Sales Invoice"
                 filters={STATUS_FILTERS}
@@ -385,11 +413,11 @@ const SalesInvoiceList = () => {
                 onFilterChange={handleFilterChange}
                 onSearch={(val) => { setSearch(val); setOffset(0); }}
                 extraAction={
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                        <button onClick={handlePrintList} disabled={printingList} style={styles.newBtn}>
+                    <div style={{ ...styles.headerActions, alignItems: "center" }}>
+                        <button onClick={handlePrintList} disabled={printingList} style={headerBtn}>
                             {printingList ? '⏳ ...' : '🖨️ Print PDF'}
                         </button>
-                        <button onClick={() => navigate("/sales-invoice")} style={styles.newBtn}>
+                        <button onClick={() => navigate("/sales-invoice")} style={headerBtn}>
                             + New
                         </button>
                     </div>
@@ -434,14 +462,6 @@ const SalesInvoiceList = () => {
     );
 };
 
-const styles = {
-    newBtn:  { backgroundColor: "#1976d2", color: "#fff", border: "none", padding: "10px 18px", borderRadius: "6px", cursor: "pointer", fontWeight: "bold" },
-    badge:   { color: "#fff", padding: "3px 10px", borderRadius: "12px", fontSize: "11px", fontWeight: "bold" },
-    editBtn: { color: "#fff", border: "none", padding: "6px 14px", borderRadius: "6px", fontWeight: "bold", fontSize: "12px", transition: "all 0.2s ease" },
-    dateFilterRow: { display: "flex", gap: "16px", flexWrap: "wrap", margin: "12px 0 16px" },
-    dateField:     { display: "flex", flexDirection: "column", gap: "4px" },
-    dateLabel:     { fontSize: "12px", fontWeight: "600", color: "#555" },
-    dateInput:      { padding: "8px 10px", borderRadius: "6px", border: "1px solid #ccc", fontSize: "13px" },
-};
+
 
 export default SalesInvoiceList;

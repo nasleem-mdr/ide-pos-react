@@ -1,6 +1,7 @@
 import { idempiereApi } from "@/api/idempiereApi";
 import { renderDocumentPDF } from "@/utils/pdf/renderDocumentPDF";
 import { cleanIdentifier } from "@/utils/pdf/formatIdentifier";
+import { amountInWords, AMOUNT_LABEL } from "@/utils";
 
 const C_ORDER_AD_TABLE_ID = 259;
 
@@ -18,10 +19,13 @@ const VERIFY_BASE_URL = "https://192.168.0.126:8432/view/order";
 const numberFormatter = new Intl.NumberFormat("en-US");
 const fmtRp = (n) => ` ${Math.round(n || 0).toLocaleString("id-ID")}`;
 
-export async function generateOrderPDF(orderId, documentNo, orgInfo) {
+// options: { lang: 'id' | 'en', currency: 'IDR' | 'USD' | ... } (keduanya opsional)
+export async function generateOrderPDF(orderId, documentNo, orgInfo, options = {}) {
+  const { lang = "id", currency } = options;
+
   const header = await idempiereApi(
     `/models/c_order/${orderId}` +
-      `?$select=DocumentNo,DateOrdered,Description,DocStatus,AD_Org_ID,CreatedBy,C_BPartner_ID,M_Warehouse_ID,GrandTotal,C_Order_UU`
+      `?$select=DocumentNo,DateOrdered,Description,DocStatus,AD_Org_ID,CreatedBy,C_BPartner_ID,M_Warehouse_ID,GrandTotal,C_Currency_ID,C_Order_UU`
   );
 
   const linesRes = await idempiereApi(
@@ -56,6 +60,17 @@ export async function generateOrderPDF(orderId, documentNo, orgInfo) {
 
   const statusCode = header.DocStatus?.id ?? header.DocStatus;
 
+  // Currency: pakai pilihan eksplisit, kalau tidak ambil dari dokumen, fallback IDR
+  const rawCurrency = String(header.C_Currency_ID?.identifier || "").trim();
+  const currencyCode =
+    currency || (/^[A-Za-z]{3}$/.test(rawCurrency) ? rawCurrency.toUpperCase() : "IDR");
+
+  const words = amountInWords(header.GrandTotal, {
+    lang,
+    currency: currencyCode,
+    decimals: currencyCode === "IDR" ? 0 : 2,
+  });
+
   await renderDocumentPDF({
     title: "PURCHASE ORDER (PO)",
     subtitle: "Dokumen ini sah dengan histori approval terlampir",
@@ -82,11 +97,18 @@ export async function generateOrderPDF(orderId, documentNo, orgInfo) {
         numberFormatter.format(l.PriceEntered ?? 0),
         numberFormatter.format(l.LineNetAmt ?? 0),
       ]),
-      // Penambahan foot pada Order PDF
       foot: [
         [
           { content: "Grand Total", colSpan: 5, styles: { halign: "right", fontStyle: "bold" } },
           { content: numberFormatter.format(header.GrandTotal ?? 0), styles: { halign: "right", fontStyle: "bold" } },
+        ],
+        // Terbilang
+        [
+          {
+            content: `${AMOUNT_LABEL[lang] || AMOUNT_LABEL.id}: ${words}`,
+            colSpan: 6,
+            styles: { halign: "left", fontStyle: "italic" },
+          },
         ],
       ],
       columnStyles: {

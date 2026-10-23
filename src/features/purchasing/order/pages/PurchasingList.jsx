@@ -21,7 +21,25 @@ import DocActionButton from "@/shared/components/DocActionButton";
 import { getAvailableActions } from "@/shared/docAction/docActionConfig";
 
 import "@/App.css";
+// Ukuran tombol seragam, ubah di sini kalau perlu menyesuaikan
+const ROW_BTN_W = 96;          // tombol aksi per baris (desktop)
+const ROW_BTN_W_MOBILE = 38;   // mobile: hanya ikon
+const HEADER_BTN_W = 132;      // tombol di header (desktop)
 
+const uniformBtn = (width, height = 30) => ({
+    boxSizing: "border-box",
+    width,
+    minWidth: width,
+    height,
+    padding: "0 8px",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+    flexShrink: 0,
+    whiteSpace: "nowrap",
+    lineHeight: 1,
+});
 const PurchasingList = () => {
     const todayStr = new Date().toISOString().split("T")[0];
     const { orgInfo } = useOrgInfo();
@@ -37,7 +55,7 @@ const PurchasingList = () => {
     const [endDate, setEndDate]           = useState(todayStr);
     const pageSize                        = 10;
     const navigate                        = useNavigate();
-
+    const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
     // --- Pilihan baris untuk aksi massal Close/Void ---
     const [selected, setSelected] = useState(() => new Map());
     const toDocItem = (o) => ({ id: o._orderId, documentNo: o.DocumentNo, status: o._status });
@@ -206,22 +224,27 @@ const PurchasingList = () => {
             : "Edit Dokumen";
         const isDownloading = downloadingId === item._orderId;
         const isDownloadDisabled = item._status !== "CO" || isDownloading;
+        const btnStyle = {
+            ...styles.editBtn,
+            ...uniformBtn(isMobile ? ROW_BTN_W_MOBILE : ROW_BTN_W),
+            ...(isMobile && { fontSize: "14px" }),
+        };
 
         return (
-            <div style={styles.actionContainer}>
+            <div style={{ ...styles.actionContainer, alignItems: "center" }}>
                 <input
                     type="checkbox"
                     checked={selected.has(item._orderId)}
                     disabled={getAvailableActions("C_Order", item._status).length === 0}
                     onChange={() => toggleSelect(item)}
                     title="Pilih untuk aksi massal Close/Void"
-                    style={{ width: "18px", height: "18px", cursor: "pointer" }}
+                    style={{ width: "16px", height: "16px", cursor: "pointer" }}
                 />
                 <button
                     onClick={() => !isEditDisabled ? handleEdit(item) : null}
                     disabled={isEditDisabled}
                     style={{
-                        ...styles.editBtn,
+                        ...btnStyle,
                         backgroundColor: !isEditDisabled ? (item._status === "NA" ? "#c62828" : "#f57c00") : "#ccc",
                         cursor:          !isEditDisabled ? "pointer"  : "not-allowed",
                         opacity:         !isEditDisabled ? 1         : 0.6,
@@ -235,7 +258,7 @@ const PurchasingList = () => {
                     onClick={() => !isDownloadDisabled ? handleDownload(item) : null}
                     disabled={isDownloadDisabled}
                     style={{
-                        ...styles.editBtn,
+                        ...btnStyle,
                         backgroundColor: isDownloadDisabled ? "#ccc" : "#546e7a",
                         cursor:          isDownloadDisabled ? "not-allowed" : "pointer",
                         opacity:         isDownloadDisabled ? 0.6 : 1,
@@ -253,13 +276,13 @@ const PurchasingList = () => {
                     recordId={item._orderId}
                     docStatus={item._status}
                     targetStatus="CO"
-                    buttonStyle={styles.editBtn}
+                    buttonStyle={btnStyle}
                 />
                 <DocActionButton
                     tableName="C_Order"
                     items={[toDocItem(item)]}
                     onDone={handleDocActionDone}
-                    style={{ ...styles.editBtn, backgroundColor: "#6d4c41" }}
+                    style={{ ...btnStyle, backgroundColor: "#6d4c41" }}
                 />
             </div>
         );
@@ -367,6 +390,9 @@ const PurchasingList = () => {
             setPrintingList(false);
         }
     };
+    const headerBtn = isMobile
+    ? { ...styles.newBtn, ...uniformBtn("auto", 32), minWidth: 44, padding: "0 10px" }
+    : { ...styles.newBtn, ...uniformBtn(HEADER_BTN_W, 32) };
 
     return (
         <div style={styles.cardContainer}>
@@ -377,19 +403,18 @@ const PurchasingList = () => {
                 activeFilter={statusFilter}
                 onFilterChange={handleFilterChange}
                 extraAction={
-                    <div style={styles.headerActions}>
-
+                    <div style={{ ...styles.headerActions, alignItems: "center" }}>
                         <DocActionButton
                             tableName="C_Order"
                             items={[...selected.values()]}
                             label={`⛔ Close / Void (${selected.size})`}
                             onDone={handleDocActionDone}
-                            style={{ ...styles.newBtn, backgroundColor: "#6d4c41" }}
+                            style={{ ...headerBtn, backgroundColor: "#6d4c41" }}
                         />
-                        <button onClick={handlePrintList} disabled={printingList} style={styles.newBtn}>
+                        <button onClick={handlePrintList} disabled={printingList} style={headerBtn}>
                             {printingList ? '⏳ ...' : '🖨️ Print'}
                         </button>
-                        <button onClick={() => navigate("/purchasing")} style={styles.newBtn}>
+                        <button onClick={() => navigate("/purchasing")} style={headerBtn}>
                             + New
                         </button>
                     </div>

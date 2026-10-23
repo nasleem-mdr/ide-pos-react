@@ -23,6 +23,7 @@ import InternalUseList from "@/features/material/internaluse/pages/InternalUseLi
 import ProductList from "@/features/master/product/pages/ProductList";
 import ProductDetail from "@/features/master/product/pages/ProductDetail";
 import ProductImport from "@/features/master/product/pages/ProductImport";
+import InvoiceImport from "@/features/sales/invoice/pages/InvoiceImport";
 import ShipmentContainer from "@/features/material/shipment/pages/ShipmentContainer"
 import ShipmentList from "@/features/material/shipment/pages/ShipmentList"
 
@@ -177,6 +178,11 @@ function AppContent() {
                       <Route path="/product-import" element={
                         <ProtectedRoute windowKey="productImport">
                           <ProductImport />
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/sales-import" element={
+                        <ProtectedRoute windowKey="salesImport">
+                          <InvoiceImport />
                         </ProtectedRoute>
                       } />
                       <Route path="/purchase-order-detail" element={

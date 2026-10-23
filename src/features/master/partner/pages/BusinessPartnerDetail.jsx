@@ -233,6 +233,10 @@ function BusinessPartnerDetail() {
         if (!form.Value?.trim()) missing.push("Search Key");
         if (!form.Name?.trim()) missing.push("Name");
         if (!form.C_BP_Group_ID) missing.push("BP Group");
+        // Price List wajib sesuai peran: Customer -> Sales PL, Vendor -> Purchase PL
+        // (kalau keduanya dicentang, keduanya wajib; kalau tidak ada yang dicentang, tidak wajib)
+        if (form.IsCustomer && !form.M_PriceList_ID) missing.push("Sales Price List (wajib untuk Customer)");
+        if (form.IsVendor && !form.PO_PriceList_ID) missing.push("Purchase Price List (wajib untuk Vendor)");
         return missing;
     };
 
@@ -268,11 +272,19 @@ function BusinessPartnerDetail() {
             IsCustomer: form.IsCustomer,
             IsEmployee: form.IsEmployee,
             C_BP_Group_ID: { id: parseInt(form.C_BP_Group_ID, 10) },
-            M_PriceList_ID: form.IsCustomer && form.M_PriceList_ID
-                ? { id: parseInt(form.M_PriceList_ID, 10) } : null,
-            PO_PriceList_ID: form.IsVendor && form.PO_PriceList_ID
-                ? { id: parseInt(form.PO_PriceList_ID, 10) } : null,
         };
+
+        // Price List hanya dikirim sesuai peran BP. Kalau peran tidak dicentang,
+        // field TIDAK dikirim (baik mode baru maupun edit) — bxservice REST API
+        // menolak `null` untuk kolom FK ("Could not convert value null for ...").
+        // Konsekuensinya: nilai lama pada peran yang sudah dimatikan tetap tersimpan
+        // di database, tapi tidak dipakai dan tidak tampil di form.
+        if (form.IsCustomer) {
+            bpartnerPayload.M_PriceList_ID = { id: parseInt(form.M_PriceList_ID, 10) };
+        }
+        if (form.IsVendor) {
+            bpartnerPayload.PO_PriceList_ID = { id: parseInt(form.PO_PriceList_ID, 10) };
+        }
 
         const locationLinesPayload = locationLines.map((l) => ({
             id: l.id ?? null,
@@ -473,7 +485,7 @@ function BusinessPartnerDetail() {
                        
                         {showSalesPL && (
                             <>
-                                <label>Sales Price List</label>
+                                <label>Sales Price List{isEditing && " *"}</label>
                                 {isEditing ? (
                                     <select
                                         value={form.M_PriceList_ID}
@@ -490,7 +502,7 @@ function BusinessPartnerDetail() {
                         
                         {showPurchasePL && (
                             <>
-                                <label>Purchase Price List</label>
+                                <label>Purchase Price List{isEditing && " *"}</label>
                                 {isEditing ? (
                                     <select
                                         value={form.PO_PriceList_ID}

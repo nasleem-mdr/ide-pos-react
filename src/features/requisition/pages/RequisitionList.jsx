@@ -19,6 +19,26 @@ import DocActionButton from "@/shared/components/DocActionButton";
 import { listPageStyles as styles } from "@/utils/listPageStyles";
 import { getAvailableActions } from "@/shared/docAction/docActionConfig";
 
+// Ukuran tombol seragam, ubah di sini kalau perlu menyesuaikan
+const ROW_BTN_W = 96;          // tombol aksi per baris (desktop)
+const ROW_BTN_W_MOBILE = 38;   // mobile: hanya ikon
+const HEADER_BTN_W = 132;      // tombol di header (desktop)
+
+const uniformBtn = (width, height = 30) => ({
+    boxSizing: "border-box",
+    width,
+    minWidth: width,
+    height,
+    padding: "0 8px",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+    flexShrink: 0,
+    whiteSpace: "nowrap",
+    lineHeight: 1,
+});
+
 const RequisitionList = () => {
     const todayStr = new Date().toISOString().split("T")[0];
     const { orgInfo } = useOrgInfo();
@@ -291,21 +311,25 @@ const RequisitionList = () => {
             : "Edit Dokumen";
         const isDownloading = downloadingId === item._requisitionId;
         const isDownloadDisabled = item._status !== "CO" || isDownloading;
-
-        // Styling dinamis ukuran tombol untuk mobile (mengecil/hanya icon)
-        const btnStyle = isMobile ? { ...styles.editBtn, padding: "6px 8px", fontSize: "14px" } : styles.editBtn;
-
+    
+        // Semua tombol baris memakai ukuran yang sama
+        const btnStyle = {
+            ...styles.editBtn,
+            ...uniformBtn(isMobile ? ROW_BTN_W_MOBILE : ROW_BTN_W),
+            ...(isMobile && { fontSize: "14px" }),
+        };
+    
         return (
-            <div style={styles.actionContainer}>
+            <div style={{ ...styles.actionContainer, alignItems: "center" }}>
                 <input
                     type="checkbox"
                     checked={selected.has(item._requisitionId)}
                     disabled={getAvailableActions("M_Requisition", item._status).length === 0}
                     onChange={() => toggleSelect(item)}
                     title="Pilih untuk aksi massal Close/Void"
-                    style={{ width: "16px", height: "16px", cursor: "pointer" }}
+                    style={{ width: "16px", height: "16px", cursor: "pointer", flexShrink: 0, margin: 0 }}
                 />
-                
+    
                 {/* Tombol Edit / Revisi */}
                 <button
                     onClick={() => !isEditDisabled ? handleEdit(item) : null}
@@ -313,14 +337,15 @@ const RequisitionList = () => {
                     style={{
                         ...btnStyle,
                         backgroundColor: !isEditDisabled ? (item._status === "NA" ? "#c62828" : "#f57c00") : "#ccc",
-                        cursor:          !isEditDisabled ? "pointer"  : "not-allowed",
-                        opacity:         !isEditDisabled ? 1         : 0.6,
+                        cursor:          !isEditDisabled ? "pointer" : "not-allowed",
+                        opacity:         !isEditDisabled ? 1 : 0.6,
                     }}
                     title={isEditDisabled ? `Status ${getStatusLabel(item._status)} tidak dapat diubah` : editTitle}
                 >
-                    {item._status === "NA" ? "🔁" : "✏️"} {!isMobile && (item._status === "NA" ? "Revisi" : "Edit")}
+                    <span>{item._status === "NA" ? "🔁" : "✏️"}</span>
+                    {!isMobile && <span>{item._status === "NA" ? "Revisi" : "Edit"}</span>}
                 </button>
-
+    
                 {/* Tombol Download PDF */}
                 <button
                     onClick={() => !isDownloadDisabled ? handleDownload(item) : null}
@@ -333,13 +358,14 @@ const RequisitionList = () => {
                     }}
                     title={
                         item._status !== "CO"
-                            ? `Download hanya tersedia untuk dokumen dengan status Completed`
+                            ? "Download hanya tersedia untuk dokumen dengan status Completed"
                             : "Download Dokumen"
                     }
                 >
-                    {isDownloading ? "⏳" : "⬇️"} {!isMobile && "Download"}
+                    <span>{isDownloading ? "⏳" : "⬇️"}</span>
+                    {!isMobile && <span>Download</span>}
                 </button>
-
+    
                 {/* Tombol Workflow Progress */}
                 <WorkflowProgressButton
                     tableName="M_Requisition"
@@ -348,7 +374,7 @@ const RequisitionList = () => {
                     targetStatus="CO"
                     buttonStyle={btnStyle}
                 />
-
+    
                 {/* Doc Action Button (Close/Void individual) */}
                 <DocActionButton
                     tableName="M_Requisition"
@@ -374,6 +400,9 @@ const RequisitionList = () => {
         setStatusFilter(val);
         setOffset(0);
     };
+    const headerBtn = isMobile
+    ? { ...styles.newBtn, ...uniformBtn("auto", 32), minWidth: 44, padding: "0 10px" }
+    : { ...styles.newBtn, ...uniformBtn(HEADER_BTN_W, 32) };
 
     return (
         <div style={styles.cardContainer}>
@@ -384,18 +413,19 @@ const RequisitionList = () => {
                 activeFilter={statusFilter}
                 onFilterChange={handleFilterChange}
                 extraAction={
-                    <div style={styles.headerActions}>
+                    <div style={{ ...styles.headerActions, alignItems: "center" }}>
                         <DocActionButton
                             tableName="M_Requisition"
                             items={[...selected.values()]}
                             label={isMobile ? `⛔ (${selected.size})` : `⛔ Close / Void (${selected.size})`}
                             onDone={handleDocActionDone}
-                            style={{ ...styles.newBtn, backgroundColor: "#6d4c41" }}
+                            style={{ ...headerBtn, backgroundColor: "#6d4c41" }}
                         />
-                        <button onClick={handlePrintList} disabled={printingList} style={styles.newBtn}>
-                            {printingList ? '⏳' : '🖨️'} {!isMobile && 'Print'}
+                        <button onClick={handlePrintList} disabled={printingList} style={headerBtn}>
+                            <span>{printingList ? "⏳" : "🖨️"}</span>
+                            {!isMobile && <span>Print</span>}
                         </button>
-                        <button onClick={() => navigate("/requisition")} style={styles.newBtn}>
+                        <button onClick={() => navigate("/requisition")} style={headerBtn}>
                             + New
                         </button>
                     </div>
