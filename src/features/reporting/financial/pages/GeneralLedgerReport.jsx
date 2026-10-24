@@ -4,8 +4,9 @@ import { listPageStyles as base } from "@/utils/listPageStyles";
 import { useGeneralLedger } from "@/features/reporting/financial/hooks/useGeneralLedger";
 import { useGeneralLedgerExport } from "@/features/reporting/financial/hooks/useGeneralLedgerExport";
 import {
-    FY_START_MONTH, fmtDate, fmtSigned, fmtNumber, getAccountId,
+    FY_START_MONTH, fmtDate, fmtSigned, fmtNumber, getAccountId, POSTING_TYPES,
 } from "@/features/reporting/financial/utils/generalLedger";
+
 import "@/App.css";
 
 /**
@@ -19,6 +20,7 @@ const typeBadgeColor = { NERACA: "#1a237e", "LABA-RUGI": "#7c5800" };
 const GeneralLedgerReport = () => {
     const {
         startDate, setStartDate, endDate, setEndDate, loading,
+        postingType, setPostingType, postingTypeLabel,
         accountOptions, selectedAccountIds, toggleAccount, clearAccountFilter, accountFilterLabel,
         accountSearch, setAccountSearch,
         partnerOptions, selectedPartnerKeys, togglePartner, clearPartnerFilter,
@@ -81,7 +83,15 @@ const GeneralLedgerReport = () => {
                     <input type="date" value={endDate} min={startDate}
                         onChange={(e) => setEndDate(e.target.value)} style={styles.dateInput} />
                 </div>
-
+                <div style={styles.dateField}>
+                    <label style={styles.fieldLabel}>Tipe Transaksi</label>
+                    <select value={postingType} onChange={(e) => setPostingType(e.target.value)}
+                        style={styles.dateInput}>
+                        {POSTING_TYPES.map((p) => (
+                            <option key={p.value} value={p.value}>{p.label}</option>
+                        ))}
+                    </select>
+                </div>
                 {/* Multi-select akun */}
                 <div style={styles.dropdownField} ref={accountDropdownRef}>
                     <label style={styles.fieldLabel}>Filter Akun</label>
@@ -267,7 +277,7 @@ const GeneralLedgerReport = () => {
                                         title={grandTotal.closing === null ? "Tidak dijumlahkan: akun Debet-normal dan Kredit-normal bercampur" : undefined}
                                     >
                                         {grandTotal.closing === null ? "—" : fmtSigned(grandTotal.closing)}
-                                    </td>
+                                    </td>                                    
                                 </tr>
                             </tfoot>
                         </table>
@@ -283,6 +293,7 @@ const GeneralLedgerReport = () => {
                             <br />
                             <strong>Filter Business Partner aktif ({partnerFilterSummary}):</strong> saldo awal,
                             balance, dan total dihitung hanya dari posting partner terpilih.
+                            <strong>Tipe transaksi: {postingTypeLabel}.</strong>{" "}
                         </>
                     )}
                 </p>

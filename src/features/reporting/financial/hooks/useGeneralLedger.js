@@ -2,9 +2,8 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { fetchAccountOptions, fetchFactAcctRows } from "@/features/reporting/financial/utils/generalLedgerApi";
 import {
     buildLedgerGroups, filterGroupsBySearch, computeGrandTotal, getAccountId,
-    NO_PARTNER_KEY, partnerKeyOf,
+    NO_PARTNER_KEY, partnerKeyOf, DEFAULT_POSTING_TYPE, getPostingTypeLabel,
 } from "@/features/reporting/financial/utils/generalLedger";
-
 /**
  * Data + filter + kalkulasi Buku Besar. Tidak ada JSX di sini.
  * Alur: opsi akun (klasifikasi neraca/laba-rugi) → Fact_Acct s.d. endDate →
@@ -24,7 +23,7 @@ export function useGeneralLedger() {
     const [selectedAccountIds, setSelectedAccountIds] = useState([]);
     const [accountSearch, setAccountSearch] = useState("");
     const [selectedPartnerKeys, setSelectedPartnerKeys] = useState([]); // id partner / NO_PARTNER_KEY
-
+    const [postingType, setPostingType] = useState(DEFAULT_POSTING_TYPE);
     // ─── Opsi akun ──────────────────────────────────────────────────────────
     useEffect(() => {
         let cancelled = false;
@@ -52,7 +51,9 @@ export function useGeneralLedger() {
         const reqId = ++requestIdRef.current;
         setLoading(true);
         try {
-            const rows = await fetchFactAcctRows({ endDate, accountIds: selectedAccountIds });
+            //const rows = await fetchFactAcctRows({ endDate, accountIds: selectedAccountIds });
+            const rows = await fetchFactAcctRows({ endDate, accountIds: selectedAccountIds, postingType });
+
             if (reqId === requestIdRef.current) setFactLines(rows);
         } catch (err) {
             console.error("Gagal mengambil data buku besar:", err.message);
@@ -60,8 +61,8 @@ export function useGeneralLedger() {
         } finally {
             if (reqId === requestIdRef.current) setLoading(false);
         }
-    }, [endDate, selectedAccountIds]);
-
+    }, [endDate, selectedAccountIds, postingType]);
+    
     useEffect(() => { fetchReportData(); }, [fetchReportData]);
 
     // ─── Filter Business Partner (client-side, dari posting yang sudah ter-load) ─
@@ -100,6 +101,7 @@ export function useGeneralLedger() {
         const names = selectedPartnerKeys.map(
             (k) => partnerOptions.find((o) => o.key === k)?.name || `#${k}`
         );
+        
         return names.length <= 3 ? names.join(", ") : `${names.length} partner`;
     }, [selectedPartnerKeys, partnerOptions]);
 
@@ -122,7 +124,8 @@ export function useGeneralLedger() {
     const clearAccountFilter = () => setSelectedAccountIds([]);
     const accountFilterLabel =
         selectedAccountIds.length === 0 ? "Semua Akun" : `${selectedAccountIds.length} akun dipilih`;
-
+    const postingTypeLabel = getPostingTypeLabel(postingType);
+    
     return {
         startDate, setStartDate, endDate, setEndDate,
         loading,
@@ -131,5 +134,6 @@ export function useGeneralLedger() {
         partnerOptions, selectedPartnerKeys, togglePartner, clearPartnerFilter,
         partnerFilterLabel, partnerFilterSummary,
         filteredGroups, grandTotal,
+        postingType, setPostingType, postingTypeLabel,
     };
 }

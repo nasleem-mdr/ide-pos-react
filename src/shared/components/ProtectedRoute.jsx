@@ -11,7 +11,7 @@ import { useAccess } from '@/context/AccessContext';
 // refresh halaman).
 //
 // ─────────────────────────────────────────────────────────────────────────────
-const ProtectedRoute = ({ windowKey, children, fallbackPath = '/dashboard' }) => {
+const ProtectedRoute = ({ windowKey, children, fallbackPath = '/dashboard-stats' }) => {
   const { canView, loading } = useAccess();
 
   if (loading) {

@@ -56,6 +56,7 @@ import DashboardMenu from '@/features/menu/pages/DashboardMenu';
 import ProtectedRoute from '@/shared/components/ProtectedRoute';
 import IDempiereAuth from "@/features/login/pages/IDempiereAuth";
 import Dashboard from "@/features/login/pages/Dashboard";
+import DashboardStats from "./features/dashboard/pages/DashboardStats";
 import { Header, Sidebar } from "@/shared/components/setup"; 
 
 import '@/css/AppLayout.css'; 
@@ -134,7 +135,8 @@ function AppContent() {
 
                   <main className="content">
                     <Routes>
-                      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                      <Route path="/" element={<Navigate to="/dashboard-stats" replace />} />
+                      <Route path="/dashboard-stats" element={<DashboardStats session={session} />} />
                       <Route path="/dashboard" element={<Dashboard session={session} />} />
                       <Route path="/dashboard-menu" element={<DashboardMenu session={session} />} />
                       <Route path="/booking" element={<BookingTimeline session={session} resourceTypeId={1000000} docTypeTargetId={1000210}/> } />

@@ -17,6 +17,7 @@ export const USER_LEVEL_OPTIONS = [
 export const EMPTY_FORM = {
     name: "", description: "", userLevel: "CO",
     isActive: true, isCanReport: true, isCanExport: true, isShowAcct: false,
+    dashboardWidgets: "",
 };
 
 // 3 tabel access: endpoint + nama kolom FK-nya

@@ -50,11 +50,8 @@ const fetchBPartnerNameMap = async (ids) => {
     }
     return map;
 };
-
-// Semua posting Fact_Acct s.d. endDate (saldo awal + transaksi), sudah dinormalisasi.
-export const fetchFactAcctRows = async ({ endDate, accountIds }) => {
-    // 🔧 Sesuaikan bila perlu: + ` and PostingType eq 'A'`, C_AcctSchema_ID, AD_Org_ID
-    const factFilter = `DateAcct le ${endDate}T23:59:59Z`;
+export const fetchFactAcctRows = async ({ endDate, accountIds, postingType = "A" }) => {
+    const factFilter = `DateAcct le ${endDate}T23:59:59Z and PostingType eq '${postingType}'`;
     const selectFields = `DateAcct,Account_ID,C_BPartner_ID,AmtAcctDr,AmtAcctCr,Description`;
 
     let records = [];

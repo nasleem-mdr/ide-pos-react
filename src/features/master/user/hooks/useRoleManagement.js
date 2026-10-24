@@ -27,6 +27,7 @@ const toRolePayload = (f) => ({
     IsCanReport: f.isCanReport,
     IsCanExport: f.isCanExport,
     IsShowAcct: f.isShowAcct,
+    DashboardWidgets: (f.dashboardWidgets ?? "").trim(),
 });
 
 export default function useRoleManagement() {
@@ -122,6 +123,7 @@ export default function useRoleManagement() {
                 isCanReport: roleRes.IsCanReport !== false && roleRes.IsCanReport !== "N",
                 isCanExport: roleRes.IsCanExport !== false && roleRes.IsCanExport !== "N",
                 isShowAcct: isTrue(roleRes.IsShowAcct),
+                dashboardWidgets: listValue(roleRes.DashboardWidgets) || "",
             };
             setFormError(null);
             setModal({

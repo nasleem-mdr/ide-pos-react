@@ -164,3 +164,14 @@ export const fmtDate = (iso) => {
 
 // Negatif → dalam kurung = berlawanan dengan posisi normal akun
 export const fmtSigned = (n) => (n < 0 ? `(${fmtNumber(Math.abs(n))})` : fmtNumber(n));
+// Tipe posting Fact_Acct (AD_Reference "_Posting Type")
+export const POSTING_TYPES = [
+    { value: "A", label: "Actual" },
+    { value: "B", label: "Budget" },
+    { value: "E", label: "Commitment" },
+    { value: "R", label: "Reservation" },
+    { value: "S", label: "Statistical" },
+];
+export const DEFAULT_POSTING_TYPE = "A";
+export const getPostingTypeLabel = (v) =>
+    POSTING_TYPES.find((p) => p.value === v)?.label || v;

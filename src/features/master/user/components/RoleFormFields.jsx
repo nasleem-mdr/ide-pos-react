@@ -22,9 +22,20 @@ const RoleFormFields = ({ form, onChange, windowKeys = WINDOW_KEYS }) => {
                     {USER_LEVEL_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
             </div>
+            
             <div style={{ ...styles.field, gridColumn: "1 / -1" }}>
                 <label style={styles.label}>Description</label>
                 <input style={styles.input} value={form.description} onChange={(e) => set({ description: e.target.value })} placeholder="Opsional — deskripsi tugas role" />
+            </div>
+            <div style={{...styles.field, gridColumn: "1 / -1"}}>
+                <label style={styles.label}>Dashboard Widgets</label>
+                <textarea
+                    style={styles.input}
+                    rows={3}
+                    value={form.dashboardWidgets ?? ""}
+                    onChange={(e) => onChangeForm({ ...form, dashboardWidgets: e.target.value })}
+                    placeholder="mis. sales_summary,stock_alert"
+                />
             </div>
             <div style={styles.checkRow}>
                 <label style={styles.checkItem}>

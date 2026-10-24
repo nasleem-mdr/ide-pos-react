@@ -16,6 +16,7 @@ export const useFactAcct = (endDate) => {
         try {
             // 🔧 Tambahkan bila perlu: and PostingType eq 'A' / C_AcctSchema_ID / AD_Org_ID
             const factFilter = `DateAcct le ${endDate}T23:59:59Z`;
+            
             const records = await fetchAllPages(
                 `/models/fact_acct?$filter=${factFilter}` +
                 `&$select=Fact_Acct_ID,DateAcct,Account_ID,AmtAcctDr,AmtAcctCr` +
