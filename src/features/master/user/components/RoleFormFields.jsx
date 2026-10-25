@@ -29,11 +29,11 @@ const RoleFormFields = ({ form, onChange, windowKeys = WINDOW_KEYS }) => {
             </div>
             <div style={{...styles.field, gridColumn: "1 / -1"}}>
                 <label style={styles.label}>Dashboard Widgets</label>
-                <textarea
+                <input
                     style={styles.input}
                     rows={3}
                     value={form.dashboardWidgets ?? ""}
-                    onChange={(e) => onChangeForm({ ...form, dashboardWidgets: e.target.value })}
+                    onChange={(e) => set({ dashboardWidgets: e.target.value })}
                     placeholder="mis. sales_summary,stock_alert"
                 />
             </div>
