@@ -81,6 +81,8 @@ function buildProductPayload(row) {
         RoundingType: row.rounding_type ? parseNumber(row.rounding_type) : 0,
         M_Product_Category_ID: { id: parseInt(row._resolved.categoryId, 10) },
         C_UOM_ID: { id: parseInt(row._resolved.uomId, 10) },
+        // Custom field C_Charge_ID (default charge Internal Use), opsional.
+        ...(row._resolved.chargeId ? { C_Charge_ID: { id: parseInt(row._resolved.chargeId, 10) } } : {}),
     };
 }
 
@@ -105,20 +107,22 @@ export default function useProductImport() {
         });
 
         // 1) Cache referensi: kategori produk, UOM, price list version
-        let cats = [], uoms = [], plvs = [];
+        let cats = [], uoms = [], plvs = [], charges = [];
         try {
-            const [catRes, uomRes, plvRes] = await Promise.all([
+            const [catRes, uomRes, plvRes, chargeRes] = await Promise.all([
                 idempiereApi(`/models/m_product_category?$filter=IsActive eq true&$select=Name`),
                 idempiereApi(`/models/c_uom?$filter=IsActive eq true&$select=Name`),
                 idempiereApi(`/models/m_pricelist_version?$filter=IsActive eq true&$select=Name`),
+                idempiereApi(`/models/c_charge?$filter=IsActive eq true&$select=Name`),
             ]);
             cats = catRes.records || [];
             uoms = uomRes.records || [];
             plvs = plvRes.records || [];
+            charges = chargeRes.records || [];
         } catch (err) {
             rows.forEach((r) => {
                 r._status = "invalid";
-                r._errors = ["Gagal memuat data referensi (kategori/UOM/price list): " + err.message];
+                r._errors = ["Gagal memuat data referensi (kategori/UOM/charge/price list): " + err.message];
             });
             setPhase("ready");
             return rows;
@@ -218,6 +222,16 @@ export default function useProductImport() {
                 const u = findByName(uoms, r.uom);
                 if (!u) addError(r, `UOM "${r.uom}" tidak ditemukan di iDempiere`);
                 else r._resolved.uomId = u.id ?? u.C_UOM_ID;
+            }
+            // Charge / C_Charge_ID (opsional): boleh nama ATAU angka ID
+            if (r.charge) {
+                if (isId(r.charge)) {
+                    r._resolved.chargeId = parseInt(r.charge, 10);
+                } else {
+                    const ch = findByName(charges, r.charge);
+                    if (!ch) addError(r, `Charge "${r.charge}" tidak ditemukan di iDempiere`);
+                    else r._resolved.chargeId = ch.id ?? ch.C_Charge_ID;
+                }
             }
             // UPC/EAN (opsional): maks 30 karakter sesuai M_Product.UPC
             if (r.upc && r.upc.length > 30) {

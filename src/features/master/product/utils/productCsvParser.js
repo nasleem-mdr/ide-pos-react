@@ -79,6 +79,7 @@ const HEADER_ALIASES = {
     upc:                ["upc", "ean", "upc/ean", "upc_ean", "barcode"],
     product_category:   ["product_category", "kategori", "kategori_produk", "category"],
     uom:                ["uom", "satuan", "unit"],
+    charge:             ["c_charge_id", "charge", "charge_id", "charge_name", "default_charge", "charge_internal_use"],
     is_purchased:       ["is_purchased", "purchased", "dibeli"],
     is_sold:            ["is_sold", "sold", "dijual"],
     is_stocked:         ["is_stocked", "stocked", "distok"],
@@ -146,7 +147,7 @@ const PRICE_FIELDS = ["price_list_version", "sales_price_list", "sales_price_std
 // Kolom level produk. Cukup diisi di baris pertama; baris lanjutan boleh
 // dikosongkan. Kalau diisi di baris lanjutan tapi nilainya BEDA → konflik.
 const PRODUCT_FIELDS = [
-    "name", "description", "upc", "product_category", "uom",
+    "name", "description", "upc", "product_category", "uom", "charge",
     "is_purchased", "is_sold", "is_stocked", "is_bom",
     "markup_percent", "rounding_type",
     "vendor", "vendor_product_no", "vendor_price_list", "vendor_price_last_po",

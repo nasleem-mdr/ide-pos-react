@@ -195,7 +195,7 @@ function ProductDetail() {
     // IsStocked default true mengikuti default kolom di iDempiere.
     // IsPhantom & IsBOMPriceOverride hanya bermakna kalau IsBOM = true.
     const [form, setForm] = useState({
-        Value: "", Name: "", Description: "",
+        Value: "", Name: "", Description: "", UPC: "",
         IsPurchased: false, IsSold: false,
         IsStocked: true, IsBOM: false, IsPhantom: false, IsBOMPriceOverride: false,
         MarkupPercent: 0, RoundingType: 0,
@@ -270,6 +270,7 @@ function ProductDetail() {
                 Value: data.Value || "",
                 Name: data.Name || "",
                 Description: data.Description || "",
+                UPC: data.UPC || "",
                 IsPurchased: isYes(data.IsPurchased),
                 IsSold: isYes(data.IsSold),
                 IsStocked: isYes(data.IsStocked),
@@ -553,6 +554,7 @@ function ProductDetail() {
             Value: form.Value.trim(),
             Name: form.Name.trim(),
             Description: form.Description,
+            UPC: form.UPC?.trim() || (isNew ? undefined : null), // opsional; kosong saat edit = hapus nilai lama
             IsPurchased: form.IsPurchased,
             IsSold: form.IsSold,
             IsStocked: form.IsStocked,
@@ -1075,6 +1077,11 @@ function ProductDetail() {
                             <input value={form.Name} onChange={(e) => setForm({ ...form, Name: e.target.value })} />
                         ) : <p>{product.Name}</p>}
 
+                        <label>UPC / Barcode</label>
+                        {isEditing ? (
+                            <input maxLength={30} value={form.UPC} onChange={(e) => setForm({ ...form, UPC: e.target.value })} />
+                        ) : <p>{product.UPC || '-'}</p>}
+
                         <label>Description</label>
                         {isEditing ? (
                             <textarea value={form.Description} onChange={(e) => setForm({ ...form, Description: e.target.value })} />
@@ -1192,33 +1199,6 @@ function ProductDetail() {
                                         </select>
                                     ) : <p>{product ? getLabel(product.C_Charge_ID) : "-"}</p>}
                                 </div>
-                                <div className="classification-section">
-                                    <label>Markup % (AutoPrice)</label>
-                                    {isEditing ? (
-                                        <input
-                                            type="number" step="0.01"
-                                            value={form.MarkupPercent}
-                                            onChange={(e) => setForm({ ...form, MarkupPercent: e.target.value })}
-                                        />
-                                    ) : <p>{product.MarkupPercent ?? 0}%</p>}
-
-                                    <label>Rounding Type (AutoPrice)</label>
-                                    {isEditing ? (
-                                        <select
-                                            value={form.RoundingType}
-                                            onChange={(e) => setForm({ ...form, RoundingType: e.target.value })}
-                                        >
-                                            {ROUNDING_TYPE_OPTIONS.map((opt) => (
-                                                <option key={opt.value} value={opt.value}>{opt.label}</option>
-                                            ))}
-                                        </select>
-                                    ) : (
-                                        <p>
-                                            {ROUNDING_TYPE_OPTIONS.find((o) => o.value === getId(product.RoundingType))?.label
-                                                || getLabel(product.RoundingType)}
-                                        </p>
-                                    )}
-                                </div>
                             </div>
                         {/* Container Grid Khusus Checkbox / Status Flags */}
                         <div className="checkbox-grid">
@@ -1296,6 +1276,31 @@ function ProductDetail() {
                             )}
                         </div>
 
+                        <label>Markup % (AutoPrice)</label>
+                        {isEditing ? (
+                            <input
+                                type="number" step="0.01"
+                                value={form.MarkupPercent}
+                                onChange={(e) => setForm({ ...form, MarkupPercent: e.target.value })}
+                            />
+                        ) : <p>{product.MarkupPercent ?? 0}%</p>}
+
+                        <label>Rounding Type (AutoPrice)</label>
+                        {isEditing ? (
+                            <select
+                                value={form.RoundingType}
+                                onChange={(e) => setForm({ ...form, RoundingType: e.target.value })}
+                            >
+                                {ROUNDING_TYPE_OPTIONS.map((opt) => (
+                                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                ))}
+                            </select>
+                        ) : (
+                            <p>
+                                {ROUNDING_TYPE_OPTIONS.find((o) => o.value === getId(product.RoundingType))?.label
+                                    || getLabel(product.RoundingType)}
+                            </p>
+                        )}
                     </div>
                 </div>
 

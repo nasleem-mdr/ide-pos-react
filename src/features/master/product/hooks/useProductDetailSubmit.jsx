@@ -35,6 +35,7 @@ const FIELD_LABELS = {
     m_product: {
         value: "Search Key",
         name: "Name",
+        upc: "UPC",
         m_product_category_id: "Product Category",
         c_uom_id: "UOM",
         c_taxcategory_id: "Tax Category",

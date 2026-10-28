@@ -24,6 +24,7 @@ const TEMPLATE_COLUMNS = [
     { key: "upc", label: "upc", required: false, example: "8999999000011", hint: "UPC/EAN (barcode)" },
     { key: "product_category", label: "product_category", required: true, example: "Stationary", hint: "Nama kategori (bukan ID juga boleh)" },
     { key: "uom", label: "uom", required: true, example: "Each", hint: "Nama satuan" },
+    { key: "charge", label: "c_charge_id", required: false, example: "", hint: "Default charge Internal Use — nama Charge (angka ID juga boleh)" },
     { key: "is_purchased", label: "is_purchased", required: false, example: "Y", hint: "Y/N, default N" },
     { key: "is_sold", label: "is_sold", required: false, example: "Y", hint: "Y/N, default N" },
     { key: "is_stocked", label: "is_stocked", required: false, example: "Y", hint: "Y/N, default Y" },
@@ -269,6 +270,7 @@ const ProductImport = () => {
                                     <th>UPC/EAN</th>
                                     <th>Kategori</th>
                                     <th>UOM</th>
+                                    <th>Charge</th>
                                     <th>Vendor</th>
                                     <th style={{ textAlign: "right", minWidth: "200px" }}>Harga Jual (Std) per Price List</th>
                                     <th style={{ width: "240px" }}>Status</th>
@@ -283,6 +285,7 @@ const ProductImport = () => {
                                         <td>{r.upc || "-"}</td>
                                         <td>{r.product_category}</td>
                                         <td>{r.uom}</td>
+                                        <td>{r.charge || "-"}</td>
                                         <td>{r.vendor || "-"}</td>
                                         <td style={{ textAlign: "right" }}>
                                             <PriceCell row={r} />
