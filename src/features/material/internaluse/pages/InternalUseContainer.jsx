@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 import { 
   Dialog, 
@@ -61,6 +61,10 @@ const InternalUseContainer = () => {
   const searchRef = useRef(null);
   const alert = (message, title = 'Perhatian') => setDialog({ isOpen: true, title, message });
 
+  const [editInventoryId, setEditInventoryId] = useState(null);
+  const [editDocNo, setEditDocNo] = useState(null);
+  const [editStatus, setEditStatus] = useState(null);
+
   const { products, loading: productsLoading, fetchProducts, search, searchValue, setSearchValue } = useProductSearch();
   const {
     cart, addItem, addItems, removeItem, removeItems, updateQty, updateCharge, updateUom,
@@ -79,6 +83,8 @@ const InternalUseContainer = () => {
   });
   const { canEdit } = useAccess();
   const canSubmitIU = canEdit('internalUse');
+  const location = useLocation();
+
 
   useEffect(() => {
     const init = async () => {
@@ -256,9 +262,71 @@ const InternalUseContainer = () => {
       setItemResolving(productId, false);
     }
   }, [cart, resolveProductStock, warehouses, setItemResolving, updateItemWarehouseStock, alert]);
+ 
+useEffect(() => {
+  const edit = location.state?.editInternalUse;
+  console.log('[IU edit] state:', location.state);
+  if (!edit) return;
+  (async () => {
+    try {
+      // ...
+      console.log('[IU edit] lines:', res.records);
+      console.log('[IU edit] items:', items);
+      const idOf = (v) => v?.id ?? v;
+      const invId = edit.id ?? edit.M_Inventory_ID;
+      const whId  = idOf(edit.M_Warehouse_ID);
+      const whName = edit.M_Warehouse_ID?.identifier
+        || warehouses.find(w => w.M_Warehouse_ID === whId)?.Name
+        || `WH #${whId}`;
 
-  const handleSubmit = async () => {
-    const result = await submit(cart, { warehouseId: warehouseInfo?.id });
+      const res = await idempiereApi(
+        `/models/m_inventoryline?$filter=M_Inventory_ID eq ${invId}` +
+        `&$select=M_Product_ID,M_Locator_ID,QtyInternalUse,C_Charge_ID`
+      );
+
+      const items = [];
+      for (const line of res.records || []) {
+        const productId = idOf(line.M_Product_ID);
+        const stock = await resolveProductStock(productId, whId);
+        if (!stock) continue; // stok tidak ada di gudang → lewati / beri peringatan
+        const uom = stock.uomOptions?.[0]; // QtyInternalUse tersimpan di UOM dasar
+        items.push({
+          M_Product_ID:   productId,
+          Name:           line.M_Product_ID?.identifier || `#${productId}`,
+          UomName:        uom?.Name,
+          Qty:            line.QtyInternalUse,
+          QtyOnHand:      stock.QtyOnHand,
+          M_Warehouse_ID: whId,
+          WarehouseName:  whName,
+          M_Locator_ID:   idOf(line.M_Locator_ID) ?? stock.M_Locator_ID,
+          LocatorName:    stock.LocatorName,
+          C_Charge_ID:    idOf(line.C_Charge_ID) ?? stock.DefaultChargeId,
+          ChargeName:     line.C_Charge_ID?.identifier || stock.DefaultChargeName,
+          uomOptions:     stock.uomOptions,
+          selectedUom:    uom,
+        });
+      }
+
+      clearCart();
+      addItems(items);
+      setEditInventoryId(invId);
+      setEditDocNo(edit.DocumentNo || `#${invId}`);
+      setEditStatus(idOf(edit.DocStatus) ?? null);
+      setCartOpen(true);
+    } catch (err) {
+      alert('Gagal memuat dokumen untuk diedit:\n' + err.message, 'Error');
+    } finally {
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  })();
+// eslint-disable-next-line react-hooks/exhaustive-deps
+}, [location.state]);
+
+  const handleSubmit = async (submitMode = 'complete') => {
+    const result = await submit(cart, {
+      warehouseId: warehouseInfo?.id,
+      submitMode,
+    });
     if (!result) return;
 
     const { documents, failed } = result;
@@ -461,8 +529,8 @@ const InternalUseContainer = () => {
             totalQty={totalQty}
             missingChargeCount={missingChargeCount}
             summaryRight={cartSummaryRight}
-            onSubmitDraft={canSubmitIU ? handleSubmit : undefined}
-            onSubmitComplete={canSubmitIU ? handleSubmit : undefined} 
+            onSubmitDraft={canSubmitIU ? () => handleSubmit('draft') : undefined}
+            onSubmitComplete={canSubmitIU ? () => handleSubmit('complete') : undefined}
             isSubmitting={isSubmitting}
           />
         )}
@@ -488,8 +556,8 @@ const InternalUseContainer = () => {
           totalQty={totalQty}
           missingChargeCount={missingChargeCount}
           summaryRight={cartSummaryRight}
-          onSubmitDraft={canSubmitIU ? handleSubmit : undefined}
-          onSubmitComplete={canSubmitIU ? handleSubmit : undefined}
+          onSubmitDraft={canSubmitIU ? () => handleSubmit('draft') : undefined}
+          onSubmitComplete={canSubmitIU ? () => handleSubmit('complete') : undefined}
           isSubmitting={isSubmitting}
         />
       )}

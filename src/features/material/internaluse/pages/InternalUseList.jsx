@@ -153,7 +153,7 @@ const InternalUseList = () => {
         } catch {
             cleanInternalUse = raw;
         }
-        navigate("/internaluse", { state: { editInternalUse: cleanInternalUse } });
+        navigate("/internal-use", { state: { editInternalUse: cleanInternalUse } });
     };
 
     const approvalAmtFormatted = approvalAmtAll === null
@@ -388,7 +388,7 @@ const InternalUseList = () => {
                         <button onClick={handlePrintList} disabled={printingList} style={styles.newBtn}>
                             {printingList ? '⏳ ...' : '🖨️ Print PDF'}
                         </button>
-                        <button onClick={() => navigate("/internaluse")} style={styles.newBtn}>
+                        <button onClick={() => navigate("/internal-use")} style={styles.newBtn}>
                             + Transaksi Baru
                         </button>
                     </div>
