@@ -98,7 +98,7 @@ export const menuSections = [
             { key: 'shipmentCustomerReport', windowKey: 'shipmentCustomerReport', path: '/shipment-customer-report', label: 'Shipment (Customer) Report', icon: <LiaPeopleCarrySolid /> },
             { key: 'salesInvoiceList', windowKey: 'salesInvoiceList',  path: '/salesinvoice-list',  label: 'Sales Invoice List',   icon: <LiaFileInvoiceDollarSolid /> },
             { key: 'outstandingInvoice', windowKey: 'outstandingInvoice', path: '/outstanding-invoice', label: 'Outstanding Invoice', icon: <LiaFileInvoiceDollarSolid /> },
-            { key: 'inventoryuReport', windowKey: 'inventoryuReport', path: '/inventory-report', label: 'Inventory Report', icon: <LiaFileInvoiceDollarSolid /> },
+            { key: 'inventoryReport', windowKey: 'inventoryReport', path: '/inventory-report', label: 'Inventory Report', icon: <LiaFileInvoiceDollarSolid /> },
         ]
     },
     {

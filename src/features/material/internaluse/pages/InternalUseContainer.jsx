@@ -270,8 +270,7 @@ useEffect(() => {
   (async () => {
     try {
       // ...
-      console.log('[IU edit] lines:', res.records);
-      console.log('[IU edit] items:', items);
+      
       const idOf = (v) => v?.id ?? v;
       const invId = edit.id ?? edit.M_Inventory_ID;
       const whId  = idOf(edit.M_Warehouse_ID);
@@ -306,7 +305,8 @@ useEffect(() => {
           selectedUom:    uom,
         });
       }
-
+      console.log('[IU edit] lines:', res.records);
+      console.log('[IU edit] items:', items);
       clearCart();
       addItems(items);
       setEditInventoryId(invId);
@@ -322,35 +322,36 @@ useEffect(() => {
 // eslint-disable-next-line react-hooks/exhaustive-deps
 }, [location.state]);
 
-  const handleSubmit = async (submitMode = 'complete') => {
-    const result = await submit(cart, {
-      warehouseId: warehouseInfo?.id,
-      submitMode,
-    });
-    if (!result) return;
+const handleSubmit = async (submitMode = 'complete') => {
+  if (editInventoryId && editStatus !== 'DR') {
+    alert('Hanya dokumen berstatus Draft yang bisa diedit.', 'Tidak Bisa Diedit');
+    return;
+  }
 
-    const { documents, failed } = result;
+  const result = await submit(cart, {
+    warehouseId: warehouseInfo?.id,
+    submitMode,
+    editInventoryId,
+  });
+  if (!result) return;
 
-    // Hanya hapus dari cart produk yang dokumennya BERHASIL di-Complete.
-    // Produk pada kelompok gudang yang gagal sengaja dibiarkan di cart
-    // supaya user bisa submit ulang tanpa input dari awal (lihat catatan
-    // partial-success di useInternalUseSubmit.jsx).
-    const succeededProductIds = documents.flatMap(d => d.items.map(i => i.M_Product_ID));
-    removeItems(succeededProductIds);
+  const { documents, failed } = result;   // ← baris yang hilang
 
-    // ⚠️ successData sekarang array dokumen (bisa >1 kalau cart berisi
-    // beberapa gudang sekaligus). InternalUseSuccessModal perlu disesuaikan
-    // untuk menampilkan daftar dokumen, bukan cuma 1 documentNo/date/items.
-    setSuccessData({ documents });
-    setSuccessOpen(true);
+  // Hanya hapus dari cart produk yang dokumennya BERHASIL diproses.
+  const succeededProductIds = documents.flatMap(d => d.items.map(i => i.M_Product_ID));
+  removeItems(succeededProductIds);
 
-    if (failed.length === 0) {
-      setCartOpen(false);
-    }
-    // Kalau ada yang gagal, cart panel/sidebar sengaja TIDAK ditutup supaya
-    // user langsung lihat sisa item yang gagal (pesan detail sudah
-    // ditampilkan oleh useInternalUseSubmit via onError).
-  };
+  setSuccessData({ documents });
+  setSuccessOpen(true);
+
+  if (failed.length === 0) {
+    setCartOpen(false);
+    // keluar dari mode edit setelah semuanya sukses
+    setEditInventoryId(null);
+    setEditDocNo(null);
+    setEditStatus(null);
+  }
+};
 
   const cartSummaryRight = `📦 ${warehouseInfo?.name || '...'}`;
 

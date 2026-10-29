@@ -34,7 +34,7 @@ const MonthlyTrendReport = () => {
     return (
         <div className="card-container">
             <PageHeader
-                title="📈 Laporan Trend Bulanan"
+                title="📈 Dashboard Trend Bulanan"
                 extraAction={
                     <button onClick={exportExcel} disabled={exporting} style={styles.excelBtn}>
                         {exporting ? "⏳ ..." : "📥 Download Excel"}
@@ -62,14 +62,14 @@ const MonthlyTrendReport = () => {
             ) : (
                 <div className="detail-section">
                     <TrendLineChart
-                        title="🏛️ Trend Neraca (posisi kumulatif per bulan)"
-                        labels={trend.bs.map((m) => m.label)}
-                        series={bsChartSeries}
-                    />
-                    <TrendLineChart
                         title="📊 Trend Laba-Rugi (per bulan)"
                         labels={trend.pl.map((m) => m.label)}
                         series={plChartSeries}
+                    />
+                    <TrendLineChart
+                        title="🏛️ Trend Neraca (posisi kumulatif per bulan)"
+                        labels={trend.bs.map((m) => m.label)}
+                        series={bsChartSeries}
                     />
                     <TrendTable trend={trend} labaBersihPerMonth={labaBersihPerMonth} />
                 </div>

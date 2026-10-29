@@ -46,7 +46,7 @@ export const WINDOW_ACCESS_MAP = {
   outstandingInvoice:      null,
   dashboardMenu:           null,
   shipmentCustomerReport:  null,
-  inventoryuReport:        null,
+  inventoryReport:        null,
   purchaseOrderDetail:     null,
   financialComparasion:    null,
   generalLedger:           null,

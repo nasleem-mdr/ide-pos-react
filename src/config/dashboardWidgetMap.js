@@ -1,9 +1,25 @@
 import { lazy } from 'react';
 
 export const dashboardWidgetMap = {
-  generalLedger   : { windowKey: 'generalLegder', component: lazy(() => import('@/features/reporting/financial/pages/GeneralLedgerReport')) },
-  procurementStats: { windowKey: 'procurementTrace',   component: lazy(() => import('@/features/reporting/procurement/pages/ProcurementTraceReport')) },
-  trendReport     : { windowKey: 'trendReport', component: lazy(() => import('@/features/reporting/financial/pages/MonthlyTrendReport')) },
-  //salesStats:       { windowKey: 'posOrder',      component: lazy(() => import('@/features/dashboard/widgets/SalesStats')) },
-  // ...dst
+  generalLedger   :        { windowKey: 'generalLegder', component: lazy(() => import('@/features/reporting/financial/pages/GeneralLedgerReport')) },
+  procurementStats:        { windowKey: 'procurementTrace',   component: lazy(() => import('@/features/reporting/procurement/pages/ProcurementTraceReport')) },
+  trendReport     :        { windowKey: 'trendReport', component: lazy(() => import('@/features/reporting/financial/pages/MonthlyTrendReport')) },
+  requisitionList:         { windowKey: 'requisitionList', component: lazy(() => import('@/features/requisition/pages/RequisitionList')) }, 
+  posOrder:                { windowKey: 'posOrder', component: lazy(() => import('@/features/sales/order/pages/POSContainer')) }, 
+  purchasingList:          {},
+  goodsReceiptList:        {},
+  internalUseList:         {},
+  vendorInvoiceList:       {},
+  salesInvoiceList:        {} ,
+  financialReport:         {},
+  outstandingInvoice:      {},
+  dashboardMenu:           {},
+  shipmentCustomerReport:  {},
+  inventoryReport:         {},
+  purchaseOrderDetail:     {},
+  financialComparasion:    {},
+  workfowApproval:         {},
+  productAnalysis:         {},
+  statementList:           {},
+  shipmentList:            {},  
 };
