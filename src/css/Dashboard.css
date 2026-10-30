@@ -10,7 +10,7 @@
 }
 .dashboard-root {
   height: 100%;
-  background: #0b0e17;
+  background: #dedede;
   display: flex;
   flex-direction: column;
   border-radius: 15px;

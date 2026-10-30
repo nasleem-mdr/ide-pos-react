@@ -1,7 +1,5 @@
 import { 
-  StatCard, 
-  DashboardStats, 
-  MonthlyChartCard, 
+  DashboardStats,  
   WelcomeCards 
 } from '@/shared/components/dashboard';
 
@@ -58,7 +56,6 @@ export default function Dashboard({ session, onLogout }) {
               */}
             </div>
           )}
-          <DashboardStats />
         </div>
       </main>
     </div>

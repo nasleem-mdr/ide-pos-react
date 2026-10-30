@@ -2,7 +2,7 @@
 
 .dashboard-root {
   height: 100%;
-  background: #0b0e17;
+  background: #dedede;
   display: flex;
   flex-direction: column;
   border-radius: 15px;
@@ -56,7 +56,7 @@
 .welcome-title {
   font-size: 28px;
   font-weight: 700;
-  color: #e2e8f0;
+  color: #00d1b2;
   line-height: 1.3;
   margin: 0 0 12px;
   letter-spacing: -0.5px;
@@ -83,7 +83,7 @@
 
 /* ── Active Page Indicator Banner ───────────────────────────────────────── */
 .report-active-banner {
-  background: rgba(0, 209, 178, 0.08);
+  background: rgb(22 29 43);
   border: 1px solid rgba(0, 209, 178, 0.25);
   border-radius: 12px;
   padding: 12px 20px;

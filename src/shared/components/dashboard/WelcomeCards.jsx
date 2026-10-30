@@ -3,54 +3,141 @@ import { ShoppingCartIcon, DeliveryIcon, RequisitionIcon, UserTake, VendorIcon, 
 import { MdOutlinePayments } from "react-icons/md";
 import { SiGoogleanalytics } from "react-icons/si";
 import { useAccess } from '@/context/AccessContext';
+import useGenericStats from '@/shared/hooks/useGenericStats';
+import useDashboardAccess from '@/shared/hooks/useDashboardAccess';
+
+import '@/css/WelcomeCards.css';
 
 // windowKey HARUS sama dengan yang di menuConfig.jsx
+// featured: true -> kartu besar berwarna (baris atas) yang menampilkan statistik bulan ini
+// stats          -> konfigurasi useGenericStats untuk kartu tersebut
 const CARDS = [
-  { windowKey: 'requisition',    to: '/requisition',     icon: <RequisitionIcon size={36} />,   label: 'Formulir', value: 'Requisition' },
-  { windowKey: 'purchasing',     to: '/purchasing',      icon: <ShoppingCartIcon size={32} />,  label: 'Formulir', value: 'Purchase Order' },
-  { windowKey: 'goodsReceipt',   to: '/goods-receipt',   icon: <DeliveryIcon size={38} />,      label: 'Formulir', value: 'Goods Receipt' },
-  { windowKey: 'internalUse',    to: '/internal-use',    icon: <UserTake size={32} />,          label: 'Formulir', value: 'Internal Use' },
-  { windowKey: 'vendorInvoice',  to: '/vendor-invoice',  icon: <VendorIcon size={32} />,        label: 'Formulir', value: 'Purchase Invoice' },
-  { windowKey: 'posOrder',       to: '/pos-order',       icon: <CashierIcon size={32} />,       label: 'Formulir', value: 'POS Sales' },
-  { windowKey: 'salesInvoice',   to: '/sales-invoice',   icon: <ImportIcon size={32} />,        label: 'Formulir', value: 'Sales Invoice' },
-  { windowKey: 'paymentReceipt', to: '/payment-receipt', icon: <MdOutlinePayments size={32} />, label: 'Formulir', value: 'Payment and Receipt' },
-  { windowKey: 'bankStatement',  to: '/bank-statement',  icon: <BankIcon size={32} />,          label: 'Formulir', value: 'Bank Statement' },
-  { windowKey: 'dashboardMenu',  to: '/dashboard-menu',  icon: <SiGoogleanalytics size={32} />, label: 'Report',   value: 'All Report' },
+  // ── Baris atas: alur utama + statistik ──────────────────────────────────
+  {
+    windowKey: 'requisition', to: '/requisition', icon: <RequisitionIcon size={40} />,
+    label: 'Requisition', featured: true, tone: 'indigo',
+    stats: { model: 'm_requisition', dateField: 'DateDoc', totalField: 'TotalLines' },
+  },
+  {
+    windowKey: 'purchasing', to: '/purchasing', icon: <ShoppingCartIcon size={38} />,
+    label: 'Purchase Order', featured: true, tone: 'amber',
+    stats: { model: 'c_order', dateField: 'DateOrdered', totalField: 'GrandTotal', baseFilter: 'IsSOTrx eq false' },
+  },
+  {
+    // TODO: sesuaikan model/dateField dengan tabel Goods Receipt Anda
+    windowKey: 'goodsReceipt', to: '/goods-receipt', icon: <DeliveryIcon size={42} />,
+    label: 'Goods Receipt', featured: true, tone: 'blue',
+    stats: { model: 'm_inout', dateField: 'MovementDate', baseFilter: 'IsSOTrx eq false' },
+  },
+  {
+    // TODO: tambahkan filter doc type POS jika perlu, mis. "IsSOTrx eq true and C_DocTypeTarget_ID eq 123"
+    windowKey: 'posOrder', to: '/pos-order', icon: <CashierIcon size={38} />,
+    label: 'POS Sales', featured: true, tone: 'pink',
+    stats: { model: 'c_order', dateField: 'DateOrdered', totalField: 'GrandTotal', baseFilter: 'IsSOTrx eq true' },
+  },
+
+  // ── Grid menu lainnya ───────────────────────────────────────────────────
+  { windowKey: 'internalUse',    to: '/internal-use',    icon: <UserTake size={30} />,          label: 'Internal Use' },
+  { windowKey: 'vendorInvoice',  to: '/vendor-invoice',  icon: <VendorIcon size={30} />,        label: 'Purchase Invoice' },
+  { windowKey: 'salesOrder',     to: '/sales-order',     icon: <ShoppingBagIcon size={24}/>,     label: 'DO (Invoice Bulanan)'},
+  { windowKey: 'salesInvoice',   to: '/sales-invoice',   icon: <ImportIcon size={30} />,        label: 'Sales Invoice' },
+  { windowKey: 'paymentReceipt', to: '/payment-receipt', icon: <MdOutlinePayments size={30} />, label: 'Payment and Receipt' },
+  { windowKey: 'bankStatement',  to: '/bank-statement',  icon: <BankIcon size={30} />,          label: 'Bank Statement' },
+
+  // ── Grid menu lainnya ───────────────────────────────────────────────────
+  { windowKey: 'cashierClosing',    to: '/cashier-closing',    icon: <UserTake size={30} />,    label: 'Cashier Closing' },
+  { windowKey: 'vendorInvoice',  to: '/vendor-invoice',  icon: <VendorIcon size={30} />,        label: 'Purchase Invoice' },
+  { windowKey: 'salesInvoice',   to: '/sales-invoice',   icon: <ImportIcon size={30} />,        label: 'Sales Invoice' },
+  { windowKey: 'paymentReceipt', to: '/payment-receipt', icon: <MdOutlinePayments size={30} />, label: 'Payment and Receipt' },
+  { windowKey: 'bankStatement',  to: '/bank-statement',  icon: <BankIcon size={30} />,          label: 'Bank Statement' },
+  { windowKey: 'dashboardMenu',  to: '/dashboard-menu',  icon: <SiGoogleanalytics size={28} />, label: 'All Report' },
+
 ];
 
-function CardBody({ icon, label, value }) {
+// Angka Completed / In Progress bulan ini.
+// Komponen terpisah supaya hook hanya jalan untuk menu yang boleh diakses.
+function TileStats({ config, createdByList, loadingSubs }) {
+  const { stats, loading } = useGenericStats({
+    ...config,
+    statusField:     'DocStatus',
+    compareStatuses: ['CO', 'IP'],
+    monthRange:      1,
+    createdByList:   loadingSubs ? null : createdByList,
+  });
+
+  const busy = loading || loadingSubs;
+  const co = busy ? '…' : (stats?.comparison?.CO?.count ?? 0);
+  const ip = busy ? '…' : (stats?.comparison?.IP?.count ?? 0);
+
   return (
-    <div className="welcome-card">
-      <div className="welcome-card-icon">{icon}</div>
-      <div className="welcome-card-label">{label}</div>
-      <div className="welcome-card-value">{value}</div>
+    <span className="wc-stats" title="Bulan ini">
+      <span className="wc-stat"><b>{co}</b><small>Selesai</small></span>
+      <span className="wc-stat"><b>{ip}</b><small>Proses</small></span>
+    </span>
+  );
+}
+
+function Tile({ card, allowed, loading, access }) {
+  const { to, icon, label, featured, tone, stats } = card;
+
+  const cls = [
+    'wc-tile',
+    featured ? `wc-tile--featured wc-tone-${tone}` : 'wc-tile--plain',
+    !allowed && 'wc-tile--disabled',
+  ].filter(Boolean).join(' ');
+
+  const inner = (
+    <>
+      <span className="wc-icon">{icon}</span>
+      {featured ? (
+        <span className="wc-footer">
+          <span className="wc-label">{label}</span>
+          {allowed && stats && <TileStats config={stats} {...access} />}
+        </span>
+      ) : (
+        <span className="wc-label">{label}</span>
+      )}
+    </>
+  );
+
+  if (allowed) {
+    return <Link to={to} className={cls}>{inner}</Link>;
+  }
+
+  return (
+    <div
+      className={cls}
+      aria-disabled="true"
+      title={loading ? 'Memuat hak akses...' : 'Anda tidak memiliki akses ke menu ini'}
+    >
+      {inner}
     </div>
   );
 }
 
 export default function WelcomeCards({ session }) {
   const { canView, loading } = useAccess();
+  const { createdByList, loadingSubs } = useDashboardAccess();
+  const access = { createdByList, loadingSubs };
+
+  const renderGroup = (cards) =>
+    cards.map((card) => (
+      <Tile
+        key={card.windowKey}
+        card={card}
+        loading={loading}
+        access={access}
+        allowed={!loading && canView(card.windowKey)}
+      />
+    ));
+
+  const featured = CARDS.filter((c) => c.featured);
+  const others = CARDS.filter((c) => !c.featured);
 
   return (
-    <div className="welcome-cards">
-      {CARDS.map(({ windowKey, to, ...body }) => {
-        const allowed = !loading && canView(windowKey);
-
-        return allowed ? (
-          <Link key={windowKey} to={to} className="welcome-card-link">
-            <CardBody {...body} />
-          </Link>
-        ) : (
-          <div
-            key={windowKey}
-            className="welcome-card-link welcome-card-link--disabled"
-            aria-disabled="true"
-            title={loading ? 'Memuat hak akses...' : 'Anda tidak memiliki akses ke menu ini'}
-          >
-            <CardBody {...body} />
-          </div>
-        );
-      })}
-    </div>
+    <section className="wc-root">
+      <div className="wc-featured">{renderGroup(featured)}</div>
+      <div className="wc-grid">{renderGroup(others)}</div>
+    </section>
   );
 }

@@ -71,6 +71,7 @@ import MonthlyTrendReport from '@/features/reporting/financial/pages/MonthlyTren
 import GeneralLedgerReport from "@/features/reporting/financial/pages/GeneralLedgerReport";
 import ProcurementTraceReport from "@/features/reporting/procurement/pages/ProcurementTraceReport";
 import ProductAnalysisContainer from "@/features/reporting/product-analysis/pages/ProductAnalysisContainer";
+import CashierClosingContainer from "./features/banking/cashier/pages/CashierClosingContainer";
 
 export default function App() {
   return (
@@ -203,6 +204,13 @@ function AppContent() {
                           <RequisitionContainer />
                         </ProtectedRoute>
                       } />
+
+                      <Route path="/cashier-closing" element={
+                        <ProtectedRoute windowKey="cashierClosing">
+                          <CashierClosingContainer />
+                        </ProtectedRoute>
+                      } />
+
                       <Route  path= "/inventory-report" element={
                         <ProtectedRoute windowKey="inventoryReport">
                           <InventoryStockReport /> 
