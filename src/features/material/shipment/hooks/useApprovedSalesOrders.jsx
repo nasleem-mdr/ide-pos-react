@@ -27,13 +27,15 @@ export function useApprovedSalesOrders() {
   const [loadingList, setLoadingList]   = useState(false);
   const [selectedLines, setSelectedLines] = useState([]);
   const [loadingLines, setLoadingLines] = useState(false);
-
+  
   // ── Step 1: daftar Sales Order Completed yang BELUM punya Shipment ──────
-  const fetchApprovedOrders = useCallback(async ({ warehouseId, search = '' } = {}) => {
+    const fetchApprovedOrders = useCallback(async ({ warehouseId, customerId, search = '' } = {}) => {
+    
     setLoadingList(true);
     try {
       const conditions = [`IsSOTrx eq true`, `DocStatus eq 'CO'`];
       if (warehouseId) conditions.push(`M_Warehouse_ID eq ${parseInt(warehouseId)}`);
+      if (customerId)  conditions.push(`C_BPartner_ID eq ${parseInt(customerId)}`);   // ← baru
       if (search.trim()) {
         conditions.push(`contains(tolower(DocumentNo),'${search.trim().toLowerCase().replace(/'/g, "''")}')`);
       }
@@ -52,29 +54,28 @@ export function useApprovedSalesOrders() {
 
       // Cari SO yang sudah punya Shipment (DR/IP/CO/CL). Shipment yang
       // sudah Reversed (RE) atau Voided (VO) dianggap tidak ada.
-      const shippedIds = new Set();
-      const CHUNK = 50;
+
+      // SO tampil selama masih ada baris produk/jasa yang QtyOrdered > QtyDelivered
+      const openIds = new Set();
+      const CHUNK = 40;
       const chunks = [];
       for (let i = 0; i < candidateIds.length; i += CHUNK) {
         chunks.push(candidateIds.slice(i, i + CHUNK));
       }
       await Promise.all(chunks.map(async (ids) => {
         const orFilter = ids.map(id => `C_Order_ID eq ${id}`).join(' or ');
-        const ioRes = await idempiereApi(
-          `/models/m_inout` +
-          `?$filter=IsSOTrx eq true and DocStatus neq 'RE' and DocStatus neq 'VO' and (${orFilter})` +
-          `&$select=C_Order_ID`
+        const lnRes = await idempiereApi(
+          `/models/c_orderline?$filter=${orFilter}` +
+          `&$select=C_Order_ID,M_Product_ID,QtyOrdered,QtyDelivered&$top=2000`
         );
-        (Array.isArray(ioRes.records) ? ioRes.records : []).forEach(h => {
-          const oid = fkId(h.C_Order_ID);
-          if (oid) shippedIds.add(Number(oid));
+        (Array.isArray(lnRes.records) ? lnRes.records : []).forEach(l => {
+          if (fkId(l.M_Product_ID) && num(l.QtyOrdered) > num(l.QtyDelivered)) {
+            openIds.add(Number(fkId(l.C_Order_ID)));
+          }
         });
       }));
 
-      const unshipped = records.filter(r => {
-        const id = r.id ?? fkId(r.C_Order_ID);
-        return !shippedIds.has(Number(id));
-      });
+      const unshipped = records.filter(r => openIds.has(Number(r.id ?? fkId(r.C_Order_ID))));
 
       setOrders(unshipped.slice(0, 50).map(r => ({
         C_Order_ID:             r.id ?? fkId(r.C_Order_ID),

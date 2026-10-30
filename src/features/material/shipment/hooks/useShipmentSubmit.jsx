@@ -42,7 +42,15 @@ export function useShipmentSubmit({ docTypeId, description, onError }) {
       onError?.('Ada item dengan Qty 0 / tidak valid.\nPerbaiki atau hapus item tersebut.', 'Data Belum Lengkap');
       return null;
     }
-
+    if (cart.some(i => !i.sourceOrderLineId)) {
+      onError?.('Ada item yang tidak terhubung ke baris Sales Order.\nTambahkan barang dari daftar Sales Order.', 'Data Belum Lengkap');
+      return null;
+    }
+    const overQty = cart.filter(i => i.maxQty != null && parseFloat(i.Qty) > i.maxQty + 1e-9);
+    if (overQty.length) {
+      onError?.('Qty melebihi sisa kirim SO:\n' + overQty.map(i => `• ${i.Name}: ${i.Qty} (maks ${i.maxQty})`).join('\n'), 'Qty Melebihi Sisa');
+      return null;
+    }
     const { orgId, clientId } = getLoginInfo();
 
     if (!customerId || !customerLocationId) {

@@ -5,7 +5,7 @@ import basicSsl from '@vitejs/plugin-basic-ssl'
 import path from 'path';
 import tailwindcss from '@tailwindcss/vite'
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [
     react({
       include: '**/*.{jsx,js}',
@@ -23,6 +23,12 @@ export default defineConfig({
     loader: 'jsx',
     include: /src\/.*\.js$/,
     exclude: [],
+    // Hanya saat `npm run build`: buang console.log/debug/info dan debugger.
+    // console.warn & console.error tetap ada. Saat `npm run dev` tidak ada yang dibuang.
+    ...(mode === 'production' && {
+      pure: ['console.log', 'console.debug', 'console.info'],
+      drop: ['debugger'],
+    }),
   },
   server: {
     host: true,
@@ -32,7 +38,7 @@ export default defineConfig({
       '/api': {
         target: 'https://localhost:8431',
         changeOrigin: true,
-	      secure: false,
+        secure: false,
       },
     },
   },
@@ -44,4 +50,4 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
-});
+}));

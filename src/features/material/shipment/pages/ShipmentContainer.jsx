@@ -1,42 +1,36 @@
 /** ─────────────────────────────────────────────────────────────────────────────
 * ShipmentContainer.jsx
-* Padanan GoodsReceiptContainer.jsx untuk sisi PENJUALAN — Material Shipment
-* (Customer), DocBaseType MMS, IsSOTrx = true.
+* Material Shipment (Customer), DocBaseType MMS, IsSOTrx = true.
 *
-*   1. Tombol 📥 di sebelah Scan QR membuka SalesOrderImportModal.
-*   2. Customer & alamat kirim otomatis terisi dari header SO saat import.
-*   3. Customer DIKUNCI selama cart berisi item hasil import SO, supaya header
-*      M_InOut tidak beda customer dengan line yang sudah ter-link
-*      C_OrderLine_ID. "Reset" untuk ganti SO/customer.
-*   4. Pencarian customer manual tersedia sebagai fallback HANYA saat cart
-*      kosong (pengiriman di luar SO, mis. sample / pinjam-pakai).
-*   5. Complete akan mengurangi stok locator — kalau stok kurang, dokumen
+* VERSI SO-ONLY: grid utama = daftar Sales Order (SalesOrderPicker), bukan
+* grid produk/jasa bebas. Setiap item di cart otomatis membawa C_OrderLine_ID,
+* jadi tidak ada lagi peringatan "isi Order Line".
+*
+*   1. Pilih SO → pilih baris (qty maks = sisa kirim) → masuk Daftar Pengiriman.
+*   2. Customer & alamat kirim otomatis dari header SO, DIKUNCI selama cart
+*      berisi item (1 dokumen M_InOut = 1 customer). Daftar SO ikut difilter
+*      ke customer tsb. Kosongkan cart / "Reset" untuk ganti customer.
+*   3. Pengiriman di luar SO (sample / pinjam-pakai) TIDAK didukung di form ini.
+*   4. Complete akan mengurangi stok locator — kalau stok kurang, dokumen
 *      tetap tersimpan sebagai Draft (lihat useShipmentSubmit).
 * ─────────────────────────────────────────────────────────────────────────────
 */
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import SalesOrderImportModal from '@/features/material/shipment/components/SalesOrderImportModal';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import SalesOrderPicker from '@/features/material/shipment/components/SalesOrderPicker';
 import ShipmentSuccessModal from '@/features/material/shipment/components/ShipmentSuccessModal';
 import { useShipmentSubmit } from '@/features/material/shipment/hooks/useShipmentSubmit';
-import { useCustomerSearch } from '@/features/material/shipment/hooks/useCustomerSearch';
 import {
   Dialog,
   CartFab,
   CartPanel,
   CartSidebar,
-  ProductGrid,
-  BarcodeScanner,
-  ProductDetailSheet,
   DeliveryIcon,
-  ScanIcon,
-  ImportIcon
 } from '@/shared/components';
 
 import {
   useCart,
   useIsDesktop,
-  useProductSearch,
   getLoginInfo,
   getMissingSessionFields,
   sessionFieldLabel,
@@ -49,7 +43,7 @@ import { idempiereApi, fkId } from '@/api/idempiereApi';
 import {
   resolveDocTypeId,
   DOC_BASE_TYPE, IS_SO_TRX,
-  COLOR, RADIUS
+  COLOR,
 } from '@/utils';
 
 import {
@@ -68,29 +62,19 @@ const ShipmentContainer = () => {
   const [defaultLocatorId, setDefaultLocatorId] = useState(null);
   const [docTypeId, setDocTypeId]               = useState(null);
 
-  // ── Customer (BPartner) penerima barang ─────────────────────────────────
-  const [customerQuery, setCustomerQuery]       = useState('');
-  const [customerOpen, setCustomerOpen]         = useState(false);
-  const [selectedCustomer, setSelectedCustomer] = useState(null); // { C_BPartner_ID, Name, locationId, source: 'so' | 'manual' }
+  // Customer penerima — SELALU berasal dari header SO yang dipilih.
+  const [selectedCustomer, setSelectedCustomer] = useState(null); // { C_BPartner_ID, Name, locationId }
 
   const [cartOpen, setCartOpen]       = useState(false);
-  const [scannerOpen, setScannerOpen] = useState(false);
-  const [importOpen, setImportOpen]   = useState(false);
   const [dialog, setDialog]           = useState({ isOpen: false, title: '', message: '' });
   const [successData, setSuccessData] = useState(null);
   const [successOpen, setSuccessOpen] = useState(false);
-  const [detailOpen, setDetailOpen]   = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState(null);
-  const searchRef = useRef(null);
   const [movementDate, setMovementDate] = useState(todayLocalISO);
+  const [pickerRefresh, setPickerRefresh] = useState(0); // naik setelah submit → picker muat ulang
 
   const alert = (message, title = 'Perhatian') => setDialog({ isOpen: true, title, message });
 
-  const { products, loading: productsLoading, loadingMore, hasMore,
-    fetchProducts, loadMore, search, searchValue, setSearchValue
-  } = useProductSearch();
-  const { cart, setCart, addToCart, removeFromCart, updateQty, updateUom, clearCart, totalQty, totalItems } = useCart();
-  const { customers, loading: customerLoading, search: searchCustomer, getDefaultBPLocation } = useCustomerSearch();
+  const { cart, setCart, removeFromCart, updateQty, updateUom, clearCart, totalQty, totalItems } = useCart();
   const { submit, isSubmitting } = useShipmentSubmit({
     docTypeId,
     description: SHIPMENT_DESCRIPTION,
@@ -99,9 +83,18 @@ const ShipmentContainer = () => {
   const { canEdit } = useAccess();
   const canSubmitShipment = canEdit('shipment');
 
-  // Customer terkunci selama ada minimal 1 item cart yang berasal dari SO.
-  const hasSoLinkedItems = cart.some(i => i.sourceOrderLineId);
-  const customerLocked   = hasSoLinkedItems;
+  // Semua item cart berasal dari SO → customer terkunci selama cart tidak kosong.
+  const customerLocked = cart.length > 0;
+  const cartLineIds = useMemo(
+    () => new Set(cart.map(i => i.sourceOrderLineId).filter(Boolean)),
+    [cart]
+  );
+
+  // Cart dikosongkan (hapus manual satu per satu, Clear, atau setelah submit)
+  // → lepas kunci customer supaya SO customer lain bisa dipilih.
+  useEffect(() => {
+    if (cart.length === 0) setSelectedCustomer(null);
+  }, [cart.length]);
 
   useEffect(() => {
     const init = async () => {
@@ -150,8 +143,6 @@ const ShipmentContainer = () => {
         } catch {
           setDefaultLocatorId(null);
         }
-
-        await fetchProducts('');
       } catch (err) {
         alert('Gagal inisialisasi: ' + err.message, 'Error');
       }
@@ -160,88 +151,34 @@ const ShipmentContainer = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const openProductDetail = useCallback((product) => {
-    setSelectedProduct(product);
-    setDetailOpen(true);
-  }, []);
-
-  const closeProductDetail = useCallback(() => {
-    setDetailOpen(false);
-    setSelectedProduct(null);
-  }, []);
-
-  const handleConfirmAddToCart = useCallback((product, qty, uom) => {
-    addToCart(product, qty, uom);
-    closeProductDetail();
-  }, [addToCart, closeProductDetail]);
-
-  const handleBarcodeDetected = useCallback((code) => {
-    const found = products.find(p => p.Value?.toUpperCase() === code.toUpperCase());
-    if (found) {
-      addToCart(found, 1, { C_UOM_ID: found.C_UOM_ID, Name: found.C_UOM_Name, multiplyRate: 1 });
-      setScannerOpen(false);
-    } else {
-      setScannerOpen(false);
-      setSearchValue(code);
-      fetchProducts(code);
-    }
-  }, [products, addToCart, fetchProducts, setSearchValue]);
-
-  // ── Customer manual — HANYA aktif saat cart kosong (lihat customerLocked) ──
-  const handleSelectCustomer = useCallback(async (customer) => {
-    setCustomerOpen(false);
-    setCustomerQuery(customer.Name);
-    const locationId = await getDefaultBPLocation(customer.C_BPartner_ID);
-    if (!locationId) {
-      alert(`Customer "${customer.Name}" tidak memiliki alamat (C_BPartner_Location) aktif.\nTambahkan alamat customer terlebih dahulu di Business Partner.`, 'Customer Tidak Lengkap');
-      setSelectedCustomer(null);
+  // ── Tambah baris SO ke Daftar Pengiriman ────────────────────────────────
+  // Customer otomatis diisi dari header SO. Picker sudah memfilter SO ke
+  // customer yang sama saat cart berisi item; pengecekan di sini = sabuk pengaman.
+  const handleAddFromSO = useCallback((cartItems, order) => {
+    if (!order.C_BPartner_Location_ID) {
+      alert(`SO ${order.DocumentNo} tidak memiliki alamat kirim (C_BPartner_Location).\nLengkapi dulu di Sales Order.`, 'Tidak Bisa Ditambahkan');
       return;
     }
-    setSelectedCustomer({ C_BPartner_ID: customer.C_BPartner_ID, Name: customer.Name, locationId, source: 'manual' });
-  }, [getDefaultBPLocation]);
-
-  // ── Import lines dari Sales Order Completed ─────────────────────────────
-  // Customer otomatis diisi dari header SO. Kalau sebelumnya sudah ada
-  // customer lain, cart di-reset dulu supaya 1 dokumen M_InOut = 1 customer.
-  const handleImportFromSO = useCallback((cartItems, order) => {
-    const soCustomer = {
-      C_BPartner_ID: order.C_BPartner_ID,
-      Name:          order.CustomerName,
-      locationId:    order.C_BPartner_Location_ID,
-      source:        'so',
-    };
-
-    if (!soCustomer.locationId) {
-      alert(`SO ${order.DocumentNo} tidak memiliki alamat kirim (C_BPartner_Location).\nLengkapi dulu di Sales Order.`, 'Import Gagal');
+    if (selectedCustomer && selectedCustomer.C_BPartner_ID !== order.C_BPartner_ID) {
+      alert(`Daftar pengiriman sudah berisi item untuk ${selectedCustomer.Name}.\nSatu dokumen Shipment hanya untuk satu customer.`, 'Customer Berbeda');
       return;
     }
 
     setCart(prev => {
-      const customerChanged = selectedCustomer && selectedCustomer.C_BPartner_ID !== soCustomer.C_BPartner_ID;
-      const base = customerChanged ? [] : prev;
-
-      const merged = [...base];
-      cartItems.forEach(item => {
-        const idx = merged.findIndex(i => i.M_Product_ID === item.M_Product_ID && i.sourceOrderLineId === item.sourceOrderLineId);
-        if (idx >= 0) {
-          merged[idx] = { ...merged[idx], Qty: merged[idx].Qty + item.Qty };
-        } else {
-          merged.push(item);
-        }
-      });
-      return merged;
+      const existing = new Set(prev.map(i => i.sourceOrderLineId));
+      return [...prev, ...cartItems.filter(i => !existing.has(i.sourceOrderLineId))];
     });
-
-    setSelectedCustomer(soCustomer);
-    setCustomerQuery(soCustomer.Name || '');
-    alert(`${cartItems.length} item dari SO ${order.DocumentNo} berhasil diimport.\nCustomer otomatis diset ke: ${soCustomer.Name}`, 'Import Berhasil');
+    setSelectedCustomer({
+      C_BPartner_ID: order.C_BPartner_ID,
+      Name:          order.CustomerName,
+      locationId:    order.C_BPartner_Location_ID,
+    });
   }, [setCart, selectedCustomer]);
 
-  // Reset customer + cart supaya user bisa mulai sesi pengiriman baru.
-  const handleResetCustomer = useCallback(() => {
-    setSelectedCustomer(null);
-    setCustomerQuery('');
+  // Kosongkan cart + lepas customer.
+  const handleReset = useCallback(() => {
     clearCart();
+    setSelectedCustomer(null);
   }, [clearCart]);
 
   const handleSubmit = async (submitMode = 'complete') => {
@@ -250,7 +187,7 @@ const ShipmentContainer = () => {
       return;
     }
     if (!selectedCustomer) {
-      alert('Customer belum ditentukan. Import dari Sales Order, atau pilih customer manual.', 'Customer Belum Dipilih');
+      alert('Pilih Sales Order dan tambahkan barang yang akan dikirim terlebih dahulu.', 'Daftar Pengiriman Kosong');
       return;
     }
     if (!movementDate) {
@@ -268,7 +205,7 @@ const ShipmentContainer = () => {
     });
     if (result) {
       setSuccessData(result);
-      handleResetCustomer();
+      handleReset();
       setMovementDate(todayLocalISO());
       setCartOpen(false);
       setSuccessOpen(true);
@@ -291,37 +228,14 @@ const ShipmentContainer = () => {
         onClose={() => setDialog({ isOpen: false, title: '', message: '' })}
       />
 
-      <ProductDetailSheet
-        isOpen={detailOpen}
-        product={selectedProduct}
-        onClose={closeProductDetail}
-        onConfirm={handleConfirmAddToCart}
-        confirmLabel="Tambah ke Pengiriman"
-      />
-
       <ShipmentSuccessModal
         isOpen={successOpen}
         data={successData}
         onClose={() => {
           setSuccessOpen(false);
           setSuccessData(null);
-          fetchProducts('');
-          setSearchValue('');
-          setTimeout(() => searchRef.current?.focus(), 150);
+          setPickerRefresh(n => n + 1); // sisa kirim SO sudah berubah → muat ulang
         }}
-      />
-
-      <BarcodeScanner
-        isOpen={scannerOpen}
-        onDetected={handleBarcodeDetected}
-        onClose={() => setScannerOpen(false)}
-      />
-
-      <SalesOrderImportModal
-        isOpen={importOpen}
-        warehouseId={warehouseInfo?.id}
-        onClose={() => setImportOpen(false)}
-        onImport={handleImportFromSO}
       />
 
       {/* Top Bar */}
@@ -335,64 +249,24 @@ const ShipmentContainer = () => {
         <div style={styles.customerStrip}>
           <span>🧑‍💼</span>
 
-          {customerLocked ? (
+          {customerLocked && selectedCustomer ? (
             <>
               <div style={{ fontSize: '12px' }}>
-                Customer (dari SO): <strong style={{ color: COLOR.textDk }}>{selectedCustomer?.Name}</strong>
+                Customer (dari SO): <strong style={{ color: COLOR.textDk }}>{selectedCustomer.Name}</strong>
                 <span style={{ marginLeft: '6px', color: COLOR.success }}>🔒</span>
               </div>
-              <button
-                onClick={handleResetCustomer}
-                title="Kosongkan cart & ganti SO/customer"
-                style={styles.btnReset}
-              >✕ Reset & Ganti SO</button>
+              {canSubmitShipment && (
+                <button
+                  onClick={handleReset}
+                  title="Kosongkan daftar pengiriman & ganti customer"
+                  style={styles.btnReset}
+                >✕ Kosongkan & Ganti Customer</button>
+              )}
             </>
           ) : (
-            <>
-              <div style={styles.customerInputWrapper}>
-                <input
-                  type="text"
-                  value={customerQuery}
-                  onChange={e => {
-                    setCustomerQuery(e.target.value);
-                    setSelectedCustomer(null);
-                    setCustomerOpen(true);
-                    searchCustomer(e.target.value);
-                  }}
-                  onFocus={() => setCustomerOpen(true)}
-                  placeholder="Customer manual (tanpa SO)..."
-                  style={{
-                    width: '100%', boxSizing: 'border-box', padding: '6px 10px',
-                    border: `1.5px solid ${selectedCustomer ? COLOR.success : COLOR.border}`,
-                    borderRadius: RADIUS.sm, fontSize: '12px', outline: 'none',
-                    background: '#fff',
-                  }}
-                />
-                {customerOpen && customerQuery && (
-                  <div style={styles.customerDropdown}>
-                    {customerLoading ? (
-                      <div style={styles.dropdownEmpty}>Mencari...</div>
-                    ) : customers.length === 0 ? (
-                      <div style={styles.dropdownEmpty}>Customer tidak ditemukan.</div>
-                    ) : (
-                      customers.map(c => (
-                        <div
-                          key={c.C_BPartner_ID}
-                          onClick={() => handleSelectCustomer(c)}
-                          style={styles.dropdownItem}
-                          onMouseDown={e => e.preventDefault()}
-                        >
-                          <strong>{c.Name}</strong> {c.Value ? <span style={{ color: COLOR.textLt }}>({c.Value})</span> : null}
-                        </div>
-                      ))
-                    )}
-                  </div>
-                )}
-              </div>
-              <span style={{ color: COLOR.textLt, fontSize: '11px' }}>
-                atau klik 📥 di bawah untuk import dari SO (customer otomatis terisi)
-              </span>
-            </>
+            <span style={{ color: COLOR.textLt, fontSize: '11px' }}>
+              Pilih Sales Order di bawah — customer terisi otomatis
+            </span>
           )}
 
           {/* Warehouse Badge */}
@@ -429,63 +303,17 @@ const ShipmentContainer = () => {
       {/* Main Body */}
       <div style={styles.mainBody}>
         <div style={styles.leftColumn}>
-
-          {/* Search bar + Scan + Import SO */}
-          <div style={styles.searchBarContainer}>
-            <div style={{ flex: 1, position: 'relative' }}>
-              <span style={styles.searchIcon}>🔍</span>
-              <input
-                ref={searchRef}
-                type="text"
-                value={searchValue}
-                onChange={e => search(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); fetchProducts(searchValue.trim()); } }}
-                placeholder="Cari nama / kode produk (tambahan manual)..."
-                style={{
-                  width: '100%', boxSizing: 'border-box', padding: '10px 12px 10px 34px',
-                  border: `1.5px solid ${COLOR.border}`, borderRadius: RADIUS.md,
-                  fontSize: '14px', color: COLOR.textDk, background: COLOR.bg, outline: 'none',
-                }}
-              />
-              {searchValue && (
-                <button onClick={() => { setSearchValue(''); fetchProducts(''); }} style={styles.btnClearSearch}>
-                  ✕
-                </button>
-              )}
-            </div>
-
-            {/* Scan Button */}
-            <button
-              onClick={() => setScannerOpen(true)}
-              title="Scan QR / Barcode"
-              style={{ ...styles.iconButton(COLOR.primary), fontSize: '20px' }}
-            >
-              <ScanIcon />
-            </button>
-
-            {/* Import SO Button */}
-            <button
-              onClick={() => setImportOpen(true)}
-              title="Import dari Sales Order yang sudah Completed"
-              style={{ ...styles.iconButton(COLOR.success), fontSize: '18px' }}
-            >
-              <ImportIcon />
-            </button>
-          </div>
-
-          {/* Product Grid */}
           <div style={{
             flex: 1, overflowY: 'auto', padding: '12px 14px',
             paddingBottom: (!isDesktop && cart.length > 0) ? '80px' : '14px',
           }}>
-            <ProductGrid
-              products={products}
-              loading={productsLoading}
-              loadingMore={loadingMore}
-              hasMore={hasMore}
-              fetchMore={loadMore}
-              onProductClick={openProductDetail}
-              isDesktop={isDesktop}
+            <SalesOrderPicker
+              warehouseId={warehouseInfo?.id}
+              customerId={selectedCustomer?.C_BPartner_ID}
+              customerName={selectedCustomer?.Name}
+              cartLineIds={cartLineIds}
+              refreshKey={pickerRefresh}
+              onAddLines={handleAddFromSO}
             />
           </div>
         </div>
@@ -497,7 +325,7 @@ const ShipmentContainer = () => {
             onRemove={removeFromCart}
             onQtyChange={updateQty}
             onUomChange={updateUom}
-            onClearCart={canSubmitShipment ? clearCart : undefined}
+            onClearCart={canSubmitShipment ? handleReset : undefined}
             totalItems={totalItems}
             totalQty={totalQty}
             summaryRight={cartSummaryRight}
@@ -523,7 +351,7 @@ const ShipmentContainer = () => {
           onRemove={removeFromCart}
           onQtyChange={updateQty}
           onUomChange={updateUom}
-          onClearCart={canSubmitShipment ? clearCart : undefined}
+          onClearCart={canSubmitShipment ? handleReset : undefined}
           totalItems={totalItems}
           totalQty={totalQty}
           summaryRight={cartSummaryRight}
@@ -577,13 +405,6 @@ const styles = {
     background: 'none', border: 'none', color: COLOR.danger,
     fontSize: '11px', cursor: 'pointer', fontWeight: 600, padding: 0,
   },
-  customerInputWrapper: { position: 'relative', flex: 1, minWidth: '200px', maxWidth: '360px' },
-  customerDropdown: {
-    position: 'absolute', top: '100%', left: 0, right: 0, marginTop: '4px',
-    background: COLOR.surface, border: `1px solid ${COLOR.border}`,
-    borderRadius: RADIUS.md, boxShadow: '0 6px 20px rgba(0,0,0,0.12)',
-    maxHeight: '220px', overflowY: 'auto', zIndex: 200,
-  },
   badgeWrapper: {
     display: 'inline-flex',
     alignItems: 'center',
@@ -607,23 +428,6 @@ const styles = {
   },
   mainBody: { flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0 },
   leftColumn: { flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 },
-  searchBarContainer: {
-    padding: '12px 14px', background: COLOR.surface, borderBottom: `1px solid ${COLOR.border}`,
-    display: 'flex', gap: '8px', alignItems: 'center', flexShrink: 0,
-  },
-  searchIcon: { position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '15px', pointerEvents: 'none' },
-  btnClearSearch: {
-    position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)',
-    background: 'none', border: 'none', cursor: 'pointer', color: COLOR.textLt,
-    fontSize: '16px', padding: '2px',
-  },
-  iconButton: (bg) => ({
-    background: bg, border: 'none', color: '#fff',
-    borderRadius: RADIUS.md, padding: '10px 14px', cursor: 'pointer',
-    lineHeight: 1, flexShrink: 0, WebkitTapHighlightColor: 'transparent',
-  }),
-  dropdownItem: { padding: '8px 12px', fontSize: '12px', cursor: 'pointer', color: COLOR.textDk },
-  dropdownEmpty: { padding: '10px', fontSize: '12px', color: COLOR.textLt },
   readOnlyBanner: {
     position: 'fixed', bottom: 0, left: 0, right: 0,
     background: '#fef3c7', color: '#92400e', fontSize: '12px',

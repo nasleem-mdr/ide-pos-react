@@ -203,6 +203,17 @@ export function useCashPurchaseSubmit({ poDocTypeId, receiptDocTypeId, invoiceDo
     setStep('invoice');
     pend(emit, 'invoice', 'Membuat header Vendor Invoice...');
 
+    // POReference invoice diisi nomor dokumen PO (C_Order.DocumentNo).
+    // Dibaca ulang dari server supaya sama untuk jalur submit() maupun
+    // resumeFromPO() (PO yang baru di-approve).
+    let poDocumentNo = '';
+    try {
+      const poHdr = await idempiereApi(`/models/c_order/${poId}?$select=DocumentNo`);
+      poDocumentNo = poHdr?.DocumentNo ?? '';
+    } catch (e) {
+      console.warn('[CashPurchase] Gagal membaca DocumentNo PO untuk POReference:', e);
+    }
+
     const invoiceRes = await idempiereApi('/models/c_invoice', {
       method: 'POST',
       body: JSON.stringify({
@@ -218,6 +229,7 @@ export function useCashPurchaseSubmit({ poDocTypeId, receiptDocTypeId, invoiceDo
         IsSOTrx:      false,
         PaymentRule:  'P',
         Description:  description,
+        ...(poDocumentNo && { POReference: poDocumentNo }),   // ← baru
       }),
     });
     const invoiceId = fkId(invoiceRes.id) ?? invoiceRes.id ?? invoiceRes.C_Invoice_ID;
