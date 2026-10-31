@@ -36,7 +36,7 @@ import SalesInvoiceList from "@/features/sales/invoice/pages/SalesInvoiceList";
 import SalesOrderDetailReport from "@/features/sales/order/pages/SalesOrderDetailReport";
 import OutstandingInvoiceReport from "@/features/sales/invoice/pages/OutstandingInvoiceReport";
 
-import BookingTimeline from '@/features/login/pages/BookingTimeline';
+//import BookingTimeline from '@/features/login/pages/BookingTimeline';
 
 // Partner management
 import BusinessPartner from "@/features/master/partner/pages/BusinessPartner"; 
@@ -49,14 +49,17 @@ import RoleManagement from "@/features/master/user/pages/RoleManagement";
 import BankStatementContainer  from '@/features/banking/statement/pages/BankStatementContainer';
 import BankStatementList  from '@/features/banking/statement/pages/BankStatementList';
 import BankTransferList  from '@/features/banking/transfer/pages/BankTransferList';
-import PaymentReceiptContainer  from '@/features/banking/payment/pages/PaymentReceiptContainer';
-
-import DashboardMenu from '@/features/menu/pages/DashboardMenu';
+//import PaymentReceiptContainer  from '@/features/banking/payment/pages/PaymentReceiptContainer'; form ini dipisah menjadi 2 
+import ReceiptCustomerContainer  from '@/features/banking/payment/pages/ReceiptCustomerContainer';
+import PaymentVendorContainer  from '@/features/banking/payment/pages/PaymentVendorContainer';
 
 import ProtectedRoute from '@/shared/components/ProtectedRoute';
 import IDempiereAuth from "@/features/login/pages/IDempiereAuth";
-import Dashboard from "@/features/login/pages/Dashboard";
-import DashboardStats from "./features/dashboard/pages/DashboardStats";
+
+import Dashboard from "@/features/dashboard/pages/Dashboard";
+import DashboardMenu from '@/features/dashboard/pages/DashboardMenu';
+import DashboardStats from "@/features/dashboard/pages/DashboardStats";
+
 import { Header, Sidebar } from "@/shared/components/setup"; 
 
 import '@/css/AppLayout.css'; 
@@ -140,8 +143,7 @@ function AppContent() {
                       <Route path="/dashboard-stats" element={<DashboardStats session={session} />} />
                       <Route path="/dashboard" element={<Dashboard session={session} />} />
                       <Route path="/dashboard-menu" element={<DashboardMenu session={session} />} />
-                      <Route path="/booking" element={<BookingTimeline session={session} resourceTypeId={1000000} docTypeTargetId={1000210}/> } />
-
+                      
                       {/* ===== Master ===== */}
                       <Route path="/business-partner" element={
                         <ProtectedRoute windowKey="businessPartner">
@@ -304,11 +306,17 @@ function AppContent() {
                           <BankStatementList />
                         </ProtectedRoute>
                       } />
-                      <Route path="/payment-receipt" element={
-                        <ProtectedRoute windowKey="paymentReceipt">
-                          <PaymentReceiptContainer />
+                      <Route path="/payment-vendor" element={
+                        <ProtectedRoute windowKey="paymentVendor">
+                          <PaymentVendorContainer />
                         </ProtectedRoute>
                       } />
+                      <Route path="/receipt-customer" element={
+                        <ProtectedRoute windowKey="receiptCustomer">
+                          <ReceiptCustomerContainer />
+                        </ProtectedRoute>
+                      } />
+                      
                       <Route path="/financial-report" element={
                         <ProtectedRoute windowKey="financialReport">
                           <FinancialReportPage token={session?.token} acctSchemaId={session?.acctSchemaId} />

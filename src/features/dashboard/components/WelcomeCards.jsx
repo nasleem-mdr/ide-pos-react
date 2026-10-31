@@ -5,8 +5,10 @@ import { SiGoogleanalytics } from "react-icons/si";
 import { useAccess } from '@/context/AccessContext';
 import useGenericStats from '@/shared/hooks/useGenericStats';
 import useDashboardAccess from '@/shared/hooks/useDashboardAccess';
+import { ShoppingBagIcon } from '@/shared/components/icon/ShoppingBagIcon';
 
 import '@/css/WelcomeCards.css';
+import { SafeBoxIcon } from '../../../shared/components/icon';
 
 // windowKey HARUS sama dengan yang di menuConfig.jsx
 // featured: true -> kartu besar berwarna (baris atas) yang menampilkan statistik bulan ini
@@ -24,31 +26,31 @@ const CARDS = [
     stats: { model: 'c_order', dateField: 'DateOrdered', totalField: 'GrandTotal', baseFilter: 'IsSOTrx eq false' },
   },
   {
-    // TODO: sesuaikan model/dateField dengan tabel Goods Receipt Anda
-    windowKey: 'goodsReceipt', to: '/goods-receipt', icon: <DeliveryIcon size={42} />,
-    label: 'Goods Receipt', featured: true, tone: 'blue',
-    stats: { model: 'm_inout', dateField: 'MovementDate', baseFilter: 'IsSOTrx eq false' },
-  },
-  {
     // TODO: tambahkan filter doc type POS jika perlu, mis. "IsSOTrx eq true and C_DocTypeTarget_ID eq 123"
     windowKey: 'posOrder', to: '/pos-order', icon: <CashierIcon size={38} />,
     label: 'POS Sales', featured: true, tone: 'pink',
     stats: { model: 'c_order', dateField: 'DateOrdered', totalField: 'GrandTotal', baseFilter: 'IsSOTrx eq true' },
   },
-
-  // ── Grid menu lainnya ───────────────────────────────────────────────────
+  {
+    // TODO: sesuaikan model/dateField dengan tabel Goods Receipt Anda
+    windowKey: 'cashierClosing', to: '/cashier-closing', icon: <SafeBoxIcon size={42} />,
+    label: 'Cashier Close', featured: true, tone: 'blue',
+    stats: { model: 'c_bankstatement', dateField: 'StatementDate', baseFilter: 'IsSOTrx eq false' },
+  },
+  
+  // ── Grid menu procurement ───────────────────────────────────────────────────
+  { windowKey: 'requisition',    to: '/requisition',     icon: <RequisitionIcon size={30} />,   label: 'Purchase Requisition' },
+  { windowKey: 'purchasing',     to: '/purchasing',      icon: <ShoppingCartIcon size={30} />,  label: 'Purchase Order' },
+  { windowKey: 'goodsReceipt',   to: '/goods-receipt',   icon: <DeliveryIcon size={30} />,      label: 'Goods Receipt' },
+  { windowKey: 'vendorInvoice',  to: '/vendor-invoice',  icon: <VendorIcon size={30} />,        label: 'Purchase Invoice' },
+  { windowKey: 'paymentVendor',  to: '/payment-vendor',  icon: <MdOutlinePayments size={30} />, label: 'Payment to Vendor' },
   { windowKey: 'internalUse',    to: '/internal-use',    icon: <UserTake size={30} />,          label: 'Internal Use' },
-  { windowKey: 'vendorInvoice',  to: '/vendor-invoice',  icon: <VendorIcon size={30} />,        label: 'Purchase Invoice' },
-  { windowKey: 'salesOrder',     to: '/sales-order',     icon: <ShoppingBagIcon size={24}/>,     label: 'DO (Invoice Bulanan)'},
+  
+  // ── Grid menu marketing ───────────────────────────────────────────────────
+  { windowKey: 'salesOrder',     to: '/sales-order',     icon: <ShoppingBagIcon size={24}/>,    label: 'DO (Invoice Bulanan)'},
   { windowKey: 'salesInvoice',   to: '/sales-invoice',   icon: <ImportIcon size={30} />,        label: 'Sales Invoice' },
-  { windowKey: 'paymentReceipt', to: '/payment-receipt', icon: <MdOutlinePayments size={30} />, label: 'Payment and Receipt' },
-  { windowKey: 'bankStatement',  to: '/bank-statement',  icon: <BankIcon size={30} />,          label: 'Bank Statement' },
-
-  // ── Grid menu lainnya ───────────────────────────────────────────────────
-  { windowKey: 'cashierClosing',    to: '/cashier-closing',    icon: <UserTake size={30} />,    label: 'Cashier Closing' },
-  { windowKey: 'vendorInvoice',  to: '/vendor-invoice',  icon: <VendorIcon size={30} />,        label: 'Purchase Invoice' },
-  { windowKey: 'salesInvoice',   to: '/sales-invoice',   icon: <ImportIcon size={30} />,        label: 'Sales Invoice' },
-  { windowKey: 'paymentReceipt', to: '/payment-receipt', icon: <MdOutlinePayments size={30} />, label: 'Payment and Receipt' },
+  { windowKey: 'receiptCutomer', to: '/receipt-customer',icon: <MdOutlinePayments size={30} />, label: 'Payment by Customer' },
+  { windowKey: 'cashierClosing', to: '/cashier-closing', icon: <UserTake size={30} />,          label: 'Cashier Closing' },
   { windowKey: 'bankStatement',  to: '/bank-statement',  icon: <BankIcon size={30} />,          label: 'Bank Statement' },
   { windowKey: 'dashboardMenu',  to: '/dashboard-menu',  icon: <SiGoogleanalytics size={28} />, label: 'All Report' },
 

@@ -11,6 +11,8 @@
 * ─────────────────────────────────────────────────────────────────────────────
 */
 
+import { Receipt } from "lucide-react";
+
 export const WINDOW_ACCESS_MAP = {
   dashboard:            null,
   businessPartner:      123,
@@ -27,6 +29,8 @@ export const WINDOW_ACCESS_MAP = {
   bankStatement:        194,
   salesInvoice:         167,
   paymentReceipt:       195,
+  paymentVendor:        195,
+  receiptCustomer:      195,
   productDetail:        140,
   productImport:        140,
   userManagement:       108,

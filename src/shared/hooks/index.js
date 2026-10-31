@@ -3,7 +3,6 @@ export * from './useCart';
 export * from './useChangeRole';
 export * from './useCustomerSearch';
 export * from './useDashboardAccess';
-export * from './useDashboardStats';
 export * from './useGenericStats';
 export * from './useInfiniteScroll';
 export * from './useIsDesktop';

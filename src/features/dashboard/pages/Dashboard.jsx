@@ -1,9 +1,6 @@
-import { 
-  DashboardStats,  
-  WelcomeCards 
-} from '@/shared/components/dashboard';
+import WelcomeCards from '@/features/dashboard/components/WelcomeCards';
 
-import useDashboardStats from '@/shared/hooks/useDashboardStats';
+import useDashboardStats from '@/features/dashboard/hooks/useDashboardStats';
 
 import '@/css/Dashboard.css';
 

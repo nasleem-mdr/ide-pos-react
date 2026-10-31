@@ -50,7 +50,8 @@ export const menuSections = [
             { key: 'purchasing',    windowKey: 'purchasing',   path: '/purchasing',     label: 'Purchasing',    icon: <ShoppingCartIcon /> },
             { key: 'goodsReceipt',  windowKey: 'goodsReceipt', path: '/goods-receipt', label: 'Goods Receipt', icon: <DeliveryIcon /> },
             { key: 'internalUse',   windowKey: 'internalUse',  path: '/internal-use',  label: 'Internal Use',  icon: <UserTake /> },
-            { key: 'vendorInvoice',   windowKey: 'vendorInvoice',  path: '/vendor-invoice',  label: 'Vendor Invoice',  icon: <VendorIcon /> },
+            { key: 'vendorInvoice',   windowKey: 'vendorInvoice',  path: '/vendor-invoice',  label: 'Purchase Invoice',  icon: <VendorIcon /> },
+            { key: 'paymentVendor',   windowKey: 'paymentVendor',  path: '/payment-vendor',  label: 'Payment Vendor',  icon: <MdOutlinePayments size={24} /> },
         ]
     },
     {
@@ -63,6 +64,7 @@ export const menuSections = [
             //{ key: 'shipmentCustomer',     windowKey: 'shipmentCustomer',    path: '/shipment-customer',        label: 'Shipment(Customer)',     icon: <DeliveryIcon /> },
             { key: 'salesInvoice',       windowKey: 'salesInvoice', path: '/sales-invoice',         label: 'Sales Invoice',  icon: <ImportIcon size={20}/> },    
             { key: 'salesImport',         windowKey: 'salesImport',         path: '/sales-import',          label: 'Invoice Import',        icon: <ImportIcon /> },
+            { key: 'receiptCustomer',   windowKey: 'receiptCustomer',  path: '/receipt-customer',  label: 'Receipt Customer',  icon: <MdOutlinePayments size={24} /> },
         ]
     },
     {
@@ -70,7 +72,7 @@ export const menuSections = [
         sectionLabel: 'Payment/Receipt',
         defaultCollapsed: true,
         items: [
-            { key: 'paymentReceipt',   windowKey: 'paymentReceipt',  path: '/payment-receipt',  label: 'Payment and Receipt',  icon: <MdOutlinePayments size={24} /> },
+            //{ key: 'paymentReceipt',   windowKey: 'paymentReceipt',  path: '/payment-receipt',  label: 'Payment and Receipt',  icon: <MdOutlinePayments size={24} /> },
             { key: 'bankStatement',   windowKey: 'bankStatement',  path: '/bank-statement',  label: 'Bank/Cash Statement',  icon: <BankIcon /> },
             { key: 'bankTransfer',       windowKey: 'bankTransfer', path: '/bank-transfer',         label: 'Bank Transfer',  icon: <TransferIcon /> },
             { key: 'cashierClosing',       windowKey: 'cashierClosing', path: '/cashier-closing',         label: 'Cashier Closing',  icon: <TransferIcon /> },

@@ -17,3 +17,4 @@ export * from './Warehouse';
 export * from './UserTake';
 export * from './ShoppingCart';
 export * from './Navigation';
+export * from './Safebox';

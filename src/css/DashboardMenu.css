@@ -12,7 +12,7 @@
 .dashboard-welcome {
   display: flex;
   flex-direction: column;
-  align-items: center; /* Membuat semua isi di dalam dashboard-welcome berada di tengah */
+  align-items: start; /* Membuat semua isi di dalam dashboard-welcome berada di tengah */
   text-align: center;
 }
 
