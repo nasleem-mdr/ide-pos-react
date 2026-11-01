@@ -1,40 +1,42 @@
 import React from 'react';
-//import CartItem from './CartItem';
 import CartItemDefault from './CartItem';
 import { COLOR, RADIUS } from '@/utils/styleTokens';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// CartSidebar.jsx
-// Versi desktop dari cart — panel statis di sisi kanan (bukan bottom sheet
-// yang overlay/modal). Selalu terlihat selama ada layar produk di sebelahnya,
-// tidak perlu di-toggle buka/tutup seperti versi mobile.
-//
-// Props-nya sengaja dibuat semirip mungkin dengan CartPanel.jsx supaya mudah
-// dipakai bergantian dari satu state yang sama di container (lihat
-// RequisitionContainer.jsx: render salah satu berdasarkan useIsDesktop()).
-//
-// Penggunaan:
-//   {isDesktop && (
-//     <CartSidebar
-//       cart={cart} onRemove={removeFromCart} onQtyChange={updateQty} onUomChange={updateUom}
-//       onClearCart={clearCart} totalItems={totalItems} totalQty={totalQty}
-//       summaryRight="📦 Gudang Pusat" title="📝 Daftar Permintaan"
-//       submitLabel="📤 KIRIM REQUISITION" onSubmit={handleSubmit} isSubmitting={isSubmitting}
-//     />
-//   )}
-// ─────────────────────────────────────────────────────────────────────────────
+/** ─────────────────────────────────────────────────────────────────────────────
+* CartSidebar.jsx
+* Versi desktop dari cart — panel statis di sisi kanan (bukan bottom sheet
+* yang overlay/modal). Selalu terlihat selama ada layar produk di sebelahnya,
+* tidak perlu di-toggle buka/tutup seperti versi mobile.
+*
+* Props-nya sengaja dibuat semirip mungkin dengan CartPanel.jsx supaya mudah
+* dipakai bergantian dari satu state yang sama di container (lihat
+* RequisitionContainer.jsx: render salah satu berdasarkan useIsDesktop()).
+*
+* Penggunaan:
+*   {isDesktop && (
+*     <CartSidebar
+*       cart={cart} onRemove={removeFromCart} onQtyChange={updateQty} onUomChange={updateUom}
+*       onClearCart={clearCart} totalItems={totalItems} totalQty={totalQty}
+*       summaryRight="📦 Gudang Pusat" title="📝 Daftar Permintaan"
+*       submitLabel="📤 KIRIM REQUISITION" onSubmit={handleSubmit} isSubmitting={isSubmitting}
+*     />
+*   )}
+* ─────────────────────────────────────────────────────────────────────────────
+*/
+
 const CartSidebar = ({
   cart, onRemove, onQtyChange, onUomChange, onPriceChange, onClearCart,
   totalItems, totalQty,
   summaryRight,
-  submitLabel,                 // ⬅️ baru
+  submitLabel,                 
   submitDraftLabel = 'DRAFT',
   submitCompleteLabel = 'COMPLETE',
+  submitExtraLabel = 'EXTRA',
   onSubmit, isSubmitting = false,
-  onSubmitDraft, onSubmitComplete,
+  onSubmitDraft, onSubmitComplete, onSubmitExtra,
   title = 'Keranjang',
   emptyLabel = 'Belum ada produk dipilih.',
-  width = '360px',
+  width = '560px',
   description,
   onDescriptionChange,
   descriptionPlaceholder = 'Catatan / keterangan (opsional)...',
@@ -190,6 +192,28 @@ const CartSidebar = ({
             >
               {isSubmitting ? '⏳...' : submitCompleteLabel}
             </button>
+            {/* Tombol ketiga (opsional) — hanya tampil bila onSubmitExtra diberikan */}
+            {onSubmitExtra && (
+              <button
+                onClick={onSubmitExtra}
+                disabled={isSubmitting}
+                style={{
+                  flex: 1,
+                  background: isSubmitting ? '#9ca3af' : (COLOR.primary || '#2563eb'),
+                  color: '#fff',
+                  border: 'none',
+                  padding: '12px 8px',
+                  borderRadius: RADIUS.md,
+                  fontWeight: 700,
+                  fontSize: '14px',
+                  cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                  letterSpacing: '0.02em',
+                  transition: 'all 0.15s',
+                }}
+              >
+                {isSubmitting ? '⏳...' : submitExtraLabel}
+              </button>
+            )}
             </>
               )}
           </div>

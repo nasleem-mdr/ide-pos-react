@@ -1,42 +1,42 @@
+/* ─────────────────────────────────────────────────────────────────────────────
+* docTypeResolver.jsx
+* Menggantikan pola lama "C_DOCTYPE_ID: 1000019 * GANTI sesuai instance Anda"
+* yang ada di GoodsReceiptContainer.jsx / PurchasingContainer.jsx (dan
+* sebaiknya juga RequisitionContainer.jsx kalau masih hardcode serupa).
+*
+* MASALAH: C_DocType_ID adalah angka PK yang di-generate per baris data, dan
+* selalu di-scope ke AD_Client_ID. Kalau 1 instance iDempiere melayani lebih
+* dari 1 Client, angka hardcode dari Client A pasti salah (atau malah nyasar
+* ke doc type Client lain) begitu user dari Client B login.
+*
+* SOLUSI: setiap C_DocType WAJIB punya DocBaseType (nilai standar iDempiere,
+* SAMA di semua Client — mis. 'POO' utk Purchase Order, 'MMR' utk Material
+* Receipt, 'POR' utk Purchase Requisition, 'MMM' utk Movement). Jadi alih-alih
+* hardcode ID, kita cari C_DocType yang DocBaseType-nya cocok DAN
+* AD_Client_ID-nya sama dengan client user yang sedang login — resolusinya
+* otomatis benar untuk client manapun, sama seperti cara iDempiere sendiri
+* menentukan "default doc type" (lihat MDocType.get() di core iDempiere).
+*
+* Preferensi urutan pemilihan kalau ada beberapa C_DocType yang cocok:
+*   1. Yang AD_Org_ID-nya = org user login (override khusus org tsb)
+*   2. Yang ditandai IsDefault = true
+*   3. Fallback: yang pertama aktif ditemukan
+*
+* PENTING — kasus M_Inventory (Internal Use): DocBaseType='MMI' dipakai
+* untuk 2 transaksi berbeda di tabel yang sama (M_Inventory), dibedakan
+* lewat kolom DocSubTypeInv (dikonfirmasi dari Javadoc resmi
+* org.compiere.model.X_C_DocType, AD_Reference_ID=200068):
+*   • 'IU' = Internal Use Inventory  ← dipakai InternalUseContainer
+*   • 'PI' = Physical Inventory      (stock opname — BUKAN cakupan modul ini)
+*   • 'CA' = Cost Adjustment
+* Karena itu resolveDocTypeId() menerima docSubTypeInv opsional — WAJIB
+* diisi 'IU' saat resolve doc type untuk Internal Use, supaya tidak
+* salah ambil C_DocType yang sebenarnya untuk Physical Inventory (yang
+* DocBaseType-nya sama-sama 'MMI').
+* ─────────────────────────────────────────────────────────────────────────────
+*/
 import { idempiereApi } from '@/api/idempiereApi';
 import { getLoginInfo } from '@/shared/hooks/useLoginInfo';
-
-// ─────────────────────────────────────────────────────────────────────────────
-// docTypeResolver.jsx
-// Menggantikan pola lama "C_DOCTYPE_ID: 1000019 // GANTI sesuai instance Anda"
-// yang ada di GoodsReceiptContainer.jsx / PurchasingContainer.jsx (dan
-// sebaiknya juga RequisitionContainer.jsx kalau masih hardcode serupa).
-//
-// MASALAH: C_DocType_ID adalah angka PK yang di-generate per baris data, dan
-// selalu di-scope ke AD_Client_ID. Kalau 1 instance iDempiere melayani lebih
-// dari 1 Client, angka hardcode dari Client A pasti salah (atau malah nyasar
-// ke doc type Client lain) begitu user dari Client B login.
-//
-// SOLUSI: setiap C_DocType WAJIB punya DocBaseType (nilai standar iDempiere,
-// SAMA di semua Client — mis. 'POO' utk Purchase Order, 'MMR' utk Material
-// Receipt, 'POR' utk Purchase Requisition, 'MMM' utk Movement). Jadi alih-alih
-// hardcode ID, kita cari C_DocType yang DocBaseType-nya cocok DAN
-// AD_Client_ID-nya sama dengan client user yang sedang login — resolusinya
-// otomatis benar untuk client manapun, sama seperti cara iDempiere sendiri
-// menentukan "default doc type" (lihat MDocType.get() di core iDempiere).
-//
-// Preferensi urutan pemilihan kalau ada beberapa C_DocType yang cocok:
-//   1. Yang AD_Org_ID-nya = org user login (override khusus org tsb)
-//   2. Yang ditandai IsDefault = true
-//   3. Fallback: yang pertama aktif ditemukan
-//
-// PENTING — kasus M_Inventory (Internal Use): DocBaseType='MMI' dipakai
-// untuk 2 transaksi berbeda di tabel yang sama (M_Inventory), dibedakan
-// lewat kolom DocSubTypeInv (dikonfirmasi dari Javadoc resmi
-// org.compiere.model.X_C_DocType, AD_Reference_ID=200068):
-//   • 'IU' = Internal Use Inventory  ← dipakai InternalUseContainer
-//   • 'PI' = Physical Inventory      (stock opname — BUKAN cakupan modul ini)
-//   • 'CA' = Cost Adjustment
-// Karena itu resolveDocTypeId() menerima docSubTypeInv opsional — WAJIB
-// diisi 'IU' saat resolve doc type untuk Internal Use, supaya tidak
-// salah ambil C_DocType yang sebenarnya untuk Physical Inventory (yang
-// DocBaseType-nya sama-sama 'MMI').
-// ─────────────────────────────────────────────────────────────────────────────
 
 // Cache di memori per sesi browser — key mencakup docSubTypeInv juga, supaya
 // 'MMI'+'IU' dan 'MMI'+'PI' tidak saling menimpa cache satu sama lain.
@@ -122,6 +122,7 @@ export const DOC_BASE_TYPE = {
   SALES_ORDER:            'SOO',
 };
 
+//Pada setup IDempiere, kita harus membuat Document Type dengan nama Cash Purchase Order (POO)
 export const CASH_PO_DOCTYPE_NAME = 'Cash Purchase Order';
 
 // Referensi nilai DocSubTypeInv (AD_Reference_ID=200068) — pembeda transaksi

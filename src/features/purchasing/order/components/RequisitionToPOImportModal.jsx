@@ -1,31 +1,40 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
-  ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+  ComposedChart, 
+  Bar, 
+  Line, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  Legend, 
+  ResponsiveContainer,
 } from 'recharts';
 import { useRequisitionsForPO } from '@/features/requisition/hooks/useRequisitionsForPO';
 import VendorPickerModal from './VendorPickerModal';
 import { COLOR, RADIUS } from '@/utils/styleTokens';
 import { formatCurrency } from '@/utils/currency';
 
-//const fmtRp = (n) => `Rp ${Math.round(n || 0).toLocaleString('id-ID')}`;
 
-// ─────────────────────────────────────────────────────────────────────────────
-// RequisitionToPOImportModal.jsx
-// Alur 2 langkah: (1) daftar FPB Completed, (2) pilih satu → tiap baris
-// dilengkapi suggestion vendor & harga, user bisa edit vendor/harga sebelum
-// import ke cart PO (qty TIDAK diedit di modal ini).
-//
-// ── UOM ENTERED vs BASE ────────────────────────────────────────────────────
-// Qty = qty entered (UOM dari FPB) → jadi QtyEntered di C_OrderLine.
-// BaseQty = qty base dari FPB (M_RequisitionLine.Qty) → jadi QtyOrdered di
-//           C_OrderLine LANGSUNG, tanpa dihitung ulang (lihat
-//           usePurchaseOrderSubmit.jsx).
-// UnitsPerBaseUom = RASIO (BaseQty ÷ Qty entered) — dipakai HANYA untuk
-//           preview di cart ("≈ 6 pcs"), supaya preview tetap akurat kalau
-//           user mengubah Qty lagi di cart PO SEBELUM submit (POCartItem.jsx).
-//           Beda dari BaseQty yang nilainya tetap/snapshot.
-// BaseUOMName = nama UOM dasar produk, untuk teks preview itu.
-// ─────────────────────────────────────────────────────────────────────────────
+/** ─────────────────────────────────────────────────────────────────────────────
+* RequisitionToPOImportModal.jsx
+* Alur 2 langkah: (1) daftar FPB Completed, (2) pilih satu → tiap baris
+* dilengkapi suggestion vendor & harga, user bisa edit vendor/harga sebelum
+* import ke cart PO (qty TIDAK diedit di modal ini).
+*
+* ── UOM ENTERED vs BASE ────────────────────────────────────────────────────
+* Qty = qty entered (UOM dari FPB) → jadi QtyEntered di C_OrderLine.
+* BaseQty = qty base dari FPB (M_RequisitionLine.Qty) → jadi QtyOrdered di
+*           C_OrderLine LANGSUNG, tanpa dihitung ulang (lihat
+*           usePurchaseOrderSubmit.jsx).
+* UnitsPerBaseUom = RASIO (BaseQty ÷ Qty entered) — dipakai HANYA untuk
+*           preview di cart ("≈ 6 pcs"), supaya preview tetap akurat kalau
+*           user mengubah Qty lagi di cart PO SEBELUM submit (POCartItem.jsx).
+*           Beda dari BaseQty yang nilainya tetap/snapshot.
+* BaseUOMName = nama UOM dasar produk, untuk teks preview itu.
+* ─────────────────────────────────────────────────────────────────────────────
+*/
+
 const RequisitionToPOImportModal = ({ isOpen, onClose, onImport }) => {
   const {
     requisitions, loadingList, fetchApprovedRequisitions,

@@ -4,14 +4,16 @@ import { getLoginInfo } from '@/shared/hooks/useLoginInfo';
 import { waitForDocStatus } from '@/utils/docStatusWaiter';
 import { resolveDocTypeId, DOC_BASE_TYPE } from '@/utils/docTypeResolver';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// useSalesShipmentSubmit.jsx
-// Generate M_InOut (Customer Shipment) dari C_Order yang SUDAH Complete —
-// dipanggil terpisah dari useSalesOrderSubmit supaya kalau shipment gagal
-// (mis. stok kurang), Order tetap Complete dan bisa di-retry shipment-nya
-// saja tanpa mengulang Order. Invoice TIDAK dibuat di sini — ditagih via
-// proses batch akhir bulan di luar aplikasi ini.
-// ─────────────────────────────────────────────────────────────────────────────
+/** ─────────────────────────────────────────────────────────────────────────────
+* useSalesShipmentSubmit.jsx
+* Generate M_InOut (Customer Shipment) dari C_Order yang SUDAH Complete —
+* dipanggil terpisah dari useSalesOrderSubmit supaya kalau shipment gagal
+* (mis. stok kurang), Order tetap Complete dan bisa di-retry shipment-nya
+* saja tanpa mengulang Order. Invoice TIDAK dibuat di sini — ditagih via
+* proses batch akhir bulan di luar aplikasi ini.
+* ─────────────────────────────────────────────────────────────────────────────
+*/
+
 const codeOf = (v) => (v && typeof v === 'object' ? v.id : v);
 
 export function useSalesShipmentSubmit() {

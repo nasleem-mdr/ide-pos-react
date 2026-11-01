@@ -10,8 +10,9 @@ const CartPanel = ({
   submitLabel,
   submitDraftLabel = 'DRAFT',
   submitCompleteLabel = 'COMPLETE',
+  submitExtraLabel = 'EXTRA',
   onSubmit, isSubmitting = false,
-  onSubmitDraft, onSubmitComplete,
+  onSubmitDraft, onSubmitComplete, onSubmitExtra,
   title = 'Keranjang',
   emptyLabel = 'Belum ada produk dipilih.',
   description,
@@ -182,6 +183,24 @@ const CartPanel = ({
                   >
                     {isSubmitting ? '⏳ Memproses...' : submitCompleteLabel}
                   </button>
+                  {/* Tombol ketiga (opsional) — hanya tampil bila onSubmitExtra diberikan */}
+                  {onSubmitExtra && (
+                    <button
+                      onClick={onSubmitExtra}
+                      disabled={isSubmitting}
+                      style={{
+                        background: isSubmitting ? '#9ca3af' : COLOR.primary,
+                        color: '#fff', border: 'none',
+                        padding: '15px', width: '100%',
+                        borderRadius: RADIUS.md, fontWeight: 700,
+                        fontSize: '16px', cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                        letterSpacing: '0.02em', transition: 'background 0.15s',
+                        WebkitTapHighlightColor: 'transparent',
+                      }}
+                    >
+                      {isSubmitting ? '⏳ Memproses...' : submitExtraLabel}
+                    </button>
+                  )}
                 </>
               )}
             </div>

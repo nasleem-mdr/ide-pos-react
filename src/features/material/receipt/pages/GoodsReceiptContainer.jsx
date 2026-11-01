@@ -246,7 +246,7 @@ const GoodsReceiptContainer = () => {
 
     setSelectedVendor(poVendor);
     setVendorQuery(poVendor.Name || '');
-    alert(`${cartItems.length} item dari PO ${order.DocumentNo} berhasil diimport.\nVendor otomatis diset ke: ${poVendor.Name}`, 'Import Berhasil');
+    //alert(`${cartItems.length} item dari PO ${order.DocumentNo} berhasil diimport.\nVendor otomatis diset ke: ${poVendor.Name}`, 'Import Berhasil');
   }, [setCart, selectedVendor]);
 
   // Reset vendor + cart supaya user bisa mulai sesi penerimaan baru

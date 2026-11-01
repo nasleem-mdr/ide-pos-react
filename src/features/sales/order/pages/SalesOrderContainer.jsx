@@ -1,25 +1,24 @@
 /**  ─────────────────────────────────────────────────────────────────────────────
  * SalesOrderContainer.jsx
  * Standard Order untuk customer datang ambil barang di lokasi — BUKAN POS.
- * Order → Complete → Shipment otomatis dibuat & Complete. TIDAK ada Payment
- * atau Invoice di sini — penagihan dilakukan via proses BATCH akhir bulan
- * di luar aplikasi ini (PaymentRule 'P' / On Credit).
+ * Halaman ini HANYA menangani Sales Order (Draft / Complete). TIDAK membuat
+ * Shipment, Payment, maupun Invoice. Pembuatan Shipment dilakukan dari tombol
+ * DO di POSContainer (useSalesShipmentSubmit); penagihan via proses BATCH
+ * akhir bulan di luar aplikasi ini (PaymentRule 'P' / On Credit).
  *
  * Diadaptasi dari POSContainer.jsx (product grid, search, cart, UOM, stok)
  * tapi sumber Warehouse/DocType BUKAN dari C_POS — dipilih manual, sama
- * pola seperti resolusi Warehouse+Locator di PurchasingContainer.jsx.
+ * pola seperti resolusi Warehouse di PurchasingContainer.jsx.
  * ─────────────────────────────────────────────────────────────────────────────
 */
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useLocation } from "react-router-dom";
 import { useSalesOrderSubmit }    from '@/features/sales/order/hooks/useSalesOrderSubmit';
-import { useSalesShipmentSubmit } from '@/features/sales/order/hooks/useSalesShipmentSubmit';
 import { ConfirmModal, CartItemPOS } from '@/features/sales/order/components';
 import { ProductCard, SearchBar, DeliveryIcon, ScanIcon, ProductGrid, CartPanel, CartSidebar, BarcodeScanner } from '@/shared/components';
 import { useAccess } from '@/context/AccessContext';
 import { idempiereApi, fkId } from '@/api/idempiereApi';
-import { useIsDesktop, useScannerInput, getLoginInfo,useOrgInfo } from '@/shared/hooks';
-import SalesOrderSuccessModal from '@/features/sales/order/components/SalesOrderSuccessModal';
+import { useIsDesktop, useScannerInput, getLoginInfo } from '@/shared/hooks';
 import '@/css/Header.css';
 const SO_WINDOW_KEY = 'salesOrder';
 const CartItemSO = (props) => <CartItemPOS {...props} windowKey={SO_WINDOW_KEY} />;
@@ -31,7 +30,6 @@ const loadAwaiting = () => { try { return JSON.parse(localStorage.getItem(AWAITI
 const saveAwaiting = (list) => { try { localStorage.setItem(AWAITING_KEY, JSON.stringify(list)); } catch { /* abaikan */ } };
 const AWAITING_LABEL = {
     approval: 'menunggu approval (workflow) — jangan submit ulang',
-    shipment: 'sudah Complete, Shipment belum terbuat',
     unknown:  'status belum pasti — cek dulu sebelum submit ulang',
 };
 const refCode = (v) => (v && typeof v === 'object' ? v.id : v);
@@ -53,17 +51,13 @@ const SalesOrderContainer = () => {
     const [docTypeId, setDocTypeId]           = useState(null);
     const [warehouses, setWarehouses]         = useState([]);
     const [warehouseInfo, setWarehouseInfo]   = useState(null);
-    const [defaultLocatorId, setDefaultLocatorId] = useState(null);
 
     const [bPartnerList, setBPartnerList]   = useState([]);
     const [priceListList, setPriceListList] = useState([]);
     const [selectedBPartner, setSelectedBPartner]   = useState(null);
     const [selectedPriceList, setSelectedPriceList] = useState(null);
-    const [successModal, setSuccessModal] = useState(null); 
-    const { orgInfo } = useOrgInfo();
     const { submitOrder, completeOrder, isSubmitting: isSubmittingOrder } =
         useSalesOrderSubmit({ docTypeId, description: 'Sales Order - Batch Invoice', onError: (msg, title) => triggerAlert(msg, title) });
-    const { createShipmentFromOrder, isSubmitting: isSubmittingShipment } = useSalesShipmentSubmit();
 
     const [editOrderId, setEditOrderId] = useState(null);
     const [isEditMode, setIsEditMode]   = useState(false);
@@ -96,7 +90,7 @@ const SalesOrderContainer = () => {
 
     const uomCacheRef = useRef({});
 
-    // ─── 1. Init: DocType SOO, Warehouse+Locator, Customer, PriceList ────────
+    // ─── 1. Init: DocType SOO, Warehouse, Customer, PriceList ────────
     useEffect(() => {
         const init = async () => {
             try {
@@ -126,10 +120,6 @@ const SalesOrderContainer = () => {
                 const defaultWh = whList.find(w => String(w.id) === String(loginWarehouseId)) ?? whList[0] ?? null;
                 setWarehouseInfo(defaultWh);
 
-                if (defaultWh?.id) {
-                    await resolveLocatorForWarehouse(defaultWh.id);
-                }
-
                 await Promise.all([fetchBPartnerOptions(), fetchPriceListOptions()]);
                 const [, priceListChosen] = await Promise.all([fetchBPartnerOptions(), fetchPriceListOptions()]);
                 setOffset(0);
@@ -148,31 +138,10 @@ const SalesOrderContainer = () => {
         });
     }, []);
 
-    const resolveLocatorForWarehouse = async (warehouseId) => {
-        try {
-            const defRes = await idempiereApi(
-                `/models/m_locator?$select=M_Locator_ID&$filter=M_Warehouse_ID eq ${warehouseId} and IsDefault eq true and IsActive eq true&$top=1`
-            );
-            const defRecords = Array.isArray(defRes.records) ? defRes.records : [];
-            if (defRecords.length > 0) {
-                setDefaultLocatorId(fkId(defRecords[0].M_Locator_ID) ?? defRecords[0].id);
-                return;
-            }
-            const anyRes = await idempiereApi(
-                `/models/m_locator?$select=M_Locator_ID&$filter=M_Warehouse_ID eq ${warehouseId} and IsActive eq true&$top=1`
-            );
-            const anyRecords = Array.isArray(anyRes.records) ? anyRes.records : [];
-            setDefaultLocatorId(anyRecords[0] ? (fkId(anyRecords[0].M_Locator_ID) ?? anyRecords[0].id) : null);
-        } catch {
-            setDefaultLocatorId(null);
-        }
-    };
-
     const handleWarehouseChange = async (e) => {
         const id   = parseInt(e.target.value, 10);
         const name = e.target.options[e.target.selectedIndex].text;
         setWarehouseInfo({ id, name });
-        await resolveLocatorForWarehouse(id);
         setOffset(0);
         await fetchProducts(searchInput, selectedPriceList?.id, "replace", 0);
     };
@@ -201,7 +170,6 @@ const SalesOrderContainer = () => {
                 const whName = editOrder.M_Warehouse_ID?.identifier || `WH #${whId}`;
                 if (whId) {
                     setWarehouseInfo({ id: whId, name: whName });
-                    await resolveLocatorForWarehouse(whId);
                 }
 
                 const dtId = editOrder.C_DocType_ID?.id ?? editOrder.C_DocType_ID;
@@ -765,7 +733,7 @@ const SalesOrderContainer = () => {
         });
     };
 
-    // Lock sinkron: hanya 1 proses submit/resume yang boleh jalan pada satu waktu.
+    // Lock sinkron: hanya 1 proses submit/cek status yang boleh jalan pada satu waktu.
     const withLock = async (fn) => {
         if (submitLockRef.current) return;
         submitLockRef.current = true;
@@ -781,33 +749,16 @@ const SalesOrderContainer = () => {
         const done  = () => { if (!fromResume) resetAfterSuccess(); };
 
         switch (st.docStatus) {
-            case 'CO': {
-                upsertAwaiting(orderId, { documentNo: st.documentNo, kind: 'shipment' });
-                try {
-                    const shipment = await createShipmentFromOrder(orderId, { locatorId: defaultLocatorId });
-                    removeAwaiting(orderId);
-                    setSuccessModal({
-                        orderDocNo:    st.documentNo,
-                        shipmentId:    shipment.shipmentId,
-                        shipmentDocNo: shipment.documentNo,
-                    });
-                } catch (err) {
-                    console.error("Shipment gagal:", err.message);
-                    triggerAlert(
-                        describeError(err, `Sales Order ${docNo} sudah Complete, tapi Shipment GAGAL dibuat:`) +
-                        `\n\nSO tidak akan dibuat ulang. Tekan "Cek status & lanjutkan" pada banner untuk mengulang Shipment saja.`,
-                        "Order Complete, Shipment Gagal"
-                    );
-                }
+            case 'CO':
+                removeAwaiting(orderId);
+                triggerAlert(`Sales Order ${docNo} sudah Complete.`, "Berhasil");
                 done();
                 return;
-            }
             case 'IP':
                 upsertAwaiting(orderId, { documentNo: st.documentNo, kind: 'approval' });
                 triggerAlert(
                     `Sales Order ${docNo} sedang menunggu approval (workflow), jadi belum bisa Complete.\n\n` +
-                    `JANGAN submit ulang. Setelah disetujui, tekan "Cek status & lanjutkan" pada banner di atas — ` +
-                    `Shipment akan dibuat dari SO yang sama.`,
+                    `JANGAN submit ulang. Setelah disetujui, tekan "Cek status" pada banner di atas untuk memastikan statusnya.`,
                     "Menunggu Approval"
                 );
                 done();
@@ -826,7 +777,7 @@ const SalesOrderContainer = () => {
                 triggerAlert(
                     `SO ${docNo} tersimpan sebagai Draft tetapi belum berhasil Complete` +
                     `${completeErr ? `:\n${completeErr.message}` : '.'}\n\n` +
-                    `Perbaiki penyebabnya lalu klik COMPLETE + KIRIM lagi — sistem memakai SO yang sama.`,
+                    `Perbaiki penyebabnya lalu klik COMPLETE lagi — sistem memakai SO yang sama.`,
                     "Complete Belum Berhasil"
                 );
                 return;
@@ -839,7 +790,7 @@ const SalesOrderContainer = () => {
         }
     };
 
-    // ─── DRAFT: buat/update Order saja, tidak Complete, tidak shipment ───────
+    // ─── DRAFT: buat/update Order saja, tidak Complete ───────────────────────
     const handleSubmitDraft = () => withLock(async () => {
         if (!validateBeforeSubmit()) return;
         const result = await submitOrder(cart, {
@@ -853,13 +804,9 @@ const SalesOrderContainer = () => {
         resetAfterSuccess();
     });
 
-    // ─── COMPLETE: Order → Complete → Shipment otomatis dibuat & Complete ───
+    // ─── COMPLETE: Order → Complete (tanpa Shipment; Shipment lewat DO di POS) ──
     const handleSubmitComplete = () => withLock(async () => {
         if (!validateBeforeSubmit()) return;
-        if (!defaultLocatorId) {
-            triggerAlert("Locator default untuk gudang ini belum ditemukan — Shipment tidak bisa dibuat otomatis. Cek setup Locator di Warehouse ini.", "Konfigurasi Tidak Lengkap");
-            return;
-        }
 
         try {
             // Order sudah ada (mode edit / retry setelah gagal)? Cek status dulu —
@@ -889,12 +836,12 @@ const SalesOrderContainer = () => {
             const st = await getOrderStatus(orderId);       // sumber kebenaran = DocStatus server
             await settleOrder(orderId, st, { completeErr });
         } catch (err) {
-            console.error("Gagal proses Complete/Shipment:", err.message);
-            triggerAlert(describeError(err, "Proses Complete/Shipment terhenti:"), "Proses Terhenti");
+            console.error("Gagal proses Complete:", err.message);
+            triggerAlert(describeError(err, "Proses Complete terhenti:"), "Proses Terhenti");
         }
     });
 
-    // ─── Banner: cek status & lanjutkan SO yang belum tuntas ─────────────────
+    // ─── Banner: cek status SO yang belum tuntas ─────────────────────────────
     const resumeAwaiting = (item) => withLock(async () => {
         try {
             const st = await getOrderStatus(item.orderId);
@@ -932,14 +879,6 @@ const SalesOrderContainer = () => {
                 cancelLabel={dialog.mode === "confirm" ? "Batal" : "Tutup"}
                 onConfirm={dialog.mode === "confirm" ? handleDialogConfirm : null}
                 onCancel={closeDialog}
-            />
-            <SalesOrderSuccessModal
-                isOpen={!!successModal}
-                onClose={() => setSuccessModal(null)}
-                orderDocNo={successModal?.orderDocNo}
-                shipmentId={successModal?.shipmentId}
-                shipmentDocNo={successModal?.shipmentDocNo}
-                logoDataUrl={orgInfo?.logoUrl}
             />
              <div className="header-content">
                 <span style={{
@@ -1038,7 +977,7 @@ const SalesOrderContainer = () => {
                                     <span style={{ display: "flex", gap: "6px" }}>
                                         <button disabled={isProcessing} onClick={() => resumeAwaiting(item)}
                                             style={{ background: "#1a237e", border: "none", color: "#fff", borderRadius: "4px", padding: "3px 10px", cursor: isProcessing ? "not-allowed" : "pointer", fontSize: "12px", opacity: isProcessing ? 0.6 : 1 }}>
-                                            Cek status &amp; lanjutkan
+                                            Cek status
                                         </button>
                                         <button disabled={isProcessing} onClick={() => removeAwaiting(item.orderId)}
                                             style={{ background: "none", border: "1px solid #1a237e", color: "#1a237e", borderRadius: "4px", padding: "3px 10px", cursor: "pointer", fontSize: "12px" }}>
@@ -1093,10 +1032,10 @@ const SalesOrderContainer = () => {
                         summaryRight={`Rp ${calculateTotal().toLocaleString('id-ID')}`}
                         title="📝 Sales Order"
                         submitDraftLabel="💾 DRAFT"
-                        submitCompleteLabel="✅ COMPLETE + KIRIM"
+                        submitCompleteLabel="✅ COMPLETE"
                         onSubmitDraft={canSubmitSalesOrder ? handleSubmitDraft : undefined}
                         onSubmitComplete={canSubmitSalesOrder ? handleSubmitComplete : undefined}
-                        isSubmitting={isSubmittingOrder || isSubmittingShipment || isProcessing}
+                        isSubmitting={isSubmittingOrder || isProcessing}
                         CartItemComponent={CartItemPOS}
                     />
                 ) : (
@@ -1121,10 +1060,10 @@ const SalesOrderContainer = () => {
                             summaryRight={`Rp ${calculateTotal().toLocaleString('id-ID')}`}
                             title="📝 Sales Order"
                             submitDraftLabel="💾 DRAFT"
-                            submitCompleteLabel="✅ COMPLETE + KIRIM"
+                            submitCompleteLabel="✅ COMPLETE"
                             onSubmitDraft={canSubmitSalesOrder ? handleSubmitDraft : undefined}
                             onSubmitComplete={canSubmitSalesOrder ? handleSubmitComplete : undefined}
-                            isSubmitting={isSubmittingOrder || isSubmittingShipment || isProcessing}
+                            isSubmitting={isSubmittingOrder || isProcessing}
                             CartItemComponent={CartItemPOS}
                         />
                     </>

@@ -154,6 +154,10 @@ export async function renderDocumentPDF(config) {
         table, history = [],
         verifyUrl, verifyCaption,
         filenamePrefix, documentNo,
+        // OPSIONAL — blok tanda tangan basah di kolom paling kanan baris workflow.
+        // Bentuk: { label: "Customer:", name: "Pemko" }. Bila tidak diisi, layout dokumen
+        // lain (Invoice, dll.) sama persis seperti sebelumnya.
+        signRight,
     } = config;
 
     const qrDataUrl = await QRCode.toDataURL(verifyUrl, { margin: 1, width: 200 });
@@ -255,7 +259,7 @@ export async function renderDocumentPDF(config) {
     let finalY = doc.lastAutoTable.finalY + 20;
 
     // 6. Section Workflow / Approval
-    if (finalY + 100 > pageHeight) {
+    if (finalY + (signRight ? 135 : 100) > pageHeight) {
         doc.addPage();
         drawAbstractBackground(doc, pageWidth, pageHeight);
         finalY = 40;
@@ -270,9 +274,12 @@ export async function renderDocumentPDF(config) {
 
     const marginLeft = 20, marginRight = 20;
     const usableWidth = pageWidth - marginLeft - marginRight;
-    const colCount = 5;
-    const colWidth = usableWidth / colCount;
-    const rowHeight = 65;
+    const colWidth = usableWidth / 5;
+    // Dengan signRight, kolom paling kanan dicadangkan untuk blok tanda tangan,
+    // histori memakai 4 kolom pertama. Jarak nama user diperlebar sebagai ruang TTD basah.
+    const colCount = signRight ? 4 : 5;
+    const rowHeight = signRight ? 85 : 65;
+    const userOffset = signRight ? 48 : 22;
 
     history.forEach((h, idx) => {
         const col = idx % colCount;
@@ -296,7 +303,7 @@ export async function renderDocumentPDF(config) {
 
         doc.setFont(undefined, "normal").setFontSize(7.5);
         const splitUser = doc.splitTextToSize(h.userName || "-", maxTextWidth);
-        const userY = yy + 22 + nodeHeightOffset;
+        const userY = yy + userOffset + nodeHeightOffset;
         doc.text(splitUser, x, userY);
 
         const textWidth = doc.getTextWidth(splitUser[0] || "");
@@ -305,6 +312,29 @@ export async function renderDocumentPDF(config) {
         const userHeightOffset = (splitUser.length - 1) * 9;
         doc.text(h.date || "-", x, userY + 15 + userHeightOffset);
     });
+
+    // Blok tanda tangan kanan (mis. Customer) — rata kanan kertas, sejajar baris pertama histori.
+    if (signRight) {
+        const rightX = pageWidth - marginRight;
+        const signMaxWidth = colWidth * 1.4;
+
+        doc.setFont(undefined, "bold").setFontSize(7.5);
+        doc.text(signRight.label || "", rightX, finalY, { align: "right" });
+
+        // Samakan baris nama dengan nama user di histori (baris pertama)
+        let row0NodeOffset = 0;
+        history.slice(0, colCount).forEach((h) => {
+            const n = doc.splitTextToSize(h.nodeName || "-", colWidth - 5).length;
+            row0NodeOffset = Math.max(row0NodeOffset, (n - 1) * 9);
+        });
+
+        doc.setFont(undefined, "normal").setFontSize(7.5);
+        const nameLines = doc.splitTextToSize(String(signRight.name || "-"), signMaxWidth);
+        const nameY = finalY + userOffset + row0NodeOffset;
+        doc.text(nameLines, rightX, nameY, { align: "right" });
+        const nameW = Math.min(doc.getTextWidth(nameLines[0] || ""), signMaxWidth);
+        doc.line(rightX - nameW, nameY + 2, rightX, nameY + 2);
+    }
 
     const totalRows = Math.ceil(history.length / colCount);
     finalY += (totalRows > 0 ? totalRows : 1) * rowHeight;
@@ -320,7 +350,9 @@ export async function renderDocumentPDF(config) {
     doc.text("Verifikasi Dokumen Digital", pageWidth / 2, finalY, { align: "center" });
     doc.addImage(qrDataUrl, "PNG", pageWidth / 2 - 30, finalY + 10, 60, 60);
     doc.setFont(undefined, "normal").setFontSize(6.5);
-    doc.text(verifyCaption.replace("{documentNo}", documentNo), pageWidth / 2, finalY + 78, { align: "center" });
+    if (verifyCaption) {
+        doc.text(String(verifyCaption).replace("{documentNo}", documentNo ?? ""), pageWidth / 2, finalY + 78, { align: "center" });
+    }
 
     // 8. Bottom Footer
     doc.setFont(undefined, "italic").setFontSize(7);

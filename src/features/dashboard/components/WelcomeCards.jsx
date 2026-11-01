@@ -47,13 +47,12 @@ const CARDS = [
   { windowKey: 'internalUse',    to: '/internal-use',    icon: <UserTake size={30} />,          label: 'Internal Use' },
   
   // ── Grid menu marketing ───────────────────────────────────────────────────
-  { windowKey: 'salesOrder',     to: '/sales-order',     icon: <ShoppingBagIcon size={24}/>,    label: 'DO (Invoice Bulanan)'},
+  { windowKey: 'salesOrder',     to: '/sales-order',     icon: <ShoppingBagIcon size={24}/>,    label: 'Sales Order'},
+  { windowKey: 'shipmentCustomer',     to: '/shipment-customer',     icon: <DeliveryIcon size={30}/>,    label: 'Delivery Order'},
   { windowKey: 'salesInvoice',   to: '/sales-invoice',   icon: <ImportIcon size={30} />,        label: 'Sales Invoice' },
-  { windowKey: 'receiptCutomer', to: '/receipt-customer',icon: <MdOutlinePayments size={30} />, label: 'Payment by Customer' },
+  { windowKey: 'receiptCustomer', to: '/receipt-customer',icon: <MdOutlinePayments size={30} />, label: 'Payment by Customer' },
   { windowKey: 'cashierClosing', to: '/cashier-closing', icon: <UserTake size={30} />,          label: 'Cashier Closing' },
   { windowKey: 'bankStatement',  to: '/bank-statement',  icon: <BankIcon size={30} />,          label: 'Bank Statement' },
-  { windowKey: 'dashboardMenu',  to: '/dashboard-menu',  icon: <SiGoogleanalytics size={28} />, label: 'All Report' },
-
 ];
 
 // Angka Completed / In Progress bulan ini.

@@ -544,14 +544,8 @@ useEffect(() => {
   const handleImportFromRequisition = useCallback((cartItems, requisition) => {
     addItems(cartItems);
     setDescription(prev => prev.trim() ? prev : (requisition.Description || `Import dari FPB ${requisition.DocumentNo}`));
-    const vendorCount = new Set(cartItems.map(i => i.C_BPartner_ID)).size;
-    alert(
-      `${cartItems.length} item dari FPB ${requisition.DocumentNo} berhasil diimport.\n` +
-      `Akan menghasilkan ${vendorCount} Purchase Order terpisah saat submit.`,
-      'Import Berhasil'
-    );
   }, [addItems]);
-
+  
   const handleVendorClick = useCallback((item, itemKey) => {
     if (editOrderId) {
       alert(

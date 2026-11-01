@@ -1,7 +1,7 @@
 import { idempiereApi } from '@/api/idempiereApi';
 import { renderDocumentPDF } from '@/utils/pdf/renderDocumentPDF';
 import { cleanIdentifier } from '@/utils/pdf/formatIdentifier';
-import { useOrgInfo } from "@/shared/hooks/useOrgInfo";
+
 // ─────────────────────────────────────────────────────────────────────────────
 // generateShipmentPDF.js
 // Wrapper tipis: fetch data Customer Shipment (M_InOut + M_InOutLine + histori
@@ -26,6 +26,9 @@ const STATUS_MAP = {
 const VERIFY_BASE_URL = "https://192.168.0.126:8432/view/shipment"; // sesuaikan / buat route publik kalau belum ada
 
 const numberFormatter = new Intl.NumberFormat('en-US');
+
+// Normalisasi nama node workflow: "(DocPrepare)" / "Doc Prepare" → "docprepare"
+const normalizeNode = (name) => (name || "").toLowerCase().replace(/[^a-z0-9]/g, "");
 
 const formatDate = (dateStr) => {
   if (!dateStr) return "-";
@@ -58,13 +61,23 @@ export async function generateShipmentPDF(shipmentId, documentNo, orgInfo) {
     `&$select=AD_WF_Node_ID,AD_User_ID,Updated` +
     `&$orderby=Updated asc`
   );
-  const history = (historyRes.records || [])
-    .filter(h => !["(start)", "(docauto)", "(completedocument)"].includes((h.AD_WF_Node_ID?.identifier || "").toLowerCase()))
-    .map(h => ({
-      nodeName: h.AD_WF_Node_ID?.identifier || "-",
-      userName: h.AD_User_ID?.identifier || "-",
-      date: h.Updated ? new Date(h.Updated).toLocaleDateString("id-ID") : "-",
-    }));
+  // Histori hanya untuk node DocPrepare (yang menyiapkan dokumen).
+  // Bila DocPrepare tercatat lebih dari sekali, ambil yang paling akhir (urut asc → last).
+  const prepareRecords = (historyRes.records || [])
+    .filter(h => normalizeNode(h.AD_WF_Node_ID?.identifier) === "docprepare");
+  const lastPrepare = prepareRecords[prepareRecords.length - 1];
+  const history = lastPrepare ? [{
+    nodeName: lastPrepare.AD_WF_Node_ID?.identifier || "-",
+    userName: lastPrepare.AD_User_ID?.identifier || "-",
+    date: lastPrepare.Updated ? new Date(lastPrepare.Updated).toLocaleDateString("id-ID") : "-",
+  }] : [];
+
+  // Blok tanda tangan Customer — dirender renderDocumentPDF rata kanan kertas,
+  // sejajar dengan blok histori DocPrepare di sebelah kiri.
+  const signRight = {
+    label: "Customer:",
+    name: header.C_BPartner_ID?.identifier || "-",
+  };
 
   const statusCode = header.DocStatus?.id ?? header.DocStatus;
 
@@ -87,7 +100,7 @@ export async function generateShipmentPDF(shipmentId, documentNo, orgInfo) {
       head: [["No", "Produk", "Qty Order", "UOM", "Qty Dikirim", "Keterangan"]],
       body: lines.map((l, idx) => [
         l.Line ?? idx + 1,
-        cleanIdentifier(l.M_Product_ID?.identifier) || "-",
+        cleanIdentifier(l.M_Product_ID?.identifier ?? "") || "-",
         numberFormatter.format(l.QtyEntered ?? 0),
         l.C_UOM_ID?.identifier || "-",
         numberFormatter.format(l.MovementQty ?? 0),
@@ -98,14 +111,15 @@ export async function generateShipmentPDF(shipmentId, documentNo, orgInfo) {
         1: { cellWidth: 200 },
         2: { cellWidth: 65,  halign: 'right' },
         3: { cellWidth: 50 },
-        4: { cellWidth: 70,  halign: 'right' },
-        5: { cellWidth: 130 },
+        4: { cellWidth: 75,  halign: 'right' },
+        5: { cellWidth: 125 },   // total kolom 525pt — sebelumnya 545pt melebihi lebar halaman (~535pt)
       },
     },
     history,
+    signRight,
     verifyUrl: `${VERIFY_BASE_URL}/${header.uid}`,
     verifyCaption: "Scan untuk verifikasi keaslian & status dokumen {documentNo}",
     filenamePrefix: "DO", // Delivery Order — sesuaikan kalau ada konvensi lain
-    documentNo: header.DocumentNo,
+    documentNo: header.DocumentNo ?? documentNo ?? String(shipmentId),
   });
 }

@@ -4,21 +4,23 @@ import { lineKey } from '@/features/sales/invoice/hooks/useSalesCart';
 import { COLOR, RADIUS } from '@/utils/styleTokens';
 import { formatCurrency } from '@/utils/currency';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// SICartSidebar.jsx
-// Padanan POCartSidebar.jsx untuk Sales Invoice. BEDA UTAMA dari POCartSidebar:
-//   - `items` FLAT (bukan `vendorGroups`) — tidak dikelompokkan, karena 1 cart
-//     Sales Invoice selalu untuk 1 customer yang sama (dipilih di header
-//     container via CustomerPickerModal, bukan per-item seperti Purchasing).
-//   - Tidak ada badge/tombol "Pilih Vendor" per baris (lihat SICartItem.jsx)
-//     — status customer ditampilkan sekali di summary bar (`customerName`)
-//     dan warning kalau belum dipilih.
-//   - `onSubmit` (single-button mode, dipakai SalesInvoiceContainer untuk
-//     buka SalesInvoiceSubmitModal berisi DRAFT/COMPLETE) TETAP didukung,
-//     tapi kalau kamu mau tombol Draft/Complete langsung di sidebar (tanpa
-//     modal), tinggal pasang `onSubmitDraft`/`onSubmitComplete` — sama pola
-//     seperti POCartSidebar (isSingleButtonMode auto-detect).
-// ─────────────────────────────────────────────────────────────────────────────
+/** ─────────────────────────────────────────────────────────────────────────────
+* SICartSidebar.jsx
+* Padanan POCartSidebar.jsx untuk Sales Invoice. BEDA UTAMA dari POCartSidebar:
+*   - `items` FLAT (bukan `vendorGroups`) — tidak dikelompokkan, karena 1 cart
+*     Sales Invoice selalu untuk 1 customer yang sama (dipilih di header
+*     container via CustomerPickerModal, bukan per-item seperti Purchasing).
+*   - Tidak ada badge/tombol "Pilih Vendor" per baris (lihat SICartItem.jsx)
+*     — status customer ditampilkan sekali di summary bar (`customerName`)
+*     dan warning kalau belum dipilih.
+*   - `onSubmit` (single-button mode, dipakai SalesInvoiceContainer untuk
+*     buka SalesInvoiceSubmitModal berisi DRAFT/COMPLETE) TETAP didukung,
+*     tapi kalau kamu mau tombol Draft/Complete langsung di sidebar (tanpa
+*     modal), tinggal pasang `onSubmitDraft`/`onSubmitComplete` — sama pola
+*     seperti POCartSidebar (isSingleButtonMode auto-detect).
+* ─────────────────────────────────────────────────────────────────────────────
+*/
+
 const SICartSidebar = ({
   items = [], onRemove, onQtyChange, onPriceChange, onUomChange,
   onClearCart, totalItems, totalAmount, summaryRight,
