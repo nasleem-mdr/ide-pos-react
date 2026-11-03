@@ -1,5 +1,5 @@
-// components/PriceTrendChart.jsx
 // Grafik tren harga beli vs harga jual dari C_OrderLine.PriceActual per tanggal.
+
 import React from 'react';
 import {
   ResponsiveContainer, ComposedChart, Line, XAxis, YAxis,

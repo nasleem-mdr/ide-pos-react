@@ -1,7 +1,7 @@
-// pages/ProductAnalysisContainer.jsx
-// Halaman Product Analysis — tools analisis produk untuk pengambilan keputusan:
-// history requisition/PO/SO/Invoice, KPI harga & margin, tren harga,
-// volume bulanan, dan keterkaitan Fact_Acct.
+/** Halaman Product Analysis — tools analisis produk untuk pengambilan keputusan:
+ *  history requisition/PO/SO/Invoice, KPI harga & margin, tren harga,
+ *  volume bulanan, dan keterkaitan Fact_Acct.
+*/
 import React from 'react';
 import { useProductAnalysis } from '../hooks';
 import {

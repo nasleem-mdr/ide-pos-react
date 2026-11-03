@@ -1,5 +1,5 @@
-// components/DocsTable.jsx
-// Tab history dokumen: Requisition / Purchase Order / Sales Order / Invoice.
+// Tab yang berisi history dokumen: Requisition / Purchase Order / Sales Order / Invoice.
+
 import React, { useState } from 'react';
 import { fmtNum, fmtDate } from '../utils/productAnalysisApi';
 

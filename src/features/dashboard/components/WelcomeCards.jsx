@@ -35,7 +35,7 @@ const CARDS = [
     // TODO: sesuaikan model/dateField dengan tabel Goods Receipt Anda
     windowKey: 'cashierClosing', to: '/cashier-closing', icon: <SafeBoxIcon size={42} />,
     label: 'Cashier Close', featured: true, tone: 'blue',
-    stats: { model: 'c_bankstatement', dateField: 'StatementDate', baseFilter: 'IsSOTrx eq false' },
+    stats: { model: 'c_bankstatement', dateField: 'StatementDate', totalField: 'EndingBalance', baseFilter: 'IsActive eq true' },
   },
   
   // ── Grid menu procurement ───────────────────────────────────────────────────

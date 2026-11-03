@@ -1,5 +1,5 @@
-// components/ProductSearchInput.jsx
 // Pencarian produk dengan debounce — hasil tampil sebagai dropdown pilihan.
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 
 export default function ProductSearchInput({ onSearch, onSelect, disabled }) {
