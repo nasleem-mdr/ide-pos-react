@@ -197,17 +197,6 @@ export default function IDempiereAuth({ onLoginSuccess }) {
         acctSchemaId: data.acctSchemaId,   // ← baris baru
         language,
       });
-      // onLoginSuccess({
-      //   token: data.token,
-      //   username: form1.username,
-      //   clientId: parseInt(selectedClientId, 10),
-      //   clientName: clients.find((c) => String(c.id) === selectedClientId)?.name || selectedClientId,
-      //   roleId: parseInt(selectedRoleId, 10),
-      //   roleName: roles.find((r) => String(r.id) === selectedRoleId)?.name || selectedRoleId,
-      //   orgId: parseInt(selectedOrgId, 10),
-      //   orgName: orgs.find((o) => String(o.id) === selectedOrgId)?.name || selectedOrgId,
-      //   language,
-      // });
       navigate('/dashboard');
     } catch (err) {
       setError(err.message);
@@ -249,8 +238,8 @@ export default function IDempiereAuth({ onLoginSuccess }) {
             <div className="brand">
               <div className="logo-container"><LogoIconW size={40} /></div>
               <div className="brand-text">
-                <div className="brand-name">Procure<em>Grid</em></div>
-                <div className="brand-sub">Part of IDempiere</div>
+                <div className="brand-name">Flow<em>Piere</em></div>
+                <div className="brand-sub">React IDempiere</div>
               </div>
               <button className="hamburger-btn" onClick={() => setLeftOpen(!leftOpen)}>
                 {leftOpen ? '☰' : '☰'}
@@ -295,8 +284,8 @@ export default function IDempiereAuth({ onLoginSuccess }) {
             <div className="brand">
               <div><LogoIconW size={40}/></div>
               <div>
-                <div className="brand-name">Procure<em>Grid</em></div>
-                <div className="brand-sub">Procurement Application</div>
+                <div className="brand-name">Flow<em>Piere</em></div>
+                <div className="brand-sub">React App for IDempiere</div>
               </div>
             </div>
             <div className="card-sub"><em>Enter your username and passwoer to continue.</em></div>
