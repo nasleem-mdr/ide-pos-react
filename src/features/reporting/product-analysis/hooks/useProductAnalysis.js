@@ -1,7 +1,9 @@
-// hooks/useProductAnalysis.js
-// Orkestrator Product Analysis: satu pemilihan produk memicu paralel
-// load history requisition / PO / Sales Order / Invoice / Fact_Acct,
-// lalu agregasi jadi KPI + series grafik.
+/** Hooks ini bertindak  sebagai Orkestrator Product Analysis: 
+ * satu pemilihan produk memicu paralel load history terhadap 
+ * requisition / PO / Sales Order / Invoice / Fact_Acct,
+ * lalu agregasi jadi KPI + series grafik.
+ */
+
 import { useState, useCallback } from 'react';
 import { idempiereApi } from '@/api/idempiereApi';
 import {
@@ -83,5 +85,5 @@ export function useProductAnalysis() {
   }, []);
 
   return { product, data, kpis, priceSeries, monthlySeries, loading, error,
-           findProducts, selectProduct, clear };
+    findProducts, selectProduct, clear };
 }

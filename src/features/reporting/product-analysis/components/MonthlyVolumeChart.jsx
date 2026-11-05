@@ -1,5 +1,5 @@
-// components/MonthlyVolumeChart.jsx
 // Grafik volume qty bulanan: pembelian vs penjualan (dari C_OrderLine).
+
 import React from 'react';
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis,

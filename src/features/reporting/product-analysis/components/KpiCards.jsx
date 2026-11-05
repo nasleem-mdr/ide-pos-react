@@ -1,5 +1,5 @@
-// components/KpiCards.jsx
 // Kartu KPI ringkasan produk untuk pengambilan keputusan cepat.
+
 import React from 'react';
 import { fmtNum, fmtDate } from '../utils/productAnalysisApi';
 

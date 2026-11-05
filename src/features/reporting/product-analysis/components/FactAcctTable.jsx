@@ -1,6 +1,7 @@
-// components/FactAcctTable.jsx
-// Keterkaitan produk dengan jurnal accounting (Fact_Acct) —
-// jejak posting per dokumen: akun, debit, credit, sumber dokumen.
+/** Keterkaitan produk dengan jurnal accounting (Fact_Acct) —
+ *  jejak posting per dokumen: akun, debit, credit, sumber dokumen.
+ */
+
 import React from 'react';
 import { fmtNum, fmtDate } from '../utils/productAnalysisApi';
 

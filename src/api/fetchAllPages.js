@@ -12,6 +12,7 @@ import { idempiereApi } from "@/api/idempiereApi";
  *    (mis. hanya DateAcct) baris bisa dobel/hilang antar halaman.
  * ⚠️ Jangan sertakan $top/$skip di path — ditambahkan otomatis.
  */
+
 export async function fetchAllPages(
     path,
     { pageSize = 100, concurrency = 4, onProgress, isCancelled } = {}

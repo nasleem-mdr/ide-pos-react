@@ -1,10 +1,11 @@
-// utils/productAnalysisApi.js
-// Lapisan akses data REST untuk Product Analysis (decision support).
-// Sumber data (semua via /api/v1/models — tanpa SQL kustom):
-//   M_RequisitionLine  → history kebutuhan (requisition)
-//   C_OrderLine        → history PO (IsSOTrx=false) & Sales Order (IsSOTrx=true)
-//   C_InvoiceLine      → history pembelian & penjualan aktual (terinvoisi)
-//   Fact_Acct          → keterkaitan jurnal accounting produk
+/** Lapisan akses data REST untuk Product Analysis (decision support).
+ *  Sumber data (semua via /api/v1/models — tanpa SQL kustom):
+ *  M_RequisitionLine  → history kebutuhan (requisition)
+ *  C_OrderLine        → history PO (IsSOTrx=false) & Sales Order (IsSOTrx=true)
+ *  C_InvoiceLine      → history pembelian & penjualan aktual (terinvois)
+ *  Fact_Acct          → keterkaitan jurnal accounting produk
+ */
+
 import { idempiereApi, fkId, fkLabel } from '@/api/idempiereApi';
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
